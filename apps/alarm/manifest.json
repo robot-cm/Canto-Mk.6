@@ -1,0 +1,10 @@
+{
+  "id": "com.elenix.alarm",
+  "name": "闹钟",
+  "version": "1.0.0",
+  "author": "ElenixOS",
+  "description": "闹钟：待命/当前时间/日期/设定闹钟(时分+设定/取消/开关)/响铃覆盖层（闹钟.html 移植）",
+  "minApiLevel": 0,
+  "targetApiLevel": 0,
+  "background": false
+}

@@ -1,0 +1,10 @@
+{
+  "id": "com.elenix.breach",
+  "name": "入侵协议",
+  "version": "0.1.0",
+  "author": "ElenixOS",
+  "description": "入侵协议：赛博朋克 2077 黑客小游戏（Breach Protocol）",
+  "minApiLevel": 0,
+  "targetApiLevel": 0,
+  "background": false
+}

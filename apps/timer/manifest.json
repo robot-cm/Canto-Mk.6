@@ -1,0 +1,10 @@
+{
+  "id": "com.elenix.timer",
+  "name": "计时器",
+  "version": "1.1.0",
+  "author": "ElenixOS",
+  "description": "秒表：HH:MM:SS.X + 后台续计时（eos.config 持久化+时间戳补差）+ 计次持久化",
+  "minApiLevel": 0,
+  "targetApiLevel": 0,
+  "background": true
+}

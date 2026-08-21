@@ -1,0 +1,10 @@
+{
+  "id": "com.elenix.globaltime",
+  "name": "环球时间",
+  "version": "0.1.0",
+  "author": "ElenixOS",
+  "description": "环球时间：点阵地球 + 城市时区（GlobalTimeEarth 精神移植）",
+  "minApiLevel": 0,
+  "targetApiLevel": 0,
+  "background": false
+}
