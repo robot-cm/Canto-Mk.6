@@ -1,0 +1,10 @@
+{
+  "id": "com.elenix.calculator",
+  "name": "Calculator",
+  "version": "1.0.0",
+  "author": "EraShaperAVM",
+  "description": "Calculator: STD (+ - * /) / ADV (+ pow, mod, sqrt, sin/cos/tan)",
+  "minApiLevel": 0,
+  "targetApiLevel": 0,
+  "background": false
+}

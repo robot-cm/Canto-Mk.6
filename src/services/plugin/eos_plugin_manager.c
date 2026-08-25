@@ -52,7 +52,7 @@ eos_result_t eos_plugin_manager_scan(bool force, eos_plugin_scan_result_t *out_r
         if (!is_wf && !is_app)
             continue;
 
-        char full[EOS_FS_PATH_MAX];
+        char full[EOS_FS_PATH_MAX + EOS_FS_NAME_MAX];
         snprintf(full, sizeof(full), "%s%s", EOS_SD_APPS_DIR, name);
         if (!eos_storage_is_file(full))
             continue;

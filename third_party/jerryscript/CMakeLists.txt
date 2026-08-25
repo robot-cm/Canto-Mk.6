@@ -224,7 +224,10 @@ if(USING_GCC OR USING_CLANG)
   if(NOT "${PLATFORM}" STREQUAL "WINDOWS")
     jerry_add_compile_warnings(conversion)
   endif()
-  jerry_add_compile_flags(-Wno-stack-protector -Wno-attributes -Werror)
+  # GCC 13+ 新增 -Wunterminated-string-initialization,在 -Werror 下会
+  # 拦截 ecma-builtin-helpers-date.c 等文件的月份/星期字符串数组初始化,
+  # 导致全量构建失败。此处显式关闭(仅该特定警告)。
+  jerry_add_compile_flags(-Wno-stack-protector -Wno-attributes -Werror -Wno-unterminated-string-initialization)
 endif()
 
 if(USING_GCC)

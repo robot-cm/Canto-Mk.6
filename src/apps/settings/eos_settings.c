@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #define EOS_LOG_TAG "Settings"
+#include <inttypes.h>
 #include "eos_log.h"
 #include "lvgl.h"
 #include "cJSON.h"
@@ -45,6 +46,8 @@
 #include "eos_activity.h"
 #include "eos_input_page.h"
 #include "eos_net_wifi.h"
+#include "eos_net_bt.h"
+#include "eos_net_vpn.h"
 #include "eos_service_permission.h"
 #include "eos_sha256.h"
 #include "eos_service_lock.h"
@@ -124,17 +127,223 @@ static void _bluetooth_enable_switch_cb(lv_event_t *e)
     }
 }
 
+/* 蓝牙页容器句柄(单实例,页面销毁时清空) */
+static lv_obj_t *s_bt_dev_container = NULL;
+static lv_obj_t *s_bt_paired_container = NULL;
+
+static void _bt_view_delete_cb(lv_event_t *e)
+{
+    (void)e;
+    s_bt_dev_container = NULL;
+    s_bt_paired_container = NULL;
+}
+
+/* BT 设备行: [蓝牙图标][名称] ─── [RSSI][Paired] */
+static lv_obj_t *_bt_device_row_create(lv_obj_t *parent, const eos_bt_device_t *dev)
+{
+    lv_obj_t *row = lv_button_create(parent);
+    lv_obj_set_size(row, lv_pct(100), 56);
+    lv_obj_set_style_bg_color(row, EOS_THEME_SECONDARY_COLOR, 0);
+    lv_obj_set_style_border_width(row, 0, 0);
+    lv_obj_set_style_radius(row, EOS_LIST_OBJ_RADIUS, 0);
+    lv_obj_set_style_margin_bottom(row, 8, 0);
+    lv_obj_set_style_pad_all(row, 0, 0);
+
+    /* 左: 蓝色圆底蓝牙图标 */
+    lv_obj_t *round = lv_obj_create(row);
+    lv_obj_set_size(round, 32, 32);
+    lv_obj_set_style_bg_color(round, EOS_COLOR_BLUE, 0);
+    lv_obj_set_style_radius(round, 8, 0);
+    lv_obj_set_style_border_width(round, 0, 0);
+    lv_obj_set_style_pad_all(round, 0, 0);
+    lv_obj_align(round, LV_ALIGN_LEFT_MID, 12, 0);
+    lv_obj_t *icon = lv_label_create(round);
+    lv_label_set_text(icon, RI_BLUETOOTH_FILL);
+    lv_obj_set_style_text_color(icon, lv_color_white(), 0);
+    lv_obj_center(icon);
+
+    /* 中: 设备名(过长滚动) */
+    lv_obj_t *name = lv_label_create(row);
+    lv_label_set_text(name, dev->name);
+    lv_label_set_long_mode(name, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_obj_set_style_text_color(name, lv_color_white(), 0);
+    eos_label_set_font_size(name, EOS_FONT_SIZE_SMALL);
+    lv_obj_align(name, LV_ALIGN_LEFT_MID, 56, 0);
+    lv_obj_set_width(name, 110);
+
+    /* 右: RSSI + 已配对标记 */
+    lv_obj_t *info = lv_label_create(row);
+    char buf[40];
+    if (dev->paired)
+    {
+        snprintf(buf, sizeof(buf), "%ddBm %s", dev->rssi, "Paired");
+    }
+    else
+    {
+        snprintf(buf, sizeof(buf), "%ddBm", dev->rssi);
+    }
+    lv_label_set_text(info, buf);
+    lv_obj_set_style_text_color(info, lv_color_hex(0x9AA0A6), 0);
+    eos_label_set_font_size(info, EOS_FONT_SIZE_SMALL);
+    lv_obj_align(info, LV_ALIGN_RIGHT_MID, -12, 0);
+    return row;
+}
+
+/* 设备行点击回调(定义在下方,此处前置声明供 _bt_scan_fill 使用) */
+static void _bt_device_clicked_cb(lv_event_t *e);
+
+/* 扫描结果填入设备容器(show_toast 控制是否提示) */
+static void _bt_scan_fill(lv_obj_t *dev_container, bool show_toast)
+{
+    eos_bt_device_t devs[EOS_NET_BT_SCAN_MAX];
+    uint32_t count = 0;
+    lv_obj_clean(dev_container);
+    if (eos_net_bt_scan(devs, EOS_NET_BT_SCAN_MAX, &count) != EOS_OK || count == 0)
+    {
+        if (show_toast)
+        {
+            eos_toast_show(NULL, "No devices found");
+        }
+        return;
+    }
+    for (uint32_t i = 0; i < count; i++)
+    {
+        char *addr_copy = eos_strdup(devs[i].addr);
+        if (!addr_copy)
+        {
+            continue;
+        }
+        lv_obj_t *row = _bt_device_row_create(dev_container, &devs[i]);
+        lv_obj_add_event_cb(row, _bt_device_clicked_cb, LV_EVENT_CLICKED, addr_copy);
+        lv_obj_add_event_cb(row, _free_user_data_on_delete_cb, LV_EVENT_DELETE, NULL);
+    }
+    if (show_toast)
+    {
+        eos_toast_show(NULL, "Scanned");
+    }
+}
+
+/* 已配对列表 */
+static void _bt_paired_fill(lv_obj_t *pair_container)
+{
+    eos_bt_device_t devs[EOS_NET_BT_SCAN_MAX];
+    uint32_t count = 0;
+    lv_obj_clean(pair_container);
+    if (eos_net_bt_get_paired(devs, EOS_NET_BT_SCAN_MAX, &count) != EOS_OK || count == 0)
+    {
+        lv_obj_t *empty = lv_label_create(pair_container);
+        lv_label_set_text(empty, "None");
+        lv_obj_set_style_text_color(empty, lv_color_hex(0x9AA0A6), 0);
+        eos_label_set_font_size(empty, EOS_FONT_SIZE_SMALL);
+        return;
+    }
+    for (uint32_t i = 0; i < count; i++)
+    {
+        lv_obj_t *row = lv_button_create(pair_container);
+        lv_obj_set_size(row, lv_pct(100), 44);
+        lv_obj_set_style_bg_color(row, EOS_THEME_SECONDARY_COLOR, 0);
+        lv_obj_set_style_border_width(row, 0, 0);
+        lv_obj_set_style_radius(row, EOS_LIST_OBJ_RADIUS, 0);
+        lv_obj_set_style_margin_bottom(row, 6, 0);
+        lv_obj_set_style_pad_all(row, 0, 0);
+        lv_obj_t *lbl = lv_label_create(row);
+        char buf[EOS_NET_BT_NAME_MAX + EOS_NET_BT_ADDR_MAX + 2];
+        snprintf(buf, sizeof(buf), "%s  %s", devs[i].name, devs[i].addr);
+        lv_label_set_text(lbl, buf);
+        lv_label_set_long_mode(lbl, LV_LABEL_LONG_SCROLL_CIRCULAR);
+        lv_obj_set_style_text_color(lbl, lv_color_white(), 0);
+        eos_label_set_font_size(lbl, EOS_FONT_SIZE_SMALL);
+        lv_obj_align(lbl, LV_ALIGN_LEFT_MID, 12, 0);
+    }
+}
+
+/* 扫描按钮 → 同步扫描(服务层 mock 即时返回)并填充 */
+static void _bt_scan_clicked_cb(lv_event_t *e)
+{
+    (void)e;
+    if (!eos_net_bt_is_enabled())
+    {
+        eos_toast_show(NULL, "Enable Bluetooth first");
+        return;
+    }
+    if (s_bt_dev_container && lv_obj_is_valid(s_bt_dev_container))
+    {
+        _bt_scan_fill(s_bt_dev_container, true);
+    }
+}
+
+/* 设备行点击 → 配对(mock 返回 ok) + 刷新列表 */
+static void _bt_device_clicked_cb(lv_event_t *e)
+{
+    const char *addr = (const char *)lv_event_get_user_data(e);
+    if (!addr || !addr[0])
+    {
+        return;
+    }
+    if (!eos_net_bt_is_enabled())
+    {
+        eos_toast_show(NULL, "Enable Bluetooth first");
+        return;
+    }
+    eos_result_t r = eos_net_bt_connect(addr);
+    if (r == EOS_OK)
+    {
+        eos_toast_show(NULL, "Paired: OK");
+    }
+    else
+    {
+        eos_toast_show(NULL, "Pair failed");
+    }
+    if (s_bt_dev_container && lv_obj_is_valid(s_bt_dev_container))
+    {
+        _bt_scan_fill(s_bt_dev_container, false);
+    }
+    if (s_bt_paired_container && lv_obj_is_valid(s_bt_paired_container))
+    {
+        _bt_paired_fill(s_bt_paired_container);
+    }
+}
+
 static void _settings_view_bluetooth(lv_event_t *e)
 {
     lv_obj_t *view = NULL;
     eos_activity_t *a = _create_activity_with_header(STR_ID_SETTINGS_BLUETOOTH, &view);
     EOS_CHECK_PTR_RETURN(a && view);
     lv_obj_t *list = eos_list_create(view);
+
     lv_obj_t *bt_sw = _auto_get_config_switch_create(list,
                                                      eos_lang_get_text(STR_ID_SETTINGS_BLUETOOTH_ENABLE),
                                                      EOS_CONFIG_KEY_BLUETOOTH_BOOL,
                                                      false);
     lv_obj_add_event_cb(bt_sw, _bluetooth_enable_switch_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+    eos_list_add_placeholder(list, EOS_LIST_SECTION_PLACEHOLDER_HEIGHT);
+
+    /* 扫描按钮 + 设备列表 */
+    lv_obj_t *scan_btn = eos_list_add_entry_button(list, "Scan devices");
+    lv_obj_t *dev_container = eos_list_add_container(list);
+    lv_obj_set_layout(dev_container, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(dev_container, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(dev_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_add_event_cb(scan_btn, _bt_scan_clicked_cb, LV_EVENT_CLICKED, NULL);
+
+    /* 已配对列表 */
+    eos_list_add_title(list, "Paired");
+    lv_obj_t *pair_container = eos_list_add_container(list);
+    lv_obj_set_layout(pair_container, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(pair_container, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(pair_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+    eos_list_add_comment(list, "Saved to /sdcard/history/bt");
+
+    /* 记录容器句柄,页面销毁时清空 */
+    s_bt_dev_container = dev_container;
+    s_bt_paired_container = pair_container;
+    lv_obj_add_event_cb(view, _bt_view_delete_cb, LV_EVENT_DELETE, NULL);
+
+    /* 打开页面时展示已配对设备 */
+    _bt_paired_fill(pair_container);
+
     eos_activity_enter(a);
 }
 
@@ -148,17 +357,26 @@ typedef struct
 static void _wifi_enable_switch_cb(lv_event_t *e)
 {
     lv_obj_t *sw = lv_event_get_target(e);
+    EOS_LOG_D("wifi switch VALUE_CHANGED: target=%p checked=%d", sw, lv_obj_has_state(sw, LV_STATE_CHECKED));
     eos_net_wifi_set_enabled(lv_obj_has_state(sw, LV_STATE_CHECKED));
 }
 
-/* 键盘输密码 → 连接 */
+/* 键盘输密码 → 连接(异步:esp_wifi_connect 阻塞 15s,必须在后台 worker 执行) */
 static void _wifi_pwd_input_cb(const char *text, eos_input_result_t result, void *user_data)
 {
     wifi_connect_ctx_t *ctx = (wifi_connect_ctx_t *)user_data;
     if (result == EOS_INPUT_RESULT_OK && text && text[0] && ctx)
     {
         EOS_LOG_I("WiFi connect: ssid=%s", ctx->ssid);
-        eos_net_wifi_connect(ctx->ssid, text);
+        eos_result_t r = eos_net_wifi_connect_async(ctx->ssid, text);
+        if (r == EOS_OK)
+        {
+            eos_toast_show(NULL, "Connecting...");
+        }
+        else
+        {
+            eos_toast_show(NULL, "Failed");
+        }
     }
     if (ctx)
     {
@@ -184,7 +402,104 @@ static void _wifi_ap_clicked_cb(lv_event_t *e)
     eos_input_page_open_with_callback(NULL, _wifi_pwd_input_cb, ctx);
 }
 
-/* 扫描附近 Wi-Fi → 填入 AP 容器 */
+/* AP 行: [WiFi图标][SSID] ─── [🔒][dBm], 64px 紧凑高度便于显示 ≥3 个 AP */
+static lv_obj_t *_wifi_ap_row_create(lv_obj_t *parent, const eos_wifi_ap_t *ap, lv_event_cb_t cb, void *ud)
+{
+    lv_obj_t *row = lv_button_create(parent);
+    lv_obj_set_size(row, lv_pct(100), 64);
+    lv_obj_set_style_bg_color(row, EOS_THEME_SECONDARY_COLOR, 0);
+    lv_obj_set_style_border_width(row, 0, 0);
+    lv_obj_set_style_radius(row, EOS_LIST_OBJ_RADIUS, 0);
+    lv_obj_set_style_margin_bottom(row, 8, 0);
+    lv_obj_set_style_pad_all(row, 0, 0);
+
+    /* 左: 蓝色圆底 WiFi 图标 */
+    lv_obj_t *round = lv_obj_create(row);
+    lv_obj_set_size(round, 36, 36);
+    lv_obj_set_style_bg_color(round, EOS_COLOR_BLUE, 0);
+    lv_obj_set_style_radius(round, 8, 0);
+    lv_obj_set_style_border_width(round, 0, 0);
+    lv_obj_set_style_pad_all(round, 0, 0);
+    lv_obj_align(round, LV_ALIGN_LEFT_MID, 14, 0);
+    lv_obj_t *icon = lv_label_create(round);
+    lv_label_set_text(icon, RI_WIFI_FILL);
+    lv_obj_set_style_text_color(icon, lv_color_white(), 0);
+    lv_obj_center(icon);
+
+    /* 中: SSID (22px 等宽字体, 清晰显示) */
+    lv_obj_t *ssid = lv_label_create(row);
+    lv_label_set_text(ssid, ap->ssid);
+    lv_label_set_long_mode(ssid, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_obj_set_style_text_color(ssid, lv_color_white(), 0);
+    eos_label_set_font_size(ssid, EOS_FONT_SIZE_SMALL);
+    lv_obj_align(ssid, LV_ALIGN_LEFT_MID, 62, 0);
+    lv_obj_set_width(ssid, 95);
+
+    /* 右: 加密锁(开放网络无锁) + 信号强度 */
+    lv_obj_t *info = lv_label_create(row);
+    const char *lock = (ap->auth == EOS_WIFI_AUTH_OPEN) ? "" : RI_LOCK_LINE;
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%s %d dBm", lock, ap->rssi);
+    lv_label_set_text(info, buf);
+    lv_obj_set_style_text_color(info, lv_color_hex(0x9AA0A6), 0);
+    eos_label_set_font_size(info, EOS_FONT_SIZE_SMALL);
+    lv_obj_align(info, LV_ALIGN_RIGHT_MID, -12, 0);
+
+    lv_obj_add_event_cb(row, cb, LV_EVENT_CLICKED, ud);
+    return row;
+}
+
+/* 从缓存填充 AP 容器(UI 线程调用,不碰 esp_wifi) */
+static void _wifi_scan_fill(lv_obj_t *ap_container)
+{
+    eos_wifi_ap_t aps[EOS_NET_WIFI_SCAN_MAX];
+    uint32_t count = 0;
+    if (eos_net_wifi_scan_take(aps, EOS_NET_WIFI_SCAN_MAX, &count) != EOS_OK || count == 0)
+    {
+        eos_toast_show(NULL, "No Wi-Fi found");
+        return;
+    }
+
+    lv_obj_clean(ap_container);   /* 清旧 AP 行，重建 */
+    for (uint32_t i = 0; i < count; i++)
+    {
+        char *ssid_copy = eos_strdup(aps[i].ssid);
+        if (!ssid_copy)
+            continue;
+        lv_obj_t *row = _wifi_ap_row_create(ap_container, &aps[i], _wifi_ap_clicked_cb, ssid_copy);
+        lv_obj_add_event_cb(row, _free_user_data_on_delete_cb, LV_EVENT_DELETE, NULL);
+    }
+    eos_toast_show(NULL, "Scanned");
+}
+
+/* 扫描轮询:后台 worker 完成(esp_wifi_scan 不阻塞 UI)后取结果填充 */
+typedef struct
+{
+    lv_obj_t *ap_container;
+} wifi_scan_poll_ctx_t;
+
+static void _wifi_scan_poll_timer_cb(lv_timer_t *t)
+{
+    wifi_scan_poll_ctx_t *ctx = (wifi_scan_poll_ctx_t *)lv_timer_get_user_data(t);
+    if (!ctx)
+    {
+        lv_timer_del(t);
+        return;
+    }
+    if (eos_net_wifi_scan_busy())
+    {
+        return; /* 继续轮询 */
+    }
+    lv_timer_del(t);
+    lv_obj_t *container = ctx->ap_container;
+    eos_free(ctx);
+    if (container && lv_obj_is_valid(container))
+    {
+        _wifi_scan_fill(container);
+    }
+}
+
+/* 扫描附近 Wi-Fi(异步)→ 填入 AP 容器 */
 static void _wifi_scan_clicked_cb(lv_event_t *e)
 {
     lv_obj_t *btn = lv_event_get_target(e);
@@ -195,28 +510,30 @@ static void _wifi_scan_clicked_cb(lv_event_t *e)
         return;
     }
 
-    eos_wifi_ap_t aps[EOS_NET_WIFI_SCAN_MAX];
-    uint32_t count = 0;
-    if (eos_net_wifi_scan(aps, EOS_NET_WIFI_SCAN_MAX, &count) != EOS_OK || count == 0)
+    if (!eos_net_wifi_is_enabled())
     {
-        eos_toast_show(NULL, "未发现 Wi-Fi");
+        eos_toast_show(NULL, "Enable Wi-Fi first");
         return;
     }
 
-    lv_obj_clean(ap_container);   /* 清旧 AP 行，重建 */
-    for (uint32_t i = 0; i < count; i++)
+    if (eos_net_wifi_scan_async() != EOS_OK)
     {
-        char label[64];
-        snprintf(label, sizeof(label), "%s  (%d dBm)", aps[i].ssid, aps[i].rssi);
-        lv_obj_t *row = eos_list_add_button(ap_container, RI_WIFI_FILL, label);
-        char *ssid_copy = eos_strdup(aps[i].ssid);
-        if (ssid_copy)
-        {
-            lv_obj_add_event_cb(row, _wifi_ap_clicked_cb, LV_EVENT_CLICKED, ssid_copy);
-            lv_obj_add_event_cb(row, _free_user_data_on_delete_cb, LV_EVENT_DELETE, NULL);
-        }
+        eos_toast_show(NULL, eos_net_wifi_scan_busy() ? "Scanning..." : "Scan failed");
+        return;
     }
-    eos_toast_show(NULL, "已扫描");
+
+    eos_toast_show(NULL, "Scanning...");
+    wifi_scan_poll_ctx_t *ctx = (wifi_scan_poll_ctx_t *)eos_malloc(sizeof(*ctx));
+    if (!ctx)
+    {
+        return;
+    }
+    ctx->ap_container = ap_container;
+    lv_timer_t *t = lv_timer_create(_wifi_scan_poll_timer_cb, 150, ctx);
+    if (!t)
+    {
+        eos_free(ctx);
+    }
 }
 
 static void _settings_view_wifi(lv_event_t *e)
@@ -236,6 +553,10 @@ static void _settings_view_wifi(lv_event_t *e)
     /* 扫描按钮 */
     lv_obj_t *scan_btn = eos_list_add_entry_button(list, eos_lang_get_text(STR_ID_SETTINGS_WIFI_SCAN));
     lv_obj_t *ap_container = eos_list_add_container(list);
+    /* AP 行竖排: 容器默认无布局, 多个子对象会重叠在 (0,0) 导致只显示一个 AP */
+    lv_obj_set_layout(ap_container, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(ap_container, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(ap_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_add_event_cb(scan_btn, _wifi_scan_clicked_cb, LV_EVENT_CLICKED, ap_container);
 
     /* 当前连接状态 */
@@ -251,20 +572,25 @@ static void _settings_view_wifi(lv_event_t *e)
         snprintf(status, sizeof(status), "%s", eos_lang_get_text(STR_ID_SETTINGS_WIFI_DISCONNECTED));
     }
     eos_list_add_comment(list, status);
+    eos_list_add_comment(list, "Saved: /sdcard/history/wifi");
 
     eos_activity_enter(a);
 }
 
-/************************** SOCKS5 Proxy Settings **************************/
+/************************** VPN (WireGuard via microlink) **************************/
 
-static void _socks5_enable_switch_cb(lv_event_t *e)
+static void _vpn_enable_switch_cb(lv_event_t *e)
 {
     lv_obj_t *sw = lv_event_get_target(e);
-    eos_config_set_bool(EOS_CONFIG_KEY_SOCKS5_ENABLED_BOOL, lv_obj_has_state(sw, LV_STATE_CHECKED));
+    if (eos_net_vpn_set_enabled(lv_obj_has_state(sw, LV_STATE_CHECKED)) != EOS_OK)
+    {
+        eos_toast_show(NULL, "VPN failed to start");
+        lv_obj_set_state(sw, LV_STATE_CHECKED, false);
+    }
 }
 
-/* 输入完成回调：which=0 server / 1 port / 2 username / 3 password */
-static void _socks5_input_cb(const char *text, eos_input_result_t result, void *user_data)
+/* 输入完成回调：which=0 auth key / 1 device name */
+static void _vpn_input_cb(const char *text, eos_input_result_t result, void *user_data)
 {
     if (result != EOS_INPUT_RESULT_OK || !text)
     {
@@ -272,42 +598,54 @@ static void _socks5_input_cb(const char *text, eos_input_result_t result, void *
     }
     switch ((int)(intptr_t)user_data)
     {
-        case 0: eos_config_set_string(EOS_CONFIG_KEY_SOCKS5_SERVER_STR, text); break;
-        case 1: eos_config_set_number(EOS_CONFIG_KEY_SOCKS5_PORT_NUMBER, atoi(text)); break;
-        case 2: eos_config_set_string(EOS_CONFIG_KEY_SOCKS5_USERNAME_STR, text); break;
-        case 3: eos_config_set_string(EOS_CONFIG_KEY_SOCKS5_PASSWORD_STR, text); break;
+        case 0: eos_net_vpn_set_auth_key(text); break;
+        case 1: eos_net_vpn_set_device_name(text); break;
         default: break;
     }
 }
 
-static void _socks5_row_clicked_cb(lv_event_t *e)
+static void _vpn_row_clicked_cb(lv_event_t *e)
 {
-    eos_input_page_open_with_callback(NULL, _socks5_input_cb, (void *)(intptr_t)lv_event_get_user_data(e));
+    eos_input_page_open_with_callback(NULL, _vpn_input_cb, (void *)(intptr_t)lv_event_get_user_data(e));
 }
 
-static void _settings_view_socks5(lv_event_t *e)
+static void _settings_view_vpn(lv_event_t *e)
 {
     lv_obj_t *view = NULL;
     eos_activity_t *a = _create_activity_with_header(STR_ID_SETTINGS_SOCKS5, &view);
     EOS_CHECK_PTR_RETURN(a && view);
+    eos_activity_set_title(a, "VPN");
     lv_obj_t *list = eos_list_create(view);
 
-    lv_obj_t *sw = eos_list_add_switch(list, eos_lang_get_text(STR_ID_SETTINGS_SOCKS5_ENABLE));
-    lv_obj_set_state(sw, LV_STATE_CHECKED,
-                     eos_config_get_bool(EOS_CONFIG_KEY_SOCKS5_ENABLED_BOOL, false));
-    lv_obj_add_event_cb(sw, _socks5_enable_switch_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    char *auth_key = eos_net_vpn_get_auth_key();
+    char *device_name = eos_net_vpn_get_device_name();
+
+    lv_obj_t *sw = eos_list_add_switch(list, "VPN (WireGuard)");
+    lv_obj_set_state(sw, LV_STATE_CHECKED, eos_net_vpn_is_enabled());
+    lv_obj_add_event_cb(sw, _vpn_enable_switch_cb, LV_EVENT_VALUE_CHANGED, NULL);
+
+    eos_list_add_comment(list, "Tailscale/WireGuard via microlink");
 
     eos_list_add_placeholder(list, EOS_LIST_SECTION_PLACEHOLDER_HEIGHT);
 
-    lv_obj_t *row;
-    row = eos_list_add_entry_button(list, eos_lang_get_text(STR_ID_SETTINGS_SOCKS5_SERVER));
-    lv_obj_add_event_cb(row, _socks5_row_clicked_cb, LV_EVENT_CLICKED, (void *)(intptr_t)0);
-    row = eos_list_add_entry_button(list, eos_lang_get_text(STR_ID_SETTINGS_SOCKS5_PORT));
-    lv_obj_add_event_cb(row, _socks5_row_clicked_cb, LV_EVENT_CLICKED, (void *)(intptr_t)1);
-    row = eos_list_add_entry_button(list, eos_lang_get_text(STR_ID_SETTINGS_SOCKS5_USERNAME));
-    lv_obj_add_event_cb(row, _socks5_row_clicked_cb, LV_EVENT_CLICKED, (void *)(intptr_t)2);
-    row = eos_list_add_entry_button(list, eos_lang_get_text(STR_ID_SETTINGS_SOCKS5_PASSWORD));
-    lv_obj_add_event_cb(row, _socks5_row_clicked_cb, LV_EVENT_CLICKED, (void *)(intptr_t)3);
+    char auth_text[64];
+    snprintf(auth_text, sizeof(auth_text), "%s: %s", "Auth key",
+             (auth_key && auth_key[0]) ? "configured" : "-");
+    lv_obj_t *auth_row = eos_list_add_entry_button(list, auth_text);
+    lv_obj_add_event_cb(auth_row, _vpn_row_clicked_cb, LV_EVENT_CLICKED, (void *)(intptr_t)0);
+
+    char name_text[128];
+    snprintf(name_text, sizeof(name_text), "%s: %s", "Device name",
+             (device_name && device_name[0]) ? device_name : "-");
+    lv_obj_t *name_row = eos_list_add_entry_button(list, name_text);
+    lv_obj_add_event_cb(name_row, _vpn_row_clicked_cb, LV_EVENT_CLICKED, (void *)(intptr_t)1);
+
+    eos_free(auth_key);
+    eos_free(device_name);
+
+    char status[48];
+    snprintf(status, sizeof(status), "Status: %s", eos_net_vpn_state_str());
+    eos_list_add_comment(list, status);
 
     eos_activity_enter(a);
 }
@@ -334,7 +672,6 @@ static void _brightness_slider_minus_cb(lv_event_t *e)
     EOS_CHECK_PTR_RETURN(slider);
     int32_t min = lv_slider_get_min_value(slider);
     int32_t val = lv_slider_get_value(slider);
-    int32_t prev = val;
     if (val == min)
         return;
     val -= 5;
@@ -349,7 +686,6 @@ static void _brightness_slider_plus_cb(lv_event_t *e)
     EOS_CHECK_PTR_RETURN(slider);
     int32_t max = lv_slider_get_max_value(slider);
     int32_t val = lv_slider_get_value(slider);
-    int32_t prev = val;
     if (val == max)
         return;
     val += 5;
@@ -372,56 +708,45 @@ static void _aod_mode_switch_cb(lv_event_t *e)
     }
 }
 
-static void _wake_on_raise_switch_cb(lv_event_t *e)
-{
-    lv_obj_t *obj = lv_event_get_target(e);
-    EOS_CHECK_PTR_RETURN(obj);
-    if (lv_obj_has_state(obj, LV_STATE_CHECKED))
-    {
-        eos_config_set_bool(EOS_CONFIG_KEY_WAKE_ON_RAISE_BOOL, true);
-    }
-    else
-    {
-        eos_config_set_bool(EOS_CONFIG_KEY_WAKE_ON_RAISE_BOOL, false);
-    }
-}
+/* 熄屏时间选项: 5s / 15s / 30s / 45s / 60s / 300s */
+static const uint32_t _sleep_timeout_options[] = {5, 15, 30, 45, 60, 300};
+#define _SLEEP_TIMEOUT_OPTIONS_COUNT (sizeof(_sleep_timeout_options) / sizeof(_sleep_timeout_options[0]))
 
 static void _wake_duration_radio_list_selection_changed_cb(lv_event_t *e)
 {
     uint32_t index = (uint32_t)lv_event_get_param(e);
-    uint32_t wake_duration = 15;
-    if (index == 0)
+    if (index >= _SLEEP_TIMEOUT_OPTIONS_COUNT)
     {
-        wake_duration = 15;
+        return;
     }
-    else
-    {
-        wake_duration = 70;
-    }
+    uint32_t wake_duration = _sleep_timeout_options[index];
     eos_pm_set_sleep_timeout(wake_duration);
     eos_config_set_number(EOS_CONFIG_KEY_SLEEP_TIMEOUT_SEC_NUMBER, wake_duration);
 }
 
 static void _wake_duration_entry_button_clicked_cb(lv_event_t *e)
 {
-    eos_radio_page_t *rp = eos_radio_page_create(eos_lang_get_text(STR_ID_SETTINGS_WAKE_DURATION));
+    eos_radio_page_t *rp = eos_radio_page_create("Screen timeout");
     char str[32];
-    snprintf(str, sizeof(str), eos_lang_get_text(STR_ID_SETTINGS_WAKE_FOR_N_SECONDS), 15);
-    uint32_t timeout_15_item_index = eos_radio_page_add_item(rp, str);
-    snprintf(str, sizeof(str), eos_lang_get_text(STR_ID_SETTINGS_WAKE_FOR_N_SECONDS), 70);
-    uint32_t timeout_70_item_index = eos_radio_page_add_item(rp, str);
+    uint32_t item_indexes[_SLEEP_TIMEOUT_OPTIONS_COUNT];
+    for (uint32_t i = 0; i < _SLEEP_TIMEOUT_OPTIONS_COUNT; i++)
+    {
+        snprintf(str, sizeof(str), "%us", (unsigned int)_sleep_timeout_options[i]);
+        item_indexes[i] = eos_radio_page_add_item(rp, str);
+    }
     eos_radio_page_add_event_cb(rp, _wake_duration_radio_list_selection_changed_cb, NULL);
-    eos_radio_page_set_subtitle(rp, eos_lang_get_text(STR_ID_SETTINGS_WAKE_ON_TAP));
-    eos_radio_page_set_comment(rp, eos_lang_get_text(STR_ID_SETTINGS_WAKE_ON_TAP_COMMENT));
+    eos_radio_page_set_comment(rp, "Auto off after no touch");
     uint32_t timeout = eos_config_get_number(EOS_CONFIG_KEY_SLEEP_TIMEOUT_SEC_NUMBER, 15);
-    if (timeout == 15)
+    uint32_t checked_index = 1; /* default 15s */
+    for (uint32_t i = 0; i < _SLEEP_TIMEOUT_OPTIONS_COUNT; i++)
     {
-        eos_radio_page_check(rp, timeout_15_item_index);
+        if (_sleep_timeout_options[i] == timeout)
+        {
+            checked_index = i;
+            break;
+        }
     }
-    else
-    {
-        eos_radio_page_check(rp, timeout_70_item_index);
-    }
+    eos_radio_page_check(rp, item_indexes[checked_index]);
     eos_radio_page_show(rp);
 }
 
@@ -454,14 +779,9 @@ static void _settings_view_display(lv_event_t *e)
     eos_list_add_comment(list, eos_lang_get_text(STR_ID_SETTINGS_DISPLAY_AOD_COMMENT));
     eos_list_add_placeholder(list, EOS_LIST_SECTION_PLACEHOLDER_HEIGHT);
 
-    eos_list_add_title(list, eos_lang_get_text(STR_ID_SETTINGS_WAKE));
-    sw = _auto_get_config_switch_create(list,
-                                        eos_lang_get_text(STR_ID_SETTINGS_WAKE_ON_RAISE),
-                                        EOS_CONFIG_KEY_WAKE_ON_RAISE_BOOL,
-                                        true);
-    lv_obj_add_event_cb(sw, _wake_on_raise_switch_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    eos_list_add_title(list, "Screen");
 
-    lv_obj_t *wd_btn = eos_list_add_entry_button(list, eos_lang_get_text(STR_ID_SETTINGS_WAKE_DURATION));
+    lv_obj_t *wd_btn = eos_list_add_entry_button(list, "Screen timeout");
     lv_obj_add_event_cb(wd_btn, _wake_duration_entry_button_clicked_cb, LV_EVENT_CLICKED, NULL);
     eos_activity_enter(a);
 }
@@ -472,147 +792,8 @@ static void _settings_view_notification(lv_event_t *e)
     eos_activity_t *a = _create_activity_with_header(STR_ID_SETTINGS_NOTIFICATION, &view);
     EOS_CHECK_PTR_RETURN(a && view);
     lv_obj_t *list = eos_list_create(view);
+    LV_UNUSED(list);
     // TODO: Notification settings
-    eos_activity_enter(a);
-}
-
-/************************** Sound and Haptic Feedback **************************/
-
-static void _volume_slider_value_changed_cb(lv_event_t *e)
-{
-    lv_obj_t *sl = lv_event_get_target(e);
-    eos_service_audio_set_volume(lv_slider_get_value(sl));
-}
-
-static void _volume_slider_released_cb(lv_event_t *e)
-{
-    lv_obj_t *sl = lv_event_get_target(e);
-    int32_t val = lv_slider_get_value(sl);
-    eos_service_audio_set_volume(val);
-}
-
-static void _volume_slider_minus_cb(lv_event_t *e)
-{
-    lv_obj_t *slider = (lv_obj_t *)lv_event_get_user_data(e);
-    EOS_CHECK_PTR_RETURN(slider);
-    int32_t min = lv_slider_get_min_value(slider);
-    int32_t val = lv_slider_get_value(slider);
-    int32_t prev = val;
-    if (val == min)
-        return;
-    val -= 5;
-    lv_slider_set_value(slider, val, LV_ANIM_ON);
-    eos_service_audio_set_volume(val);
-}
-
-static void _volume_slider_plus_cb(lv_event_t *e)
-{
-    lv_obj_t *slider = (lv_obj_t *)lv_event_get_user_data(e);
-    EOS_CHECK_PTR_RETURN(slider);
-    int32_t max = lv_slider_get_max_value(slider);
-    int32_t val = lv_slider_get_value(slider);
-    int32_t prev = val;
-    if (val == max)
-        return;
-    val += 5;
-    lv_slider_set_value(slider, val, LV_ANIM_ON);
-    eos_service_audio_set_volume(val);
-}
-
-static void _mute_switch_cb(lv_event_t *e)
-{
-    lv_obj_t *bt_sw = lv_event_get_target(e);
-    EOS_CHECK_PTR_RETURN(bt_sw);
-    if (lv_obj_has_state(bt_sw, LV_STATE_CHECKED))
-    {
-        eos_settings_slient_mode_on();
-    }
-    else
-    {
-        eos_settings_slient_mode_off();
-    }
-}
-
-static void _haptics_radio_list_selection_changed_cb(lv_event_t *e)
-{
-    uint32_t index = (uint32_t)lv_event_get_param(e);
-    eos_haptic_strength_t strength = EOS_HAPTIC_STRENGTH_NORMAL;
-    switch (index)
-    {
-        case 0:
-            strength = EOS_HAPTIC_STRENGTH_OFF;
-            break;
-        case 1:
-            strength = EOS_HAPTIC_STRENGTH_NORMAL;
-            break;
-        case 2:
-            strength = EOS_HAPTIC_STRENGTH_INTENSE;
-            break;
-        default:
-            break;
-    }
-    eos_haptic_set_strength(strength);
-}
-
-static void _haptics_entry_button_clicked_cb(lv_event_t *e)
-{
-    eos_radio_page_t *rp = eos_radio_page_create(eos_lang_get_text(STR_ID_SETTINGS_HAPTICS));
-    eos_radio_page_add_item(rp, eos_lang_get_text(STR_ID_OFF));
-    eos_radio_page_add_item(rp, eos_lang_get_text(STR_ID_NORMAL));
-    eos_radio_page_add_item(rp, eos_lang_get_text(STR_ID_INTENSE));
-    eos_radio_page_set_subtitle(rp, eos_lang_get_text(STR_ID_SETTINGS_HAPTICS_STRENGTH));
-    eos_radio_page_add_event_cb(rp, _haptics_radio_list_selection_changed_cb, NULL);
-    eos_haptic_strength_t s =
-        eos_config_get_number(EOS_CONFIG_KEY_VIBRATOR_STRENGTH_NUMBER, EOS_HAPTIC_STRENGTH_NORMAL);
-    switch (s)
-    {
-        case EOS_HAPTIC_STRENGTH_OFF:
-            eos_radio_page_check(rp, 0);
-            break;
-        case EOS_HAPTIC_STRENGTH_NORMAL:
-            eos_radio_page_check(rp, 1);
-            break;
-        case EOS_HAPTIC_STRENGTH_INTENSE:
-            eos_radio_page_check(rp, 2);
-            break;
-        default:
-            break;
-    }
-    eos_radio_page_show(rp);
-}
-
-static void _settings_view_sound_and_haptics(lv_event_t *e)
-{
-    lv_obj_t *view = NULL;
-    eos_activity_t *a = _create_activity_with_header(STR_ID_SETTINGS_SOUNDS_AND_HAPTICS, &view);
-    EOS_CHECK_PTR_RETURN(a && view);
-
-    lv_obj_t *list = eos_list_create(view);
-
-    eos_list_add_title(list, eos_lang_get_text(STR_ID_SETTINGS_SOUNDS_AND_ALERTS));
-
-    lv_obj_t *bt_sw = _auto_get_config_switch_create(list,
-                                                     eos_lang_get_text(STR_ID_SETTINGS_SOUNDS_AND_HAPTICS_SILENT_MODE),
-                                                     EOS_CONFIG_KEY_MUTE_BOOL,
-                                                     false);
-    lv_obj_add_event_cb(bt_sw, _mute_switch_cb, LV_EVENT_VALUE_CHANGED, NULL);
-
-    eos_list_slider_t *ls = eos_list_add_slider(list, eos_lang_get_text(STR_ID_SETTINGS_SOUNDS_AND_HAPTICS_VOLUME));
-    lv_label_set_text(ls->minus_label, RI_VOLUME_DOWN_FILL);
-    lv_label_set_text(ls->plus_label, RI_VOLUME_UP_FILL);
-
-    lv_slider_set_value(ls->slider, eos_config_get_number(EOS_CONFIG_KEY_SPEAKER_VOLUME_NUMBER, 50), LV_ANIM_ON);
-    lv_slider_set_range(ls->slider, EOS_SPEAKER_VOLUME_MIN, EOS_SPEAKER_VOLUME_MAX);
-
-    lv_obj_add_event_cb(ls->slider, _volume_slider_value_changed_cb, LV_EVENT_VALUE_CHANGED, NULL);
-    lv_obj_add_event_cb(ls->slider, _volume_slider_released_cb, LV_EVENT_RELEASED, NULL);
-    lv_obj_add_event_cb(ls->minus_btn, _volume_slider_minus_cb, LV_EVENT_CLICKED, ls->slider);
-    lv_obj_add_event_cb(ls->plus_btn, _volume_slider_plus_cb, LV_EVENT_CLICKED, ls->slider);
-
-    eos_list_add_placeholder(list, EOS_LIST_SECTION_PLACEHOLDER_HEIGHT);
-
-    lv_obj_t *h_btn = eos_list_add_entry_button(list, eos_lang_get_text(STR_ID_SETTINGS_HAPTICS));
-    lv_obj_add_event_cb(h_btn, _haptics_entry_button_clicked_cb, LV_EVENT_CLICKED, NULL);
     eos_activity_enter(a);
 }
 
@@ -992,7 +1173,7 @@ static void _settings_app_list_btn_cb(lv_event_t *e)
                                                     eos_lang_get_text(STR_ID_SETTINGS_APPS_CLEAR_DATA),
                                                     EOS_THEME_DANGEROS_COLOR,
                                                     _clear_data_btn_cb,
-                                                    app_id);
+                                                    (void *)(uintptr_t)app_id);
 
     eos_list_add_placeholder(list, 20);
 
@@ -1744,55 +1925,6 @@ static void _settings_view_password(lv_event_t *e)
 
 /************************** General Settings **************************/
 
-static void _language_roller_event_handler(lv_event_t *e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t *obj = lv_event_get_target(e);
-    if (code == LV_EVENT_VALUE_CHANGED)
-    {
-        char buf[64];
-        lv_roller_get_selected_str(obj, buf, sizeof(buf));
-        language_id_t lang_id = eos_lang_parse_name(buf);
-        switch (lang_id)
-        {
-            case LANG_EN:
-                EOS_LOG_D("Select English");
-                eos_lang_set_current_id(LANG_EN);
-                eos_config_set_string(EOS_CONFIG_KEY_LANGUAGE_STR, eos_lang_get_name(LANG_EN));
-                break;
-            case LANG_ZH:
-                EOS_LOG_D("Select Simplify Chinese");
-                eos_lang_set_current_id(LANG_ZH);
-                eos_config_set_string(EOS_CONFIG_KEY_LANGUAGE_STR, eos_lang_get_name(LANG_ZH));
-                break;
-            default:
-                break;
-        }
-    }
-}
-
-static void _settings_view_language(lv_event_t *e)
-{
-    lv_obj_t *view = NULL;
-    eos_activity_t *a = _create_activity_with_header(STR_ID_SETTINGS_GENERAL_LANGUAGE, &view);
-    EOS_CHECK_PTR_RETURN(a && view);
-
-    lv_obj_t *roller = lv_roller_create(view);
-    lv_obj_set_size(roller, lv_pct(80), 200);
-    char lang_options[64];
-    snprintf(lang_options, sizeof(lang_options), "%s\n%s", eos_lang_get_name(LANG_EN), eos_lang_get_name(LANG_ZH));
-    lv_roller_set_options(roller, lang_options, LV_ROLLER_MODE_NORMAL);
-    lv_obj_align(roller, LV_ALIGN_CENTER, 0, 30);
-    lv_roller_set_visible_row_count(roller, 5);
-
-    char *sel_str = eos_config_get_string(EOS_CONFIG_KEY_LANGUAGE_STR, "English");
-    uint32_t sel_opt = (uint32_t)eos_lang_parse_name(sel_str);
-    lv_roller_set_selected(roller, sel_opt, LV_ANIM_OFF);
-    lv_obj_add_event_cb(roller, _language_roller_event_handler, LV_EVENT_ALL, NULL);
-    eos_free(sel_str);
-    eos_activity_enter(a);
-}
-
 static void _device_name_input_closed_cb(const char *text, eos_input_result_t result, void *user_data)
 {
     if (result != EOS_INPUT_RESULT_OK)
@@ -1872,7 +2004,7 @@ static void _settings_view_device_info(lv_event_t *e)
     eos_list_add_placeholder(list, 20);
 
     char install_number_str[32];
-    snprintf(install_number_str, sizeof(install_number_str), "%d", eos_app_get_installed());
+    snprintf(install_number_str, sizeof(install_number_str), "%" PRIu32, eos_app_get_installed());
     eos_std_title_comment_create(list, eos_lang_get_text(STR_ID_SETTINGS_APPS), install_number_str);
     eos_list_add_placeholder(list, 20);
 
@@ -1919,10 +2051,7 @@ static void _settings_view_general(lv_event_t *e)
     lv_obj_t *list = eos_list_create(view);
 
     lv_obj_t *btn;
-    // Language settings
-    btn = eos_list_add_entry_button_str_id(list, STR_ID_SETTINGS_GENERAL_LANGUAGE);
-    lv_obj_add_event_cb(btn, _settings_view_language, LV_EVENT_CLICKED, NULL);
-    // Device info
+    // Device info (system is English-only, no language picker)
     btn = eos_list_add_entry_button_str_id(list, STR_ID_SETTINGS_GENERAL_DEVICE_INFO);
     lv_obj_add_event_cb(btn, _settings_view_device_info, LV_EVENT_CLICKED, NULL);
     eos_activity_enter(a);
@@ -1948,9 +2077,9 @@ void eos_settings_enter(void)
     // Wi-Fi settings
     btn = eos_list_add_round_icon_button_str_id(settings_list, EOS_COLOR_BLUE, RI_WIFI_FILL, STR_ID_SETTINGS_WIFI);
     lv_obj_add_event_cb(btn, _settings_view_wifi, LV_EVENT_CLICKED, NULL);
-    // SOCKS5 proxy settings
-    btn = eos_list_add_round_icon_button_str_id(settings_list, EOS_COLOR_GREEN, RI_GLOBAL_LINE, STR_ID_SETTINGS_SOCKS5);
-    lv_obj_add_event_cb(btn, _settings_view_socks5, LV_EVENT_CLICKED, NULL);
+    // VPN (WireGuard via microlink) settings
+    btn = eos_list_add_round_icon_button(settings_list, EOS_COLOR_GREEN, RI_SHIELD_KEYHOLE_FILL, "VPN");
+    lv_obj_add_event_cb(btn, _settings_view_vpn, LV_EVENT_CLICKED, NULL);
     // Bluetooth settings
     btn = eos_list_add_round_icon_button_str_id(settings_list,
                                                 EOS_COLOR_BLUE,
@@ -1966,12 +2095,6 @@ void eos_settings_enter(void)
                                                 RI_NOTIFICATION_2_FILL,
                                                 STR_ID_SETTINGS_NOTIFICATION);
     lv_obj_add_event_cb(btn, _settings_view_notification, LV_EVENT_CLICKED, NULL);
-    // Sound and haptics settings
-    btn = eos_list_add_round_icon_button_str_id(settings_list,
-                                                EOS_COLOR_PINK,
-                                                RI_VOLUME_UP_FILL,
-                                                STR_ID_SETTINGS_SOUNDS_AND_HAPTICS);
-    lv_obj_add_event_cb(btn, _settings_view_sound_and_haptics, LV_EVENT_CLICKED, NULL);
     // Password settings
     btn = eos_list_add_round_icon_button_str_id(settings_list,
                                                 EOS_COLOR_TEAL_BLUE,
@@ -1980,7 +2103,7 @@ void eos_settings_enter(void)
     lv_obj_add_event_cb(btn, _settings_view_password, LV_EVENT_CLICKED, NULL);
     // App list
     btn =
-        eos_list_add_round_icon_button_str_id(settings_list, EOS_COLOR_GREEN, RI_FILE_LIST_LINE, STR_ID_SETTINGS_APPS);
+        eos_list_add_round_icon_button_str_id(settings_list, EOS_COLOR_GREY, RI_FILE_LIST_LINE, STR_ID_SETTINGS_APPS);
     lv_obj_add_event_cb(btn, _settings_view_apps, LV_EVENT_CLICKED, NULL);
     // General settings
     btn = eos_list_add_round_icon_button_str_id(settings_list, EOS_COLOR_GREY, RI_TOOLS_FILL, STR_ID_SETTINGS_GENERAL);

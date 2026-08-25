@@ -222,7 +222,7 @@ static char *sni_image_resolve_under_root(const char *root_dir, const char *cand
 static char *sni_image_resolve_asset_path(const char *src)
 {
     char root_dir[EOS_FS_PATH_MAX];
-    char candidate[EOS_FS_PATH_MAX];
+    char candidate[EOS_FS_PATH_MAX + EOS_FS_NAME_MAX];
 
     if (!src || src[0] == '\0')
     {

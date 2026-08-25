@@ -8,6 +8,7 @@
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include "eos_theme.h"
 #include "eos_config.h"
 #include "eos_swipe_panel.h"
@@ -50,6 +51,15 @@ typedef struct
 {
     eos_swipe_panel_t *sp;
     lv_obj_t *mask;
+    lv_obj_t *flash_light;      /* 全屏手电筒对象(选色直接应用,勿用 get_child: swipe_panel 的 handle_bar 才是子对象0) */
+    lv_color_t custom_color;    /* 当前光色(默认白,可从 SD 恢复) */
+    lv_obj_t *palette_overlay;  /* 色板覆盖层 */
+    lv_obj_t *hue_canvas;       /* HSV 色相环画布(ARGB8888,PSRAM) */
+    lv_obj_t *hue_indicator;    /* 环上当前色相指示点 */
+    lv_obj_t *color_preview;    /* 中心当前色预览圆 */
+    lv_obj_t *color_hex_label;  /* 中心 RGB hex 文本 */
+    void *hue_buf;              /* 色相环画布缓冲(PSRAM,LV_EVENT_DELETE 时释放) */
+    bool hue_dirty;             /* 本次按下是否已选色(RELEASED 时据此保存 SD) */
 } _pressing_user_data_t;
 
 typedef struct
@@ -205,7 +215,7 @@ static void _flash_light_touch_cb(lv_event_t *e)
     if (ctx->sel_feedback)
     {
         lv_obj_remove_flag(ctx->sel_feedback, LV_OBJ_FLAG_HIDDEN);
-        lv_label_set_text(ctx->sel_feedback, "已选");
+        lv_label_set_text(ctx->sel_feedback, "Selected");
         if (ctx->sel_timer)
         {
             lv_timer_reset(ctx->sel_timer);
@@ -250,7 +260,7 @@ static void _flash_light_create_palette_page(_flash_light_card_pager_ctx_t *ctx,
     lv_obj_t *fb = lv_label_create(page);
     lv_obj_set_size(fb, _FLASH_PALETTE_HUE_STEPS * (_FLASH_CELL_W + _FLASH_CELL_GAP), 16);
     lv_obj_align(fb, LV_ALIGN_TOP_MID, 0, 8);
-    lv_label_set_text(fb, "已选");
+    lv_label_set_text(fb, "Selected");
     lv_obj_set_style_text_align(fb, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_color(fb, lv_color_white(), 0);
     lv_obj_set_style_text_opa(fb, LV_OPA_COVER, 0);
@@ -327,6 +337,10 @@ static inline void _flash_light_delete(_pressing_user_data_t *ud)
     if (ud->mask && lv_obj_is_valid(ud->mask))
         lv_obj_delete_async(ud->mask);
 
+    /* 同步关闭残留色板(timer 回调内安全),LV_EVENT_DELETE 会释放 hue_buf */
+    if (ud->palette_overlay && lv_obj_is_valid(ud->palette_overlay))
+        lv_obj_delete(ud->palette_overlay);
+    ud->palette_overlay = NULL;
     ud->mask = NULL;
     ud->sp = NULL;
 
@@ -400,11 +414,404 @@ static void _swipe_panel_moving_cb(lv_event_t *e)
     lv_obj_set_style_bg_opa(ud->mask, opa, 0);
 }
 
-static void _flash_light_clicked_cb(lv_event_t *e)
+/* 点击白色区域后延迟到下一 tick 删除 swipe panel:
+ * 不能在 LV_EVENT_CLICKED 事件回调内同步删除事件源对象(flash_light 属于
+ * swipe_obj),否则 LVGL 事件发送完成后会访问已释放对象(Use-After-Free)。
+ * 延迟删除同时避免 eos_flash_light_enter() 期间 overlay 状态混乱。 */
+static void _flash_light_delayed_delete_timer_cb(lv_timer_t *t)
+{
+    _pressing_user_data_t *ud = lv_timer_get_user_data(t);
+    lv_timer_delete(t);
+    if (ud)
+        _flash_light_delete(ud);
+}
+
+/* ═══════════════ 用户需求 2026-08:底部按钮 + 色板 + SD 持久化 ═══════════════ */
+#define _FLASH_COLOR_PATH "/flash/color.txt"
+
+/* 读取 SD 中保存的光色,失败返回白色 */
+static lv_color_t _flash_light_load_color(void)
+{
+    lv_color_t c = EOS_COLOR_WHITE;
+    eos_file_t f = eos_fs_open_read(_FLASH_COLOR_PATH);
+    if (!f)
+        return c;
+    char buf[8] = {0};
+    int n = eos_fs_read(f, buf, 7);
+    eos_fs_close(f);
+    if (n >= 6)
+    {
+        uint32_t rgb = (uint32_t)strtoul(buf, NULL, 16);
+        c = lv_color_hex(rgb & 0xFFFFFFu);
+    }
+    return c;
+}
+
+/* 保存光色到 SD /flash/color.txt;无 SD 卡/写失败则忽略 */
+static void _flash_light_save_color(lv_color_t c)
+{
+    eos_fs_mkdir("/flash"); /* 无 SD 时 mkdir 失败,直接忽略 */
+    eos_file_t f = eos_fs_open_write(_FLASH_COLOR_PATH);
+    if (!f)
+    {
+        EOS_LOG_W("Save flash color ignored (no SD / write fail)");
+        return;
+    }
+    /* 不依赖 lv_color_to32(仅 32 位色深存在),直接组合 8bit 分量 */
+    uint32_t rgb = ((uint32_t)c.red << 16) | ((uint32_t)c.green << 8) | (uint32_t)c.blue;
+    char buf[8];
+    snprintf(buf, sizeof(buf), "%06X", (unsigned)rgb);
+    eos_fs_write(f, buf, 6);
+    eos_fs_close(f);
+    EOS_LOG_I("Flash color saved to %s: %s", _FLASH_COLOR_PATH, buf);
+}
+
+/* ═══════════════ HSV 圆盘色板(用户需求 2026-08 改版:中心白→径向饱和,全精度过渡) ═══════════════ */
+#define _FLASH_HUE_CX 120
+#define _FLASH_HUE_CY 112
+#define _FLASH_HUE_R_OUT 80
+#define _FLASH_HUE_SIZE (2 * _FLASH_HUE_R_OUT)
+#define _FLASH_HUE_PREVIEW_D 40
+#define _FLASH_HUE_PI 3.14159265358979f
+
+/* 全精度 HSV→RGB888(0xRRGGBB,分量 0-255)。
+ * 勿用 lv_color_hsv_to_rgb:LV_COLOR_DEPTH=16 时它返回 RGB565,red/blue 仅 5bit、
+ * green 仅 6bit,直接塞进 ARGB8888 会形成 32/64/32 级色阶并整体偏暗(旧版条带根源)。 */
+static uint32_t _flash_light_hsv_to_rgb888(int h, int s, int v)
+{
+    float hh = (float)(h % 360) / 60.0f;
+    int i = (int)hh;
+    float f = hh - (float)i;
+    float sf = (float)s / 100.0f;
+    float vf = (float)v / 100.0f;
+    float p = vf * (1.0f - sf);
+    float q = vf * (1.0f - sf * f);
+    float t = vf * (1.0f - sf * (1.0f - f));
+    float r, g, b;
+    switch (i % 6)
+    {
+    case 0: r = vf; g = t; b = p; break;
+    case 1: r = q; g = vf; b = p; break;
+    case 2: r = p; g = vf; b = t; break;
+    case 3: r = p; g = q; b = vf; break;
+    case 4: r = t; g = p; b = vf; break;
+    default: r = vf; g = p; b = q; break;
+    }
+    uint32_t ri = (uint32_t)(r * 255.0f + 0.5f);
+    uint32_t gi = (uint32_t)(g * 255.0f + 0.5f);
+    uint32_t bi = (uint32_t)(b * 255.0f + 0.5f);
+    if (ri > 255) ri = 255;
+    if (gi > 255) gi = 255;
+    if (bi > 255) bi = 255;
+    return (ri << 16) | (gi << 8) | bi;
+}
+
+/* 渲染 HSV 圆盘到 ARGB8888 缓冲:圆心=白(S=0,V=100),径向=饱和度,环向=色相。
+ * 色盘外像素透明。一次性渲染(~26k 像素),240MHz 下 <50ms,打开色板时执行一次。 */
+static void _flash_light_hue_render(void *buf)
+{
+    uint32_t *px = (uint32_t *)buf;
+    int cx = _FLASH_HUE_R_OUT, cy = _FLASH_HUE_R_OUT;
+    int r2 = _FLASH_HUE_R_OUT * _FLASH_HUE_R_OUT;
+    for (int y = 0; y < _FLASH_HUE_SIZE; y++)
+    {
+        for (int x = 0; x < _FLASH_HUE_SIZE; x++)
+        {
+            int dx = x - cx, dy = y - cy;
+            int d2 = dx * dx + dy * dy;
+            if (d2 <= r2)
+            {
+                float ang = atan2f((float)dy, (float)dx); /* -PI..PI */
+                if (ang < 0)
+                    ang += 2.0f * _FLASH_HUE_PI;
+                int hue = (int)(ang * 180.0f / _FLASH_HUE_PI); /* 0..359 */
+                int sat = (int)(sqrtf((float)d2) / (float)_FLASH_HUE_R_OUT * 100.0f + 0.5f);
+                if (sat > 100)
+                    sat = 100;
+                px[y * _FLASH_HUE_SIZE + x] = 0xFF000000u | _flash_light_hsv_to_rgb888(hue, sat, 100);
+            }
+            else
+            {
+                px[y * _FLASH_HUE_SIZE + x] = 0x00000000u; /* 透明 */
+            }
+        }
+    }
+}
+
+/* RGB(565)→ H/S:先归一化到 0-255 再算色相与饱和度,供初始指示点定位 */
+static void _flash_light_rgb_to_hs(lv_color_t c, int *hue_out, int *sat_out)
+{
+    float r = (float)c.red / 31.0f;
+    float g = (float)c.green / 63.0f;
+    float b = (float)c.blue / 31.0f;
+    float maxv = fmaxf(r, fmaxf(g, b));
+    float minv = fminf(r, fminf(g, b));
+    float delta = maxv - minv;
+    float hue = 0.0f;
+    if (delta > 0.0001f)
+    {
+        if (maxv == r)      hue = 60.0f * fmodf((g - b) / delta, 6.0f);
+        else if (maxv == g) hue = 60.0f * ((b - r) / delta + 2.0f);
+        else                hue = 60.0f * ((r - g) / delta + 4.0f);
+        if (hue < 0) hue += 360.0f;
+    }
+    *hue_out = (int)hue;
+    float sat = (maxv > 0.0001f) ? (delta / maxv * 100.0f) : 0.0f;
+    if (sat > 100.0f) sat = 100.0f;
+    *sat_out = (int)sat;
+}
+
+/* 应用色相/饱和度(V=100):改手电筒光色 + 更新预览/hex + 移动盘上指示点 */
+static void _flash_light_hue_apply(_pressing_user_data_t *ud, int hue, int sat)
+{
+    uint32_t rgb888 = _flash_light_hsv_to_rgb888(hue, sat, 100);
+    lv_color_t c = lv_color_hex(rgb888);
+    ud->custom_color = c;
+
+    lv_obj_t *flash_light = ud->flash_light;
+    if (flash_light && lv_obj_is_valid(flash_light))
+        lv_obj_set_style_bg_color(flash_light, c, 0);
+
+    if (ud->hue_indicator && lv_obj_is_valid(ud->hue_indicator))
+    {
+        if (sat < 3)
+        {
+            /* 白色在圆心:指示点盖住预览圆无意义,隐藏 */
+            lv_obj_add_flag(ud->hue_indicator, LV_OBJ_FLAG_HIDDEN);
+        }
+        else
+        {
+            lv_obj_remove_flag(ud->hue_indicator, LV_OBJ_FLAG_HIDDEN);
+            float ang = (float)hue * 2.0f * _FLASH_HUE_PI / 360.0f;
+            int rr = (int)((float)sat / 100.0f * (float)_FLASH_HUE_R_OUT);
+            lv_obj_set_pos(ud->hue_indicator,
+                           _FLASH_HUE_CX + (int)((float)rr * cosf(ang)) - 6,
+                           _FLASH_HUE_CY + (int)((float)rr * sinf(ang)) - 6);
+        }
+    }
+
+    if (ud->color_preview && lv_obj_is_valid(ud->color_preview))
+        lv_obj_set_style_bg_color(ud->color_preview, c, 0);
+
+    if (ud->color_hex_label && lv_obj_is_valid(ud->color_hex_label))
+    {
+        char hex[8];
+        snprintf(hex, sizeof(hex), "#%02X%02X%02X",
+                 (unsigned)((rgb888 >> 16) & 0xFFu),
+                 (unsigned)((rgb888 >> 8) & 0xFFu),
+                 (unsigned)(rgb888 & 0xFFu));
+        lv_label_set_text(ud->color_hex_label, hex);
+        lv_obj_set_style_text_color(ud->color_hex_label,
+                                    lv_color_brightness(c) > 140 ? EOS_COLOR_BLACK : EOS_COLOR_WHITE, 0);
+    }
+}
+
+/* 圆盘触摸:盘内任意点 = 色相(角度)×饱和度(半径),中心即白色。
+ * PRESSED/PRESSING 实时选色,RELEASED 保存 SD */
+static void _flash_light_hue_event_cb(lv_event_t *e)
 {
     _pressing_user_data_t *ud = lv_event_get_user_data(e);
-    _flash_light_delete(ud);
-    eos_flash_light_enter();
+    if (!ud)
+        return;
+    lv_indev_t *indev = lv_indev_active();
+    if (!indev)
+        return;
+
+    lv_point_t pt;
+    lv_indev_get_point(indev, &pt);
+    int dx = pt.x - _FLASH_HUE_CX;
+    int dy = pt.y - _FLASH_HUE_CY;
+    int d2 = dx * dx + dy * dy;
+    lv_event_code_t code = lv_event_get_code(e);
+
+    int r_max2 = (_FLASH_HUE_R_OUT + 10) * (_FLASH_HUE_R_OUT + 10);
+    if (d2 > r_max2)
+    {
+        if (code == LV_EVENT_RELEASED)
+            ud->hue_dirty = false; /* 松手在色盘外:不保存 */
+        return;
+    }
+
+    float ang = atan2f((float)dy, (float)dx);
+    if (ang < 0)
+        ang += 2.0f * _FLASH_HUE_PI;
+    int hue = (int)(ang * 180.0f / _FLASH_HUE_PI);
+    int sat = (int)(sqrtf((float)d2) / (float)_FLASH_HUE_R_OUT * 100.0f + 0.5f);
+    if (sat > 100)
+        sat = 100;
+    _flash_light_hue_apply(ud, hue, sat);
+
+    if (code == LV_EVENT_RELEASED)
+    {
+        if (ud->hue_dirty)
+            _flash_light_save_color(ud->custom_color);
+        ud->hue_dirty = false;
+    }
+    else
+    {
+        ud->hue_dirty = true;
+    }
+}
+
+/* overlay 删除时释放画布缓冲(避免 async 删除后 UAF) */
+static void _flash_light_hue_canvas_delete_cb(lv_event_t *e)
+{
+    _pressing_user_data_t *ud = lv_event_get_user_data(e);
+    if (!ud)
+        return;
+    lv_event_stop_bubbling(e);
+    if (ud->hue_buf)
+    {
+        eos_free(ud->hue_buf);
+        ud->hue_buf = NULL;
+    }
+    ud->hue_canvas = NULL;
+}
+
+static void _flash_light_palette_overlay_close(_pressing_user_data_t *ud)
+{
+    if (ud->palette_overlay && lv_obj_is_valid(ud->palette_overlay))
+    {
+        lv_obj_delete_async(ud->palette_overlay);
+    }
+    ud->palette_overlay = NULL;
+}
+
+static void _flash_light_palette_overlay_close_cb(lv_event_t *e)
+{
+    _pressing_user_data_t *ud = lv_event_get_user_data(e);
+    if (!ud)
+        return;
+    lv_event_stop_bubbling(e);
+    _flash_light_palette_overlay_close(ud);
+}
+
+/* 色板覆盖层:半透明深色全屏 + HSV 色相环(360° 连续渐变,S=100%,V=100%) */
+static void _flash_light_palette_overlay_create(_pressing_user_data_t *ud)
+{
+    if (ud->palette_overlay)
+        return;
+
+    lv_obj_t *ov = lv_obj_create(lv_layer_top());
+    lv_obj_remove_style_all(ov);
+    lv_obj_set_size(ov, lv_pct(100), lv_pct(100));
+    lv_obj_set_style_bg_color(ov, lv_color_hex(0x101418), 0);
+    lv_obj_set_style_bg_opa(ov, LV_OPA_90, 0);
+    lv_obj_set_style_radius(ov, EOS_DISPLAY_RADIUS, 0);
+    ud->palette_overlay = ov;
+
+    lv_obj_t *title = lv_label_create(ov);
+    lv_label_set_text(title, "Select Color");
+    lv_obj_set_style_text_color(title, lv_color_white(), 0);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 6);
+
+    /* HSV 色相环画布(ARGB8888,PSRAM,约 164×164×4B) */
+    uint32_t *buf = (uint32_t *)eos_malloc((size_t)_FLASH_HUE_SIZE * _FLASH_HUE_SIZE * 4);
+    if (buf)
+    {
+        _flash_light_hue_render(buf);
+        lv_obj_t *cv = lv_canvas_create(ov);
+        lv_canvas_set_buffer(cv, buf, _FLASH_HUE_SIZE, _FLASH_HUE_SIZE, LV_COLOR_FORMAT_ARGB8888);
+        lv_obj_remove_flag(cv, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_pos(cv, _FLASH_HUE_CX - _FLASH_HUE_R_OUT, _FLASH_HUE_CY - _FLASH_HUE_R_OUT);
+        ud->hue_canvas = cv;
+        ud->hue_buf = buf;
+    }
+
+    /* 中心当前色预览圆(盖住圆盘白色心,视觉自然) */
+    int preview_d = _FLASH_HUE_PREVIEW_D;
+    lv_obj_t *pv = lv_obj_create(ov);
+    lv_obj_set_size(pv, preview_d, preview_d);
+    lv_obj_set_pos(pv, _FLASH_HUE_CX - preview_d / 2, _FLASH_HUE_CY - preview_d / 2);
+    lv_obj_remove_flag(pv, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_bg_color(pv, ud->custom_color, 0);
+    lv_obj_set_style_radius(pv, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_border_width(pv, 1, 0);
+    lv_obj_set_style_border_color(pv, lv_color_white(), 0);
+    lv_obj_set_style_border_opa(pv, LV_OPA_40, 0);
+    ud->color_preview = pv;
+
+    /* #RRGGBB 代码:放在预览圆正下方,避免小圆内放不下 7 字符 */
+    lv_obj_t *hex = lv_label_create(ov);
+    lv_label_set_text(hex, "#FFFFFF");
+    lv_obj_align(hex, LV_ALIGN_TOP_MID, 0, 134);
+    ud->color_hex_label = hex;
+
+    /* 盘上当前色指示点(白底黑圈,白色时隐藏) */
+    lv_obj_t *ind = lv_obj_create(ov);
+    lv_obj_set_size(ind, 12, 12);
+    lv_obj_remove_flag(ind, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_radius(ind, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(ind, lv_color_white(), 0);
+    lv_obj_set_style_border_width(ind, 2, 0);
+    lv_obj_set_style_border_color(ind, lv_color_black(), 0);
+    lv_obj_set_style_border_opa(ind, LV_OPA_60, 0);
+    ud->hue_indicator = ind;
+
+    /* 触摸:整个覆盖层接收按/拖/放,环带内实时选色 */
+    lv_obj_add_event_cb(ov, _flash_light_hue_event_cb, LV_EVENT_PRESSED, ud);
+    lv_obj_add_event_cb(ov, _flash_light_hue_event_cb, LV_EVENT_PRESSING, ud);
+    lv_obj_add_event_cb(ov, _flash_light_hue_event_cb, LV_EVENT_RELEASED, ud);
+    lv_obj_add_event_cb(ov, _flash_light_hue_canvas_delete_cb, LV_EVENT_DELETE, ud);
+
+    /* 底部 Close 按钮 */
+    lv_obj_t *close_btn = lv_button_create(ov);
+    lv_obj_set_size(close_btn, 72, 34);
+    lv_obj_align(close_btn, LV_ALIGN_BOTTOM_MID, 0, -10);
+    lv_obj_set_style_bg_color(close_btn, lv_color_white(), 0);
+    lv_obj_set_style_bg_opa(close_btn, LV_OPA_COVER, 0);
+    lv_obj_t *close_lbl = lv_label_create(close_btn);
+    lv_label_set_text(close_lbl, "Close");
+    lv_obj_set_style_text_color(close_lbl, EOS_COLOR_BLACK, 0);
+    lv_obj_center(close_lbl);
+    lv_obj_add_event_cb(close_btn, _flash_light_palette_overlay_close_cb, LV_EVENT_CLICKED, ud);
+
+    /* 初始指示点/预览/hex 同步当前光色(按 H/S 定位) */
+    int init_hue = 0, init_sat = 0;
+    _flash_light_rgb_to_hs(ud->custom_color, &init_hue, &init_sat);
+    _flash_light_hue_apply(ud, init_hue, init_sat);
+}
+
+/* 底部"色板"按钮 */
+static void _flash_light_btn_palette_cb(lv_event_t *e)
+{
+    _pressing_user_data_t *ud = lv_event_get_user_data(e);
+    if (!ud)
+        return;
+    lv_event_stop_bubbling(e);
+    _flash_light_palette_overlay_create(ud);
+}
+
+/* 底部"退出"按钮:延迟删除(不能在事件回调内同步删除源对象) */
+static void _flash_light_btn_exit_cb(lv_event_t *e)
+{
+    _pressing_user_data_t *ud = lv_event_get_user_data(e);
+    if (!ud)
+        return;
+    lv_event_stop_bubbling(e);
+    if (_flash_light_ud == ud)
+        _flash_light_ud = NULL;
+    lv_timer_t *t = lv_timer_create(_flash_light_delayed_delete_timer_cb, 0, ud);
+    if (t)
+        lv_timer_set_repeat_count(t, 1);
+    eos_display_restore(_BRIGHTNESS_DURATION);
+}
+
+/* 底部工具按钮(半透明黑底白字,任意光色下可读) */
+static lv_obj_t *_flash_light_create_bottom_btn(lv_obj_t *parent, const char *text)
+{
+    lv_obj_t *btn = lv_button_create(parent);
+    lv_obj_set_size(btn, 64, 36); /* 64 宽:容纳 "Palette" 7 字母(56 宽会溢出) */
+    lv_obj_set_style_bg_color(btn, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(btn, LV_OPA_50, 0);
+    lv_obj_set_style_radius(btn, 18, 0);
+    lv_obj_set_style_border_width(btn, 0, 0);
+    lv_obj_set_style_pad_all(btn, 0, 0);
+    lv_obj_t *lbl = lv_label_create(btn);
+    lv_label_set_text(lbl, text);
+    lv_obj_set_style_text_color(lbl, lv_color_white(), 0);
+    lv_obj_center(lbl);
+    return btn;
 }
 
 static void _flash_light_update_indicator_theme(_flash_light_card_pager_ctx_t *ctx,
@@ -528,6 +935,9 @@ static void _flash_light_apply_page_visual_state(_flash_light_card_pager_ctx_t *
         _flash_light_update_indicator_theme(ctx, current_page, palette_page_active);
 }
 
+/* Unused: kept for future use when pager indicator and swipe-back integration are needed */
+#define EOS_FLASH_LIGHT_UNUSED_FUNCTIONS
+#if 0
 static lv_obj_t *_flash_light_get_indicator_for_page(eos_card_pager_t *cp, lv_obj_t *page)
 {
     EOS_CHECK_PTR_RETURN_VAL(cp && page, NULL);
@@ -543,6 +953,13 @@ static lv_obj_t *_flash_light_get_indicator_for_page(eos_card_pager_t *cp, lv_ob
     return NULL;
 }
 
+static void _flash_light_exit_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    eos_activity_back();
+}
+#endif /* EOS_FLASH_LIGHT_UNUSED_FUNCTIONS */
+
 static bool _flash_light_swipe_back(eos_activity_t *self, lv_dir_t dir)
 {
     LV_UNUSED(self);
@@ -550,12 +967,6 @@ static bool _flash_light_swipe_back(eos_activity_t *self, lv_dir_t dir)
     /* 左右滑：pager 自己翻页，消费掉（不让框架退出）；
      * 上下滑：交给框架统一退出（framework 层已改为上下滑退出手势）。 */
     return (dir == LV_DIR_LEFT || dir == LV_DIR_RIGHT);
-}
-
-static void _flash_light_exit_cb(lv_event_t *e)
-{
-    LV_UNUSED(e);
-    eos_activity_back();
 }
 
 void eos_flash_light_show(void)
@@ -585,6 +996,13 @@ void eos_flash_light_show(void)
     lv_obj_set_style_bg_opa(sp->swipe_obj, LV_OPA_TRANSP, 0);
 
     ud->sp = sp;
+    ud->palette_overlay = NULL; /* eos_malloc 未清零,需手动初始化 */
+    ud->hue_canvas = NULL;
+    ud->hue_indicator = NULL;
+    ud->color_preview = NULL;
+    ud->color_hex_label = NULL;
+    ud->hue_buf = NULL;
+    ud->hue_dirty = false;
 
     eos_slide_widget_add_event_cb_done(sp->sw, _swipe_panel_pull_back_cb, ud);
     eos_slide_widget_add_event_cb_moving(sp->sw, _swipe_panel_moving_cb, ud);
@@ -599,23 +1017,26 @@ void eos_flash_light_show(void)
     lv_obj_set_flex_align(container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
     lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *row1 = lv_obj_create(container);
-    lv_obj_remove_style_all(row1);
-    lv_obj_set_size(row1, lv_pct(100), touch_area_height);
-
-    lv_obj_t *label = lv_label_create(row1);
-    lv_obj_set_height(label, LV_SIZE_CONTENT);
-
-    lv_label_set_text_fmt(label, "%s\n" RI_ARROW_DOWN_WIDE_FILL, eos_lang_get_text(STR_ID_APP_FLASH_LIGHT_DISMISS));
-    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(label, LV_ALIGN_BOTTOM_MID, 0, 0);
-
+    /* flash_light 必须是第一个子对象:swipe panel 完全展开后 container 顶部
+     * 对齐屏幕顶部,flash_light(高=EOS_DISPLAY_HEIGHT)恰好覆盖 0-H 全屏。
+     * 下滑关闭手势由 eos_slide_widget_get_touch_obj 独立提供 */
+    ud->custom_color = _flash_light_load_color(); /* 恢复上次保存的光色(无 SD 则白色) */
     lv_obj_t *flash_light = lv_obj_create(container);
-    lv_obj_set_style_bg_color(flash_light, EOS_COLOR_WHITE, 0);
+    ud->flash_light = flash_light; /* 保存引用:选色时直接应用(见 _flash_light_hue_apply) */
+    lv_obj_set_style_bg_color(flash_light, ud->custom_color, 0);
     lv_obj_set_size(flash_light, lv_pct(100), EOS_DISPLAY_HEIGHT);
     lv_obj_set_style_border_width(flash_light, 0, 0);
     lv_obj_set_style_radius(flash_light, EOS_DISPLAY_RADIUS, 0);
-    lv_obj_add_event_cb(flash_light, _flash_light_clicked_cb, LV_EVENT_CLICKED, ud);
+
+    /* 底部两个按钮(置于下滑手势区上方,与 touch_obj 不重叠):
+     *   Exit -> 关闭手电筒; Palette -> 打开色板选择 Flash 颜色 */
+    lv_obj_t *exit_btn = _flash_light_create_bottom_btn(flash_light, "Exit");
+    lv_obj_align(exit_btn, LV_ALIGN_BOTTOM_MID, -40, -54);
+    lv_obj_add_event_cb(exit_btn, _flash_light_btn_exit_cb, LV_EVENT_CLICKED, ud);
+
+    lv_obj_t *palette_btn = _flash_light_create_bottom_btn(flash_light, "Palette");
+    lv_obj_align(palette_btn, LV_ALIGN_BOTTOM_MID, 40, -54);
+    lv_obj_add_event_cb(palette_btn, _flash_light_btn_palette_cb, LV_EVENT_CLICKED, ud);
 
     _flash_light_ud = ud;
     eos_display_set_brightness(EOS_DISPLAY_BRIGHTNESS_MAX, _BRIGHTNESS_DURATION, true);
@@ -673,6 +1094,9 @@ void eos_flash_light_enter(void)
 
     eos_activity_set_type(a, EOS_ACTIVITY_TYPE_APP);
     eos_activity_set_app_header_visible(a, true);
+    /* 必须设置 title:header 的 _play_title_changed_anim 会以 %s 打印 title,
+     * NULL → vsnprintf → strlen(NULL) → LoadProhibited(日志已证实) */
+    eos_activity_set_title(a, "Flash Light");
     eos_activity_set_app_header_time_only(a, true);
 
     lv_obj_t *view = eos_activity_get_view(a);

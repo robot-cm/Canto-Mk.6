@@ -18652,7 +18652,7 @@ jerry_value_t sni_api_lv_dropdown_get_selected_str(const jerry_call_info_t* call
         return sni_api_throw_error("Invalid argument type");
     }
     char* arg_buf;
-    arg_buf = sni_tb_js2c_string(args_p[0]);
+    arg_buf = (char *)sni_tb_js2c_string(args_p[0]);
 
     if (!jerry_value_is_number(args_p[1]))
     {

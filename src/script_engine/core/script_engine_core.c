@@ -705,7 +705,7 @@ bool script_engine_has_permission(const char *perm_name)
 
 jerry_value_t script_engine_throw_error(const char *message)
 {
-    jerry_value_t error_obj = jerry_error_sz(JERRY_ERROR_TYPE, (const jerry_char_t *)message);
+    jerry_value_t error_obj = jerry_error_sz(JERRY_ERROR_TYPE, message);
     return jerry_throw_value(error_obj, true);
 }
 
@@ -1445,6 +1445,13 @@ static eos_result_t _script_engine_stop_and_cleanup(void)
     return EOS_OK;
 }
 
+/* Dispatcher-compatible adapter (void (*)(void *)) for async stop requests */
+static void _script_engine_stop_and_cleanup_async(void *unused)
+{
+    (void)unused;
+    _script_engine_stop_and_cleanup();
+}
+
 eos_result_t script_engine_stop(void)
 {
     EOS_LOG_I("Stop script (sync) state=%d", engine_rt.state);
@@ -1471,7 +1478,7 @@ eos_result_t script_engine_request_stop(void)
         case SCRIPT_ENGINE_STATE_RUNNING:
             engine_rt.stop_is_timeout = false;
             engine_rt.pending_stop = true;
-            eos_dispatcher_call((eos_dispatcher_cb_t)_script_engine_stop_and_cleanup, NULL);
+            eos_dispatcher_call(_script_engine_stop_and_cleanup_async, NULL);
             return EOS_OK;
         case SCRIPT_ENGINE_STATE_IDLE:
         case SCRIPT_ENGINE_STATE_EXCEPTION:
@@ -1518,11 +1525,11 @@ eos_result_t script_engine_reload_current_script(void)
         (pkg.type == SCRIPT_TYPE_APPLICATION) ? EOS_APP_SCRIPT_ENTRY_FILE_NAME : EOS_WATCHFACE_SCRIPT_ENTRY_FILE_NAME;
     char base_path_buf[EOS_FS_PATH_MAX];
     snprintf(base_path_buf, sizeof(base_path_buf), "%s", p->base_path);
-    char manifest_path[EOS_FS_PATH_MAX];
+    char manifest_path[EOS_FS_PATH_MAX + EOS_FS_NAME_MAX];
     snprintf(manifest_path, sizeof(manifest_path), "%s%s", base_path_buf, mf);
     if (script_engine_get_manifest(manifest_path, &pkg) != EOS_OK)
         return EOS_FAILED;
-    char script_path[EOS_FS_PATH_MAX];
+    char script_path[EOS_FS_PATH_MAX + EOS_FS_NAME_MAX];
     snprintf(script_path, sizeof(script_path), "%s%s", base_path_buf, ef);
     pkg.base_path = eos_strdup(base_path_buf);
     if (!eos_storage_is_file(script_path))

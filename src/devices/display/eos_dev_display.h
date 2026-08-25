@@ -25,6 +25,9 @@ typedef struct
     void (*set_brightness)(uint8_t brightness);
     void (*power_on)(void);
     void (*power_off)(void);
+    /* 诊断用:绕过 PWM,把背光引脚直接拉高/拉低,验证引脚到背光的物理通路。
+     * 可选(非所有板级驱动实现)。执行后下一次 set_brightness 应自动恢复 PWM。 */
+    void (*bltest)(bool high);
 } eos_dev_display_ops_t;
 
 typedef struct

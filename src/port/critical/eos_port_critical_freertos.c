@@ -19,20 +19,24 @@
 #include "eos_port_critical.h"
 
 /* Includes ---------------------------------------------------*/
-#include "FreeRTOS.h"
-#include "task.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "eos_port.h"
+
+/* Spinlock serializing critical sections across cores/ISRs.
+ * ESP-IDF (Xtensa) requires a portMUX_TYPE argument. */
+static portMUX_TYPE s_critical_mux = portMUX_INITIALIZER_UNLOCKED;
 
 eos_critical_ctx_t eos_critical_enter(void)
 {
-    taskENTER_CRITICAL();
+    taskENTER_CRITICAL(&s_critical_mux);
     return 1;
 }
 
 void eos_critical_leave(eos_critical_ctx_t ctx)
 {
     (void)ctx;
-    taskEXIT_CRITICAL();
+    taskEXIT_CRITICAL(&s_critical_mux);
 }
 
 #endif /* EOS_RTOS_TYPE == EOS_RTOS_FREERTOS */

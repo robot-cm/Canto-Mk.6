@@ -457,7 +457,7 @@ eos_result_t _eos_app_list_get_installed(void)
         }
 
         // Build full path
-        char full_path[EOS_FS_PATH_MAX];
+        char full_path[EOS_FS_PATH_MAX + EOS_FS_NAME_MAX];
         snprintf(full_path, sizeof(full_path), EOS_APP_INSTALLED_DIR "%s", name_buf);
 
         // Check if it is a directory
@@ -524,9 +524,9 @@ eos_result_t eos_app_install(const char *eapk_path)
         return EOS_ERR_SDK_VERSION;
     }
     // Concatenate path
-    char path[EOS_FS_PATH_MAX];
+    char path[EOS_FS_PATH_MAX + EOS_FS_NAME_MAX];
     snprintf(path, sizeof(path), EOS_APP_INSTALLED_DIR "%s", header.pkg_id);
-    char data_path[EOS_FS_PATH_MAX];
+    char data_path[EOS_FS_PATH_MAX + EOS_FS_NAME_MAX];
     snprintf(data_path, sizeof(data_path), EOS_APP_DATA_DIR "%s", header.pkg_id);
     EOS_LOG_D("APP_PATH: %s", path);
     // Check if app exists
@@ -787,31 +787,52 @@ void eos_app_handle_script_error(eos_script_error_type_t error_type,
     lv_obj_t *extra_slot = eos_fault_panel_get_extra_slot(fault_panel);
     if (extra_slot)
     {
-        char info_str[256];
         const spm_error_t *last_error = spm_get_last_error();
         const char *error_info = last_error ? last_error->error_info : script_engine_get_error_info();
+        const char *id_text = app_id ? app_id : "Unknown";
+
+        /* Build the message on the heap with the exact required size so it is
+         * never truncated regardless of the error string lengths. */
+        char *info_str = NULL;
         if (error_info && error_info[0] != '\0')
         {
-            snprintf(info_str,
-                     sizeof(info_str),
-                     "Code: %d\nID: %s\nErrorType: %s\nError: %s",
-                     error_code,
-                     app_id ? app_id : "Unknown",
-                     reason,
-                     error_info);
+            int info_len = snprintf(NULL, 0,
+                                    "Code: %d\nID: %s\nErrorType: %s\nError: %s",
+                                    error_code, id_text, reason, error_info);
+            if (info_len > 0)
+            {
+                info_str = (char *)eos_malloc((size_t)info_len + 1);
+                if (info_str)
+                {
+                    snprintf(info_str, (size_t)info_len + 1,
+                             "Code: %d\nID: %s\nErrorType: %s\nError: %s",
+                             error_code, id_text, reason, error_info);
+                }
+            }
         }
         else
         {
-            snprintf(info_str,
-                     sizeof(info_str),
-                     "Code: %d\nID: %s\nErrorType: %s",
-                     error_code,
-                     app_id ? app_id : "Unknown",
-                     reason);
+            int info_len = snprintf(NULL, 0,
+                                    "Code: %d\nID: %s\nErrorType: %s",
+                                    error_code, id_text, reason);
+            if (info_len > 0)
+            {
+                info_str = (char *)eos_malloc((size_t)info_len + 1);
+                if (info_str)
+                {
+                    snprintf(info_str, (size_t)info_len + 1,
+                             "Code: %d\nID: %s\nErrorType: %s",
+                             error_code, id_text, reason);
+                }
+            }
         }
 
         lv_obj_t *err_label = lv_label_create(extra_slot);
-        lv_label_set_text(err_label, info_str);
+        if (info_str)
+        {
+            lv_label_set_text(err_label, info_str);
+            eos_free(info_str);
+        }
         lv_obj_set_width(err_label, EOS_PANEL_CONTENT_WIDTH);
         lv_label_set_long_mode(err_label, LV_LABEL_LONG_WRAP);
         lv_obj_set_style_text_color(err_label, EOS_COLOR_GREY_1, 0);

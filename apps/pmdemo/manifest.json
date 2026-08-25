@@ -1,9 +1,0 @@
-{
-  "id": "com.elenix.pmdemo",
-  "name": "PM Demo",
-  "version": "1.0.0",
-  "author": "ElenixOS",
-  "description": "Plugin Manager real-chain demo app",
-  "minApiLevel": 0,
-  "targetApiLevel": 0
-}

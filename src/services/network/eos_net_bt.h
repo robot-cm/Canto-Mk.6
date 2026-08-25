@@ -84,6 +84,11 @@ eos_result_t eos_net_bt_disconnect(void);
 eos_result_t eos_net_bt_get_paired(eos_bt_device_t *out_devs,
                                    uint32_t max_devs, uint32_t *out_count);
 
+/* 设备连接记忆(保存到 SD /history/bt/history.txt;无 SD 则忽略) */
+eos_result_t eos_net_bt_save_history(const char *addr, const char *name);
+/* 扫描后自动连接记忆中最频繁连接的可见设备,成功后刷新记忆 */
+eos_result_t eos_net_bt_connect_from_history(void);
+
 #ifdef __cplusplus
 }
 #endif

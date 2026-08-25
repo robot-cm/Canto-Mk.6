@@ -556,7 +556,7 @@ eos_result_t eos_storage_rm_recursive(const char *path)
             }
 
             char filename[_FILE_NAME_MAX_LENGTH];
-            char fullpath[EOS_FS_PATH_MAX];
+            char fullpath[EOS_FS_PATH_MAX + EOS_FS_NAME_MAX];
             eos_result_t result = EOS_OK;
 
             while (eos_storage_dir_read(dir, filename, sizeof(filename)) == EOS_OK)

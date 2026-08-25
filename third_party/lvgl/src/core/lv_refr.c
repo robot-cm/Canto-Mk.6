@@ -1401,8 +1401,11 @@ static void call_flush_cb(lv_display_t * disp, const lv_area_t * area, uint8_t *
 
     lv_display_send_event(disp, LV_EVENT_FLUSH_START, &offset_area);
 
-    /*For backward compatibility support LV_COLOR_16_SWAP (from v8)*/
-#if defined(LV_COLOR_16_SWAP) && LV_COLOR_16_SWAP
+    /*For backward compatibility support LV_COLOR_16_SWAP (from v8)
+     * 已禁用:本项目 GC9A01 大端字节序由板级 flush_cb 统一交换,
+     * 若此分支也 swap 会双重交换导致纯色错乱。渲染 buffer 保持
+     * 标准小端 RGB565。 */
+#if 0 && defined(LV_COLOR_16_SWAP) && LV_COLOR_16_SWAP
     lv_draw_sw_rgb565_swap(px_map, lv_area_get_size(&offset_area));
 #endif
 

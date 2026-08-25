@@ -37,6 +37,8 @@ typedef struct eos_dev_time eos_dev_time_t;
 typedef struct
 {
     eos_datetime_t (*get_datetime)(void);
+    /* 可选:写回 RTC。不支持写入的驱动可置 NULL。 */
+    eos_result_t (*set_datetime)(eos_datetime_t dt);
 } eos_dev_time_ops_t;
 
 struct eos_dev_time
@@ -71,6 +73,13 @@ eos_dev_state_t eos_dev_time_get_state(void);
  * @param state New device state
  */
 void eos_dev_time_report_state(eos_dev_state_t state);
+
+/**
+ * @brief Set datetime on time device (write back to RTC)
+ * @param dt Datetime to set
+ * @return EOS_OK on success, EOS_ERR_UNSUPPORTED if write not implemented
+ */
+eos_result_t eos_dev_time_set_datetime(eos_datetime_t dt);
 
 #ifdef __cplusplus
 }

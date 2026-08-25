@@ -696,11 +696,14 @@ static void _activity_on_gesture(lv_event_t *e)
         return;
 
     lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_active());
-    /* 退出手势改为【上下滑】（用户要求 2026-08-17）：左右滑交给 app 自行处理 */
-    if (dir != LV_DIR_TOP && dir != LV_DIR_BOTTOM)
+    EOS_LOG_D("View gesture: dir=%d", (int)dir);
+    /* 退出手势 = 【右滑】（用户要求 2026-08-23）：上下滑被 list 垂直滚动占用,
+     * 左滑交给 app 自行处理(on_swipe_back 可消费)。root/控制中心除外。 */
+    if (dir != LV_DIR_RIGHT)
         return;
 
     eos_activity_t *a = _activity_ctx.current_activity;
+    EOS_LOG_D("View swipe-back: firing back, current=%p", (void *)a);
     if (!a)
         return;
 
@@ -729,6 +732,7 @@ static void _indev_swipe_back_cb(lv_event_t *e)
         return;
 
     lv_dir_t dir = lv_indev_get_gesture_dir(indev);
+    EOS_LOG_D("Indev gesture: dir=%d", (int)dir);
 
     /* Same guards as _activity_on_gesture: ignore on the root/watchface and
      * while a transition is in flight. */
@@ -743,12 +747,13 @@ static void _indev_swipe_back_cb(lv_event_t *e)
     if (!a)
         return;
 
-    /* 退出手势改为【上下滑】（用户要求 2026-08-17）：左右滑一律不再退出，
+    /* 退出手势 = 【右滑】（用户要求 2026-08-23）：左滑/上下滑一律不再退出，
      * 交给 app 自行处理（pager 翻页等）。watchface 的左滑开 app list / 右滑
      * 开控制中心仍由 home catcher 处理（root guard 已 bail）。 */
-    if (dir != LV_DIR_TOP && dir != LV_DIR_BOTTOM)
+    if (dir != LV_DIR_RIGHT)
         return;
 
+    EOS_LOG_D("Indev swipe-back: firing back, current=%p", (void *)a);
     bool consumed = false;
     if (a->lifecycle.on_swipe_back)
         consumed = a->lifecycle.on_swipe_back(a, dir);
@@ -991,7 +996,9 @@ lv_obj_t *eos_activity_take_snapshot(eos_activity_t *activity, bool include_head
     }
 
     lv_obj_update_layout(view);
-    lv_refr_now(lv_obj_get_display(view));
+    /* 去掉 lv_refr_now:转场动画帧会在每帧正常刷新,这里强制全屏刷新
+     * 1) 加深转场路径栈深度(曾促发 ui 任务栈溢出)
+     * 2) 与动画帧叠加渲染,是滑动/转场时颜色残影的嫌疑点 */
 
     lv_result_t snapshot_result = lv_snapshot_take_to_draw_buf(view, _SNAPSHOT_COLOR_FORMAT, snapshot);
 

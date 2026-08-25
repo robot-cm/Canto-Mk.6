@@ -1,9 +1,9 @@
 {
   "id": "com.elenix.globaltime",
-  "name": "环球时间",
-  "version": "0.1.0",
-  "author": "ElenixOS",
-  "description": "环球时间：点阵地球 + 城市时区（GlobalTimeEarth 精神移植）",
+  "name": "GlobalTime",
+  "version": "1.0.0",
+  "author": "EraShaperAVM",
+  "description": "GlobalTime: Dot-Matrix Earth + City Time Zones (GlobalTimeEarth Spiritual Port)",
   "minApiLevel": 0,
   "targetApiLevel": 0,
   "background": false

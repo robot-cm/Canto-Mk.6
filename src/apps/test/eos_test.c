@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 #include "eos_swipe_panel.h"
 #include "lvgl.h"
 #include "eos_image.h"
@@ -273,7 +274,7 @@ static void _test_app_debug_script_exited_cb(eos_event_t *e)
     _test_app_debug_clear_current_app_id();
 }
 
-static void _test_app_debug_global_screen_loaded_cb(lv_event_t *e)
+static void __attribute__((unused)) _test_app_debug_global_screen_loaded_cb(lv_event_t *e)
 {
     lv_obj_t *scr = lv_event_get_param(e);
     if (!s_test_app_debug.debug_active)
@@ -822,12 +823,12 @@ static void _test_msg_list(lv_event_t *e)
     lv_obj_add_event_cb(btn, _test_msg_list_cb, LV_EVENT_CLICKED, msg_list);
 }
 
-static void _nav_init_global_cb(lv_event_t *e)
+static void __attribute__((unused)) _nav_init_global_cb(lv_event_t *e)
 {
     (*(int32_t *)lv_event_get_user_data(e)) = 0;
 }
 
-static void _back_prev_global_cb(lv_event_t *e)
+static void __attribute__((unused)) _back_prev_global_cb(lv_event_t *e)
 {
     (*(int32_t *)lv_event_get_user_data(e))--;
 }
@@ -849,7 +850,7 @@ static void _test_nav_cb_1(lv_event_t *e)
     }
 
     char title_str[64];
-    snprintf(title_str, sizeof(title_str), "Screen %d", nav_counter);
+    snprintf(title_str, sizeof(title_str), "Screen %d", (int)nav_counter);
     EOS_LOG_D("%s", title_str);
 
     eos_activity_set_view(activity, view);
@@ -1359,7 +1360,7 @@ static void _test_audio_sync_ui(void)
             uint32_t pos_sec = pos / rate;
             uint32_t dur_sec = dur / rate;
             lv_label_set_text_fmt(ctx->time_label,
-                                  "%u:%02u / %u:%02u",
+                                  "%"PRIu32":%02"PRIu32" / %"PRIu32":%02"PRIu32,
                                   pos_sec / 60,
                                   pos_sec % 60,
                                   dur_sec / 60,
@@ -1686,10 +1687,11 @@ static void _test_show_all_lv_symbols_list(lv_event_t *e)
     for (size_t i = 0; i < sizeof(lv_symbols) / sizeof(lv_symbols[0]); i++)
     {
         char buf[64];
-        snprintf(buf, sizeof(buf), "%s  U+%04X", lv_symbols[i].symbol, lv_symbols[i].codepoint);
+        snprintf(buf, sizeof(buf), "%s  U+%04"PRIX32, lv_symbols[i].symbol, lv_symbols[i].codepoint);
 
         // Add item to the list
         lv_obj_t *label = lv_list_add_text(list, buf);
+        (void)label;
         // lv_obj_set_style_text_font(label, &lv_font_montserrat_30, 0); // Set font
     }
 }
@@ -1697,20 +1699,22 @@ static void _test_show_all_lv_symbols_list(lv_event_t *e)
 static void _slide_widget_reached_threshold_cb(lv_event_t *e)
 {
     lv_obj_t *obj = lv_event_get_target(e);
+    (void)obj;
     eos_slide_widget_t *sw = (eos_slide_widget_t *)lv_event_get_user_data(e);
     eos_slide_widget_delete(sw);
 }
 
-static void _slide_widget_moving_cb(lv_event_t *e)
+static void __attribute__((unused)) _slide_widget_moving_cb(lv_event_t *e)
 {
     lv_obj_t *obj = lv_event_get_target(e);
     lv_obj_t *label = (lv_obj_t *)lv_event_get_user_data(e);
-    lv_label_set_text_fmt(label, "(%d,%d)", lv_obj_get_x(obj), lv_obj_get_y(obj));
+    lv_label_set_text_fmt(label, "(%" PRId32 ",%" PRId32 ")", lv_obj_get_x(obj), lv_obj_get_y(obj));
 }
 
-static void _slide_widget_reset_btn_clicked_cb(lv_event_t *e)
+static void __attribute__((unused)) _slide_widget_reset_btn_clicked_cb(lv_event_t *e)
 {
     lv_obj_t *obj = lv_event_get_target(e);
+    (void)obj;
     lv_obj_t *target = (lv_obj_t *)lv_event_get_user_data(e);
     lv_obj_set_pos(target, 0, 160);
 }
@@ -1748,10 +1752,10 @@ static void _test_slide_widget(lv_event_t *e)
     lv_obj_set_scroll_dir(list, LV_DIR_VER);
     lv_obj_add_flag(list, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *obj = _add_slide_wdiget(list);
-    obj = _add_slide_wdiget(list);
-    obj = _add_slide_wdiget(list);
-    obj = _add_slide_wdiget(list);
+    (void)_add_slide_wdiget(list);
+    (void)_add_slide_wdiget(list);
+    (void)_add_slide_wdiget(list);
+    (void)_add_slide_wdiget(list);
     // lv_obj_t *reset_btn = lv_button_create(scr);
     // lv_obj_t *label = lv_label_create(reset_btn);
     // lv_obj_align(reset_btn, LV_ALIGN_BOTTOM_MID, 0, -40);

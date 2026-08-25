@@ -1,0 +1,241 @@
+/**
+ * @file eos_bt_esp32.c
+ * @brief ESP32-S3 Bluetooth radio backend: NimBLE GAP advertising
+ *
+ * Strong implementation of eos_net_bt_backend_set_enabled() (declared in
+ * eos_port.h), overriding the weak stub in src/port/eos_port.c. The Bluetooth
+ * service (src/services/network/eos_net_bt.c) calls it whenever the radio is
+ * toggled, so the device advertises itself over BLE and becomes discoverable
+ * by phones as the configured name (default "Cyberwatch").
+ *
+ * - enable  -> NimBLE stack init (once) + undirected connectable advertising
+ *              (general discoverable, name in ADV data)
+ * - disable -> advertising stopped
+ *
+ * NimBLE runs in its own FreeRTOS task; no LVGL calls are made from its
+ * callbacks, so the UI thread is never blocked.
+ */
+
+#include <stdio.h>
+#include <string.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_err.h"
+#include "esp_log.h"
+#include "esp_heap_caps.h"
+#include "esp_bt.h" /* esp_bt_controller_deinit:清理半初始化 controller */
+#include "esp_nimble_hci.h"
+#include "nimble/nimble_port.h"
+#include "nimble/nimble_port_freertos.h"
+#include "host/ble_hs.h"
+#include "host/util/util.h"
+#include "services/gap/ble_svc_gap.h"
+
+#include "eos_core.h"
+
+/* Macros and Definitions -------------------------------------*/
+#define EOS_BT_ESP_TAG "NetBtEsp"
+#define EOS_BT_NAME_MAX 32
+#define EOS_BT_INIT_STACK 4096
+
+/* Variables --------------------------------------------------*/
+static bool s_initialized = false;
+static bool s_synced = false;  /* NimBLE host synced with controller */
+static bool s_enabled = false; /* radio requested on */
+static char s_name[EOS_BT_NAME_MAX + 1] = {0};
+
+/* Function Implementations -----------------------------------*/
+static void _start_advertising(void);
+static void _on_sync(void);
+static void _on_reset(int reason);
+static void _init_task(void *param);
+
+/* NimBLE host FreeRTOS task (protocol stack runs here) */
+static void _host_task(void *param)
+{
+    (void)param;
+    nimble_port_run();
+    nimble_port_freertos_deinit();
+}
+
+/* Low-priority init task: nimble_port_init() blocks until the controller is
+ * ready, so it must not run on the LVGL/UI thread (eos_port.h constraint). */
+static void _init_task(void *param)
+{
+    (void)param;
+    /* 诊断:controller 需要大块 internal|DMA 连续内存(Funcs table),
+     * 分别打印 INTERNAL 与 INTERNAL|DMA 的碎片情况,便于定位 ESP_ERR_NO_MEM */
+    size_t f_i    = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+    size_t l_i    = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+    size_t f_id   = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
+    size_t l_id   = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
+    ESP_LOGI(EOS_BT_ESP_TAG,
+             "controller init: INT free=%u largest=%u | INT|DMA free=%u largest=%u",
+             (unsigned)f_i, (unsigned)l_i, (unsigned)f_id, (unsigned)l_id);
+    esp_err_t ret = nimble_port_init();
+    if (ret != ESP_OK)
+    {
+        size_t fa_i  = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+        size_t la_i  = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+        size_t fa_id = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
+        size_t la_id = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
+        ESP_LOGE(EOS_BT_ESP_TAG, "nimble_port_init failed: %s "
+                 "(INT free=%u largest=%u | INT|DMA free=%u largest=%u)",
+                 esp_err_to_name(ret), (unsigned)fa_i, (unsigned)la_i,
+                 (unsigned)fa_id, (unsigned)la_id);
+        /* 清理半初始化的 controller:失败后残留的 ROM/固件状态
+         * 会与 WiFi coex 冲突(打开 WiFi 时卡死 → TG1WDT 复位)。 */
+        esp_err_t derr = esp_bt_controller_deinit();
+        if (derr != ESP_OK)
+            ESP_LOGW(EOS_BT_ESP_TAG, "controller deinit after failed init: %s",
+                     esp_err_to_name(derr));
+        s_enabled = false;
+        s_initialized = false;
+        vTaskDelete(NULL);
+        return;
+    }
+
+    ble_svc_gap_device_name_set(s_name);
+    ble_svc_gap_init();
+    ble_hs_cfg.sync_cb = _on_sync;
+    ble_hs_cfg.reset_cb = _on_reset;
+
+    nimble_port_freertos_init(_host_task);
+    s_initialized = true;
+    vTaskDelete(NULL);
+}
+
+/* GAP event callback (NimBLE host task context) */
+static int _gap_event(struct ble_gap_event *event, void *arg)
+{
+    (void)arg;
+    switch (event->type)
+    {
+    case BLE_GAP_EVENT_CONNECT:
+        if (event->connect.status == 0)
+        {
+            ESP_LOGI(EOS_BT_ESP_TAG, "connected");
+        }
+        else
+        {
+            _start_advertising();
+        }
+        break;
+    case BLE_GAP_EVENT_DISCONNECT:
+        ESP_LOGI(EOS_BT_ESP_TAG, "disconnected, re-advertising");
+        _start_advertising();
+        break;
+    case BLE_GAP_EVENT_ADV_COMPLETE:
+        _start_advertising();
+        break;
+    default:
+        break;
+    }
+    return 0;
+}
+
+/* Set ADV fields (name) and start undirected connectable advertising */
+static void _start_advertising(void)
+{
+    if (!s_synced || !s_enabled)
+        return;
+
+    struct ble_hs_adv_fields fields;
+    memset(&fields, 0, sizeof(fields));
+    fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+    fields.name = (uint8_t *)s_name;
+    fields.name_len = (uint8_t)strlen(s_name);
+    fields.name_is_complete = 1;
+
+    int rc = ble_gap_adv_set_fields(&fields);
+    if (rc != 0)
+    {
+        ESP_LOGE(EOS_BT_ESP_TAG, "adv_set_fields failed: %d", rc);
+        return;
+    }
+
+    struct ble_gap_adv_params adv_params;
+    memset(&adv_params, 0, sizeof(adv_params));
+    adv_params.conn_mode = BLE_GAP_CONN_MODE_UND; /* undirected connectable */
+    adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;  /* general discoverable */
+    adv_params.itvl_min = BLE_GAP_ADV_ITVL_MS(100);
+    adv_params.itvl_max = BLE_GAP_ADV_ITVL_MS(200);
+
+    rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, BLE_HS_FOREVER,
+                           &adv_params, _gap_event, NULL);
+    if (rc != 0)
+    {
+        ESP_LOGE(EOS_BT_ESP_TAG, "adv_start failed: %d", rc);
+    }
+    else
+    {
+        ESP_LOGI(EOS_BT_ESP_TAG, "advertising as \"%s\"", s_name);
+    }
+}
+
+/* Called by NimBLE when host syncs with the controller */
+static void _on_sync(void)
+{
+    uint8_t addr_type;
+    s_synced = (ble_hs_id_infer_auto(0, &addr_type) == 0);
+    if (!s_synced)
+    {
+        ESP_LOGW(EOS_BT_ESP_TAG, "could not infer own address");
+        return;
+    }
+    if (s_enabled)
+    {
+        _start_advertising();
+    }
+}
+
+static void _on_reset(int reason)
+{
+    s_synced = false;
+    ESP_LOGW(EOS_BT_ESP_TAG, "nimble reset, reason=%d", reason);
+}
+
+eos_result_t eos_net_bt_backend_set_enabled(bool enabled, const char *name)
+{
+    if (name && name[0])
+    {
+        strncpy(s_name, name, EOS_BT_NAME_MAX);
+        s_name[EOS_BT_NAME_MAX] = '\0';
+    }
+
+    if (!enabled)
+    {
+        s_enabled = false;
+        if (s_synced)
+        {
+            ble_gap_adv_stop();
+        }
+        ESP_LOGI(EOS_BT_ESP_TAG, "radio off");
+        return EOS_OK;
+    }
+
+    s_enabled = true;
+
+    if (!s_initialized)
+    {
+        /* Kick off protocol stack init on a low-priority task. Advertising
+         * starts automatically in _on_sync() once the host is ready. */
+        BaseType_t ok = xTaskCreate(_init_task, "eos_bt_init", EOS_BT_INIT_STACK,
+                                    NULL, 1, NULL);
+        if (ok != pdPASS)
+        {
+            s_enabled = false;
+            return EOS_ERR_NET_BT;
+        }
+    }
+    else if (s_synced)
+    {
+        /* Already up: restart advertising with the (possibly new) name. */
+        ble_gap_adv_stop();
+        _start_advertising();
+    }
+    /* If the stack is still syncing, _on_sync() will start advertising. */
+
+    return EOS_OK;
+}

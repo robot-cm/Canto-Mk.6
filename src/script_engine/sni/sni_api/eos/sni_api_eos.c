@@ -588,7 +588,7 @@ jerry_value_t sni_api_eos_fs_list(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Usage: fs.list(path)");
     }
 
-    path = sni_tb_js2c_string(args_p[0]);
+    path = (char *)sni_tb_js2c_string(args_p[0]);
     if (!path)
     {
         return sni_api_throw_error("Failed to convert argument");
@@ -638,7 +638,7 @@ jerry_value_t sni_api_eos_fs_size(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Usage: fs.size(path)");
     }
 
-    path = sni_tb_js2c_string(args_p[0]);
+    path = (char *)sni_tb_js2c_string(args_p[0]);
     if (!path)
     {
         return sni_api_throw_error("Failed to convert argument");
@@ -661,6 +661,33 @@ jerry_value_t sni_api_eos_fs_size(const jerry_call_info_t *call_info_p,
     return jerry_number((double)size);
 }
 
+/* ---- 相册: eos.fs.remove(path) -> bool ---- */
+jerry_value_t sni_api_eos_fs_remove(const jerry_call_info_t *call_info_p,
+                                    const jerry_value_t args_p[],
+                                    const jerry_length_t args_count)
+{
+    char *path = NULL;
+    eos_result_t ret;
+
+    (void)call_info_p;
+
+    if (args_count != 1 || !jerry_value_is_string(args_p[0]))
+    {
+        return sni_api_throw_error("Usage: fs.remove(path)");
+    }
+
+    path = (char *)sni_tb_js2c_string(args_p[0]);
+    if (!path)
+    {
+        return sni_api_throw_error("Failed to convert argument");
+    }
+
+    ret = eos_storage_file_remove(path);
+    eos_free(path);
+
+    return jerry_boolean(ret == EOS_OK);
+}
+
 /* ---- 笔记/画图: eos.fs.write(path, data) 兼容 string 与 Uint8Array ---- */
 jerry_value_t sni_api_eos_fs_write(const jerry_call_info_t *call_info_p,
                                    const jerry_value_t args_p[],
@@ -674,7 +701,7 @@ jerry_value_t sni_api_eos_fs_write(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Usage: fs.write(path, string|Uint8Array)");
     }
 
-    path = sni_tb_js2c_string(args_p[0]);
+    path = (char *)sni_tb_js2c_string(args_p[0]);
     if (!path)
     {
         return sni_api_throw_error("Failed to convert argument");
@@ -683,7 +710,7 @@ jerry_value_t sni_api_eos_fs_write(const jerry_call_info_t *call_info_p,
     eos_result_t r = EOS_ERR_INVALID_ARG;
     if (jerry_value_is_string(args_p[1]))
     {
-        char *text = sni_tb_js2c_string(args_p[1]);
+        char *text = (char *)sni_tb_js2c_string(args_p[1]);
         if (text)
         {
             r = eos_storage_write_file(path, text, strlen(text));
@@ -692,13 +719,13 @@ jerry_value_t sni_api_eos_fs_write(const jerry_call_info_t *call_info_p,
     }
     else if (jerry_value_is_typedarray(args_p[1]))
     {
-        jerry_typedarray_type_t ttype;
-        uint32_t tlen = 0;
-        jerry_value_t ab = jerry_typedarray_buffer(args_p[1], &ttype, &tlen);
+        jerry_size_t byte_offset = 0;
+        jerry_size_t tlen = 0;
+        jerry_value_t ab = jerry_typedarray_buffer(args_p[1], &byte_offset, &tlen);
         uint8_t *base = jerry_arraybuffer_data(ab);
         if (base)
         {
-            r = eos_storage_write_file(path, base, (size_t)tlen);
+            r = eos_storage_write_file(path, base + byte_offset, (size_t)tlen);
         }
         jerry_value_free(ab);
     }
@@ -719,7 +746,7 @@ jerry_value_t sni_api_eos_fs_read(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Usage: fs.read(path)");
     }
 
-    path = sni_tb_js2c_string(args_p[0]);
+    path = (char *)sni_tb_js2c_string(args_p[0]);
     if (!path)
     {
         return sni_api_throw_error("Failed to convert argument");
@@ -800,7 +827,7 @@ static void _sni_ime_close_cb(const char *text, eos_input_result_t result, void 
     jerry_value_t js_text = jerry_undefined();
     if (text && result == EOS_INPUT_RESULT_OK)
     {
-        js_text = jerry_string_sz((const jerry_char_t *)text);
+        js_text = jerry_string_sz(text);
     }
     jerry_value_t args[1] = { js_text };
     jerry_value_t ret = spm_call(ctx->owner_ctx->owner, ctx->js_cb, jerry_undefined(), args, 1);
@@ -1490,6 +1517,7 @@ const sni_method_desc_t eos_class_static_methods_time[] = {
 const sni_method_desc_t eos_class_static_methods_fs[] = {
     {.name = "list", .handler = sni_api_eos_fs_list},
     {.name = "size", .handler = sni_api_eos_fs_size},
+    {.name = "remove", .handler = sni_api_eos_fs_remove},   /* 相册删除 */
     {.name = "write", .handler = sni_api_eos_fs_write},   /* 笔记/画图 */
     {.name = "read", .handler = sni_api_eos_fs_read},     /* 笔记/画图 */
     {.name = NULL, .handler = NULL},

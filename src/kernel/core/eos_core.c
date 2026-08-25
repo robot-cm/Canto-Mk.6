@@ -26,6 +26,7 @@
 #include "eos_service_display.h"
 #include "eos_service_config.h"
 #include "eos_service_lock.h"
+#include "services/alarm/eos_service_alarm.h"
 #include "eos_app.h"
 #include "script_engine_core.h"
 #include "spm.h"
@@ -73,6 +74,7 @@
 #include "eos_activity.h"
 #include "eos_std_widgets.h"
 #include "eos_service_storage.h"
+#include "ui/system/eos_boot_anim.h"
 #define EOS_LOG_TAG "Core"
 #include "eos_log.h"
 
@@ -80,6 +82,7 @@
 
 /* Variables --------------------------------------------------*/
 static bool _is_inited = false;
+static bool _pending_root_start = false;
 
 /* Function Implementations -----------------------------------*/
 
@@ -119,6 +122,14 @@ static lv_indev_t *_get_key_indev()
         indev = lv_indev_get_next(indev);
     }
     EOS_LOG_W("Not found input device: key");
+}
+
+/* Invoked from an lv_timer context when the boot animation ends: only set a
+ * flag here; the real work (activity controller init) happens in
+ * eos_main_loop() to stay timer-callback-safe. */
+static void _on_boot_anim_done(void)
+{
+    _pending_root_start = true;
 }
 
 void _sys_init_err_handler(const char *err_msg)
@@ -196,16 +207,17 @@ void eos_init(void)
     eos_service_config_init();
     eos_service_state_init();
     eos_service_permission_init();
-#ifdef EOS_SIMULATOR
+    /* RTC 校对(须在 config 之后:依赖 Flash 备份;在 UI/App 之前:时间须先就绪) */
+    eos_service_time_init();
+#if EOS_SIMULATOR
     /* Register fake hardware devices (time/battery/power/sensors) BEFORE the
      * services that consume them, so they stop failing with "device OPS not
      * available" on the desktop simulator. */
     eos_sim_hw_mock_init();
 #endif
     eos_service_battery_init();
+    /* 内置 C 字体:编译进 Flash(XIP),不会失败,无需兜底卡死 */
     lv_font_t *default_font = eos_font_init();
-    if (!default_font)
-        _sys_init_err_handler("Failed to initialize default font");
     eos_theme_set(lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED), default_font);
     eos_app_init();
     eos_watchface_init();
@@ -223,6 +235,8 @@ void eos_init(void)
     eos_service_pm_init();
     eos_service_audio_init();
     eos_service_lock_init();
+    /* Persistent alarm trigger (Core): checks Alarm app config every 1s. */
+    eos_service_alarm_init();
 
     /* Low-level shell (Core). Must init even if SD/apps are unavailable. */
     eos_shell_init();
@@ -240,14 +254,17 @@ void eos_init(void)
     /* The watchface (built-in clock) is the home/root activity. The adaptive
        Launcher is a SEPARATE app-list page entered from the watchface (crown /
        up-swipe / shortcut). EOS_USE_CUSTOM_LAUNCHER (simulator only) still
-       selects the custom framework Home as that page (see eos_app_list_enter). */
-    eos_activity_t *root_activity = eos_watchface_get_activity();
-    if (!root_activity)
+       selects the custom framework Home as that page (see eos_app_list_enter).
+       The root activity is intentionally NOT started here: the boot animation
+       must finish first, so the main UI is never visible while it runs. */
+    if (!eos_watchface_get_activity())
         _sys_init_err_handler("Failed to get watchface activity");
 
-    // Activity controller will automatically delete Logo Screen
-    if (eos_activity_controller_init(root_activity) != EOS_OK)
-        _sys_init_err_handler("Failed to initialize activity controller");
+    /* Boot self-test animation (timer-driven, never blocks the main loop).
+     * Its completion callback only raises a flag; eos_main_loop() then starts
+     * the activity controller (which deletes the Logo Screen and shows the
+     * watchface), so the main UI appears only after the animation ends. */
+    eos_boot_anim_start(_on_boot_anim_done);
     _is_inited = true;
 }
 
@@ -262,6 +279,16 @@ uint32_t eos_main_loop(void)
     {
         EOS_LOG_E("System not initialized. Please call eos_init() before eos_main_loop().");
         return 0;
+    }
+    if (_pending_root_start)
+    {
+        _pending_root_start = false;
+        /* Activity controller will automatically delete Logo Screen */
+        eos_activity_t *root_activity = eos_watchface_get_activity();
+        if (!root_activity)
+            _sys_init_err_handler("Failed to get watchface activity");
+        else if (eos_activity_controller_init(root_activity) != EOS_OK)
+            _sys_init_err_handler("Failed to initialize activity controller");
     }
     eos_dispatch_tick();
     return lv_timer_handler();

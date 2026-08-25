@@ -23,13 +23,11 @@ typedef struct
 {
     eos_swipe_panel_t *swipe_panel;
     lv_obj_t *container;
-    lv_obj_t *bl_btn;
-    lv_obj_t *brightness_btn;
-    lv_obj_t *bat_btn;
-    lv_obj_t *locate_phone_btn;
-    lv_obj_t *mute_btn;
-    lv_obj_t *volume_btn;
     lv_obj_t *flash_light_btn;
+    lv_obj_t *brightness_btn;
+    lv_obj_t *power_save_btn;
+    lv_obj_t *wifi_btn;
+    lv_obj_t *bl_btn;
     lv_obj_t *settings_btn;
 } eos_control_center_t;
 /* Public function prototypes --------------------------------*/

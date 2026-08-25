@@ -18,7 +18,7 @@ extern "C" {
 #include "eos_lang.h"
 /* Public macros ----------------------------------------------*/
 
-#define EOS_VIEW_SWITCH_DURATION 300
+#define EOS_VIEW_SWITCH_DURATION 200
 
 /* Public typedefs --------------------------------------------*/
 

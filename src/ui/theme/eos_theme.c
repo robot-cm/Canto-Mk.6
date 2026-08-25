@@ -23,9 +23,9 @@
 /************************** List **************************/
 #define LIST_BG_COLOR EOS_COLOR_BLACK
 /************************** Switch **************************/
-#define SWITCH_BG_COLOR EOS_COLOR_GREEN
+#define SWITCH_BG_COLOR EOS_COLOR_TEXT_GREY
 /************************** Slider **************************/
-#define SLIDER_MAIN_COLOR lv_color_hex(0x34C759)
+#define SLIDER_MAIN_COLOR EOS_COLOR_TEXT_GREY
 #define SLIDER_BG_COLOR lv_color_hex(0x262737)
 
 /* Variables --------------------------------------------------*/

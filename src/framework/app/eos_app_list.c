@@ -33,7 +33,6 @@
 #include "eos_theme.h"
 #include "eos_icon.h"
 #include "eos_font.h"
-#include "eos_wos_statusbar.h"
 #include "eos_std_widgets.h"
 #include "eos_activity.h"
 #include "eos_bubble_grid.h"
@@ -54,10 +53,10 @@
 #define _APP_ICON_ANIM_DURATION 200
 #define _APP_ICON_ANIM_DELAY 75
 
-#define _APP_LIST_ANIM_DURATION 350
-#define _APP_LIST_ANIM_FOCUS_SCALE 1024
-#define _APP_LIST_ANIM_MIN_SACLE 64
-#define _APP_LIST_ANIM_SPLIT_PCT 15
+#define _APP_LIST_ANIM_DURATION 240
+#define _APP_LIST_ANIM_FOCUS_SCALE 512
+#define _APP_LIST_ANIM_MIN_SACLE 128
+#define _APP_LIST_ANIM_SPLIT_PCT 20
 #define _APP_LIST_ANIM_FROM_OPA_START 255
 #define _APP_LIST_ANIM_FROM_OPA_END 0
 #define _APP_LIST_ANIM_TO_OPA_START 0
@@ -190,9 +189,6 @@ static void _app_on_destroy(eos_activity_t *a)
         eos_free(ctx);
         eos_activity_set_user_data(a, NULL);
     }
-
-    /* Restore the unified statusbar's default title. */
-    wos_statusbar_set_title("ElenixOS");
 }
 
 /* JS 可写 eos.config "app.background"（bool）声明"是否应作为后台运行"。
@@ -220,20 +216,11 @@ static void _app_on_pause(eos_activity_t *a)
 {
     app_launch_ctx_t *ctx = eos_activity_get_user_data(a);
     if (!ctx || !ctx->background)
-    {
-        /* Non-background apps are about to be destroyed; clear the statusbar
-         * title so the next page (watchface / app list) doesn't show the
-         * outgoing app's name. */
-        wos_statusbar_set_title("ElenixOS");
         return;
-    }
 
     /* Suspend (not terminate) the app program so its realm and state are kept.
      * The keep-alive activity's view is hidden by the framework; we register it
-     * in the Background App Indicator so a top-center icon appears.
-     * Reset the statusbar title too — the indicator icon is the
-     * authoritative cue for which background app is running. */
-    wos_statusbar_set_title("ElenixOS");
+     * in the Background App Indicator so a top-center icon appears. */
     spm_app_suspend();
     bool _wants = _js_app_wants_background(ctx->app_id);
     EOS_LOG_I("EOS-DBG app_on_pause: %s background-flag=%d", ctx->app_id, _wants);
@@ -266,14 +253,6 @@ static void _app_on_enter(eos_activity_t *a)
     /* 重进 app（app 列表 launch 路径）时清除该 app 的后台指示器：
      * launch 不自动 unregister，否则旧标一直留在 watchface（重置后仍在）。 */
     eos_bg_indicator_unregister(ctx->app_id);
-
-    /* Surface the app's name in the unified WOS status bar so the user
-     * still gets a clear "I'm inside Clock" cue without paying the
-     * visual cost of a second header stacked over the statusbar. */
-    if (ctx->pkg.name)
-    {
-        wos_statusbar_set_title(ctx->pkg.name);
-    }
 
     eos_result_t ret = spm_app_run(&ctx->pkg);
     if (ret != EOS_OK)

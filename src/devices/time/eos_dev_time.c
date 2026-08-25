@@ -58,3 +58,13 @@ void eos_dev_time_report_state(eos_dev_state_t state)
     EOS_LOG_I("State: %d -> %d", _dev_time._state, state);
     _dev_time._state = state;
 }
+
+eos_result_t eos_dev_time_set_datetime(eos_datetime_t dt)
+{
+    if (_dev_time.ops == NULL || _dev_time.ops->set_datetime == NULL)
+    {
+        EOS_LOG_W("Time device write not supported");
+        return EOS_ERR_DEV_OPS_NOT_SUPPORTED;
+    }
+    return _dev_time.ops->set_datetime(dt);
+}

@@ -114,6 +114,8 @@ static void _update_handle_bar_position(eos_swipe_panel_t *sp, eos_swipe_dir_t d
         case EOS_SWIPE_DIR_RIGHT:
             lv_obj_align(sp->handle_bar, LV_ALIGN_LEFT_MID, TOUCH_BAR_MARGIN, 0);
             break;
+        default:
+            break;
     }
 
     switch (dir)

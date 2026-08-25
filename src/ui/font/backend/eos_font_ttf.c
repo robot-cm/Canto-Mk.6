@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "eos_theme.h"
+#include "eos_service_storage.h"
 
 /* Macros and Definitions -------------------------------------*/
 LV_FONT_DECLARE(EOS_FONT_ICON);
@@ -24,15 +25,25 @@ static lv_font_t *font_medium;
 static lv_font_t *font_small;
 static bool _font_inited = false;
 #if EOS_FONT_TTF_TYPE == EOS_FONT_TTF_FILE
-/* EOS_SYS_RES_FONT_DIR = res/font/; EOS_FONT_TTF_FILE_PATH = res/font/font.ttf */
-/* Path concatenation in the original macro causes double-res/font/font.ttf, use absolute path on Native */
-#ifdef EOS_SYS_ROOT_DIR
-/* On Native, paths must go through LVGL FS driver (letter 'Z'), not raw Windows paths.
- * Use "Z:/" prefix so lv_fs_resolve_path routes to eos_storage_file_open_read(). */
-static char _font_path[256] = "Z:" EOS_SYS_RES_FONT_DIR "font.ttf";
-#else
-static char _font_path[128] = EOS_SYS_RES_FONT_DIR EOS_FONT_TTF_FILE_PATH;
-#endif
+/* 字体来源:优先外部 SD 卡(EOS_FONT_TTF_FILE_PATH = /sdcard/font/font.ttf),
+ * 缺失时回退系统内置资源目录. 路径带 LVGL FS 盘符(EOS_LVGL_FS_LETTER 'Z'),
+ * 经 lv_fs_resolve_path 路由到 eos_storage_file_open_read() 读取. */
+static char _font_path[256];
+
+static void _resolve_font_path(void)
+{
+    snprintf(_font_path, sizeof(_font_path),
+             "%c:" EOS_FONT_TTF_FILE_PATH, (int)EOS_LVGL_FS_LETTER);
+    if (eos_storage_is_file(EOS_FONT_TTF_FILE_PATH))
+    {
+        EOS_LOG_I("Font source: external %s", EOS_FONT_TTF_FILE_PATH);
+        return;
+    }
+    EOS_LOG_W("External font not found (%s), fallback to system resource",
+              EOS_FONT_TTF_FILE_PATH);
+    snprintf(_font_path, sizeof(_font_path),
+             "%c:" EOS_SYS_RES_FONT_DIR "font.ttf", (int)EOS_LVGL_FS_LETTER);
+}
 #endif
 /* Function Implementations -----------------------------------*/
 
@@ -45,6 +56,11 @@ lv_font_t *eos_font_init(void)
     }
 
     EOS_LOG_I("Font system init");
+
+#if EOS_FONT_TTF_TYPE == EOS_FONT_TTF_FILE
+    /* 开机流程中此处早于开机动画(eos_boot_anim_start),且存储服务已就绪 */
+    _resolve_font_path();
+#endif
 
 #if EOS_FONT_TTF_TYPE == EOS_FONT_TTF_DATA
 

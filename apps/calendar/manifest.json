@@ -1,0 +1,10 @@
+{
+  "id": "com.elenix.calendar",
+  "name": "Calendar",
+  "version": "1.0.0",
+  "author": "EraShaperAVM",
+  "description": "Calendar: monthly grid, festivals from /sdcard/calendar/festival.json",
+  "minApiLevel": 0,
+  "targetApiLevel": 0,
+  "background": false
+}

@@ -85,6 +85,19 @@ eos_result_t eos_net_wifi_scan(eos_wifi_ap_t *out_aps,
 eos_result_t eos_net_wifi_connect(const char *ssid, const char *password);
 eos_result_t eos_net_wifi_disconnect(void);
 
+/* ── 异步版本(实机):立即返回,后台 worker 执行阻塞的 esp_wifi_scan/connect,
+ *    供 LVGL/UI 线程调用,避免屏幕冻结(AGENTS.md §19)。 ── */
+eos_result_t eos_net_wifi_scan_async(void);   /* 投递扫描;完成前 eos_net_wifi_scan_busy()=true */
+bool         eos_net_wifi_scan_busy(void);
+eos_result_t eos_net_wifi_scan_take(eos_wifi_ap_t *out_aps,
+                                    uint32_t max_aps, uint32_t *out_count); /* 取上次结果 */
+eos_result_t eos_net_wifi_connect_async(const char *ssid, const char *password);
+
+/* AP 连接记忆(保存到 SD /history/wifi/history.txt;无 SD 则忽略) */
+eos_result_t eos_net_wifi_save_history(const char *ssid, int8_t rssi, const char *password);
+/* 扫描后自动连接记忆中信号最强的可见 AP,成功后刷新记忆 */
+eos_result_t eos_net_wifi_connect_from_history(void);
+
 eos_result_t eos_net_wifi_get_ip(char *buf, size_t buflen);
 int8_t       eos_net_wifi_rssi(void);
 const char * eos_net_wifi_connected_ssid(void);

@@ -49,7 +49,7 @@
 #define _LIST_TRANSITION_HALF_SCALE 128
 #define _LIST_TRANSITION_NORMAL_SCALE 256
 #define _LIST_TRANSITION_DELAY_PCT 20
-#define _LIST_TRANSITION_MAX_VISIBLE_ITEMS 64
+#define _LIST_TRANSITION_MAX_VISIBLE_ITEMS 16
 #define _LIST_TRANSITION_STATE_HISTORY_CAP 16
 
 /* Variables --------------------------------------------------*/
@@ -228,7 +228,9 @@ lv_obj_t *eos_back_btn_create(lv_obj_t *parent, bool show_text)
         /* Shared styles must be initialized only once, otherwise LVGL will leak the
          * previously allocated property list on every back button recreation. */
         lv_style_init(&style_pressed);
-        lv_style_set_transform_scale(&style_pressed, 350);
+        /* 350%(3.5x)缩放过大:partial 刷新模式下按下/松开切换时 invalidate 区域
+         * 覆盖不全,滑动时产生明显颜色残影。降到 1.5x 保留按压缩放反馈但残影大减 */
+        lv_style_set_transform_scale(&style_pressed, 150);
         lv_style_set_bg_color(&style_pressed, lv_color_lighten(EOS_THEME_BUTTON_COLOR, 64));
         style_pressed_inited = true;
     }
@@ -453,6 +455,45 @@ static void _list_transition_list_clicked_cb(lv_event_t *e)
     }
 
     EOS_LOG_D("list_clicked: code=%d, list=%p, target=%p", code, list, target);
+    if (code == LV_EVENT_PRESSED)
+    {
+        lv_indev_t *diag_indev = lv_indev_active();
+        if (diag_indev)
+        {
+            lv_point_t diag_pt;
+            lv_indev_get_point(diag_indev, &diag_pt);
+            EOS_LOG_D("list_clicked: press point=(%d,%d)", diag_pt.x, diag_pt.y);
+        }
+        if (target)
+        {
+            const lv_obj_class_t *diag_cls = lv_obj_get_class(target);
+            EOS_LOG_D("list_clicked: target class=%s",
+                      diag_cls ? diag_cls->name : "?");
+            if (list && target == list)
+            {
+                uint32_t diag_i, diag_n = lv_obj_get_child_count(list);
+                EOS_LOG_D("list_clicked: dump %u direct children", diag_n);
+                for (diag_i = 0; diag_i < diag_n; diag_i++)
+                {
+                    lv_obj_t *child = lv_obj_get_child(list, diag_i);
+                    if (!child)
+                    {
+                        continue;
+                    }
+                    lv_area_t diag_a;
+                    lv_obj_get_coords(child, &diag_a);
+                    const lv_obj_class_t *ccls = lv_obj_get_class(child);
+                    EOS_LOG_D("  child[%u] %s (%d,%d,%d,%d) user1=%d clickable=%d hidden=%d",
+                              diag_i,
+                              ccls ? ccls->name : "?",
+                              diag_a.x1, diag_a.y1, diag_a.x2, diag_a.y2,
+                              lv_obj_has_flag(child, LV_OBJ_FLAG_USER_1) ? 1 : 0,
+                              lv_obj_has_flag(child, LV_OBJ_FLAG_CLICKABLE) ? 1 : 0,
+                              lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN) ? 1 : 0);
+                }
+            }
+        }
+    }
     if (!(list && target))
     {
         EOS_LOG_D("list_clicked: list or target is NULL, skip");
@@ -645,6 +686,42 @@ static uint32_t _list_transition_collect_all_children(lv_obj_t *list, lv_obj_t *
     return cnt;
 }
 
+static bool _list_transition_is_child_of(lv_obj_t *obj, lv_obj_t *parent)
+{
+    if (!obj || !parent)
+    {
+        return false;
+    }
+    lv_obj_t *cur = lv_obj_get_parent(obj);
+    while (cur)
+    {
+        if (cur == parent)
+        {
+            return true;
+        }
+        cur = lv_obj_get_parent(cur);
+    }
+    return false;
+}
+
+static lv_obj_t *_list_transition_find_list_in_view(lv_obj_t *view)
+{
+    if (!view)
+    {
+        return NULL;
+    }
+    uint32_t cnt = lv_obj_get_child_count(view);
+    for (uint32_t i = 0; i < cnt; i++)
+    {
+        lv_obj_t *child = lv_obj_get_child(view, i);
+        if (child && lv_obj_has_class(child, &lv_list_class))
+        {
+            return child;
+        }
+    }
+    return NULL;
+}
+
 void eos_list_transition_play(lv_anim_timeline_t *at, eos_activity_t *from, eos_activity_t *to, bool back)
 {
     if (!(at && from && to))
@@ -663,6 +740,35 @@ void eos_list_transition_play(lv_anim_timeline_t *at, eos_activity_t *from, eos_
     eos_list_transition_state_t *state = _list_transition_state;
     lv_obj_t *list = state ? state->list : NULL;
     lv_obj_t *button = state ? state->button : NULL;
+
+    /* 返回时，state 可能已被"要离开的页面"内部的点击覆盖（例如点过开关、列表项），
+     * 此时 state->list/button 指向 from 页面而非目标页面 to，导致返回动画作用在
+     * 错误对象上，目标页面的按钮残留 translate_x（forward 时滑出屏幕的值），
+     * coords 永久错位、点击失效。这里重新定位目标页面的 list 和残留按钮。 */
+    if (back && list && list_view && !_list_transition_is_child_of(list, list_view))
+    {
+        lv_obj_t *found_list = _list_transition_find_list_in_view(list_view);
+        if (found_list)
+        {
+            list = found_list;
+            uint32_t lcnt = lv_obj_get_child_count(list);
+            for (uint32_t li = 0; li < lcnt; li++)
+            {
+                lv_obj_t *child = lv_obj_get_child(list, li);
+                if (child && lv_obj_get_style_translate_x(child, 0) != 0)
+                {
+                    button = child;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            EOS_LOG_W("list_transition_play: no list in destination view, skipping animation");
+            return;
+        }
+    }
+
     if (!(list_view && list && button))
     {
         EOS_LOG_W("list_transition_play: invalid objects detected, skipping animation");
@@ -869,7 +975,8 @@ lv_obj_t *_list_btn_container_create(lv_obj_t *list)
     lv_obj_update_layout(btn);
     lv_obj_set_style_transform_pivot_x(btn, lv_obj_get_width(btn) / 2, 0);
     lv_obj_set_style_transform_pivot_y(btn, lv_obj_get_height(btn) / 2, 0);
-    lv_obj_set_style_transform_scale(btn, 230, LV_STATE_PRESSED);
+    /* 230%(2.3x)缩放过大导致滑动残影,降到 1.4x(同按压缩放残影处理) */
+    lv_obj_set_style_transform_scale(btn, 140, LV_STATE_PRESSED);
     lv_obj_set_style_bg_color(btn, lv_color_darken(EOS_THEME_SECONDARY_COLOR, 64), LV_STATE_PRESSED);
     return btn;
 }
@@ -998,6 +1105,8 @@ lv_obj_t *eos_list_add_entry_button_str_id(lv_obj_t *list, lang_string_id_t id)
 lv_obj_t *eos_list_add_container(lv_obj_t *list)
 {
     lv_obj_t *container = lv_obj_create(list);
+    /* 必须撑满列表宽度: lv_obj_create 默认 width=content≈0, 否则内部行不可见 */
+    lv_obj_set_size(container, lv_pct(100), LV_SIZE_CONTENT);
     _list_container_common_style(container);
     return container;
 }
@@ -1007,6 +1116,7 @@ static void _list_switch_container_clicked_cb(lv_event_t *e)
     lv_obj_t *sw = lv_event_get_user_data(e);
     EOS_CHECK_PTR_RETURN(sw);
 
+    EOS_LOG_D("switch container clicked: sw=%p, checked_before=%d", sw, lv_obj_has_state(sw, LV_STATE_CHECKED));
     if (lv_obj_has_state(sw, LV_STATE_CHECKED))
     {
         lv_obj_remove_state(sw, LV_STATE_CHECKED);
@@ -1016,6 +1126,7 @@ static void _list_switch_container_clicked_cb(lv_event_t *e)
         lv_obj_add_state(sw, LV_STATE_CHECKED);
     }
     lv_obj_send_event(sw, LV_EVENT_VALUE_CHANGED, NULL);
+    EOS_LOG_D("switch container clicked: toggled, checked_after=%d", lv_obj_has_state(sw, LV_STATE_CHECKED));
 }
 
 lv_obj_t *eos_list_add_switch(lv_obj_t *list, const char *txt)
@@ -1032,12 +1143,28 @@ lv_obj_t *eos_list_add_switch(lv_obj_t *list, const char *txt)
     lv_label_set_long_mode(label, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_set_flex_grow(label, 1);
 
+    /* Tag the switch row so the list transition resolver can target it
+     * (same workaround the settings passcode page uses explicitly). Without
+     * this, clicking a switch row logs "no USER_1 flag found" and loses the
+     * enter/exit transition animation. */
+    lv_obj_add_flag(container, LV_OBJ_FLAG_USER_1);
+
     // Switch
     lv_obj_t *sw = lv_switch_create(container);
     lv_obj_set_height(sw, _LIST_SWITCH_WIDTH);
     lv_obj_update_layout(sw);
     lv_obj_set_width(sw, _LIST_SWITCH_HEIGHT);
     lv_obj_remove_flag(sw, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+    /* The whole row (container) owns the click. Making the knob itself
+     * non-clickable fixes two real bugs:
+     * 1) double handling when the tap lands on the knob (LVGL toggles it and
+     *    sends VALUE_CHANGED, then the container callback toggles it again);
+     * 2) LVGL 9's swipe-to-toggle steals horizontal swipes that should be
+     *    scrolling the list or firing the right-swipe back gesture.
+     * The container's clicked callback toggles exactly once and emits
+     * VALUE_CHANGED, which is what every list switch handler listens to. */
+    lv_obj_remove_flag(sw, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(sw, LV_OBJ_FLAG_PRESS_LOCK);
     lv_obj_add_event_cb(container, _list_switch_container_clicked_cb, LV_EVENT_CLICKED, sw);
 
     return sw;
@@ -1228,7 +1355,7 @@ eos_list_slider_t *eos_list_add_slider(lv_obj_t *list, const char *txt)
     lv_obj_set_style_bg_opa(list_slider->slider, LV_OPA_TRANSP, LV_PART_KNOB);
     lv_obj_set_style_border_opa(list_slider->slider, LV_OPA_TRANSP, LV_PART_KNOB);
     lv_obj_set_style_bg_color(list_slider->slider,
-                              lv_color_darken(EOS_COLOR_GREEN, slider_main_bg_darken_lvl),
+                              lv_color_darken(EOS_COLOR_TEXT_GREY, slider_main_bg_darken_lvl),
                               LV_PART_MAIN);
 
     return list_slider;

@@ -58,6 +58,29 @@ function defaultConfig() {
              numberOfSequences: 3, minSequenceSize: 2, maxSequenceSize: 4,
              time: 60, availableCodes: CODES.slice() };
 }
+// ===================== 等级系统 =====================
+// 参数参照仓库 generateBreachConfig 的难度映射（time=timeIdx*15；buffer/序列随矩阵递增）。
+// C = 原固定配置（5x5/缓冲5/序列3/60s），保持默认体验不变。
+var LEVELS = [
+    { id: "A", label: "3x3", matrixCols: 3, matrixRows: 3, bufferSize: 3, solutionSize: 3,
+      numberOfSequences: 2, minSequenceSize: 2, maxSequenceSize: 3, time: 30 },
+    { id: "B", label: "4x4", matrixCols: 4, matrixRows: 4, bufferSize: 4, solutionSize: 4,
+      numberOfSequences: 3, minSequenceSize: 2, maxSequenceSize: 3, time: 45 },
+    { id: "C", label: "5x5", matrixCols: 5, matrixRows: 5, bufferSize: 5, solutionSize: 5,
+      numberOfSequences: 3, minSequenceSize: 2, maxSequenceSize: 4, time: 60 },
+    { id: "D", label: "6x6", matrixCols: 6, matrixRows: 6, bufferSize: 6, solutionSize: 6,
+      numberOfSequences: 3, minSequenceSize: 3, maxSequenceSize: 5, time: 75 }
+];
+var curLv = 2;   // 默认等级 C（5x5，与原固定配置一致）
+function levelConfig(li) {
+    var base = LEVELS[li];
+    var c = { matrixCols: base.matrixCols, matrixRows: base.matrixRows,
+              bufferSize: base.bufferSize, solutionSize: base.solutionSize,
+              numberOfSequences: base.numberOfSequences,
+              minSequenceSize: base.minSequenceSize, maxSequenceSize: base.maxSequenceSize,
+              time: base.time, availableCodes: CODES.slice() };
+    return c;
+}
 function generateMatrix(rng, cfg) {
     var cols = cfg.matrixCols, rows = cfg.matrixRows, n = cols * rows, i;
     var matrix = [];
@@ -256,7 +279,7 @@ bootCount.setStyleTextLetterSpace(2, 0);
 bootCount.setStyleTextAlign(2, 0);
     bootCount.setText("");
 
-// 玩法说明（用户不会玩）：Boot 页 y210 一行，font9 灰，居中。弦宽自验：y210 弦宽≈159px，"交替选取·拼出目标即入侵"(11 汉字 font9≈99px) 居中安全
+// 玩法说明（UI 全英文）：Boot 页 y210 一行，font9 灰，居中。"TAP ROW/COL TO MATCH SEQS" 21 字符 font9≈105px 居中安全（弦宽≈159px）
 var bootHint = new lv.label(pageBoot);
 bootHint.setSize(200, 14);
 bootHint.setPos(20, 210);
@@ -264,7 +287,7 @@ bootHint.setFontSize(9);
 bootHint.setStyleTextColor(hex(GRAY), 0);
 bootHint.setStyleTextLetterSpace(2, 0);
 bootHint.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-bootHint.setText("交替选取·拼出目标即入侵");
+bootHint.setText("TAP ROW/COL TO MATCH SEQS");
 
 function startBoot() {
     var full = "BREACH PROTOCOL";
@@ -304,11 +327,51 @@ function startCountdown() {
 startBoot();
 
 // ===================== P2 Hack 页（P1 完整实现） =====================
-var MX = 5, MY = 5;
+var MAX_N = 6, MAX_BUF = 6;   // 对象池上限（等级 D 6×6；缓冲槽 6）
 var CELL_W = 30, CELL_H = 20, CELL_GAP = 3, CELL_R = 2;   // 横向 gap3
 var MX_X0 = 39, MX_Y0 = 70;
 var COL_STEP = CELL_W + CELL_GAP;   // 33
 var ROW_STEP = CELL_H + 2;          // 22（纵向 gap2 → 5 行 y70/92/114/136/158，底 178）
+
+// 按等级动态布局：5x5（C）及以下沿用原布局；6x6（D）格子 27x16、行距 18，6 行底 176 ≤ 目标区 178
+function layoutFor(c) {
+    var n = c.matrixCols;
+    if (n <= 5) return { cellW: 30, cellH: 20, colStep: 33, rowStep: 22, x0: 39, y0: 70 };
+    var cellW = 27, cellH = 16, gap = 3;
+    var total = n * cellW + (n - 1) * gap;
+    return { cellW: cellW, cellH: cellH, colStep: cellW + gap, rowStep: 18,
+             x0: Math.floor((240 - total) / 2), y0: 70 };
+}
+// 应用当前等级的矩阵/缓冲槽/目标序列布局（对象池显隐 + 定位）
+function applyLayout() {
+    var L = layoutFor(cfg);
+    for (var r = 0; r < MAX_N; r++) for (var c = 0; c < MAX_N; c++) {
+        var cell = cells[r][c];
+        if (r < cfg.matrixRows && c < cfg.matrixCols) {
+            cell.obj.setPos(L.x0 + c * L.colStep, L.y0 + r * L.rowStep);
+            cell.obj.setSize(L.cellW, L.cellH);
+            cell.lab.setSize(L.cellW, L.cellH);
+            cell.lab.setFontSize(10);
+            cell.obj.removeFlag(lv.OBJ_FLAG_HIDDEN);
+        } else {
+            cell.obj.addFlag(lv.OBJ_FLAG_HIDDEN);
+        }
+    }
+    var bufTotal = cfg.bufferSize * BUF_W + (cfg.bufferSize - 1) * BUF_GAP;
+    var bx0 = (240 - bufTotal) / 2;
+    for (var i = 0; i < MAX_BUF; i++) {
+        if (i < cfg.bufferSize) {
+            bufSlots[i].obj.removeFlag(lv.OBJ_FLAG_HIDDEN);
+            bufSlots[i].obj.setPos(bx0 + i * (BUF_W + BUF_GAP), 50);
+        } else {
+            bufSlots[i].obj.addFlag(lv.OBJ_FLAG_HIDDEN);
+        }
+    }
+    for (var t = 0; t < tgtLabels.length; t++) {
+        if (t < cfg.numberOfSequences) tgtLabels[t].removeFlag(lv.OBJ_FLAG_HIDDEN);
+        else { tgtLabels[t].setText(""); tgtLabels[t].addFlag(lv.OBJ_FLAG_HIDDEN); }
+    }
+}
 
 // --- HUD：仅右计时（状态栏已承载"入侵协议"；页内左标题删，避免重复+被状态栏裁）---
 var hackTimer = new lv.label(pageHack);
@@ -320,15 +383,23 @@ hackTimer.setStyleTextLetterSpace(2, 0);
 hackTimer.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
 hackTimer.setText("60");
 
-// --- 缓冲槽（5）---
-var BUF_W = 26, BUF_H = 14, BUF_GAP = 4, BUF_N = 5;
-var bufTotal = BUF_N * BUF_W + (BUF_N - 1) * BUF_GAP;   // 156
-var bufX0 = (240 - bufTotal) / 2;                       // 42
+// 等级标签（左上；当前等级 LV X，font10 灰）
+var lvTag = new lv.label(pageHack);
+lvTag.setSize(50, 18);
+lvTag.setPos(10, 30);
+lvTag.setFontSize(10);
+lvTag.setStyleTextColor(hex(GRAY), 0);
+lvTag.setStyleTextLetterSpace(1, 0);
+lvTag.setStyleTextAlign(lv.TEXT_ALIGN_LEFT, 0);
+lvTag.setText("LV C");
+
+// --- 缓冲槽（对象池 6，按等级显示 3..6）---
+var BUF_W = 26, BUF_H = 14, BUF_GAP = 4;
 var bufSlots = [];
-for (var bi = 0; bi < BUF_N; bi++) {
+for (var bi = 0; bi < MAX_BUF; bi++) {
     var so = new lv.obj(pageHack);
     so.setSize(BUF_W, BUF_H);
-    so.setPos(bufX0 + bi * (BUF_W + BUF_GAP), 50);
+    so.setPos(0, 50);                    // 位置由 applyLayout 按等级设置
     so.setStyleRadius(CELL_R, 0);
     so.setStyleBgColor(hex(0x26262E), 0);          // 空槽填充提亮（原 0x1A1A20 近 BG 不可见）
     so.setStyleBgOpa(255, 0);
@@ -337,6 +408,7 @@ for (var bi = 0; bi < BUF_N; bi++) {
     so.setStyleBorderOpa(180, 0);
     so.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
     so.setScrollbarMode(0);
+    so.addFlag(lv.OBJ_FLAG_HIDDEN);      // 池对象初始隐藏
     var sl = new lv.label(so);
     sl.setSize(BUF_W, BUF_H);
     sl.setPos(0, 0);
@@ -347,17 +419,15 @@ for (var bi = 0; bi < BUF_N; bi++) {
     bufSlots.push({ obj: so, lab: sl });
 }
 
-// --- 5x5 矩阵 ---
+// --- 矩阵（对象池 6×6，按等级显示 3×3..6×6；位置/尺寸由 applyLayout 设置）---
 var cells = [];
-for (var r = 0; r < MY; r++) {
+for (var r = 0; r < MAX_N; r++) {
     cells[r] = [];
-    for (var c = 0; c < MX; c++) {
+    for (var c = 0; c < MAX_N; c++) {
         (function (rr, cc) {
-            var x = MX_X0 + cc * COL_STEP;
-            var y = MX_Y0 + rr * ROW_STEP;
             var o = new lv.obj(pageHack);
             o.setSize(CELL_W, CELL_H);
-            o.setPos(x, y);
+            o.setPos(0, 0);
             o.setStyleRadius(CELL_R, 0);
             o.setStyleBgColor(hex(PANEL), 0);
             o.setStyleBgOpa(255, 0);
@@ -366,10 +436,11 @@ for (var r = 0; r < MY; r++) {
             o.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
             o.setScrollbarMode(0);
             o.addFlag(lv.OBJ_FLAG_CLICKABLE);
+            o.addFlag(lv.OBJ_FLAG_HIDDEN);   // 池对象初始隐藏
             var l = new lv.label(o);
-            l.setSize(CELL_W, CELL_H);   // 全宽于格（30x20）
+            l.setSize(CELL_W, CELL_H);
             l.setPos(0, 0);
-            l.setFontSize(10);   // ⊆ 断言通过（2字≈14≤30），提可读；全宽于格+align CENTER+LS1（防截断）
+            l.setFontSize(10);
             l.setStyleTextColor(hex(GRAY), 0);
             l.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
             l.setStyleTextLetterSpace(1, 0);   // LS1（防双字符截断）
@@ -431,6 +502,9 @@ gameTimer.setAutoDelete(false);
 
 function newGame() {
     state.round++;
+    cfg = levelConfig(curLv);            // 按当前等级取参数
+    R.config = cfg;
+    applyLayout();                       // 重排矩阵/缓冲槽/目标序列（等级切换时生效）
     var tt = null;
     try { tt = eos.time.getNow(); } catch (e) { tt = null; }
     var seed = tt ? ((tt.sec * 1000 + tt.ms + state.round * 2654435761) >>> 0)
@@ -457,7 +531,7 @@ function newGame() {
 
 function doSelect(r, c) {
     if (!state.active) return;
-    var idx = r * MX + c;
+    var idx = r * cfg.matrixCols + c;
     if (state.picked[idx]) return;
     if (!isSelectable(state.sel, { row: r, col: c })) return;
     state.picked[idx] = true;
@@ -506,8 +580,9 @@ function seqState(buf, seq) {
 
 function refreshCells() {
     var green = solvedCellSet();
-    for (var r = 0; r < MY; r++) for (var c = 0; c < MX; c++) {
-        var idx = r * MX + c, cell = cells[r][c];
+    for (var r = 0; r < MAX_N; r++) for (var c = 0; c < MAX_N; c++) {
+        if (r >= cfg.matrixRows || c >= cfg.matrixCols) continue;   // 池中隐藏格跳过
+        var idx = r * cfg.matrixCols + c, cell = cells[r][c];
         cell.lab.setText(state.matrix[idx].code);
         if (state.picked[idx]) {
             cell.obj.setStyleBgColor(hex(0x2A2A12), 0);
@@ -523,7 +598,8 @@ function refreshCells() {
     }
 }
 function refreshBuffer() {
-    for (var i = 0; i < BUF_N; i++) {
+    for (var i = 0; i < MAX_BUF; i++) {
+        if (i >= cfg.bufferSize) continue;   // 池中隐藏槽跳过
         if (i < state.buffer.length) {
             var isGreen = false;
             for (var s = 0; s < state.seqs.length; s++) {
@@ -544,7 +620,7 @@ function refreshBuffer() {
 function refreshTargets() {
     for (var s = 0; s < tgtLabels.length; s++) {
         var tl = tgtLabels[s];
-        if (s < state.seqs.length) {
+        if (s < cfg.numberOfSequences && s < state.seqs.length) {
             var seq = state.seqs[s].codes;
             var st = seqState(state.buffer, seq);
             tl.setText(seq.join(" "));   // 纯序列（去括号，CLIP 禁换行，避免叠字）
@@ -558,12 +634,13 @@ function refreshTargets() {
     }
 }
 function refreshScan() {
+    var L = layoutFor(cfg);
     if (state.sel.direction === "ROW") {
-        scanLine.setSize(COL_STEP * MX - CELL_GAP, 10);
-        scanLine.setPos(MX_X0, MX_Y0 + state.sel.value * ROW_STEP + (CELL_H - 10) / 2);
+        scanLine.setSize(L.colStep * cfg.matrixCols - CELL_GAP, 10);
+        scanLine.setPos(L.x0, L.y0 + state.sel.value * L.rowStep + (L.cellH - 10) / 2);
     } else {
-        scanLine.setSize(10, ROW_STEP * MY - CELL_GAP);
-        scanLine.setPos(MX_X0 + state.sel.value * COL_STEP + (CELL_W - 10) / 2, MX_Y0);
+        scanLine.setSize(10, L.rowStep * cfg.matrixRows - CELL_GAP);
+        scanLine.setPos(L.x0 + state.sel.value * L.colStep + (L.cellW - 10) / 2, L.y0);
     }
     scanLine.removeFlag(lv.OBJ_FLAG_HIDDEN);
 }
@@ -628,6 +705,57 @@ resRetry.addEventCb(function () {
     catch (e) { R.jerryErrors++; LOG("[breach-err] retry: " + (e && e.message ? e.message : String(e))); }
 }, lv.EVENT_PRESSED, null);
 
+// --- 等级选择（DIFF，y196；点击即切换难度并立即重开；英文缩写 3x3/4x4/5x5/6x6）---
+var lvBtns = [];
+var lvBtnW = 48, lvBtnH = 24, lvBtnGap = 6;
+var lvTotal = LEVELS.length * lvBtnW + (LEVELS.length - 1) * lvBtnGap;   // 210
+var lvX0 = (240 - lvTotal) / 2;                                          // 15
+for (var li = 0; li < LEVELS.length; li++) {
+    (function (i) {
+        var lb = new lv.obj(pageResult);
+        lb.setSize(lvBtnW, lvBtnH);
+        lb.setPos(lvX0 + i * (lvBtnW + lvBtnGap), 196);
+        lb.setStyleRadius(2, 0);
+        lb.setStyleBgColor(hex(0x1A1A20), 0);
+        lb.setStyleBgOpa(255, 0);
+        lb.setStyleBorderWidth(1, 0);
+        lb.setStyleBorderColor(hex(0x55585F), 0);
+        lb.setStyleBorderOpa(255, 0);
+        lb.setStylePadAll(0, 0);
+        lb.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+        lb.setScrollbarMode(0);
+        lb.addFlag(lv.OBJ_FLAG_CLICKABLE);
+        var ll = new lv.label(lb);
+        ll.setSize(lvBtnW, lvBtnH);
+        ll.setPos(0, 0);
+        ll.setFontSize(10);
+        ll.setStyleTextColor(hex(GRAY), 0);
+        ll.setStyleTextLetterSpace(1, 0);
+        ll.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+        ll.setText(LEVELS[i].label);
+        lb.addEventCb(function () {
+            try { pickLevel(i); }
+            catch (e) { R.jerryErrors++; LOG("[breach-err] pickLevel: " + (e && e.message ? e.message : String(e))); }
+        }, lv.EVENT_PRESSED, null);
+        lvBtns.push({ obj: lb, lab: ll });
+    })(li);
+}
+function refreshLevelBtns() {
+    lvTag.setText("LV " + LEVELS[curLv].id);
+    for (var i = 0; i < lvBtns.length; i++) {
+        var on = (i === curLv);
+        lvBtns[i].obj.setStyleBorderColor(hex(on ? YELLOW : 0x55585F), 0);
+        lvBtns[i].lab.setStyleTextColor(hex(on ? YELLOW : GRAY), 0);
+    }
+}
+function pickLevel(li) {
+    if (li < 0 || li >= LEVELS.length) return;
+    curLv = li;
+    refreshLevelBtns();
+    retry();   // 以新等级立即开新局
+}
+refreshLevelBtns();
+
 // Glitch 故障特效（池化 timer；timer≥30ms；仅 Result 可见时运行）
 var glitchTimer = null;
 function startGlitch() {
@@ -663,15 +791,16 @@ function audit() {
         + " pageBoot.desc=" + countDesc(pageBoot)
         + " pageHack.desc=" + countDesc(pageHack)
         + " pageResult.desc=" + countDesc(pageResult)
-        + " cells=" + (MY * MX) + " buf=" + BUF_N + " tgt=" + tgtLabels.length);
+        + " cells=" + (MAX_N * MAX_N) + " buf=" + MAX_BUF + " tgt=" + tgtLabels.length
+        + " lv=" + LEVELS.length);
 }
 
-// 矩阵 25 格 getText 审计：每格文本应为 55/BD/1C/E9/7A 之一（验证生成 + 显示无截断）
+// 矩阵 getText 审计：每格文本应为 55/BD/1C/E9/7A 之一（验证生成 + 显示无截断）
 function auditMatrix() {
     var bad = 0, rows = [];
-    for (var r = 0; r < MY; r++) {
+    for (var r = 0; r < cfg.matrixRows; r++) {
         var rc = [];
-        for (var c = 0; c < MX; c++) {
+        for (var c = 0; c < cfg.matrixCols; c++) {
             var t = cells[r][c].lab.getText();
             rc.push(t);
             if (CODES.indexOf(t) < 0) { bad++; LOG("[breach-matrix-ERR] cell " + r + "," + c + "='" + t + "'"); }
@@ -699,7 +828,7 @@ function auditLayout() {
         try { tx = tgtLabels[ti].getText(); } catch (e2) {}
         LOG("[breach-target-text] t" + ti + "=\"" + tx + "\"");
     }
-    for (var i = 0; i < tgtLabels.length; i++) {
+    for (var i = 0; i < cfg.numberOfSequences; i++) {
         var b = boxOf(tgtLabels[i]);
         tb.push(b);
         LOG("[breach-overlap] t" + i + "=(" + b.x1 + "," + b.y1 + ")-(" + b.x2 + "," + b.y2 + ") w" + b.w + " h" + b.h);
@@ -709,7 +838,7 @@ function auditLayout() {
         for (var c = a + 1; c < tb.length; c++)
             if (intersect(tb[a], tb[c])) { ok = false; why += " t" + a + "X" + c; }
     var minW = 999, maxW = 0, allWithin = true;
-    for (var r = 0; r < MY; r++) for (var cc = 0; cc < MX; cc++) {
+    for (var r = 0; r < cfg.matrixRows; r++) for (var cc = 0; cc < cfg.matrixCols; cc++) {
         var cell = cells[r][cc];
         var cb = boxOf(cell.obj), lb = boxOf(cell.lab);
         if (lb.w < minW) minW = lb.w;
@@ -724,6 +853,8 @@ function auditLayout() {
 
 // 暴露给探针 / 后续阶段使用
 R.config = cfg;
+R.pickLevel = pickLevel;
+R.curLevel = function () { return LEVELS[curLv].id; };
 R.debugSeqCount = function () { return state.seqs ? state.seqs.length : 0; };
 R.startHack = function () { newGame(); fadeTo(pageHack); };
 R.startResult = function (win) {
@@ -753,15 +884,15 @@ R.autotest = function (n) {
     function pathSet() { var s = {}; for (var i = 0; i < state.path.length; i++) s[state.path[i]] = true; return s; }
     function firstSelectable(excludePath) {
         var ps = excludePath ? pathSet() : {};
-        for (var r = 0; r < MY; r++) for (var c = 0; c < MX; c++) {
-            var idx = r * MX + c;
+        for (var r = 0; r < cfg.matrixRows; r++) for (var c = 0; c < cfg.matrixCols; c++) {
+            var idx = r * cfg.matrixCols + c;
             if (state.picked[idx]) continue;
             if (excludePath && ps[idx]) continue;
             if (isSelectable(state.sel, { row: r, col: c })) return { r: r, c: c, idx: idx };
         }
         // 退路：任意可选
-        for (var r2 = 0; r2 < MY; r2++) for (var c2 = 0; c2 < MX; c2++) {
-            var i2 = r2 * MX + c2;
+        for (var r2 = 0; r2 < cfg.matrixRows; r2++) for (var c2 = 0; c2 < cfg.matrixCols; c2++) {
+            var i2 = r2 * cfg.matrixCols + c2;
             if (state.picked[i2]) continue;
             if (isSelectable(state.sel, { row: r2, col: c2 })) return { r: r2, c: c2, idx: i2 };
         }
@@ -775,7 +906,7 @@ R.autotest = function (n) {
                 for (var p = 0; p < state.path.length; p++) {
                     if (!state.active) break;
                     var idx = state.path[p];
-                    doSelect(Math.floor(idx / MX), idx % MX);
+                    doSelect(Math.floor(idx / cfg.matrixCols), idx % cfg.matrixCols);
                 }
                 if (state.win) res.wins++; else res.loses++;
             } else if (g < Math.floor(n * 0.75)) {

@@ -27,12 +27,14 @@
 #include "eos_activity.h"
 #include "spm.h"
 #include "eos_service_config.h"
+#include "eos_service_time.h"
 #include "eos_service_pm.h"
 #include "ui/wos/eos_wos.h"
 #include "ui/launcher/eos_launcher.h"
 #include "services/plugin/eos_plugin_manager.h"
 #include "services/ime/eos_pinyin.h"
 #include "framework/watchface/eos_watchface.h"
+#include "eos_service_display.h"
 #include "lvgl.h"
 
 #define EOS_LOG_TAG "Shell"
@@ -57,6 +59,7 @@ static void cmd_psram(eos_shell_output_cb_t out, void *user, int argc, char **ar
 static void cmd_flash(eos_shell_output_cb_t out, void *user, int argc, char **argv);
 static void cmd_sd(eos_shell_output_cb_t out, void *user, int argc, char **argv);
 static void cmd_rtc(eos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_time(eos_shell_output_cb_t out, void *user, int argc, char **argv);
 static void cmd_display(eos_shell_output_cb_t out, void *user, int argc, char **argv);
 static void cmd_touch(eos_shell_output_cb_t out, void *user, int argc, char **argv);
 static void cmd_wifi(eos_shell_output_cb_t out, void *user, int argc, char **argv);
@@ -109,8 +112,9 @@ static const eos_shell_cmd_t s_cmds[] =
     {"psram",   "show PSRAM usage",                        cmd_psram},
     {"flash",   "show flash layout",                       cmd_flash},
     {"sd",      "show SD / storage status",                cmd_sd},
-    {"rtc",     "show current date/time",                  cmd_rtc},
-    {"display", "show display info",                       cmd_display},
+    {"rtc",     "show RTC device + system time status",    cmd_rtc},
+    {"time",    "time | time set <YYYY-MM-DD HH:MM:SS> | time unix <sec>", cmd_time},
+    {"display", "display [brightness <0-100> | bltest <0|1>]  (info / A/B test)", cmd_display},
     {"touch",   "show input devices",                      cmd_touch},
     {"wifi",    "wifi <status|enable|disable|scan|connect|disconnect|set>", cmd_wifi},
     {"bt",      "bt <status|enable|disable|scan|connect|disconnect|paired>", cmd_bt},
@@ -211,20 +215,94 @@ static void cmd_sd(eos_shell_output_cb_t out, void *user, int argc, char **argv)
     sh_out(out, user, "  app dir : %s", EOS_APP_INSTALLED_DIR);
 }
 
+static const char *_time_source_name(eos_time_source_t s)
+{
+    switch (s)
+    {
+    case EOS_TIME_SOURCE_RTC:     return "RTC";
+    case EOS_TIME_SOURCE_BACKUP:  return "backup";
+    case EOS_TIME_SOURCE_COMPILE: return "build-time";
+    default:                      return "none";
+    }
+}
+
 static void cmd_rtc(eos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     (void)argc;
     (void)argv;
-    time_t now = time(NULL);
-    struct tm t;
-#if defined(_WIN32)
-    localtime_s(&t, &now);
-#else
-    localtime_r(&now, &t);
-#endif
-    sh_out(out, user, "[rtc] %04d-%02d-%02d %02d:%02d:%02d (local)",
-           t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
-           t.tm_hour, t.tm_min, t.tm_sec);
+    eos_datetime_t now = eos_time_get();
+    eos_datetime_t rtc = eos_time_get_rtc();
+    sh_out(out, user, "[time] %04d-%02d-%02d %02d:%02d:%02d (system, source=%s)",
+           now.year, now.month, now.day, now.hour, now.min, now.sec,
+           _time_source_name(eos_time_get_source()));
+    sh_out(out, user, "[rtc ] %04d-%02d-%02d %02d:%02d:%02d (BM8563 raw)",
+           rtc.year, rtc.month, rtc.day, rtc.hour, rtc.min, rtc.sec);
+    if (rtc.year == 0) {
+        sh_out(out, user, "       RTC invalid (VL/power-loss) or I2C not ready");
+    }
+}
+
+static void cmd_time(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+{
+    if (argc < 2)
+    {
+        sh_out(out, user, "usage: time | time set <YYYY-MM-DD HH:MM:SS> | time unix <sec>");
+        return;
+    }
+
+    if (strcmp(argv[1], "set") == 0)
+    {
+        if (argc < 4)
+        {
+            sh_out(out, user, "usage: time set <YYYY-MM-DD HH:MM:SS>");
+            return;
+        }
+        eos_datetime_t dt;
+        memset(&dt, 0, sizeof(dt));
+        int y = 0, mo = 0, d = 0, h = 0, mi = 0, s = 0;
+        if (sscanf(argv[2], "%d-%d-%d", &y, &mo, &d) != 3 ||
+            sscanf(argv[3], "%d:%d:%d", &h, &mi, &s) != 3)
+        {
+            sh_out(out, user, "error: expected YYYY-MM-DD HH:MM:SS");
+            return;
+        }
+        dt.year  = (uint16_t)y;
+        dt.month = (uint8_t)mo;
+        dt.day   = (uint8_t)d;
+        dt.hour  = (uint8_t)h;
+        dt.min   = (uint8_t)mi;
+        dt.sec   = (uint8_t)s;
+        if (eos_time_set(dt) == EOS_OK)
+        {
+            sh_out(out, user, "time set OK (RTC + backup + libc)");
+        }
+        else
+        {
+            sh_out(out, user, "time set FAILED (invalid value)");
+        }
+        return;
+    }
+
+    if (strcmp(argv[1], "unix") == 0)
+    {
+        if (argc < 3)
+        {
+            sh_out(out, user, "usage: time unix <sec>");
+            return;
+        }
+        uint32_t ts = (uint32_t)strtoul(argv[2], NULL, 10);
+        if (eos_time_set_unix(ts) == EOS_OK)
+        {
+            sh_out(out, user, "time set OK (unix %u)", (unsigned)ts);
+        }
+        else
+        {
+            sh_out(out, user, "time set FAILED");
+        }
+        return;
+    }
+
+    sh_out(out, user, "usage: time | time set <YYYY-MM-DD HH:MM:SS> | time unix <sec>");
 }
 
 static void cmd_power(eos_shell_output_cb_t out, void *user, int argc, char **argv)
@@ -322,8 +400,49 @@ static void cmd_wos(eos_shell_output_cb_t out, void *user, int argc, char **argv
 
 static void cmd_display(eos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
-    (void)argc;
-    (void)argv;
+    /* display brightness <0-100> — instant A/B test of the PWM backlight.
+     * No animation (duration=0) so this is safe from any task context. */
+    if (argc >= 3 && strcmp(argv[1], "brightness") == 0)
+    {
+        char *end = NULL;
+        long v = strtol(argv[2], &end, 10);
+        if (end == argv[2] || v < EOS_DISPLAY_BRIGHTNESS_MIN || v > EOS_DISPLAY_BRIGHTNESS_MAX)
+        {
+            sh_out(out, user, "error: brightness must be %d..%d (got '%s')",
+                   EOS_DISPLAY_BRIGHTNESS_MIN, EOS_DISPLAY_BRIGHTNESS_MAX, argv[2]);
+            return;
+        }
+        eos_display_set_brightness((uint8_t)v, EOS_DISPLAY_DURATION_OFF, false);
+        sh_out(out, user, "[display] brightness set to %ld (instant)", v);
+        sh_out(out, user, "  -> if screen does NOT change, PWM is not reaching the backlight");
+        return;
+    }
+
+    /* display bltest <0|1> — bypass PWM, drive the BL pin (GPIO43) directly
+     * HIGH/LOW to verify the physical path from pin to backlight (no meter
+     * needed): 1 -> fully bright, 0 -> dark. Any display brightness call
+     * afterwards automatically rebinds the pin to the LEDC PWM. */
+    if (argc >= 3 && strcmp(argv[1], "bltest") == 0)
+    {
+        char *end = NULL;
+        long v = strtol(argv[2], &end, 10);
+        if (end == argv[2] || (v != 0 && v != 1))
+        {
+            sh_out(out, user, "error: bltest must be 0 or 1 (got '%s')", argv[2]);
+            return;
+        }
+        eos_result_t err = eos_display_bltest(v == 1);
+        if (err != EOS_OK)
+        {
+            sh_out(out, user, "error: bltest not supported by this board driver (%d)", (int)err);
+            return;
+        }
+        sh_out(out, user, "[display] bltest: BL(GPIO43) %s (PWM bypassed)",
+               v ? "HIGH -> screen should be FULLY BRIGHT" : "LOW -> screen should go DARK");
+        sh_out(out, user, "  follows? -> BL pin is wired to backlight. restore: display brightness 100");
+        return;
+    }
+
     lv_display_t *d = lv_display_get_default();
     int w = EOS_DISPLAY_WIDTH;
     int h = EOS_DISPLAY_HEIGHT;
@@ -341,6 +460,9 @@ static void cmd_display(eos_shell_output_cb_t out, void *user, int argc, char **
     sh_out(out, user, "  shape       : round (1.28\" GC9A01 on real hardware)");
     sh_out(out, user, "  renderer    : LVGL %d.%d.%d",
            (int)LVGL_VERSION_MAJOR, (int)LVGL_VERSION_MINOR, (int)LVGL_VERSION_PATCH);
+    sh_out(out, user, "  brightness  : %d (range %d..%d)",
+           eos_display_get_brightness(), EOS_DISPLAY_BRIGHTNESS_MIN, EOS_DISPLAY_BRIGHTNESS_MAX);
+    sh_out(out, user, "  usage       : display brightness <0-100> | display bltest <0|1>");
 }
 
 static void cmd_touch(eos_shell_output_cb_t out, void *user, int argc, char **argv)

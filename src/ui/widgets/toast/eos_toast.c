@@ -26,7 +26,7 @@
 #define _SCREEN_PAD_ALL 10
 #define _LABEL_MAX_WIDTH EOS_DISPLAY_WIDTH - _ICON_WIDTH - _TOAST_PAD_ALL * 2 - _LABEL_MARGIN_LEFT - _SCREEN_PAD_ALL * 2
 
-#define _TOAST_ANIM_DURATION 500
+#define _TOAST_ANIM_DURATION 300
 #define _TOAST_MARGIN_TOP 35
 #define _TOAST_SHOW_SCROLL_SPEED 10 /**< Scroll time per pixel, in milliseconds */
 #define _TOAST_SHOW_DURATION 3000 /**< Base display time, in milliseconds */

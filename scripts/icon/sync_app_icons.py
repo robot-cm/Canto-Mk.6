@@ -3,15 +3,15 @@
 """
 @file sync_app_icons.py
 @brief Sync each local app's launcher icon (icon.bin) from the shared webp
-       design sources in the top-level `icon/` folder.
+       design sources in `resources/images/icon/`.
 
 The firmware's LVGL fork can only decode PNG (lodepng); it CANNOT decode
 webp at runtime. The launcher reads, per installed app:
     EOS_APP_INSTALLED_DIR/<id>/icon.bin   (a 48x48 RGBA PNG)
-The `icon/*.webp` files (512px, transparent) are the canonical design
-sources. This script keeps the two in sync:
+The `resources/images/icon/*.webp` files (512px, transparent) are the
+canonical design sources. This script keeps the two in sync:
 
-  For every <name>.webp in icon/
+  For every <name>.webp in resources/images/icon/
     if apps/<name>/ exists (a local script app):
         - regenerate apps/<name>/icon.bin  (48x48 RGBA PNG, downscaled)
         - overwrite the running FS copy at
@@ -31,7 +31,7 @@ from PIL import Image
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
-ICON_DIR = os.path.join(REPO_DIR, "icon")
+ICON_DIR = os.path.join(REPO_DIR, "resources", "images", "icon")
 APPS_DIR = os.path.join(REPO_DIR, "apps")
 FS_DIR = os.path.join(REPO_DIR, "simulator", "build", "fs", ".sys", "app", "apps")
 

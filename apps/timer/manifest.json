@@ -1,9 +1,9 @@
 {
   "id": "com.elenix.timer",
-  "name": "计时器",
-  "version": "1.1.0",
-  "author": "ElenixOS",
-  "description": "秒表：HH:MM:SS.X + 后台续计时（eos.config 持久化+时间戳补差）+ 计次持久化",
+  "name": "Timer",
+  "version": "1.0.0",
+  "author": "EraShaperAVM",
+  "description": "Countdown timer: presets 1M/5M/10M/30M/1H + -30s/-10s/+10s/+30s fine-tune, start/pause/reset, background resume",
   "minApiLevel": 0,
   "targetApiLevel": 0,
   "background": true

@@ -138,11 +138,13 @@ static void _files_build_list(void)
             continue;
 
         char full[EOS_FS_PATH_MAX];
-        snprintf(full, sizeof(full), "%s%s", s_fctx.cur_path, name);
+        int len = snprintf(full, sizeof(full), "%s%s", s_fctx.cur_path, name);
+        if (len < 0 || len >= (int)sizeof(full)) {
+            continue;  /* 路径截断,跳过 */
+        }
         strncpy(s_paths[s_fcount], full, EOS_FS_PATH_MAX - 1);
         s_paths[s_fcount][EOS_FS_PATH_MAX - 1] = '\0';
-        s_fcount++;
-    }
+        s_fcount++;    }
     eos_storage_dir_close(dir);
 
     if (s_fcount == 0)
@@ -427,3 +429,4 @@ void eos_files_enter(void)
     eos_activity_set_type(a, EOS_ACTIVITY_TYPE_APP);
     eos_activity_enter(a);
 }
+

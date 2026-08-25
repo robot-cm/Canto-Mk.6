@@ -196,8 +196,8 @@ static void _scrollbar_set_focused(void)
 {
     if (!(scrollbar && lv_obj_is_valid(scrollbar)))
         return;
-    lv_obj_set_style_bg_color(scrollbar, EOS_COLOR_GREEN, LV_PART_MAIN);
-    lv_obj_set_style_bg_color(scrollbar, EOS_COLOR_GREEN, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(scrollbar, EOS_COLOR_TEXT_GREY, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(scrollbar, EOS_COLOR_TEXT_GREY, LV_PART_INDICATOR);
 }
 
 static void _scrollbar_set_unfocused(void)
@@ -573,7 +573,13 @@ void eos_crown_init(void)
     lv_bar_set_orientation(scrollbar, LV_BAR_ORIENTATION_VERTICAL);
     lv_obj_set_size(scrollbar, _SCROLLBAR_WIDTH, _SCROLLBAR_HEIGHT);
     _scrollbar_set_focused();
-    lv_indev_add_event_cb(eos_touch_get_indev(), _indev_touched_cb, LV_EVENT_PRESSED, NULL);
+    /* Touch indev may be absent (e.g. ESP32 touch stub); NULL would trigger
+     * LVGL LV_ASSERT_NULL -> while(1) hang + task watchdog. */
+    lv_indev_t *touch = eos_touch_get_indev();
+    if (touch)
+    {
+        lv_indev_add_event_cb(touch, _indev_touched_cb, LV_EVENT_PRESSED, NULL);
+    }
     lv_obj_set_style_opa_layered(scrollbar, LV_OPA_0, 0);
     lv_obj_add_flag(scrollbar, LV_OBJ_FLAG_HIDDEN);
     scrollbar_hide_timer = lv_timer_create(_scrollbar_hide_timer_cb, _SCROLLBAR_HIDE_DELAY, NULL);

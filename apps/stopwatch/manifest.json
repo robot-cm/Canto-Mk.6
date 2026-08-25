@@ -1,0 +1,10 @@
+{
+  "id": "com.elenix.stopwatch",
+  "name": "Stopwatch",
+  "version": "1.0.0",
+  "author": "EraShaperAVM",
+  "description": "Count-up stopwatch: HH:MM:SS.X + laps + background resume (eos.config persistence + timestamp diff)",
+  "minApiLevel": 0,
+  "targetApiLevel": 0,
+  "background": true
+}

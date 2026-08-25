@@ -26,6 +26,7 @@ extern "C" {
 #define WOS_FONT_XL       20
 #define WOS_FONT_MD       14
 #define WOS_FONT_SM       11
+#define WOS_FONT_XS       10
 #define WOS_PAD_CARD      12
 #define WOS_GAP_ROW       8
 #define WOS_GAP_COL       8

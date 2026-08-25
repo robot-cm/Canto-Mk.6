@@ -11,6 +11,7 @@
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
+#include <inttypes.h>
 #include "eos_service_battery.h"
 #include "eos_log.h"
 #include "eos_basic_widgets.h"
@@ -67,7 +68,7 @@ static void _chart_update_cb(lv_timer_t *timer)
     if (_ctx.info_label)
     {
         char buf[64];
-        snprintf(buf, sizeof(buf), "History: %u entries", count);
+        snprintf(buf, sizeof(buf), "History: %" PRIu32 " entries", count);
         lv_label_set_text(_ctx.info_label, buf);
     }
 

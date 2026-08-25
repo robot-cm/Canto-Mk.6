@@ -140,7 +140,7 @@ eos_result_t _eos_watchface_list_get_installed()
         }
 
         // Build full path
-        char full_path[EOS_FS_PATH_MAX];
+        char full_path[EOS_FS_PATH_MAX + EOS_FS_NAME_MAX];
         snprintf(full_path, sizeof(full_path), EOS_WATCHFACE_INSTALLED_DIR "%s", name_buf);
 
         // Check if it is a directory
@@ -198,9 +198,9 @@ eos_result_t eos_watchface_install(const char *eapk_path)
         return EOS_ERR_SDK_VERSION;
     }
     // Construct path
-    char path[EOS_FS_PATH_MAX];
+    char path[EOS_FS_PATH_MAX + EOS_FS_NAME_MAX];
     snprintf(path, sizeof(path), EOS_WATCHFACE_INSTALLED_DIR "%s", header.pkg_id);
-    char data_path[EOS_FS_PATH_MAX];
+    char data_path[EOS_FS_PATH_MAX + EOS_FS_NAME_MAX];
     snprintf(data_path, sizeof(data_path), EOS_WATCHFACE_DATA_DIR "%s", header.pkg_id);
     EOS_LOG_D("WATCHFACE_PATH: %s", path);
     // Check if application exists

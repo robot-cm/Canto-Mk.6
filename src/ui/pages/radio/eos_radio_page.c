@@ -98,7 +98,7 @@ uint32_t eos_radio_page_add_item(eos_radio_page_t *rp, const char *txt)
 
     lv_obj_t *check_label = lv_label_create(item);
     lv_label_set_text(check_label, RI_CHECK_FILL);
-    lv_obj_set_style_text_color(check_label, EOS_COLOR_GREEN, 0);
+    lv_obj_set_style_text_color(check_label, EOS_COLOR_TEXT_GREY, 0);
     lv_obj_align(check_label, LV_ALIGN_RIGHT_MID, 0, 0);
     if (rp->item_number == 0)
     {

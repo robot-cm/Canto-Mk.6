@@ -240,6 +240,17 @@ void eos_service_pm_init(void)
     t = lv_timer_create(_sleep_timer_cb, timer_period_sec * 1000, NULL);
     lv_timer_set_repeat_count(t, -1); // Must be infinite, otherwise timer will be deleted
 #endif /* DEBUG_DISABLE_TIMER */
-    lv_indev_add_event_cb(eos_touch_get_indev(), _indev_pressed_cb, LV_EVENT_PRESSED, NULL);
-    lv_indev_add_event_cb(eos_touch_get_indev(), _indev_released_cb, LV_EVENT_RELEASED, NULL);
+    /* Touch indev may be absent on boards without a registered POINTER
+     * input device (e.g. ESP32 phase B touch stub). Registering event cbs on
+     * NULL triggers LVGL LV_ASSERT_NULL -> while(1) hang + task watchdog. */
+    lv_indev_t *touch = eos_touch_get_indev();
+    if (touch)
+    {
+        lv_indev_add_event_cb(touch, _indev_pressed_cb, LV_EVENT_PRESSED, NULL);
+        lv_indev_add_event_cb(touch, _indev_released_cb, LV_EVENT_RELEASED, NULL);
+    }
+    else
+    {
+        EOS_LOG_W("No touch indev registered; PM touch wake/pause disabled");
+    }
 }

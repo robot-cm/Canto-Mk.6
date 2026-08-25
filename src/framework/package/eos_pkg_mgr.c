@@ -261,7 +261,7 @@ eos_result_t eos_pkg_mgr_unpack(const char *pkg_path, const char *output_path, c
         table_pos += sizeof(uint32_t);
 
         // Validate the file name length
-        if (name_len > EOS_FS_PATH_MAX)
+        if (name_len >= EOS_FS_PATH_MAX)
         {
             eos_storage_file_close(fp);
             EOS_LOG_E("Name length %u too long for entry %u", name_len, i);
@@ -295,7 +295,7 @@ eos_result_t eos_pkg_mgr_unpack(const char *pkg_path, const char *output_path, c
         uint32_t next_entry_pos = table_pos;
 
         // Build the full output path
-        char full_path[EOS_FS_PATH_MAX] = {0};
+        char full_path[EOS_FS_PATH_MAX + EOS_FS_NAME_MAX] = {0};
         snprintf(full_path, sizeof(full_path), "%s/%s", output_path, name);
 
         if (is_dir)

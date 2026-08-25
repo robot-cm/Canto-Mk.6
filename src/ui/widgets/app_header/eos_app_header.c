@@ -226,7 +226,7 @@ void _play_title_changed_anim(eos_activity_t *from,
     if (!need_anim || !at)
     {
         const char *new_title = eos_activity_get_title(to);
-        EOS_LOG_D("New title: %s", new_title);
+        EOS_LOG_D("New title: %s", new_title ? new_title : "(null)");
         lv_label_set_text(app_header->title_label, new_title ? new_title : "");
 
         lv_color_t color = eos_activity_get_title_color(to);
@@ -316,7 +316,7 @@ void _play_title_changed_anim(eos_activity_t *from,
     _set_title_style(new_l);
 
     const char *new_title = eos_activity_get_title(to);
-    EOS_LOG_D("New title: %s", new_title);
+    EOS_LOG_D("New title: %s", new_title ? new_title : "(null)");
     lv_label_set_text(new_l, new_title ? new_title : "");
 
     lv_color_t color = eos_activity_get_title_color(to);
@@ -398,6 +398,10 @@ static void _clock_update_cb(lv_timer_t *timer)
 {
     lv_obj_t *label = lv_timer_get_user_data(timer);
     EOS_CHECK_PTR_RETURN(app_header && label);
+    if (!(app_header->container && lv_obj_is_valid(app_header->container)))
+    {
+        return;
+    }
     if (lv_obj_has_flag(app_header->container, LV_OBJ_FLAG_HIDDEN))
     {
         return;
@@ -677,6 +681,10 @@ bool eos_app_header_is_attached_to_view(void)
 bool eos_app_header_is_visible(void)
 {
     EOS_CHECK_PTR_RETURN_VAL(app_header, false);
+    if (!app_header->container || !lv_obj_is_valid(app_header->container))
+    {
+        return false;
+    }
     return !lv_obj_has_flag(app_header->container, LV_OBJ_FLAG_HIDDEN);
 }
 
@@ -750,6 +758,22 @@ static void _grad_bg_img_delete_cb(lv_event_t *e)
     }
 }
 
+static void _app_header_container_delete_cb(lv_event_t *e)
+{
+    LV_UNUSED(e);
+    if (!app_header)
+    {
+        return;
+    }
+    /* container 被删除时清空子对象指针,防止后续悬垂访问
+     * (日志实证:转场 snapshot 时 eos_app_header_is_visible 访问已释放的
+     *  container → lv_obj_has_flag(NULL) assert → LV_ASSERT_HANDLER 死循环) */
+    app_header->container = NULL;
+    app_header->title_label = NULL;
+    app_header->back_btn = NULL;
+    app_header->clock_label = NULL;
+}
+
 void eos_app_header_init(void)
 {
     EOS_LOG_D("Init eos_app_header");
@@ -772,6 +796,7 @@ void eos_app_header_init(void)
     lv_obj_remove_flag(app_header->container, LV_OBJ_FLAG_CLICKABLE);
 
     lv_obj_add_event_cb(app_header->container, _grad_bg_img_delete_cb, LV_EVENT_DELETE, app_header->grad_bg_img);
+    lv_obj_add_event_cb(app_header->container, _app_header_container_delete_cb, LV_EVENT_DELETE, NULL);
 
     lv_coord_t header_h = _HEADER_HEIGHT;
     lv_coord_t header_w = lv_obj_get_width(app_header->container);

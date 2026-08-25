@@ -68,3 +68,42 @@ simulator/test_sim_run*.txt
 simulator/uijstest_*.txt
 simulator/*_log2.txt
 simulator/test_t.c
+
+sdkconfig
+sdkconfig.old
+sdkconfig.defaults
+managed_components/
+dependencies.lock
+
+# --- Python 缓存与虚拟环境 ---
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+wheels/
+
+# --- IDE 与编辑器私有配置 ---
+.vscode/
+.idea/
+.proxyai/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- 日志与临时文件 ---
+*.log
+tmp/
+temp/
+

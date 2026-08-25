@@ -14,7 +14,7 @@
 /* Macros and Definitions -------------------------------------*/
 #define _TITLE_BAR_HEIGHT 50
 #define _CONTENT_MIN_HEIGHT 0
-#define _ANIM_DURATION 300
+#define _ANIM_DURATION 220
 #define _TITLE_MARGIN_LEFT 15
 #define _ARROW_MARGIN_RIGHT 15
 

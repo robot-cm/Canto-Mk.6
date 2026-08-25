@@ -1,6 +1,9 @@
 /**
  * @file eos_font_c_multi.c
  * @brief Multi-font resource
+ *
+ * 内置 C 字体(编译进 Flash, XIP 映射, 不占 PSRAM/DRAM)。
+ * LV_FONT_DECLARE 静态引用各字号字体及其跨字体 fallback 链。
  */
 
 #include "eos_config.h"
@@ -12,10 +15,12 @@
 #include <stdlib.h>
 
 /* Macros and Definitions -------------------------------------*/
+/* 内置 C 字体模式(编译进 Flash, XIP 映射, 不占 PSRAM/DRAM) */
 LV_FONT_DECLARE(EOS_FONT_LARGE_NAME);
 LV_FONT_DECLARE(EOS_FONT_MEDIUM_NAME);
 LV_FONT_DECLARE(EOS_FONT_SMALL_NAME);
 LV_FONT_DECLARE(EOS_FONT_ICON);
+
 /* Variables --------------------------------------------------*/
 static lv_font_t *font_large;
 static lv_font_t *font_medium;
@@ -31,8 +36,7 @@ lv_font_t *eos_font_init(void)
         return font_medium;
     }
 
-    EOS_LOG_I("Font system init");
-
+    EOS_LOG_I("Font system init (built-in fonts)");
     font_large = &EOS_FONT_LARGE_NAME;
     font_medium = &EOS_FONT_MEDIUM_NAME;
     font_small = &EOS_FONT_SMALL_NAME;

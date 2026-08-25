@@ -1,9 +1,9 @@
 {
   "id": "com.elenix.album",
-  "name": "相册探针",
-  "version": "0.1.0",
-  "author": "ElenixOS",
-  "description": "相册 P1 真窗口探针：验证 png/jpg 解码、FM 跳转、album_pick 回传",
+  "name": "Album",
+  "version": "1.0.0",
+  "author": "EraShaperAVM",
+  "description": "Browse /sdcard/album: recursive scan, name sort, arrow nav, marquee filename, delete current image",
   "minApiLevel": 0,
   "targetApiLevel": 0,
   "background": false

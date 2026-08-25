@@ -48,6 +48,11 @@ extern "C" {
 #define EOS_CONFIG_KEY_SOCKS5_PORT_NUMBER "socks5_port"
 #define EOS_CONFIG_KEY_SOCKS5_USERNAME_STR "socks5_username"
 #define EOS_CONFIG_KEY_SOCKS5_PASSWORD_STR "socks5_password"
+/* VPN (WireGuard/Tailscale via microlink) */
+#define EOS_CONFIG_KEY_VPN_ENABLED_BOOL "vpn_enabled"
+#define EOS_CONFIG_KEY_VPN_AUTH_KEY_STR "vpn_auth_key"
+#define EOS_CONFIG_KEY_VPN_DEVICE_NAME_STR "vpn_device_name"
+#define EOS_CONFIG_KEY_TIMEZONE_OFFSET_MIN_NUMBER "timezone_offset_min"
 /************************** Default values **************************/
 #define EOS_CONFIG_DEFAULT_DEVICE_NAME "Elenix Watch"
 /* Default language string is determined by EOS_CONFIG_DEFAULT_LANGUAGE in eos_config.h */

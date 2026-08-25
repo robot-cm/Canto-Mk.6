@@ -53,7 +53,7 @@ static void _haptic_common(uint32_t period, uint8_t strength)
         default:
             break;
     }
-    EOS_CLAMP(strength, 0, 255);
+    strength = (uint8_t)EOS_CLAMP((int)strength, 0, 255);
 
     if (dev->ops && dev->ops->on)
     {
@@ -83,7 +83,7 @@ void eos_haptic_vibrate_long(void)
 void eos_haptic_set_strength(eos_haptic_strength_t s)
 {
     strength_option = s;
-    EOS_CLAMP(strength_option, 0, 255);
+    strength_option = (eos_haptic_strength_t)EOS_CLAMP((int)strength_option, 0, 255);
     eos_config_set_number(EOS_CONFIG_KEY_VIBRATOR_STRENGTH_NUMBER, strength_option);
 }
 

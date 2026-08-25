@@ -1,336 +1,587 @@
-// ElenixOS 闹钟 — 闹钟.html 移植（骨架 v1：布局静态，行为 P1，动效 P2）
-//
-// 布局：状态行 y30 / 当前时间 y50 双label / 日期 y82 / 选择器(时列x86 分列x154) /
-//       底部行 y166(开关/设定/取消) / 响铃覆盖层(默认隐藏)
-// 红线：opa 裸数字 / hex 数字 / setFontSize / 游标布局 / 胶囊 radius999 禁 border /
-//       label.align CENTER / 装饰容器 removeFlag(SCROLLABLE) / timer≥30ms(P1)
-// 状态机(P1)：待命(alm_on=0) ⇄ 已设定(alm_on=1)；+/- 回绕只改选择器；
-//   设定→config+on=1；取消→回读 config；开关→翻转 on；响铃→覆盖层
-// 持久化：eos.config alm_h/alm_m/alm_on
-
+/**
+ * Alarm - multi-alarm manager (240x240 round, all-English)
+ *
+ * Features:
+ *  - Multiple alarms (list + add/edit/delete), repeat count (INF=-1 or xN),
+ *    weekday multi-select (MON..SUN), on/off per alarm.
+ *  - Ring: white-screen flash in grouped intervals 0.8s/0.9s/0.6s/0.4s
+ *    (on/off alternation), black OFF button + purple SNOOZE (5 min) button.
+ *  - No buzzer on this hardware -> visual ring only.
+ *  - Background trigger: a Core service (eos_service_alarm.c) polls the
+ *    system clock every 1s, reads this app's config.json ("alarms" field)
+ *    and relaunches this app when an alarm is due, so it fires even after
+ *    the app was closed. Ringing UI itself lives here.
+ *
+ * Data contract (JS <-> Core service, same config.json file):
+ *   alarms = [ { id, h, m, days, rep, on, lf, tmp? } ]
+ *     days : bitmask bit0=MON ... bit6=SUN ; 0 = daily
+ *     rep  : -1 = infinite ; N>0 = remaining rings (decremented here)
+ *     lf   : last ring minute key YYYYMMDDHHMM (written here on ring start)
+ *     tmp  : temporary snooze alarm (auto-removed after it rings)
+ *
+ * Red lines: no arc / no border / radius<54 / no flex / anim<=6.
+ * EVENT_CLICKED broken in this fork -> use EVENT_PRESSED.
+ */
 var activity = eos.activity.current();
 var view = eos.activity.getView(activity);
-eos.activity.setTitle(activity, "闹钟");
 
-var R = {};
-var DIAL_COLOR = 0x12121A;
-var ACCENT = 0x4A90D9;        // 已设定/响铃强调色
-var IDLE_COLOR = 0x8A8F98;    // 待命灰
-var WHITE = 0xFFFFFF;
-var WEEK = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+/* ---------- palette ---------- */
+var COL_BG = 0x12121A, COL_WHITE = 0xFFFFFF, COL_GRAY = 0x9A9AA8,
+    COL_BLUE = 0x4C8DFF, COL_PURPLE = 0x9C27B0, COL_RED = 0xE5484D;
 
+function hex(v) { return lv.colorMake((v >> 16) & 255, (v >> 8) & 255, v & 255); }
 function pad2(n) { return (n < 10 ? "0" : "") + n; }
-function hex(v) { return lv.color.hex(v); }
 
-// ===================== R.root 全屏容器 =====================
-R.root = new lv.obj(view);
-R.root.setSize(240, 240);
-R.root.setPos(0, 0);
-R.root.setStyleRadius(0, 0);
-R.root.setStyleBgOpa(255, 0);
-R.root.setStyleBgColor(hex(DIAL_COLOR), 0);
-R.root.setStylePadAll(0, 0);
-R.root.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-R.root.setScrollbarMode(0);
+var WDAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+var RING_SEQ = [ { w: true, ms: 800 }, { w: false, ms: 900 },
+                 { w: true, ms: 600 }, { w: false, ms: 400 } ];
 
-// ===================== helper（计时器同款设计语言） =====================
-function stylePill(o, w, h, opa, color) {   // 胶囊：radius999 禁 border，fill 区分
-    o.setSize(w, h);
-    o.setStyleRadius(999, 0);
-    o.setStyleBgOpa(opa, 0);
-    o.setStyleBgColor(hex(color), 0);
-    o.setStylePadAll(0, 0);
-    o.setStyleBorderWidth(0, 0);
-    o.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-    return o;
+/* ---------- data ---------- */
+var alarms = [];
+var nextId = 0;
+
+function loadAlarms() {
+    try {
+        var s = eos.config.getStr("alarms");
+        if (s) { alarms = JSON.parse(s); if (!Array.isArray(alarms)) alarms = []; }
+    } catch (e) { alarms = []; }
+    nextId = 0;
+    for (var i = 0; i < alarms.length; i++) {
+        if (alarms[i].id >= nextId) nextId = alarms[i].id + 1;
+    }
 }
-function pillLabel(o, text, size, w, h) {   // label 进胶囊：setSize 胶囊尺寸 + align CENTER
-    o.setSize(w, h);
-    o.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-    o.setFontSize(size);
-    o.setStyleTextColor(hex(WHITE), 0);
-    o.setText(text);
-    o.align(lv.ALIGN_CENTER, 0, 0);
-    o.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-    return o;
+function saveAlarms() {
+    try { eos.config.setStr("alarms", JSON.stringify(alarms)); } catch (e) {}
 }
-function centerLabel(parent, x, y, w, h, size, opa) {  // 全宽/定宽居中文字
-    var l = new lv.label(parent);
-    l.setSize(w, h);
-    l.setPos(x, y);
+function dayMatch(d, dow) { if (!d) return true; return (d & (1 << ((dow + 6) % 7))) !== 0; }
+function daysLabel(d) {
+    if (!d) return "Daily";
+    if (d === 127) return "All days";
+    var s = "";
+    for (var i = 0; i < 7; i++) {
+        if (d & (1 << i)) { if (s) s += " "; s += WDAYS[i]; }
+    }
+    return s;
+}
+function repLabel(r) { return r < 0 ? "INF" : "x" + r; }
+function newAlarm() {
+    var t = eos.time.getNow();
+    var nm = (t.min + 10) % 60;
+    var nh = (t.hour + Math.floor((t.min + 10) / 60)) % 24;
+    return { id: nextId++, h: nh, m: nm, days: 0, rep: -1, on: true, lf: 0 };
+}
+
+/* ---------- state ---------- */
+var page = 0;
+var editing = null;                 /* { a, isNew } */
+var editH = 7, editM = 0, editDays = 0, editRep = -1;
+var ringAlarm = null;
+var ringTicks = 0, ringSeqIdx = 0, ringSeqElapsed = 0;
+var tickCount = 0;
+
+/* ---------- root ---------- */
+view.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+view.removeFlag(lv.OBJ_FLAG_CLICKABLE);
+
+var homeC = new lv.obj(view);
+homeC.setSize(240, 210); homeC.setPos(0, 30);
+homeC.setStyleBgOpa(0, 0);
+homeC.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+homeC.removeFlag(lv.OBJ_FLAG_CLICKABLE);
+
+var editC = new lv.obj(view);
+editC.setSize(240, 210); editC.setPos(0, 30);
+editC.setStyleBgOpa(0, 0);
+editC.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+editC.removeFlag(lv.OBJ_FLAG_CLICKABLE);
+editC.addFlag(lv.OBJ_FLAG_HIDDEN);
+
+var ringC = new lv.obj(view);
+ringC.setSize(240, 240); ringC.setPos(0, 0);
+ringC.setStyleBgOpa(0, 0);
+ringC.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+ringC.removeFlag(lv.OBJ_FLAG_CLICKABLE);
+ringC.addFlag(lv.OBJ_FLAG_HIDDEN);
+
+function setTitle(s) { try { eos.activity.setTitle(activity, s); } catch (e) {} }
+
+/* ---------- small button helper ---------- */
+function smallBtn(parent, x, y, w, h, label, opa, color, cb) {
+    var b = new lv.button(parent);
+    b.setSize(w, h); b.setPos(x, y);
+    b.setStyleRadius(999, 0);
+    b.setStyleBgOpa(opa, 0);
+    b.setStyleBgColor(hex(color), 0);
+    b.setStylePadAll(0, 0);
+    b.setStyleBorderWidth(0, 0);
+    b.setExtClickArea(8);
+    b.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+    var l = new lv.label(b);
+    l.setText(label);
     l.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-    l.setFontSize(size);
-    l.setStyleTextColor(hex(WHITE), 0);
-    l.setStyleTextOpa(opa, 0);
+    l.setFontSize(11);
+    l.setStyleTextColor(hex(COL_WHITE), 0);
+    l.setStyleTextOpa(230, 0);
+    l.align(lv.ALIGN_CENTER, 0, 0);
     l.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-    return l;
-}
-
-// ===================== 1. 状态行 y30（点 8px + 文案 font12 整组居中） =====================
-var statusDot = new lv.obj(R.root);
-statusDot.setSize(8, 8);
-statusDot.setStyleRadius(4, 0);
-statusDot.setStyleBgOpa(255, 0);
-statusDot.setStyleBgColor(hex(IDLE_COLOR), 0);
-statusDot.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-
-var statusTxt = new lv.label(R.root);
-statusTxt.setFontSize(12);
-statusTxt.setStyleTextColor(hex(WHITE), 0);
-statusTxt.setStyleTextOpa(250, 0);
-statusTxt.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-statusTxt.setText("待命");
-
-function layoutStatusRow() {
-    try { R.root.updateLayout(); } catch (e) {}
-    var w1 = 24;
-    try { w1 = statusTxt.getWidth(); } catch (e) {}
-    if (!w1 || w1 < 10) w1 = 24;                 // getWidth 异常兜底（"待命" 2字）
-    var x0 = Math.floor(120 - (8 + 4 + w1) / 2);
-    statusDot.setPos(x0, 32);                    // 点垂直居中于 font12 行
-    statusTxt.setPos(x0 + 12, 30);
-}
-function updateStatus(text, color) {
-    statusTxt.setText(text);
-    statusDot.setStyleBgColor(hex(color), 0);
-    layoutStatusRow();
-}
-
-// ===================== 2. 当前时间 y50（双 label 紧贴同基线） =====================
-var timeTxt = new lv.label(R.root);
-timeTxt.setFontSize(26);
-timeTxt.setStyleTextColor(hex(WHITE), 0);
-timeTxt.setStyleTextOpa(250, 0);
-timeTxt.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-
-var millisTxt = new lv.label(R.root);
-millisTxt.setFontSize(26);
-millisTxt.setStyleTextColor(hex(WHITE), 0);
-millisTxt.setStyleTextOpa(160, 0);
-millisTxt.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-
-function layoutTimeRow() {
-    try { R.root.updateLayout(); } catch (e) {}
-    var w1 = timeTxt.getWidth();
-    var w2 = millisTxt.getWidth();
-    var x0 = Math.floor(120 - (w1 + w2 + 2) / 2);
-    timeTxt.setPos(x0, 50);
-    millisTxt.setPos(x0 + w1 + 2, 50);     // 同 y 同基线
-}
-
-// ===================== 3. 日期 y82（不 setSize=文字宽，手动居中） =====================
-var dateTxt = new lv.label(R.root);
-dateTxt.setFontSize(11);
-dateTxt.setStyleTextColor(hex(WHITE), 0);
-dateTxt.setStyleTextOpa(160, 0);
-dateTxt.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-function layoutDate() {
-    try { R.root.updateLayout(); } catch (e) {}
-    var w = dateTxt.getWidth();
-    dateTxt.setPos(Math.floor(120 - w / 2), 82);
-}
-
-// ===================== 4. 选择器（时列 x86 / 分列 x154） =====================
-var PICKER_COL = [86, 154];                 // 时 / 分 列中心
-var PILL_W = 28, PILL_H = 16;
-var VAL_Y = 116;
-
-function makeStep(x, y, ch) {               // +/− 胶囊（w28 h16，label.align）
-    var b = stylePill(new lv.button(R.root), PILL_W, PILL_H, 28, WHITE);
-    b.setPos(x - PILL_W / 2, y);
-    pillLabel(new lv.label(b), ch, 10, PILL_W, PILL_H);
-    return b;
-}
-function makeVal(x, y) {                    // 数值 label（font20 两位补零，列中心对齐）
-    var v = centerLabel(R.root, x - 14, y, 28, 22, 20, 250);
-    return v;
-}
-
-var hPlus  = makeStep(PICKER_COL[0], 98, "+");
-var hVal   = makeVal(PICKER_COL[0], VAL_Y);
-var hMinus = makeStep(PICKER_COL[0], 138, "-");
-var mPlus  = makeStep(PICKER_COL[1], 98, "+");
-var mVal   = makeVal(PICKER_COL[1], VAL_Y);
-var mMinus = makeStep(PICKER_COL[1], 138, "-");
-
-var colon = centerLabel(R.root, 113, VAL_Y, 14, 22, 20, 250);
-colon.setText(":");
-
-function updatePicker() {
-    hVal.setText(pad2(alm_h));
-    mVal.setText(pad2(alm_m));
-}
-
-// ===================== 5. 底部行 y166 h22（开关/设定/取消 w40 gap4） =====================
-var BTN_W = 40, BTN_H = 22;
-var BTN_X = [56, 100, 144];
-var swBtn, swLbl, setBtn, setLbl, canBtn, canLbl;
-
-function makeBottom(x, key) {
-    var b = stylePill(new lv.button(R.root), BTN_W, BTN_H, 28, WHITE);
-    b.setPos(x, 166);
-    var l = pillLabel(new lv.label(b), key, 10, BTN_W, BTN_H);
+    b.addEventCb(cb, lv.EVENT_PRESSED, null);
     return { btn: b, lbl: l };
 }
-var sw = makeBottom(BTN_X[0], "开关");
-var st = makeBottom(BTN_X[1], "设定");
-var ca = makeBottom(BTN_X[2], "取消");
 
-function updateSwitch() {                    // 开启=强调色填充 / 关闭=白Opa16
-    sw.btn.setStyleBgOpa(alm_on ? 255 : 16, 0);
-    sw.btn.setStyleBgColor(hex(alm_on ? ACCENT : WHITE), 0);
+/* ================= HOME (list) ================= */
+var emptyTtl, emptySub, prevBtn, pageLbl, nextBtn, addBtn;
+var rowBoxes = [];
+
+function buildHome() {
+    emptyTtl = new lv.label(homeC);
+    emptyTtl.setSize(240, 20); emptyTtl.setPos(0, 80);
+    emptyTtl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    emptyTtl.setText("No alarms");
+    emptyTtl.setFontSize(16);
+    emptyTtl.setStyleTextColor(hex(COL_WHITE), 0);
+    emptyTtl.setStyleTextOpa(220, 0);
+    emptyTtl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+    emptySub = new lv.label(homeC);
+    emptySub.setSize(240, 16); emptySub.setPos(0, 108);
+    emptySub.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    emptySub.setText("Tap + to add");
+    emptySub.setFontSize(11);
+    emptySub.setStyleTextColor(hex(COL_GRAY), 0);
+    emptySub.setStyleTextOpa(150, 0);
+    emptySub.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+    prevBtn = smallBtn(homeC, 40, 176, 36, 24, "<", 40, COL_WHITE,
+        function () { if (page > 0) { page--; paintHome(); } });
+    pageLbl = new lv.label(homeC);
+    pageLbl.setSize(32, 20); pageLbl.setPos(104, 178);
+    pageLbl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    pageLbl.setFontSize(11);
+    pageLbl.setStyleTextColor(hex(COL_WHITE), 0);
+    pageLbl.setStyleTextOpa(170, 0);
+    pageLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+    nextBtn = smallBtn(homeC, 168, 176, 36, 24, ">", 40, COL_WHITE,
+        function () { paintHome(); });
+    addBtn = smallBtn(homeC, 210, 176, 24, 24, "+", 255, COL_BLUE,
+        function () { openEdit(newAlarm(), true); });
 }
 
-// ===================== 6. 响铃覆盖层（默认隐藏，P1 触发/停止） =====================
-var ringOv = new lv.obj(R.root);
-ringOv.setSize(240, 240);
-ringOv.setPos(0, 0);
-ringOv.setStyleRadius(0, 0);
-ringOv.setStyleBgOpa(220, 0);
-ringOv.setStyleBgColor(hex(0x0E0E14), 0);
-ringOv.setStylePadAll(0, 0);
-ringOv.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-ringOv.addFlag(lv.OBJ_FLAG_HIDDEN);
+function paintHome() {
+    for (var i = 0; i < rowBoxes.length; i++) {
+        if (rowBoxes[i]) { try { rowBoxes[i].delete(); } catch (e) {} }
+    }
+    rowBoxes = [];
 
-var ringTitle = centerLabel(ringOv, 0, 70, 240, 18, 16, 255);
-ringTitle.setText("闹钟响铃！");
+    var n = alarms.length;
+    var tp = Math.max(1, Math.ceil(n / 3));
+    if (page >= tp) page = tp - 1;
+    if (page < 0) page = 0;
 
-var ringTime = centerLabel(ringOv, 0, 100, 240, 30, 28, 255);
+    if (n === 0) {
+        emptyTtl.removeFlag(lv.OBJ_FLAG_HIDDEN);
+        emptySub.removeFlag(lv.OBJ_FLAG_HIDDEN);
+    } else {
+        emptyTtl.addFlag(lv.OBJ_FLAG_HIDDEN);
+        emptySub.addFlag(lv.OBJ_FLAG_HIDDEN);
+    }
 
-var stopBtn = stylePill(new lv.button(ringOv), 64, 26, 255, ACCENT);
-stopBtn.setPos(88, 150);
-var stopLbl = pillLabel(new lv.label(stopBtn), "停止", 12, 64, 26);
+    var start = page * 3;
+    for (var i = 0; i < 3; i++) {
+        var idx = start + i;
+        if (idx >= n) break;
+        var a = alarms[idx];
+        (function (a, i) {
+            var y = 6 + i * 56;
+            var row = new lv.obj(homeC);
+            row.setSize(180, 56); row.setPos(0, y);
+            row.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+            row.addEventCb(function () { openEdit(a, false); }, lv.EVENT_PRESSED, null);
 
-function updateRingTime() {
-    ringTime.setText(pad2(alm_h) + ":" + pad2(alm_m));
+            var tl = new lv.label(row);
+            tl.setText(pad2(a.h) + ":" + pad2(a.m));
+            tl.setFontSize(20);
+            tl.setStyleTextColor(hex(COL_WHITE), 0);
+            tl.setStyleTextOpa(255, 0);
+            tl.setPos(22, 6);
+            tl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+            var sl = new lv.label(row);
+            sl.setText(daysLabel(a.days) + "  " + repLabel(a.rep));
+            sl.setFontSize(9);
+            sl.setStyleTextColor(hex(COL_GRAY), 0);
+            sl.setStyleTextOpa(170, 0);
+            sl.setPos(22, 32);
+            sl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+            var sep = new lv.obj(row);
+            sep.setSize(200, 1); sep.setPos(0, 55);
+            sep.setStyleBgOpa(15, 0);
+            sep.setStyleBgColor(hex(COL_WHITE), 0);
+            sep.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+            /* on/off switch: outside the row so it never bubbles to row press */
+            var tg = new lv.button(homeC);
+            tg.setSize(44, 24); tg.setPos(190, y + 16);
+            tg.setStyleRadius(12, 0);
+            tg.setStylePadAll(0, 0);
+            tg.setStyleBorderWidth(0, 0);
+            tg.setExtClickArea(8);
+            tg.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+            var tl2 = new lv.label(tg);
+            tl2.setText(a.on ? "ON" : "OFF");
+            tl2.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+            tl2.setFontSize(11);
+            tl2.align(lv.ALIGN_CENTER, 0, 0);
+            tl2.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+            if (a.on) {
+                tg.setStyleBgOpa(255, 0); tg.setStyleBgColor(hex(COL_BLUE), 0);
+                tl2.setStyleTextColor(hex(COL_WHITE), 0); tl2.setStyleTextOpa(255, 0);
+            } else {
+                tg.setStyleBgOpa(18, 0); tg.setStyleBgColor(hex(COL_WHITE), 0);
+                tl2.setStyleTextColor(hex(COL_GRAY), 0); tl2.setStyleTextOpa(230, 0);
+            }
+            tg.addEventCb(function () { a.on = !a.on; saveAlarms(); paintHome(); }, lv.EVENT_PRESSED, null);
+
+            rowBoxes.push(row);
+            rowBoxes.push(tg);
+        })(a, i);
+    }
+
+    pageLbl.setText((page + 1) + "/" + tp);
+    prevBtn.btn.setStyleBgOpa(page > 0 ? 40 : 12, 0);
+    prevBtn.lbl.setStyleTextOpa(page > 0 ? 230 : 90, 0);
+    nextBtn.btn.setStyleBgOpa(page < tp - 1 ? 40 : 12, 0);
+    nextBtn.lbl.setStyleTextOpa(page < tp - 1 ? 230 : 90, 0);
 }
 
-// ===================== 状态与持久化（骨架：读 config，行为 P1） =====================
-var alm_h = 7, alm_m = 30, alm_on = false;
-try { alm_h = eos.config.getNumber("alm_h"); } catch (e) {}
-try { alm_m = eos.config.getNumber("alm_m"); } catch (e) {}
-try { alm_on = eos.config.getNumber("alm_on") === 1; } catch (e) {}
-if (typeof alm_h !== "number" || isNaN(alm_h)) alm_h = 7;
-if (typeof alm_m !== "number" || isNaN(alm_m)) alm_m = 30;
+/* ================= EDIT (add / edit alarm) ================= */
+var hVal, mVal, dayChips = [], allBtn, noneBtn, rptVal, delBtn, saveBtn, cancelBtn;
 
-// ===================== 初始显示 =====================
-function update() {
-    var t = eos.time.getNow();
-    timeTxt.setText(pad2(t.hour) + ":" + pad2(t.min) + ":" + pad2(t.sec));
-    var c = Math.floor((t.ms % 1000) / 10);
-    millisTxt.setText("." + (c < 10 ? "0" : "") + c);
-    layoutTimeRow();
-    dateTxt.setText(t.year + "年" + t.month + "月" + t.day + "日 " + WEEK[t.day_of_week]);
-    layoutDate();
-    updatePicker();
-    updateSwitch();
-    updateRingTime();
-    updateStatus(alm_on ? "已设定 " + pad2(alm_h) + ":" + pad2(alm_m) : "待命", alm_on ? ACCENT : IDLE_COLOR);
-}
-update();
-try { R.root.updateLayout(); } catch (e) {}   /* audit 前强制布局，防 getCoords 旧缓存 */
+function buildEdit() {
+    /* hour */
+    smallBtn(editC, 74, 6, 30, 16, "+", 20, COL_WHITE,
+        function () { editH = (editH + 1) % 24; paintEdit(); });
+    hVal = new lv.label(editC);
+    hVal.setSize(50, 30); hVal.setPos(64, 24);
+    hVal.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    hVal.setFontSize(24);
+    hVal.setStyleTextColor(hex(COL_WHITE), 0);
+    hVal.setStyleTextOpa(255, 0);
+    hVal.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+    smallBtn(editC, 74, 56, 30, 16, "-", 20, COL_WHITE,
+        function () { editH = (editH + 23) % 24; paintEdit(); });
 
-// ===================== P1 状态机（+/- 回绕 / 设定 / 取消 / 开关 / 响铃） =====================
-var editing_h = alm_h, editing_m = alm_m;    // 选择器编辑值（+/- 只改这里，设定才落盘）
-var ringing = false, ringTick = 0, ringFlash = false;
+    var colon = new lv.label(editC);
+    colon.setSize(12, 26); colon.setPos(114, 26);
+    colon.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    colon.setText(":");
+    colon.setFontSize(24);
+    colon.setStyleTextColor(hex(COL_WHITE), 0);
+    colon.setStyleTextOpa(255, 0);
+    colon.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
-function saveAlm() {
-    try {
-        eos.config.setNumber("alm_h", alm_h);
-        eos.config.setNumber("alm_m", alm_m);
-        eos.config.setNumber("alm_on", alm_on ? 1 : 0);
-    } catch (e) {}
-}
-function refreshStatus() {
-    updateSwitch();
-    updateStatus(alm_on ? "已设定 " + pad2(alm_h) + ":" + pad2(alm_m) : "待命", alm_on ? ACCENT : IDLE_COLOR);
-    updateRingTime();
-}
-function pickerStep(which, delta) {          // +/- 回绕，只改选择器不自动保存
-    if (which === "h") { editing_h = (editing_h + delta + 24) % 24; hVal.setText(pad2(editing_h)); }
-    else               { editing_m = (editing_m + delta + 60) % 60; mVal.setText(pad2(editing_m)); }
-}
-function doSet() {                           // 设定：选择器→config，on=1
-    alm_h = editing_h; alm_m = editing_m; alm_on = true;
-    saveAlm(); refreshStatus();
-}
-function doCancel() {                        // 取消：选择器回读 config 已存值
-    editing_h = alm_h; editing_m = alm_m; updatePicker();
-}
-function doToggle() {                        // 开关：翻转 on，不改时间
-    alm_on = !alm_on;
-    saveAlm(); refreshStatus();
-}
-function ringStart() {
-    if (ringing) return;
-    ringing = true; ringTick = 0; ringFlash = false;
-    ringOv.removeFlag(lv.OBJ_FLAG_HIDDEN);   // 全屏在最上 → 拦截一切点击（仅停止可点）
-}
-function ringStop() {
-    if (!ringing) return;
-    ringing = false;
-    ringOv.addFlag(lv.OBJ_FLAG_HIDDEN);
-    ringOv.setStyleOpa(255, 0);
+    /* minute */
+    smallBtn(editC, 136, 6, 30, 16, "+", 20, COL_WHITE,
+        function () { editM = (editM + 1) % 60; paintEdit(); });
+    mVal = new lv.label(editC);
+    mVal.setSize(50, 30); mVal.setPos(126, 24);
+    mVal.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    mVal.setFontSize(24);
+    mVal.setStyleTextColor(hex(COL_WHITE), 0);
+    mVal.setStyleTextOpa(255, 0);
+    mVal.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+    smallBtn(editC, 136, 56, 30, 16, "-", 20, COL_WHITE,
+        function () { editM = (editM + 59) % 60; paintEdit(); });
+
+    /* days label */
+    var dLbl = new lv.label(editC);
+    dLbl.setText("Days");
+    dLbl.setFontSize(9);
+    dLbl.setStyleTextColor(hex(COL_GRAY), 0);
+    dLbl.setStyleTextOpa(170, 0);
+    dLbl.setPos(20, 76);
+    dLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+    /* weekday chips: row1 MON..THU, row2 FRI..SUN + ALL / NONE */
+    for (var i = 0; i < 7; i++) {
+        (function (i) {
+            var col = i % 4, row = Math.floor(i / 4);
+            var b = new lv.button(editC);
+            b.setSize(50, 26); b.setPos(16 + col * 54, 88 + row * 30);
+            b.setStyleRadius(13, 0);
+            b.setStyleBgOpa(18, 0);
+            b.setStyleBgColor(hex(COL_WHITE), 0);
+            b.setStylePadAll(0, 0);
+            b.setStyleBorderWidth(0, 0);
+            b.setExtClickArea(6);
+            b.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+            var l = new lv.label(b);
+            l.setText(WDAYS[i]);
+            l.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+            l.setFontSize(11);
+            l.setStyleTextColor(hex(COL_GRAY), 0);
+            l.setStyleTextOpa(200, 0);
+            l.align(lv.ALIGN_CENTER, 0, 0);
+            l.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+            b.addEventCb(function () { editDays ^= (1 << i); paintEdit(); }, lv.EVENT_PRESSED, null);
+            dayChips.push({ btn: b, lbl: l });
+        })(i);
+    }
+    allBtn = smallBtn(editC, 184, 118, 26, 26, "ALL", 18, COL_WHITE,
+        function () { editDays = 127; paintEdit(); });
+    noneBtn = smallBtn(editC, 212, 118, 26, 26, "NONE", 18, COL_WHITE,
+        function () { editDays = 0; paintEdit(); });
+
+    /* repeat count */
+    var rLbl = new lv.label(editC);
+    rLbl.setText("Rpt");
+    rLbl.setFontSize(9);
+    rLbl.setStyleTextColor(hex(COL_GRAY), 0);
+    rLbl.setStyleTextOpa(170, 0);
+    rLbl.setPos(20, 150);
+    rLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+    smallBtn(editC, 74, 148, 30, 20, "-", 20, COL_WHITE,
+        function () {
+            if (editRep > 1) editRep--;
+            else if (editRep === 1) editRep = -1;
+            paintEdit();
+        });
+    rptVal = new lv.label(editC);
+    rptVal.setSize(46, 20); rptVal.setPos(110, 148);
+    rptVal.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    rptVal.setFontSize(16);
+    rptVal.setStyleTextColor(hex(COL_WHITE), 0);
+    rptVal.setStyleTextOpa(255, 0);
+    rptVal.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+    smallBtn(editC, 160, 148, 30, 20, "+", 20, COL_WHITE,
+        function () { editRep = (editRep < 0 ? 1 : Math.min(999, editRep + 1)); paintEdit(); });
+
+    /* actions */
+    delBtn = smallBtn(editC, 30, 176, 56, 26, "DEL", 255, COL_RED,
+        function () { delEdit(); });
+    saveBtn = smallBtn(editC, 90, 176, 56, 26, "SAVE", 255, COL_BLUE,
+        function () { saveEdit(); });
+    cancelBtn = smallBtn(editC, 150, 176, 62, 26, "CANCEL", 20, COL_WHITE,
+        function () { editing = null; paintHome(); showHome(); });
 }
 
-// 事件绑定（fork 的 CLICKED 断 → 用 PRESSED）
-hPlus.addEventCb(function () { pickerStep("h", 1); }, lv.EVENT_PRESSED, null);
-hMinus.addEventCb(function () { pickerStep("h", -1); }, lv.EVENT_PRESSED, null);
-mPlus.addEventCb(function () { pickerStep("m", 1); }, lv.EVENT_PRESSED, null);
-mMinus.addEventCb(function () { pickerStep("m", -1); }, lv.EVENT_PRESSED, null);
-sw.btn.addEventCb(doToggle, lv.EVENT_PRESSED, null);
-st.btn.addEventCb(doSet, lv.EVENT_PRESSED, null);
-ca.btn.addEventCb(doCancel, lv.EVENT_PRESSED, null);
-stopBtn.addEventCb(ringStop, lv.EVENT_PRESSED, null);
-
-// tick 100ms：时间刷新 + 响铃检测/闪烁/60s 自动停
-var tick = new lv.timer(function () {
-    var t = eos.time.getNow();
-    timeTxt.setText(pad2(t.hour) + ":" + pad2(t.min) + ":" + pad2(t.sec));
-    var c = Math.floor((t.ms % 1000) / 10);
-    millisTxt.setText("." + (c < 10 ? "0" : "") + c);
-    layoutTimeRow();
-    dateTxt.setText(t.year + "年" + t.month + "月" + t.day + "日 " + WEEK[t.day_of_week]);
-    layoutDate();
-    if (!ringing && alm_on && t.hour === alm_h && t.min === alm_m && t.sec <= 1) ringStart();
-    if (ringing) {
-        ringTick++;
-        if (ringTick % 5 === 0) {              // 500ms 闪烁
-            ringFlash = !ringFlash;
-            ringOv.setStyleOpa(ringFlash ? 255 : 200, 0);
+function paintEdit() {
+    hVal.setText(pad2(editH));
+    mVal.setText(pad2(editM));
+    for (var i = 0; i < 7; i++) {
+        var on = (editDays & (1 << i)) !== 0;
+        var c = dayChips[i];
+        if (on) {
+            c.btn.setStyleBgOpa(200, 0); c.btn.setStyleBgColor(hex(COL_BLUE), 0);
+            c.lbl.setStyleTextColor(hex(COL_WHITE), 0); c.lbl.setStyleTextOpa(255, 0);
+        } else {
+            c.btn.setStyleBgOpa(18, 0); c.btn.setStyleBgColor(hex(COL_WHITE), 0);
+            c.lbl.setStyleTextColor(hex(COL_GRAY), 0); c.lbl.setStyleTextOpa(200, 0);
         }
-        if (ringTick >= 600) ringStop();       // 60s 自动停
     }
-}, 100, null);
-tick.setRepeatCount(-1);
+    allBtn.btn.setStyleBgOpa(editDays === 127 ? 200 : 18, 0);
+    allBtn.btn.setStyleBgColor(hex(editDays === 127 ? COL_BLUE : COL_WHITE), 0);
+    allBtn.lbl.setStyleTextColor(hex(editDays === 127 ? COL_WHITE : COL_GRAY), 0);
+    noneBtn.btn.setStyleBgOpa(editDays === 0 ? 200 : 18, 0);
+    noneBtn.btn.setStyleBgColor(hex(editDays === 0 ? COL_BLUE : COL_WHITE), 0);
+    noneBtn.lbl.setStyleTextColor(hex(editDays === 0 ? COL_WHITE : COL_GRAY), 0);
+    rptVal.setText(repLabel(editRep));
 
-// ===================== audit（弦宽自验，getStyle* 带 sel=0） =====================
-function chordMax(yBottom) { return Math.floor(2 * Math.sqrt(14400 - (yBottom - 120) * (yBottom - 120)) - 16); }
-function audit(o, d, name) {
-    var tag = name || "obj";
-    if (typeof o.getText === "function") { try { tag += "<" + o.getText() + ">"; } catch (e) {} }
-    var c = o.getCoords();
-    eos.console.log(new Array(d + 1).join("  ") + tag + " xywh=" + c.x1 + "," + c.y1 + "," + (c.x2 - c.x1) + "," + (c.y2 - c.y1) +
-        " r=" + o.getStyleRadius(0) + " opa=" + o.getStyleBgOpa(0) + " bw=" + o.getStyleBorderWidth(0));
-    for (var i = 0; i < o.getChildCount(); i++) audit(o.getChild(i), d + 1, "#" + i);
-}
-try {
-    // 弦宽自验：逐行 行底可用弦宽
-    var rows = [
-        ["状态行", 30, 8 + 4 + statusTxt.getWidth(), 42],
-        ["时间行", 50, timeTxt.getWidth() + millisTxt.getWidth() + 2, 76],
-        ["日期行", 82, dateTxt.getWidth(), 96],
-        ["选择器行", 98, 28, 138],
-        ["底部行", 166, 3 * 40 + 2 * 4, 188],
-        ["停止胶囊", 150, 64, 176]
-    ];
-    for (var ri = 0; ri < rows.length; ri++) {
-        var r = rows[ri];
-        var ok = r[2] <= chordMax(r[3]);
-        eos.console.log("[alarm] 自验 " + r[0] + " w=" + r[2] + " 行底=" + r[3] + " 可用=" + chordMax(r[3]) + " " + (ok ? "OK" : "FAIL"));
+    if (editing && !editing.isNew) {
+        delBtn.btn.removeFlag(lv.OBJ_FLAG_HIDDEN);
+        delBtn.btn.setPos(30, 176);
+        saveBtn.btn.setPos(90, 176);
+        cancelBtn.btn.setPos(150, 176);
+    } else {
+        delBtn.btn.addFlag(lv.OBJ_FLAG_HIDDEN);
+        saveBtn.btn.setPos(60, 176);
+        cancelBtn.btn.setPos(120, 176);
     }
-    eos.console.log("[alarm] 对象账本 root children=" + R.root.getChildCount() + " (期望 16 = 状态2+时间2+日期1+选择器7+底部3胶囊+覆盖层1)，总对象 23 = 16+底部label3+覆盖层内4)");
-} catch (e) {
-    eos.console.log("[alarm] 自验异常: " + e);
 }
-audit(R.root, 0, "root");
+
+function openEdit(a, isNew) {
+    editing = { a: a, isNew: isNew };
+    editH = a.h; editM = a.m; editDays = a.days; editRep = a.rep;
+    paintEdit();
+    showEdit();
+}
+
+function saveEdit() {
+    var a = editing.a;
+    a.h = editH; a.m = editM; a.days = editDays; a.rep = editRep; a.lf = 0;
+    if (editing.isNew) alarms.push(a);
+    editing = null;
+    saveAlarms();
+    page = 0;
+    paintHome();
+    showHome();
+}
+
+function delEdit() {
+    if (editing && !editing.isNew) {
+        for (var i = 0; i < alarms.length; i++) {
+            if (alarms[i] === editing.a) { alarms.splice(i, 1); break; }
+        }
+        saveAlarms();
+    }
+    editing = null;
+    page = 0;
+    paintHome();
+    showHome();
+}
+
+/* ================= RING (white flash) ================= */
+var flashBg, alarmTtl, ringTime, bar, offBtn, snoozeBtn;
+
+function buildRing() {
+    flashBg = new lv.obj(ringC);
+    flashBg.setSize(240, 180); flashBg.setPos(0, 0);
+    flashBg.setStyleBgOpa(255, 0);
+    flashBg.setStyleBgColor(hex(0xFFFFFF), 0);
+    flashBg.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+    alarmTtl = new lv.label(ringC);
+    alarmTtl.setSize(240, 14); alarmTtl.setPos(0, 38);
+    alarmTtl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    alarmTtl.setText("ALARM");
+    alarmTtl.setFontSize(10);
+    alarmTtl.setStyleTextColor(hex(0x000000), 0);
+    alarmTtl.setStyleTextOpa(200, 0);
+    alarmTtl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+    ringTime = new lv.label(ringC);
+    ringTime.setSize(240, 40); ringTime.setPos(0, 62);
+    ringTime.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    ringTime.setFontSize(36);
+    ringTime.setStyleTextColor(hex(0x000000), 0);
+    ringTime.setStyleTextOpa(255, 0);
+    ringTime.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+    /* fixed white bar below the flashing area (buttons stay visible) */
+    bar = new lv.obj(ringC);
+    bar.setSize(240, 60); bar.setPos(0, 180);
+    bar.setStyleBgOpa(255, 0);
+    bar.setStyleBgColor(hex(COL_WHITE), 0);
+    bar.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+    offBtn = smallBtn(ringC, 44, 192, 62, 26, "OFF", 255, 0x000000,
+        function () { stopRing(); });
+    snoozeBtn = smallBtn(ringC, 134, 192, 62, 26, "SNOOZE", 255, COL_PURPLE,
+        function () { snoozeRing(); });
+}
+
+function applyFlash(white) {
+    if (white) {
+        flashBg.setStyleBgColor(hex(0xFFFFFF), 0);
+        ringTime.setStyleTextColor(hex(0x000000), 0);
+        alarmTtl.setStyleTextColor(hex(0x000000), 0);
+    } else {
+        flashBg.setStyleBgColor(hex(0x000000), 0);
+        ringTime.setStyleTextColor(hex(0xFFFFFF), 0);
+        alarmTtl.setStyleTextColor(hex(0xFFFFFF), 0);
+    }
+}
+
+function startRing(a) {
+    ringAlarm = a;
+    ringTicks = 0; ringSeqIdx = 0; ringSeqElapsed = 0;
+    ringTime.setText(pad2(a.h) + ":" + pad2(a.m));
+    applyFlash(true);
+    showRing();
+}
+
+function stopRing() {
+    if (ringAlarm) {
+        if (ringAlarm.tmp) {          /* temporary snooze alarm: remove after ringing */
+            for (var i = 0; i < alarms.length; i++) {
+                if (alarms[i] === ringAlarm) { alarms.splice(i, 1); break; }
+            }
+            saveAlarms();
+        }
+        ringAlarm = null;
+    }
+    if (editing) { paintEdit(); showEdit(); } else { page = 0; paintHome(); showHome(); }
+}
+
+function snoozeRing() {
+    var t = eos.time.getNow();
+    var nm = (t.min + 5) % 60;
+    var nh = (t.hour + Math.floor((t.min + 5) / 60)) % 24;
+    alarms.push({
+        id: nextId++, h: nh, m: nm,
+        days: (1 << ((t.day_of_week + 6) % 7)),   /* today only */
+        rep: 1, on: true, lf: 0, tmp: true
+    });
+    saveAlarms();
+    stopRing();
+}
+
+/* ================= page switching ================= */
+function showHome() {
+    homeC.removeFlag(lv.OBJ_FLAG_HIDDEN);
+    editC.addFlag(lv.OBJ_FLAG_HIDDEN);
+    ringC.addFlag(lv.OBJ_FLAG_HIDDEN);
+    setTitle("Alarm");
+}
+function showEdit() {
+    homeC.addFlag(lv.OBJ_FLAG_HIDDEN);
+    editC.removeFlag(lv.OBJ_FLAG_HIDDEN);
+    ringC.addFlag(lv.OBJ_FLAG_HIDDEN);
+    setTitle(editing && editing.isNew ? "Add" : "Edit");
+}
+function showRing() {
+    homeC.addFlag(lv.OBJ_FLAG_HIDDEN);
+    editC.addFlag(lv.OBJ_FLAG_HIDDEN);
+    ringC.removeFlag(lv.OBJ_FLAG_HIDDEN);
+    setTitle("Alarm!");
+}
+
+/* ================= due check + ring flash driver ================= */
+function checkDue() {
+    if (ringAlarm) return;
+    var t = eos.time.getNow();
+    var key = t.year * 1000000 + t.month * 10000 + t.day * 100 + t.hour * 100 + t.min;
+    var hit = null, dirty = false;
+    for (var i = 0; i < alarms.length; i++) {
+        var a = alarms[i];
+        if (!a.on) continue;
+        if (a.h !== t.hour || a.m !== t.min) continue;
+        if (a.lf === key) continue;
+        if (!dayMatch(a.days, t.day_of_week)) continue;
+        a.lf = key;                    /* mark fired this minute (Core skips relaunch) */
+        if (a.rep > 0) { a.rep--; if (a.rep === 0) a.on = false; }
+        dirty = true;
+        if (!hit) hit = a;
+    }
+    if (hit) {
+        if (dirty) saveAlarms();
+        startRing(hit);
+    }
+}
+
+var tickTimer = new lv.timer(function () {
+    tickCount++;
+    if (ringAlarm) {
+        ringTicks++;
+        if (ringTicks >= 600) { stopRing(); return; }   /* auto stop after 60s */
+        ringSeqElapsed += 100;
+        var seq = RING_SEQ[ringSeqIdx];
+        if (ringSeqElapsed >= seq.ms) {
+            ringSeqElapsed = 0;
+            ringSeqIdx = (ringSeqIdx + 1) % 4;
+            applyFlash(RING_SEQ[ringSeqIdx].w);
+        }
+    }
+    if (tickCount % 10 === 0) checkDue();
+}, 100, null);
+tickTimer.setRepeatCount(-1);
+
+/* ---------- boot ---------- */
+loadAlarms();
+buildHome();
+buildEdit();
+buildRing();
+paintHome();
+showHome();
+checkDue();   /* fire immediately if an alarm is due right now */

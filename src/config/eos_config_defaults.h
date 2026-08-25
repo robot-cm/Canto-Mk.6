@@ -120,6 +120,13 @@
 #define EOS_FONT_TYPE EOS_FONT_TTF
 #endif
 
+/* 字体是否从 SD 卡加载(.ef 二进制):
+ * 1 = 字体不编译进固件,开机从 /sdcard/font/ 下的 .ef 文件加载(C_MULTI 模式,真机);
+ * 0 = 字体编译进固件(默认,推荐:Flash XIP 映射,不占运行时内存)。 */
+#ifndef EOS_FONT_SD_ENABLE
+#define EOS_FONT_SD_ENABLE 0
+#endif
+
 #ifndef EOS_FONT_CFG_LARGE_SIZE
 #define EOS_FONT_CFG_LARGE_SIZE 30
 #endif
@@ -139,9 +146,10 @@
 #endif
 
 #if EOS_ENABLE_CHINESE_FONT
-#define EOS_FONT_LARGE_NAME source_han_sans_30
-#define EOS_FONT_MEDIUM_NAME source_han_sans_26
-#define EOS_FONT_SMALL_NAME source_han_sans_22
+/* JetBrainsMono-Medium (拉丁/数字/符号, 清晰等宽) + 内置 fallback=source_han_sans_*(中文) */
+#define EOS_FONT_LARGE_NAME eos_font_jbm_30
+#define EOS_FONT_MEDIUM_NAME eos_font_jbm_26
+#define EOS_FONT_SMALL_NAME eos_font_jbm_22
 #else
 #define EOS_FONT_LARGE_NAME lv_font_montserrat_30
 #define EOS_FONT_MEDIUM_NAME lv_font_montserrat_30
@@ -159,7 +167,8 @@
 #define EOS_FONT_TTF_DATA_SIZE SourceHanSansSC_12M_size
 #elif EOS_FONT_TTF_TYPE == EOS_FONT_TTF_FILE
 #if !defined(EOS_FONT_TTF_FILE_PATH)
-#define EOS_FONT_TTF_FILE_PATH EOS_SYS_RES_FONT_DIR "font.ttf"
+/* 字体从外部 SD 卡读取(/sdcard/font/font.ttf),不再依赖内置资源路径 */
+#define EOS_FONT_TTF_FILE_PATH EOS_SD_ROOT_DIR "font/font.ttf"
 #endif
 #endif
 
@@ -219,6 +228,13 @@
 
 #ifndef EOS_FS_PATH_MAX
 #define EOS_FS_PATH_MAX 256
+#endif
+
+/* Maximum length of a single path component / file name (bytes).
+ * Directory entry names, package IDs, etc. are stored in buffers of this
+ * size, so a full path built from such a name needs PATH_MAX + NAME_MAX. */
+#ifndef EOS_FS_NAME_MAX
+#define EOS_FS_NAME_MAX 256
 #endif
 
 #ifndef EOS_LVGL_FS_LETTER

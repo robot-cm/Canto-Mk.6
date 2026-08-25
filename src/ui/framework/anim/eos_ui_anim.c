@@ -131,6 +131,6 @@ void eos_anim_page_open(void *new_obj, unsigned int duration_ms)
     lv_anim_set_duration(&b, duration_ms);
     lv_anim_set_exec_cb(&b, _scale_cb);
     lv_anim_set_values(&b, 205, 256);   /* 0.8 -> 1.0 (256 == 100%) */
-    lv_anim_set_path_cb(&b, lv_anim_path_overshoot);
+    lv_anim_set_path_cb(&b, lv_anim_path_ease_out);
     lv_anim_start(&b);
 }

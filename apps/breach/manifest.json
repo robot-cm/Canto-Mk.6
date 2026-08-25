@@ -1,9 +1,9 @@
 {
   "id": "com.elenix.breach",
-  "name": "入侵协议",
-  "version": "0.1.0",
-  "author": "ElenixOS",
-  "description": "入侵协议：赛博朋克 2077 黑客小游戏（Breach Protocol）",
+  "name": "Breach Protocol",
+  "version": "1.00",
+  "author": "EraShaperAVM",
+  "description": "Cyberpunk 2077 Breach Protocol minigame",
   "minApiLevel": 0,
   "targetApiLevel": 0,
   "background": false

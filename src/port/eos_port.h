@@ -66,6 +66,18 @@ void eos_bluetooth_enable(void);
  */
 void eos_bluetooth_disable(void);
 /**
+ * @brief Platform Bluetooth radio backend (advertising) control
+ *
+ * Called by the Bluetooth service (eos_net_bt.c) when the radio is toggled.
+ * The simulator provides an empty weak stub; the ESP32 backend implements it
+ * with NimBLE GAP advertising so the device is discoverable as @p name.
+ *
+ * @param enabled true to start the radio/advertising, false to stop it
+ * @param name    BLE advertisement name (e.g. "Cyberwatch")
+ * @return EOS_OK on success, EOS_ERR_NET_BT on backend failure
+ */
+eos_result_t eos_net_bt_backend_set_enabled(bool enabled, const char *name);
+/**
  * @brief Locate phone
  *
  * Make phone ring via Bluetooth or other methods to locate phone.

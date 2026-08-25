@@ -1,0 +1,10 @@
+{
+  "id": "com.elenix.texthub",
+  "name": "Texthub",
+  "version": "1.0.0",
+  "author": "EraShaperAVM",
+  "description": "Texthub: read .txt/.md from /sdcard/texthub/ (recursive, read-only)",
+  "minApiLevel": 0,
+  "targetApiLevel": 0,
+  "background": false
+}

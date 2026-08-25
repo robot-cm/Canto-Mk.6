@@ -6,6 +6,7 @@
 #include "eos_config.h"
 #if EOS_ENABLE_TEST_APP
 
+#include <inttypes.h>
 #include "eos_test_sensor_multi_chart.h"
 #include "eos_dev_sensor.h"
 #include "eos_service_sensor.h"

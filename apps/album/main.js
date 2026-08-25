@@ -1,111 +1,234 @@
-// ElenixOS 相册 — P1 真窗口探针（视觉验证 png/jpg 解码 + FM 跳转 + album_pick 回传）
-// id = com.elenix.album（与 FM 拦截回传写死的 app id 一致，验证最终生产链路）
+// ElenixOS Album - recursive browser of /sdcard/album (240x240 round, English)
 //
-// 布局：img 160x160 居中(y8) / 状态行 y178 font10 / 底部三胶囊 y200 [PNG][JPG][FM]
-// 行为：PNG→setSrc 0.png；JPG→setSrc test.jpg；FM→eos.app.openFiles()；
-//       1s 轮询 album_pick（FM 选图回传后显示并清空）
-// 红线：opa 裸数字 / hex 数字 / setFontSize / 自建 R.root 全屏 radius0 禁滚 /
-//       游标布局禁 flex / 胶囊 radius999 禁 border fill 区分 / label align CENTER /
-//       timer 1000ms + setRepeatCount(-1) / 中文 / 标题走 statusbar
+// - Recursive scan (depth <= 4, max 200 files), filter png/jpg/jpeg/bmp,
+//   sorted by full path (i.e. by name within the album tree).
+// - First image shown on open. Top marquee shows the file name (scrolls when
+//   long, SCROLL_CIRCULAR like notes). Left/right arrows wrap around.
+// - Bottom trash deletes the current image via eos.fs.remove(path) (returns
+//   bool; needs the SNI added in sni_api_eos.c).
+// - Memory guard: files > 300KB are skipped (same guard as the P1 probe kept
+//   the LVGL decoders safe), a single lv.image object is reused so the old
+//   decoded buffer is freed on setSrc, and a post-decode size cap is checked.
+// Red lines: no arc / no border / radius<54 / no flex / anim<=6 / scroll is
+// used only on the marquee label / events are EVENT_PRESSED.
 
 var activity = eos.activity.current();
 var view = eos.activity.getView(activity);
-eos.activity.setTitle(activity, "相册探针");
+eos.activity.setTitle(activity, "Album");
 
-var R = {};
-var BG = 0x12121A;
-var WHITE = 0xFFFFFF;
-var ACCENT = 0x4A90D9;
-var GREY = 0x8A8F98;
-
+var BG = 0x12121A, WHITE = 0xFFFFFF, GREY = 0x9A9AA8, RED = 0xE5484D;
 function hex(v) { return lv.color.hex(v); }
 
-// ===================== R.root 全屏容器 =====================
-R.root = new lv.obj(view);
-R.root.setSize(240, 240);
-R.root.setPos(0, 0);
-R.root.setStyleRadius(0, 0);
-R.root.setStyleBgOpa(255, 0);
-R.root.setStyleBgColor(hex(BG), 0);
-R.root.setStylePadAll(0, 0);
-R.root.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-R.root.setScrollbarMode(0);
+var root = new lv.obj(view);
+root.setSize(240, 240); root.setPos(0, 0);
+root.setStyleRadius(0, 0);
+root.setStyleBgOpa(255, 0);
+root.setStyleBgColor(hex(BG), 0);
+root.setStylePadAll(0, 0);
+root.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+root.setScrollbarMode(0);
 
-// ===================== 图片区 160x160 =====================
-var img = new lv.image(R.root);
-img.setSize(160, 160);
-img.setPos(40, 8);
+/* ---------------- top: file name marquee (y36-56) ---------------- */
+var nameLbl = new lv.label(root);
+nameLbl.setSize(240, 20); nameLbl.setPos(0, 36);
+nameLbl.setStyleTextAlign(lv.TEXT_ALIGN_LEFT, 0);
+nameLbl.setStyleTextColor(hex(WHITE), 0);
+nameLbl.setStyleTextOpa(230, 0);
+nameLbl.setFontSize(12);
+nameLbl.addFlag(lv.OBJ_FLAG_SCROLLABLE);
+nameLbl.setLongMode(lv.LABEL_LONG_SCROLL_CIRCULAR);   // marquee long names
+nameLbl.setScrollbarMode(0);
+
+/* -------- center: image (adaptive fit to free area, centered 120,124) -------- */
+var img = new lv.image(root);
 img.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 img.setScrollbarMode(0);
+img.addFlag(lv.OBJ_FLAG_HIDDEN);
 
-// ===================== 状态行 =====================
-var status = new lv.label(R.root);
-status.setSize(240, 14);
-status.setPos(0, 178);
-status.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-status.setFontSize(10);
-status.setStyleTextColor(hex(GREY), 0);
-status.setText("点下方按钮");
-status.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+/* ---------------- center overlay message ---------------- */
+var msgLbl = new lv.label(root);
+msgLbl.setSize(220, 60); msgLbl.setPos(10, 106);
+msgLbl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+msgLbl.setStyleTextColor(hex(GREY), 0);
+msgLbl.setStyleTextOpa(220, 0);
+msgLbl.setFontSize(12);
+msgLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+msgLbl.setText("Loading...");
 
-// ===================== 胶囊按钮 =====================
-function pill(x, text, color) {
-    var b = new lv.button(R.root);
-    b.setSize(50, 26);
-    b.setPos(x, 200);
+/* ---------------- side arrows ---------------- */
+function arrow(x, glyph, cb) {
+    var b = new lv.button(root);
+    b.setSize(24, 64); b.setPos(x, 104);
     b.setStyleRadius(999, 0);
-    b.setStyleBgOpa(255, 0);
-    b.setStyleBgColor(hex(color), 0);
+    b.setStyleBgOpa(16, 0);
+    b.setStyleBgColor(hex(WHITE), 0);
     b.setStyleBorderWidth(0, 0);
     b.setStylePadAll(0, 0);
     b.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
     var l = new lv.label(b);
-    l.setSize(50, 26);
+    l.setSize(24, 64);
     l.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-    l.setFontSize(12);
+    l.setFontSize(18);
     l.setStyleTextColor(hex(WHITE), 0);
-    l.setText(text);
+    l.setStyleTextOpa(230, 0);
+    l.setText(glyph);
     l.align(lv.ALIGN_CENTER, 0, 0);
     l.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-    return b;
+    b.addEventCb(cb, lv.EVENT_PRESSED, null);
+    return { btn: b, lbl: l };
 }
-var bPng = pill(41, "PNG", ACCENT);
-var bJpg = pill(95, "JPG", ACCENT);
-var bFm  = pill(149, "FM", 0x3A6EA5);
+var btnPrev = arrow(6, "<", function () { if (items.length) show(cur - 1); });
+var btnNext = arrow(210, ">", function () { if (items.length) show(cur + 1); });
 
-// ===================== 行为 =====================
-bPng.addEventCb(function () {
-    img.setSrc("/sdcard/ALBUM/0.png");
-    status.setText("PNG: /sdcard/ALBUM/0.png");
-}, lv.EVENT_PRESSED, null);
+/* ---------------- bottom: trash button (comb-drawn icon) ---------------- */
+var trashBtn = new lv.button(root);
+trashBtn.setSize(44, 26); trashBtn.setPos(98, 212);
+trashBtn.setStyleRadius(13, 0);
+trashBtn.setStyleBgOpa(255, 0);
+trashBtn.setStyleBgColor(hex(RED), 0);
+trashBtn.setStyleBorderWidth(0, 0);
+trashBtn.setStylePadAll(0, 0);
+trashBtn.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
-bJpg.addEventCb(function () {
-    img.setSrc("/sdcard/ALBUM/test.jpg");
-    status.setText("JPG: /sdcard/ALBUM/test.jpg");
-}, lv.EVENT_PRESSED, null);
+function iconPart(parent, x, y, w, h, r) {
+    var o = new lv.obj(parent);
+    o.setSize(w, h); o.setPos(x, y);
+    o.setStyleBgOpa(230, 0);
+    o.setStyleBgColor(hex(WHITE), 0);
+    o.setStyleRadius(r, 0);
+    o.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+    return o;
+}
+iconPart(trashBtn, 18, 4, 8, 2, 1);     /* handle */
+iconPart(trashBtn, 12, 7, 20, 2, 1);    /* lid */
+iconPart(trashBtn, 14, 9, 16, 12, 2);   /* body */
+iconPart(trashBtn, 18, 11, 2, 9, 1);    /* slat 1 */
+iconPart(trashBtn, 23, 11, 2, 9, 1);    /* slat 2 */
+trashBtn.addEventCb(delCurrent, lv.EVENT_PRESSED, null);
 
-bFm.addEventCb(function () {
-    eos.app.openFiles();
-    status.setText("FM 已打开，去选一张图");
-}, lv.EVENT_PRESSED, null);
+var idxLbl = new lv.label(root);
+idxLbl.setSize(40, 16); idxLbl.setPos(8, 219);
+idxLbl.setStyleTextAlign(lv.TEXT_ALIGN_LEFT, 0);
+idxLbl.setStyleTextColor(hex(GREY), 0);
+idxLbl.setStyleTextOpa(200, 0);
+idxLbl.setFontSize(10);
+idxLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+idxLbl.setText("0/0");
 
-// 回传轮询：1s 查 album_pick（FM 选图 -> 写 com.elenix.album/config.json -> back）
-// 命中 -> 体积护栏（>300KB 跳过）-> 自动 setSrc 加载该图（P1 完整链路验证）
-var poll = new lv.timer(function () {
-    var pick = "";
-    try { pick = eos.config.getStr("album_pick"); } catch (e) {}
-    if (pick && pick.length > 0) {
-        var sz = 0;
-        try { sz = eos.fs.size(pick); } catch (e) {}
-        if (sz > 300 * 1024) {
-            status.setText("图过大 " + Math.floor(sz / 1024) + "KB 跳过");
-        } else if (sz <= 0) {
-            status.setText("文件不存在/不可读 " + pick);
-        } else {
-            img.setSrc(pick);
-            status.setText("已加载 " + pick);
+/* ---------------- scan / browse ---------------- */
+var ALBUM_DIR = "/sdcard/album";
+var MAX_FILE = 300 * 1024;   /* LVGL decoder headroom (probe-proven) */
+var MAX_IMAGES = 200;
+var MAX_DEPTH = 4;
+var EXTS = [".png", ".jpg", ".jpeg", ".bmp"];
+
+var items = [];   /* { path, name, size } */
+var cur = -1;
+
+function isImg(name) {
+    var low = name.toLowerCase();
+    for (var i = 0; i < EXTS.length; i++) {
+        if (low.length > EXTS[i].length &&
+            low.lastIndexOf(EXTS[i]) === low.length - EXTS[i].length) {
+            return true;
         }
-        try { eos.config.setStr("album_pick", ""); } catch (e) {}
     }
-}, 1000, null);
-poll.setRepeatCount(-1);
+    return false;
+}
+
+function scanDir(dir, depth, out) {
+    if (depth > MAX_DEPTH || out.length >= MAX_IMAGES) return;
+    var names = [];
+    try { names = eos.fs.list(dir); } catch (e) { return; }   /* missing dir */
+    for (var i = 0; i < names.length; i++) {
+        if (out.length >= MAX_IMAGES) break;
+        var n = names[i];
+        var p = dir + "/" + n;
+        if (isImg(n)) {
+            var sz = 0;
+            try { sz = eos.fs.size(p); } catch (e2) {}
+            out.push({ path: p, name: n, size: sz });
+        } else {
+            try {
+                var sub = eos.fs.list(p);      /* dir -> array, file -> throw */
+                if (sub) scanDir(p, depth + 1, out);
+            } catch (e3) { /* regular file */ }
+        }
+    }
+}
+
+function show(i) {
+    var n = items.length;
+    if (n === 0) {
+        cur = -1;
+        nameLbl.setText("");
+        idxLbl.setText("0/0");
+        img.addFlag(lv.OBJ_FLAG_HIDDEN);
+        msgLbl.removeFlag(lv.OBJ_FLAG_HIDDEN);
+        msgLbl.setText("No images\nin /sdcard/album/");
+        btnPrev.lbl.setStyleTextOpa(60, 0);
+        btnNext.lbl.setStyleTextOpa(60, 0);
+        return;
+    }
+    cur = ((i % n) + n) % n;   /* wrap */
+    var it = items[cur];
+    nameLbl.setText(it.name);
+    idxLbl.setText((cur + 1) + "/" + n);
+    btnPrev.lbl.setStyleTextOpa(230, 0);
+    btnNext.lbl.setStyleTextOpa(230, 0);
+
+    if (it.size > MAX_FILE) {   /* skip huge files to protect the decoder */
+        img.addFlag(lv.OBJ_FLAG_HIDDEN);
+        msgLbl.removeFlag(lv.OBJ_FLAG_HIDDEN);
+        msgLbl.setText("Too large\n(" + Math.floor(it.size / 1024) + "KB)");
+        return;
+    }
+
+    msgLbl.addFlag(lv.OBJ_FLAG_HIDDEN);
+    img.removeFlag(lv.OBJ_FLAG_HIDDEN);
+    img.setSrc(it.path);   /* decode png/jpg/bmp (old buffer freed on setSrc) */
+    var w = img.getWidth(), h = img.getHeight();
+    if (w <= 0 || h <= 0) {
+        img.addFlag(lv.OBJ_FLAG_HIDDEN);
+        msgLbl.removeFlag(lv.OBJ_FLAG_HIDDEN);
+        msgLbl.setText("Decode failed");
+        return;
+    }
+    if (w > 2048 || h > 2048) {   /* sanity cap even after decode */
+        img.addFlag(lv.OBJ_FLAG_HIDDEN);
+        msgLbl.removeFlag(lv.OBJ_FLAG_HIDDEN);
+        msgLbl.setText("Too large");
+        return;
+    }
+    /* Adaptive fit: scale the decoded image into the largest rect that fits
+       the free space (below the title marquee, above the trash bar, clear of
+       the side arrows), then center it. No hard 150x150 cap. */
+    var FREE_W = 180, FREE_H = 176;      /* free rect x:30..210, y:36..212 */
+    var CX = 120, CY = 124;              /* center of the free rect */
+    var scale = Math.min(1000, Math.floor(Math.min(FREE_W * 1000 / w, FREE_H * 1000 / h)));
+    scale = Math.max(100, scale);        /* never smaller than 10% */
+    img.setPivot(Math.floor(w / 2), Math.floor(h / 2));
+    img.setScale(scale);
+    img.setPos(CX, CY);
+}
+
+function delCurrent() {
+    if (cur < 0 || cur >= items.length) return;
+    var it = items[cur];
+    var ok = false;
+    try { ok = eos.fs.remove(it.path); } catch (e) {}
+    if (!ok) {
+        msgLbl.removeFlag(lv.OBJ_FLAG_HIDDEN);
+        msgLbl.setText("Delete failed");
+        return;
+    }
+    items.splice(cur, 1);
+    show(cur);   /* next item slides into place; wraps naturally */
+}
+
+/* ---------------- boot ---------------- */
+msgLbl.removeFlag(lv.OBJ_FLAG_HIDDEN);
+msgLbl.setText("Loading...");
+scanDir(ALBUM_DIR, 0, items);
+items.sort(function (a, b) { return a.path < b.path ? -1 : (a.path > b.path ? 1 : 0); });
+show(0);

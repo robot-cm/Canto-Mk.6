@@ -72,6 +72,11 @@ void eos_display_set_brightness(uint8_t brightness, eos_display_duration_t durat
     }
 }
 
+uint8_t eos_display_get_brightness(void)
+{
+    return _current_brightness;
+}
+
 void eos_display_power_on(void)
 {
     eos_dev_display_t *dev = eos_dev_display_get_instance();
@@ -95,4 +100,15 @@ void eos_display_restore(eos_display_duration_t duration_ms)
     uint8_t brightness_to_restore = _saved_brightness;
     _in_temporary_mode = false;
     eos_display_set_brightness(brightness_to_restore, duration_ms, false);
+}
+
+eos_result_t eos_display_bltest(bool high)
+{
+    eos_dev_display_t *dev = eos_dev_display_get_instance();
+    if (dev->ops && dev->ops->bltest)
+    {
+        dev->ops->bltest(high);
+        return EOS_OK;
+    }
+    return EOS_ERR_DEV_OPS_NOT_SUPPORTED;
 }

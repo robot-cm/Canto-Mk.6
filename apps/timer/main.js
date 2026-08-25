@@ -1,315 +1,302 @@
-// ElenixOS 秒表（计时器）— 计时器.html 移植 + 动效 v1 + Round 33e 小修
-//
-// 小修：① styleBtn 统一三按钮 ② 计次列表 y176 h52 w190 行高 15 PadTop 2
-// 百分位：tick 50ms（elapsed += 50 → 百分位 .00 .05 .10... 两位都动；性能红线 ≥30ms）
-// 后台：manifest background=true（切后台计时继续）
-// 动效 v1：① 状态点呼吸 800ms ping-pong ② 按钮按压 Opa60→28 120ms（scale 降级）
-//          ③ 计次行 fadeIn 120ms ④ 状态切换 fadeIn 120ms ⑤ 重置 Opa 250→80→250
-// 性能红线：同屏 anim ≤6；周期 ≥30ms
-// 红线：无 arc / 无 border 三件套 / radius<54 / 无 flex / opa 裸数字 / hex 数字
+// Timer - countdown timer (240x240 round, all-English)
+// Presets 1M/5M/10M/30M/1H chips + fine-tune -30s/-10s/+10s/+30s (tap, hold to repeat)
+// + START/PAUSE/RESET, HH:MM:SS display.
+// Background resume via eos.config persistence + timestamp diff (same scheme as Stopwatch).
+// Red lines: no arc / no border triple / radius<54 / no flex / anim<=6.
+// EVENT_CLICKED broken in this fork -> use EVENT_PRESSED.
 
 var activity = eos.activity.current();
 var view = eos.activity.getView(activity);
-eos.activity.setTitle(activity, "计时器");
+eos.activity.setTitle(activity, "Timer");
 
 function pad2(n) { return (n < 10 ? "0" : "") + n; }
 function hex(v) { return lv.color.hex(v); }
 
-// ===================== 图标（drawIcon：全块 ≥8×8；<8px 两维对象 LVGL 不渲染） =====================
-// 20×20 图标：play两台阶三角(18×10+9×10) / pause两根8×16 gap4
-// list两根16×8 gap4 / reset C 形环(14×8+8×12+14×8) + 8×8 箭头
-function drawIcon(parent, type, color, bx, by) {
-    function px(w, h, x, y) {                    // 像素块（最小 8×8，直挂 parent 绝对坐标）
-        var p = new lv.obj(parent);
-        p.setSize(w, h);
-        p.setPos(bx + x, by + y);
-        p.setStyleBgOpa(255, 0);
-        p.setStyleBgColor(hex(color), 0);
-        p.setStyleRadius(0, 0);
-        p.removeFlag(lv.OBJ_FLAG_CLICKABLE);
-        p.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-        return p;
-    }
-    if (type === "play") {                       // 右指三角（两台阶）
-        px(18, 10, 0, 0); px(9, 10, 0, 18);
-    } else if (type === "pause") {               // 两根 8×16 gap4
-        px(8, 16, 0, 4); px(8, 16, 16, 4);
-    } else if (type === "list") {                // 两根 16×8 gap4
-        px(16, 8, 2, 0); px(16, 8, 2, 18);
-    } else if (type === "reset") {               // C 形 3/4 环 + 箭头凸点
-        px(14, 8, 3, 0);                         // 上横
-        px(8, 12, 14, 4);                        // 右竖
-        px(14, 8, 3, 16);                        // 下横
-        px(8, 8, 4, 8);                          // 箭头凸点
-    }
-}
-
-var DIAL_COLOR = 0x12121A;
-var ACCENT = 0x4A90D9;           // 运行态点/进度（用户清单：运行 0x4A90D9）
-var PAUSE_COLOR = 0xE5A34D;      // 暂停态点
-var IDLE_COLOR = 0x8A8F98;       // 待命态点
+var BG = 0x12121A;
+var ACCENT = 0x4A90D9;
+var PAUSE_C = 0xE5A34D;
+var DONE_C = 0x3FB950;
+var IDLE_C = 0x8A8F98;
 var WHITE = 0xFFFFFF;
 
-// ===================== dial =====================
-var dial = new lv.obj(view);
-dial.setSize(240, 240);
-dial.setPos(0, 0);
-dial.setStyleRadius(0, 0);
-dial.setStyleBgOpa(255, 0);
-dial.setStyleBgColor(hex(DIAL_COLOR), 0);
-dial.setStylePadAll(0, 0);
-dial.setStyleBorderWidth(0, 0);
-dial.removeFlag(lv.OBJ_FLAG_CLICKABLE);
-dial.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+var root = new lv.obj(view);
+root.setSize(240, 240);
+root.setPos(0, 0);
+root.setStyleRadius(0, 0);
+root.setStyleBgOpa(255, 0);
+root.setStyleBgColor(hex(BG), 0);
+root.setStylePadAll(0, 0);
+root.setStyleBorderWidth(0, 0);
+root.removeFlag(lv.OBJ_FLAG_CLICKABLE);
+root.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
-// ===================== 状态行（点 8×8 + 文字，整体居中） =====================
-var statusDot = new lv.obj(dial);
+// ===================== status row (dot + text, centered) =====================
+var statusDot = new lv.obj(root);
 statusDot.setSize(8, 8);
 statusDot.setStyleRadius(4, 0);
-statusDot.setStyleBgColor(hex(IDLE_COLOR), 0);
+statusDot.setStyleBgColor(hex(IDLE_C), 0);
 statusDot.setStyleBgOpa(255, 0);
 statusDot.removeFlag(lv.OBJ_FLAG_CLICKABLE);
 statusDot.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
-var statusTxt = new lv.label(dial);
-statusTxt.setStyleTextColor(WHITE, 0);
+var statusTxt = new lv.label(root);
+statusTxt.setStyleTextColor(hex(WHITE), 0);
 statusTxt.setStyleTextOpa(160, 0);
-statusTxt.setText("待命");
 
 function layoutStatusRow() {
-    try { dial.updateLayout(); } catch (e) {}
+    try { root.updateLayout(); } catch (e) {}
     var tw = statusTxt.getWidth();
-    var total = 8 + 6 + tw;
-    var x0 = Math.floor((240 - total) / 2);
+    var x0 = Math.floor((240 - (8 + 6 + tw)) / 2);
     statusDot.setPos(x0, 46);
     statusTxt.setPos(x0 + 14, 36);
 }
 
-// ===================== 时间双 label（同 font26 同 y 同基线紧贴） =====================
-// 主 "HH:MM:SS" + 百分位 ".X"（1 位，用户"删最后一位"）；都不 setSize → getWidth=文字宽
-var timeTxt = new lv.label(dial);
-timeTxt.setStyleTextColor(WHITE, 0);
+// ===================== time display =====================
+var timeTxt = new lv.label(root);
+timeTxt.setStyleTextColor(hex(WHITE), 0);
 timeTxt.setStyleTextOpa(250, 0);
 timeTxt.setFontSize(26);
 timeTxt.setStyleTextLetterSpace(2, 0);
 
-var millisTxt = new lv.label(dial);
-millisTxt.setStyleTextColor(WHITE, 0);
-millisTxt.setStyleTextOpa(160, 0);
-millisTxt.setFontSize(26);
-
-function layoutTimeRow() {
-    try { dial.updateLayout(); } catch (e) {}
-    var w1 = timeTxt.getWidth();               // 文字宽（label 未 setSize）
-    var w2 = millisTxt.getWidth();
-    var x0 = Math.floor((240 - (w1 + w2 + 2)) / 2);
-    timeTxt.setPos(x0, 60);
-    millisTxt.setPos(x0 + w1 + 2, 60);
+function layoutTime() {
+    try { root.updateLayout(); } catch (e) {}
+    var w1 = timeTxt.getWidth();
+    timeTxt.setPos(Math.floor((240 - w1) / 2), 60);
 }
 
-
-// ===================== 按钮行（图标胶囊 w44 h28 @y180 x=44/98/152，gap10 居中） =====================
-var BTN_X = [44, 98, 152];
-var BTN_W = 44, BTN_H = 28;
-var btnRefs = {};
-
-function styleBtn(b) {                        // 统一胶囊样式（亮态 Opa36，暗底上有形）
+// ===================== preset chips (1M 5M 10M 30M 1H) =====================
+var PRESETS = [60, 300, 600, 1800, 3600];
+var PRESET_TXT = ["1M", "5M", "10M", "30M", "1H"];
+var chips = [];
+for (var ci = 0; ci < 5; ci++) {
+    var b = new lv.button(root);
+    b.setSize(42, 26);
+    b.setPos(7 + ci * 46, 100);
+    b.setStyleRadius(999, 0);
     b.setStyleBgOpa(36, 0);
     b.setStyleBgColor(hex(WHITE), 0);
+    b.setStylePadAll(0, 0);
+    b.setStyleBorderWidth(0, 0);
+    b.setExtClickArea(6);
+    var l = new lv.label(b);
+    l.setSize(42, 26);
+    l.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    l.setFontSize(12);
+    l.setStyleTextColor(hex(WHITE), 0);
+    l.setStyleTextOpa(250, 0);
+    l.setText(PRESET_TXT[ci]);
+    l.align(lv.ALIGN_CENTER, 0, 0);
+    l.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+    chips.push({ btn: b, lbl: l });
+    (function (idx) {
+        b.addEventCb(function () { chipPress(idx); }, lv.EVENT_PRESSED, null);
+    })(ci);
 }
 
+// ===================== fine-tune row (-30s -10s +10s +30s) =====================
+var MICRO = [[-30, "-30s"], [-10, "-10s"], [10, "+10s"], [30, "+30s"]];
+var microBtns = [];
+for (var mi = 0; mi < 4; mi++) {
+    (function (m0, step) {
+        var b = new lv.button(root);
+        b.setSize(44, 26);
+        b.setPos(26 + m0 * 48, 140);
+        b.setStyleRadius(999, 0);
+        b.setStyleBgOpa(20, 0);
+        b.setStyleBgColor(hex(WHITE), 0);
+        b.setStylePadAll(0, 0);
+        b.setStyleBorderWidth(0, 0);
+        b.setExtClickArea(6);
+        var l = new lv.label(b);
+        l.setSize(44, 26);
+        l.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+        l.setFontSize(12);
+        l.setStyleTextColor(hex(WHITE), 0);
+        l.setStyleTextOpa(250, 0);
+        l.setText(MICRO[m0][1]);
+        l.align(lv.ALIGN_CENTER, 0, 0);
+        l.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+        microBtns.push({ btn: b, lbl: l });
+        var pressed = false;
+        b.addEventCb(function () { pressFx(b); microStep(step); pressed = true; }, lv.EVENT_PRESSED, null);
+        b.addEventCb(function () { pressed = false; }, lv.EVENT_RELEASED, null);
+        b.addEventCb(function () { pressed = false; }, lv.EVENT_PRESS_LOST, null);
+        var ht = new lv.timer(function () { if (pressed) microStep(step); }, 280, null);
+        ht.setRepeatCount(-1);
+    })(mi, MICRO[mi][0]);
+}
+
+// ===================== buttons =====================
+var btnRefs = {};
 function makeBtn(x, label, key) {
-    var b = new lv.button(dial);
-    b.setSize(BTN_W, BTN_H);
+    var b = new lv.button(root);
+    b.setSize(96, 28);
     b.setPos(x, 180);
-    b.setStyleRadius(999, 0);                  // 胶囊（LVGL clamp 到 14）
-    b.setStyleBgOpa(36, 0);                    // 亮态 Opa36（暗底上有形）
+    b.setStyleRadius(999, 0);
+    b.setStyleBgOpa(36, 0);
     b.setStyleBgColor(hex(WHITE), 0);
     b.setStylePadAll(0, 0);
-    b.setExtClickArea(6);                      // 扩大点击区防误触
+    b.setStyleBorderWidth(0, 0);
+    b.setExtClickArea(6);
     var l = new lv.label(b);
-    l.setSize(BTN_W, BTN_H);
+    l.setSize(96, 28);
     l.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-    l.setFontSize(14);                         // → 22px
-    l.setStyleTextColor(WHITE, 0);
-    l.setStyleTextOpa(250, 0);                 // 白 Opa250
+    l.setFontSize(12);
+    l.setStyleTextColor(hex(WHITE), 0);
+    l.setStyleTextOpa(250, 0);
     l.setText(label);
-    l.align(lv.ALIGN_CENTER, 0, 0);            // 相对父胶囊居中（删 setPos 手摆）
-    b.addEventCb(function () {
-        pressFx(b);                            // 动效2：按压反馈
-        btnHandler(key);
-    }, lv.EVENT_PRESSED, null);
+    l.align(lv.ALIGN_CENTER, 0, 0);
+    l.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+    b.addEventCb(function () { pressFx(b); btnHandler(key); }, lv.EVENT_PRESSED, null);
     btnRefs[key] = { btn: b, lbl: l };
     return b;
 }
-makeBtn(BTN_X[0], "开始", "start");
-makeBtn(BTN_X[1], "计次", "lap");
-makeBtn(BTN_X[2], "重置", "reset");
+makeBtn(20, "START", "start");
+makeBtn(124, "RESET", "reset");
 
-// ===================== 计次列表（y100 h56 w180 居中；白Opa8 r12 PadAll4） =====================
-var lapsBox = new lv.obj(dial);
-lapsBox.setSize(180, 56);
-lapsBox.setPos(30, 100);
-lapsBox.setStyleBgOpa(12, 0);                   // 白 Opa12 玻璃（暗底上有形）
-lapsBox.setStyleRadius(12, 0);
-lapsBox.setStylePadAll(4, 0);
-lapsBox.setStyleBorderWidth(0, 0);
-lapsBox.addFlag(lv.OBJ_FLAG_SCROLLABLE);
-lapsBox.setScrollbarMode(0);
-
-var lapsEmpty = new lv.label(lapsBox);
-lapsEmpty.setSize(180, 14);
-lapsEmpty.setPos(0, 21);                        // 盒内垂直居中
-lapsEmpty.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-lapsEmpty.setFontSize(10);                      // → 22px（三档）
-lapsEmpty.setStyleTextColor(WHITE, 0);
-lapsEmpty.setStyleTextOpa(90, 0);
-lapsEmpty.setText("— 暂无计次 —");
-
-var lapRows = [];
-for (var li = 0; li < 3; li++) {
-    var lr = new lv.label(lapsBox);
-    lr.setSize(180, 14);
-    lr.setPos(0, 4 + li * 14);                  // 行高 14（PadAll4 内）
-    lr.setFontSize(10);
-    lr.setStyleTextColor(WHITE, 0);
-    lr.setStyleTextOpa(170, 0);
-    lr.setStyleTextLetterSpace(1, 0);           // 数字间隔大一点（用户反馈）
-    lr.setText("");
-    lr.removeFlag(lv.OBJ_FLAG_CLICKABLE);
-    lr.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-    lapRows.push(lr);
-}
-
-// ===================== 状态与逻辑（后台续计时：eos.config 持久化 + 时间戳补差） =====================
-// 退出期间不计时（JS 程序销毁）→ 存"退出时刻日期秒序号"，重进补差 elapsed += 差×1000。
-// laps 也持久化（JSON 字符串）。
-function nowSec() {                              // 单调递增日期秒序号（无 epoch API 的近似）
+// ===================== state (background resume: eos.config + timestamp diff) =====================
+function nowSec() {
     var t = eos.time.getNow();
     return ((t.year * 372 + t.month * 31 + t.day) * 86400) + (t.hour * 3600 + t.min * 60 + t.sec);
 }
 
-var _savedRunning = false, _savedElapsed = 0, _savedSec = 0, _savedLaps = [];
-try { _savedRunning = eos.config.getBool("timer.running") === true; } catch (e) {}
-try { _savedElapsed = eos.config.getNumber("timer.elapsed") || 0; } catch (e) {}
-try { _savedSec = eos.config.getNumber("timer.sec") || 0; } catch (e) {}
-try { var _ls = eos.config.getStr("timer.laps"); if (_ls) { _savedLaps = JSON.parse(_ls) || []; } } catch (e) {}
+var _svRun = false, _svRemain = 0, _svSec = 0, _svDur = 300, _svIdx = 2, _svMode = "READY";
+try { _svRun = eos.config.getBool("sw.running") === true; } catch (e) {}
+try { _svRemain = eos.config.getNumber("sw.remaining") || 0; } catch (e) {}
+try { _svSec = eos.config.getNumber("sw.sec") || 0; } catch (e) {}
+try { _svDur = eos.config.getNumber("sw.duration") || 300; if (isNaN(_svDur) || _svDur < 1) { _svDur = 300; } } catch (e) {}
+try { _svIdx = eos.config.getNumber("sw.idx"); if (isNaN(_svIdx)) { _svIdx = 2; } else if (_svIdx < -1) { _svIdx = -1; } else if (_svIdx > 4) { _svIdx = 4; } } catch (e) {}
+try { var _m = eos.config.getStr("sw.mode"); if (_m === "RUN" || _m === "PAUSE") { _svMode = _m; } } catch (e) {}
 
-var running = _savedRunning;
-var elapsed = _savedElapsed;
-if (running && _savedSec > 0) {                  // 上次运行中 → 补退出期间秒数
-    var _diff = nowSec() - _savedSec;
-    if (_diff > 0) { elapsed += _diff * 1000; }
+var selIdx = _svIdx;
+var duration = (selIdx >= 0 && selIdx <= 4) ? PRESETS[selIdx] : _svDur;
+var remaining = 0;
+var running = false;
+var mode = "READY";
+
+if (_svMode === "RUN") {
+    running = true; mode = "RUN";
+    remaining = _svRemain - (nowSec() - _svSec);
+    if (remaining <= 0) { remaining = 0; running = false; mode = "DONE"; }
+} else if (_svMode === "PAUSE") {
+    remaining = _svRemain;
+    mode = "PAUSE";
+} else {
+    remaining = duration;
+    mode = "READY";
 }
-var laps = _savedLaps;                           // 最新在前（恢复持久化计次）
 
 function saveState() {
-    try { eos.config.setBool("app.background", running); } catch (e) {}   // 最优先独立 try：异常不影响
+    try { eos.config.setBool("app.background", running); } catch (e) {}
     try {
-        eos.config.setNumber("timer.elapsed", elapsed);
-        eos.config.setBool("timer.running", running);
-        eos.config.setNumber("timer.sec", nowSec());
-        eos.config.setStr("timer.laps", JSON.stringify(laps));
+        eos.config.setNumber("sw.duration", duration);
+        eos.config.setNumber("sw.remaining", remaining);
+        eos.config.setBool("sw.running", running);
+        eos.config.setNumber("sw.sec", nowSec());
+        eos.config.setNumber("sw.idx", selIdx);
+        eos.config.setStr("sw.mode", mode);
     } catch (e) {}
 }
 
-function fmtMs(ms) {
-    var ts = Math.floor(ms / 1000);
-    var h = Math.floor(ts / 3600);
-    var m = Math.floor((ts % 3600) / 60);
-    var s = ts % 60;
+// ===================== UI update =====================
+function fmt(sec) {
+    var h = Math.floor(sec / 3600);
+    var m = Math.floor((sec % 3600) / 60);
+    var s = sec % 60;
     return pad2(h) + ":" + pad2(m) + ":" + pad2(s);
 }
 
-function fmtLap(ms) {                            // 计次格式 "MM:SS.xx"（08.25 = 0分8.25秒）
-    var ts = Math.floor(ms / 1000);
-    var m = Math.floor(ts / 60);
-    var s = ts % 60;
-    return pad2(m) + ":" + pad2(s) + "." + pad2(Math.floor((ms % 1000) / 10));
-}
-
 function update() {
-    timeTxt.setText(fmtMs(elapsed));
-    millisTxt.setText("." + Math.floor((elapsed % 1000) / 100));   // 百分位 1 位 .0 .1 .2（每 100ms +1）
-    layoutTimeRow();
-    renderLaps();
+    timeTxt.setText(fmt(remaining));
+    layoutTime();
 }
 
-function renderLaps() {
-    if (laps.length === 0) {
-        lapsEmpty.setText("— 暂无计次 —");
-        for (var i = 0; i < 3; i++) lapRows[i].setText("");
-        return;
+function paintChips() {
+    for (var i = 0; i < 5; i++) {
+        var on = (i === selIdx);
+        chips[i].btn.setStyleBgOpa(on ? 200 : 36, 0);
+        chips[i].lbl.setStyleTextOpa(mode === "RUN" ? 90 : 250, 0);
     }
-    lapsEmpty.setText("");
-    for (var j = 0; j < 3; j++) {
-        if (j < laps.length) {
-            var txt = pad2(laps.length - j) + " · " + fmtLap(laps[j]);   // "07 · 00:08.25"
-            if (lapRows[j].getText() !== txt) {
-                lapRows[j].setText(txt);
-                if (j === 0) rowFx(lapRows[j]);    // 动效3：新行 fadeIn
-            }
-        } else {
-            lapRows[j].setText("");
-        }
+}
+
+function setMode() {
+    var m = mode;
+    var txt = m === "RUN" ? "RUNNING" : m === "PAUSE" ? "PAUSED" : m === "DONE" ? "DONE" : "READY";
+    statusTxt.setText(txt);
+    layoutStatusRow();
+    var col = m === "RUN" ? ACCENT : m === "PAUSE" ? PAUSE_C : m === "DONE" ? DONE_C : IDLE_C;
+    statusDot.setStyleBgColor(hex(col), 0);
+    statusDot.setStyleBgOpa(255, 0);
+    if (m === "RUN" || m === "DONE") setBreath(true);
+    else setBreath(false);
+    btnRefs.start.lbl.setText(m === "RUN" ? "PAUSE" : "START");
+    paintChips();
+    paintMicro();
+}
+
+function paintMicro() {
+    for (var i = 0; i < microBtns.length; i++) {
+        microBtns[i].lbl.setStyleTextOpa(mode === "RUN" ? 90 : 250, 0);
     }
+}
+
+function chipPress(idx) {
+    if (mode === "RUN") return;                 // running: presets locked
+    pressFx(chips[idx].btn);
+    selIdx = idx;
+    duration = PRESETS[idx];
+    remaining = duration;
+    running = false;
+    mode = "READY";
+    setMode();
+    update();
+    saveState();
+}
+
+function microStep(step) {
+    if (mode === "RUN") return;                 // running: fine-tune locked
+    if (mode === "PAUSE") {
+        remaining = Math.min(86400, Math.max(1, remaining + step));
+        duration = remaining;                   // keep RESET in sync
+    } else {
+        duration = Math.min(86400, Math.max(1, duration + step));
+        remaining = duration;
+        running = false;
+        mode = "READY";
+    }
+    selIdx = -1;                                // custom unless matching a preset
+    for (var i = 0; i < PRESETS.length; i++) {
+        if (duration === PRESETS[i]) { selIdx = i; break; }
+    }
+    setMode();
+    update();
+    saveState();
 }
 
 function btnHandler(key) {
     if (key === "start") {
-        if (running) { running = false; btnRefs.start.lbl.setText("开始"); styleBtn(btnRefs.start.btn); setStatus("已暂停", PAUSE_COLOR); setBreath(false); saveState(); }
-        else { running = true; btnRefs.start.lbl.setText("暂停"); styleBtn(btnRefs.start.btn); setStatus("运行中", ACCENT); setBreath(true); saveState(); }
-    } else if (key === "lap") {
-        if (elapsed > 0) { laps.unshift(elapsed); renderLaps(); saveState(); }   // 计次即落盘
+        if (mode === "RUN") { mode = "PAUSE"; running = false; }
+        else if (mode === "DONE") { mode = "RUN"; running = true; remaining = duration; }
+        else { mode = "RUN"; running = true; }
     } else if (key === "reset") {
-        running = false; elapsed = 0; laps = [];
-        btnRefs.start.lbl.setText("开始"); styleBtn(btnRefs.start.btn);
-        setStatus("待命", IDLE_COLOR); setBreath(false);
-        timeTxt.setText("00:00:00");
-        millisTxt.setText(".0");
-        layoutTimeRow();
-        renderLaps();
-        resetFx();                                // 动效5：时间闪烁
-        saveState();                              // 重置即落盘（后台不再续）
+        running = false; mode = "READY"; remaining = duration;
     }
+    saveState();
+    setMode();
+    update();
 }
 
-// ===================== 状态（动效4：fadeIn 120ms） =====================
-function setStatus(text, color) {
-    // 动效4：crossfade — fadeOut(80) → setText → fadeIn(120)
-    var a1 = new lv.anim();
-    a1.init(); a1.setVar(statusTxt);
-    a1.setValues(160, 60); a1.setDuration(80);
-    a1.setCustomExecCb(function (an, v) { statusTxt.setStyleTextOpa(Math.round(v), 0); });
-    a1.setCompletedCb(function () {
-        statusTxt.setText(text);
-        layoutStatusRow();
-        var a2 = new lv.anim();
-        a2.init(); a2.setVar(statusTxt);
-        a2.setValues(60, 160); a2.setDuration(120);
-        a2.setCustomExecCb(function (an, v) { statusTxt.setStyleTextOpa(Math.round(v), 0); });
-    });
-    statusDot.setStyleBgColor(hex(color), 0);
-    statusDot.setStyleBgOpa(255, 0);
-    // 使能态：待命时 计次/重置 淡（fill Opa16 + 文字 Opa90）；运行/暂停恢复 36/250
-    var idle = (text === "待命");
-    btnRefs.lap.btn.setStyleBgOpa(idle ? 16 : 36, 0);
-    btnRefs.lap.lbl.setStyleTextOpa(idle ? 90 : 250, 0);
-    btnRefs.reset.btn.setStyleBgOpa(idle ? 16 : 36, 0);
-    btnRefs.reset.lbl.setStyleTextOpa(idle ? 90 : 250, 0);
-}
-
-// ===================== 动效 =====================
-// 动效1：状态点呼吸（运行中 90↔255 800ms ping-pong；停止时强制常亮）
+// ===================== effects =====================
 var breathAnim = null;
 function setBreath(on) {
     if (on && !breathAnim) {
         var a = new lv.anim();
         a.init(); a.setVar(statusDot);
-        a.setValues(90, 255); a.setDuration(400); a.setPlaybackTime(400); a.setRepeatCount(65535);
-        a.setPathCb(4);                           // EASE_IN_OUT
+        var dur = (mode === "DONE") ? 250 : 400;
+        a.setValues(80, 255); a.setDuration(dur); a.setPlaybackTime(dur); a.setRepeatCount(65535);
+        a.setPathCb(4);
         a.setCustomExecCb(function (an, v) {
-            if (running) statusDot.setStyleBgOpa(Math.round(v), 0);
+            if (running || mode === "DONE") statusDot.setStyleBgOpa(Math.round(v), 0);
             else statusDot.setStyleBgOpa(255, 0);
         });
         breathAnim = a;
@@ -319,7 +306,6 @@ function setBreath(on) {
     }
 }
 
-// 动效2：按钮按压 scale 232→256 120ms（RELEASED 不触发 → 一次性 anim 恢复；胶囊复现 bug 则降级 Opa）
 function pressFx(b) {
     b.setStyleTransformScale(232, 0);
     var a = new lv.anim();
@@ -328,92 +314,35 @@ function pressFx(b) {
     a.setCustomExecCb(function (an, v) { b.setStyleTransformScale(Math.round(v), 0); });
 }
 
-// 动效3：计次行 fadeIn(120) + TranslateY -6→0（全段 try：anim/exec 异常时行直接可见，不吞首行）
-function rowFx(lbl) {
-    try { lbl.setStyleTextOpa(0, 0); } catch (e) {}
+function doneFx() {
     var a = new lv.anim();
-    a.init(); a.setVar(lbl);
-    a.setValues(0, 170); a.setDuration(120);
-    a.setCustomExecCb(function (an, v) {
-        try { lbl.setStyleTextOpa(Math.round(v), 0); } catch (e) {}
-    });
-    try {
-        lbl.setStyleTranslateY(-6, 0);
-        var b2 = new lv.anim();
-        b2.init(); b2.setVar(lbl);
-        b2.setValues(-6, 0); b2.setDuration(120);
-        b2.setCustomExecCb(function (an, v) {
-            try { lbl.setStyleTranslateY(Math.round(v), 0); } catch (e) {}
-        });
-    } catch (e) {}
-    // 兜底：150ms 后强制行可见（anim 失败也不吞首行）
-    var fb = new lv.timer(function () {
-        try { lbl.setStyleTextOpa(170, 0); lbl.setStyleTranslateY(0, 0); } catch (e) {}
-    }, 150, null);
+    a.init(); a.setVar(timeTxt);
+    a.setValues(250, 80); a.setDuration(120); a.setPlaybackTime(120); a.setRepeatCount(5);
+    a.setCustomExecCb(function (an, v) { timeTxt.setStyleTextOpa(Math.round(v), 0); });
 }
 
-// 动效5：重置反馈 时间双 label Opa 250→80→250 200ms
-function resetFx() {
-    function flash(lbl) {
-        var a = new lv.anim();
-        a.init(); a.setVar(lbl);
-        a.setValues(250, 80); a.setDuration(100); a.setPlaybackTime(100); a.setRepeatCount(1);
-        a.setCustomExecCb(function (an, v) { lbl.setStyleTextOpa(Math.round(v), 0); });
-    }
-    flash(timeTxt);
-    flash(millisTxt);
-}
-
-// ===================== tick（100ms；每秒落盘一次供后台续计时） =====================
-var _saveCnt = 0;
+// ===================== tick (250ms; decrement every 4th -> 1s) =====================
+var _cnt = 0;
 var tick = new lv.timer(function () {
     if (running) {
-        elapsed += 100;
-        update();
-        _saveCnt++;
-        if (_saveCnt >= 10) { _saveCnt = 0; saveState(); }   // 每 1s 存 elapsed
+        _cnt++;
+        if (_cnt % 4 === 0) {
+            remaining--;
+            if (remaining <= 0) {
+                remaining = 0; running = false; mode = "DONE";
+                setMode(); update(); doneFx(); saveState();
+            } else {
+                update();
+                if (remaining % 30 === 0) saveState();   // persist every 30s
+            }
+        }
     }
-}, 100, null);
+}, 250, null);
 tick.setRepeatCount(-1);
 
-if (running) {                                 // 上次运行中 → 恢复续计时 UI
-    btnRefs.start.lbl.setText("暂停");
-    setStatus("运行中", ACCENT); setBreath(true);
-} else if (elapsed > 0) {                      // 暂停后退出 → 恢复暂停态
-    btnRefs.start.lbl.setText("开始");
-    setStatus("已暂停", PAUSE_COLOR);
-} else {
-    setStatus("待命", IDLE_COLOR);
-}
-saveState();          // 启动即落盘初始标志（待命/已暂停 → app.background=false → 退出不挂后台标）
-layoutTimeRow();
+// ===================== boot =====================
+setMode();
 update();
-
-// ===== audit（协议第六节）=====
-function audit(o, d, name) {
-    var tag = name || "obj";
-    if (typeof o.getText === "function") { try { tag += "<" + o.getText() + ">"; } catch (e) {} }
-    var c = o.getCoords();
-    var indent = "";
-    for (var k = 0; k < d; k++) { indent += "  "; }
-    var r = "?", bo = "?", hid = "?";
-    try { r = o.getStyleRadius(0); } catch (e) {}
-    try { bo = o.getStyleBgOpa(0); } catch (e) {}
-    try { hid = o.hasFlag(lv.OBJ_FLAG_HIDDEN); } catch (e) {}
-    eos.console.log(indent + tag +
-        " xywh=" + c.x1 + "," + c.y1 + "," + (c.x2 - c.x1) + "," + (c.y2 - c.y1) +
-        " r=" + r + " bgOpa=" + bo + " hid=" + hid);
-    var n = 0;
-    try { n = o.getChildCount(); } catch (e) {}
-    for (var i = 0; i < n; i++) {
-        var ch = null;
-        try { ch = o.getChild(i); } catch (e) {}
-        if (ch !== null && ch !== undefined) { audit(ch, d + 1, "#" + i); }
-    }
-}
-try { view.updateLayout(); } catch (e) {}
-try { dial.updateLayout(); } catch (e) {}
-try { audit(dial, 0, "dial"); }
-catch (err) { eos.console.log("AUDIT FAILED: " + err); }
-
-eos.console.log("[timer] 秒表动效版完成");
+if (mode === "DONE") { doneFx(); }          // finished while in background
+saveState();
+eos.console.log("[stopwatch] countdown v0.1 loaded");

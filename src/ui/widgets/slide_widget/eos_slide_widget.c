@@ -666,6 +666,14 @@ static void _slide_widget_delete_cb(lv_event_t *e)
     EOS_CHECK_PTR_RETURN(sw);
     EOS_LOG_I("Deleting slide widget for target obj %p", lv_event_get_target(e));
 
+    /* 关键:删除前必须取消所有绑定在 sw 上的动画。
+     * REVERTING/THRESHOLD/ANIMATING 动画由 lv_anim_start 注册(anim.var == sw),
+     * 若动画进行中删除 slide widget,anim_timer 完成动画时会调用
+     * _slide_widget_anim_completed_cb 访问已释放的 sw(日志已证实:
+     * ui_task → anim_timer → _slide_widget_anim_completed_cb → memcpy LoadProhibited,
+     * EXCVADDR 为已释放堆指针)。lv_anim_del 直接移除动画且不触发 completed_cb。 */
+    lv_anim_del(sw, NULL);
+
     if (sw->touch_obj && sw->owns_touch_obj)
     {
         if (lv_obj_is_valid(sw->touch_obj))
@@ -683,6 +691,10 @@ void eos_slide_widget_delete(eos_slide_widget_t *sw)
 {
     EOS_CHECK_PTR_RETURN(sw);
     EOS_LOG_I("Manually destroying slide widget %p", sw);
+
+    /* 与 _slide_widget_delete_cb 相同:先取消挂起动画再释放 sw,
+     * 防止 anim_timer 的完成回调访问已释放的 sw(_slide_widget_anim_completed_cb UAF) */
+    lv_anim_del(sw, NULL);
 
     if (sw->target_obj)
     {

@@ -31,6 +31,15 @@ EOS_WEAK void eos_cpu_reset(void)
 /* eos_bluetooth_enable / eos_bluetooth_disable are provided by the Bluetooth
  * system service (src/services/network/eos_net_bt.c) as strong definitions. */
 
+/* Simulator stub: no real radio. The ESP32 backend (port/esp32s3/main/
+ * eos_bt_esp32.c) overrides this with a strong NimBLE implementation. */
+EOS_WEAK eos_result_t eos_net_bt_backend_set_enabled(bool enabled, const char *name)
+{
+    LV_UNUSED(enabled);
+    LV_UNUSED(name);
+    return EOS_OK;
+}
+
 EOS_WEAK void eos_locate_phone(void)
 {
     return;

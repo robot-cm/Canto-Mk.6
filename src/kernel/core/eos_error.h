@@ -83,6 +83,7 @@ typedef enum
     EOS_ERR_NET_NO_SSID = -811,        /**< No SSID supplied / configured */
     EOS_ERR_NET_SCAN = -812,           /**< Scan failed */
     EOS_ERR_NET_BT_NOT_ENABLED = -813, /**< Bluetooth radio disabled */
+    EOS_ERR_NET_BT = -814,             /**< Bluetooth radio backend failure */
 
     EOS_ERR_UNKNOWN = -999,
 } eos_result_t;

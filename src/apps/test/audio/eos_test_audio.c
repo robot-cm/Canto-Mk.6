@@ -643,6 +643,7 @@ static bool _test_mic_report_state_error(void)
     return passed;
 }
 
+#if 0 // TODO: Implement speaker device tests when hardware is available
 static void _run_speaker_device_tests(void)
 {
     _test_spk_get_instance();
@@ -658,6 +659,7 @@ static void _run_speaker_device_tests(void)
     _test_spk_report_state_same();
     _test_spk_report_state_error();
 }
+#endif
 
 void eos_test_audio_register_tests(void)
 {
