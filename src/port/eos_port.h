@@ -1,6 +1,6 @@
 /**
  * @file eos_port.h
- * @brief ElenixOS porting
+ * @brief Canto Mk.6 porting
  */
 
 #ifndef EOS_PORT_H
@@ -73,7 +73,7 @@ void eos_bluetooth_disable(void);
  * with NimBLE GAP advertising so the device is discoverable as @p name.
  *
  * @param enabled true to start the radio/advertising, false to stop it
- * @param name    BLE advertisement name (e.g. "Cyberwatch")
+ * @param name    BLE advertisement name (e.g. "Canto Mk.6")
  * @return EOS_OK on success, EOS_ERR_NET_BT on backend failure
  */
 eos_result_t eos_net_bt_backend_set_enabled(bool enabled, const char *name);

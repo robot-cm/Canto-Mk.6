@@ -158,7 +158,7 @@ function bytesToStr(b) {
 }
 
 function loadFest() {
-    setTimeout(function () {
+    var t = new lv.timer(function () {
         var raw = undefined;
         try {
             if (eos.fs.size(FEST_PATH) > 32768) { festLbl.setText("festival.json too big"); return; }
@@ -175,7 +175,8 @@ function loadFest() {
         markDots();
         paintAll();
         showInfo(selIdx);
-    }, 30);
+    }, 30, null);
+    t.setRepeatCount(1);   // run once (setTimeout replacement)
 }
 
 // ===================== month state =====================
@@ -187,8 +188,8 @@ var selIdx = -1;
 
 var WDS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-var COL_W = 29, COL_GAP = 2, ROW_H = 22, ROW_GAP = 2;
-var GRID_X = 12, GRID_Y = 64;
+var COL_W = 26, COL_GAP = 1, ROW_H = 20, ROW_GAP = 2;
+var GRID_X = 26, GRID_Y = 66;
 
 // ===================== nav row =====================
 function pressFx(b) {
@@ -236,13 +237,38 @@ navLbl.addFlag(lv.OBJ_FLAG_CLICKABLE);
 navLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 navLbl.addEventCb(function () { togglePicker(); }, lv.EVENT_PRESSED, null);
 
+// ===================== 回今天小按钮（在 navLbl 之后创建 → 顶层优先接收点击） =====================
+var todayBtn = new lv.button(R.root);
+todayBtn.setSize(24, 22);
+todayBtn.setPos(154, 25);
+todayBtn.setStyleRadius(10, 0);
+todayBtn.setStyleBgOpa(200, 0);
+todayBtn.setStyleBgColor(hex(ACCENT), 0);
+todayBtn.setStylePadAll(0, 0);
+todayBtn.setStyleBorderWidth(0, 0);
+todayBtn.setExtClickArea(8);
+var todayLbl = new lv.label(todayBtn);
+todayLbl.setSize(24, 22);
+todayLbl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+todayLbl.setFontSize(12);
+todayLbl.setStyleTextColor(WHITE, 0);
+todayLbl.setStyleTextOpa(250, 0);
+todayLbl.setText("T");
+todayLbl.align(lv.ALIGN_CENTER, 0, 0);
+todayLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+todayBtn.addEventCb(function () {
+    pressFx(todayBtn);
+    Y = now.year; M = now.month;
+    refreshMonth();
+}, lv.EVENT_PRESSED, null);
+
 // ===================== weekday labels =====================
 for (var w = 0; w < 7; w++) {
     var wl = new lv.label(R.root);
-    wl.setSize(COL_W, 12);
+    wl.setSize(COL_W, 15);
     wl.setPos(GRID_X + w * (COL_W + COL_GAP), 48);
     wl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-    wl.setFontSize(11);
+    wl.setFontSize(10);
     wl.setStyleTextColor(GREY, 0);
     wl.setStyleTextOpa(190, 0);
     wl.setText(WDS[w]);
@@ -266,7 +292,7 @@ for (var r = 0; r < 6; r++) {
         var l = new lv.label(b);
         l.setSize(COL_W, ROW_H);
         l.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-        l.setFontSize(13);
+        l.setFontSize(10);
         l.setStyleTextColor(WHITE, 0);
         l.setStyleTextOpa(240, 0);
         l.align(lv.ALIGN_CENTER, 0, 0);
@@ -288,8 +314,8 @@ for (var r = 0; r < 6; r++) {
 
 // ===================== info bar (scroll label) =====================
 var festBox = new lv.obj(R.root);
-festBox.setSize(216, 22);
-festBox.setPos(12, 212);
+festBox.setSize(216, 40);
+festBox.setPos(12, 200);       // 纵向加宽 20→40：网格底 196 之上不碰日期，往下贴圆底（y=200..240）
 festBox.setStyleBgOpa(8, 0);
 festBox.setStyleBgColor(hex(WHITE), 0);
 festBox.setStyleRadius(8, 0);
@@ -298,15 +324,16 @@ festBox.setStyleBorderWidth(0, 0);
 festBox.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
 var festLbl = new lv.label(festBox);
-festLbl.setSize(204, 18);
-festLbl.setPos(6, 2);
-festLbl.setFontSize(12);
+festLbl.setSize(204, 38);
+festLbl.setPos(6, 1);
+festLbl.setFontSize(8);
 festLbl.setStyleTextColor(WHITE, 0);
 festLbl.setStyleTextOpa(235, 0);
 festLbl.setStyleTextAlign(lv.TEXT_ALIGN_LEFT, 0);
-festLbl.addFlag(lv.OBJ_FLAG_SCROLLABLE);
-festLbl.setLongMode(lv.LABEL_LONG_SCROLL_CIRCULAR);
+festLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+festLbl.setLongMode(lv.LABEL_LONG_CLIP);
 festLbl.setText("Tap a day\u2026");
+var festMarq = null;   // 节日文本自实现 marquee timer(见 showInfo)
 
 // ===================== year/month picker (tap title) =====================
 var pickerY = Y;
@@ -417,8 +444,8 @@ function refreshPicker() {
 function openPicker() {
     pickerY = Y;
     refreshPicker();
-    pickerMask.clearFlag(lv.OBJ_FLAG_HIDDEN);
-    pickerPanel.clearFlag(lv.OBJ_FLAG_HIDDEN);
+    pickerMask.removeFlag(lv.OBJ_FLAG_HIDDEN);
+    pickerPanel.removeFlag(lv.OBJ_FLAG_HIDDEN);
 }
 
 function closePicker() {
@@ -476,8 +503,25 @@ function showInfo(idx) {
     if (names.length) s = names.join(" | ");
     else if (lun) s = "Lunar " + lun.m + "/" + lun.d;
     if (idx === todayIdx) s = s ? "Today \u00b7 " + s : "Today";
-    festLbl.setText(s);
-    try { festLbl.scrollToX(0, 0); } catch (e) {}
+    // 无论节日字数长短都滚动:拼接文本强制超宽 + 自实现 marquee
+    // (SCROLL_CIRCULAR 曾在真机 fatal,用 texthub 同款 ping-pong 方案)
+    if (festMarq) { try { festMarq.delete(); } catch (e) {} festMarq = null; }
+    var sep = "     ";
+    var t = s + sep + s;
+    while (t.length * 12 + 8 <= 204) t += sep + s;   // 短文本也拼到超宽
+    festLbl.setText(t);
+    festLbl.setPos(6, 1);
+    var maxW = t.length * 12 + 8 - 204;
+    if (maxW < 4) maxW = 4;
+    var x = 0, dir = 1, wait = 24;
+    festMarq = new lv.timer(function () {
+        if (wait > 0) { wait--; return; }
+        x += dir;
+        if (x >= maxW) { dir = -1; wait = 24; }
+        else if (x <= 0) { dir = 1; wait = 24; }
+        festLbl.setPos(6 - x, 1);
+    }, 40, null);
+    festMarq.setRepeatCount(-1);
 }
 
 function markDots() {
@@ -498,7 +542,7 @@ function refreshMonth() {
         var cell = cells[i];
         cell.day = i - firstWd + 1;
         if (cell.day >= 1 && cell.day <= dim) {
-            cell.btn.clearFlag(lv.OBJ_FLAG_HIDDEN);
+            cell.btn.removeFlag(lv.OBJ_FLAG_HIDDEN);
             cell.lbl.setText(String(cell.day));
         } else {
             cell.btn.addFlag(lv.OBJ_FLAG_HIDDEN);
@@ -506,8 +550,8 @@ function refreshMonth() {
     }
     selIdx = (todayIdx >= 0) ? todayIdx : firstWd;   // 1st of month when browsing
     navLbl.setText(MONTHS[M - 1] + " " + Y);
-    navPrev.setHidden(Y <= 1900 && M <= 1);
-    navNext.setHidden(Y >= 2100 && M >= 12);
+    if (Y <= 1900 && M <= 1) navPrev.addFlag(lv.OBJ_FLAG_HIDDEN); else navPrev.removeFlag(lv.OBJ_FLAG_HIDDEN);
+    if (Y >= 2100 && M >= 12) navNext.addFlag(lv.OBJ_FLAG_HIDDEN); else navNext.removeFlag(lv.OBJ_FLAG_HIDDEN);
     markDots();
     paintAll();
     showInfo(selIdx);

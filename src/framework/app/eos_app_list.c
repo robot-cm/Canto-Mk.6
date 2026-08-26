@@ -36,11 +36,12 @@
 #include "eos_std_widgets.h"
 #include "eos_activity.h"
 #include "eos_bubble_grid.h"
+#include "eos_card_pager.h"
 #include "eos_accordion.h"
 #include "eos_overlay_layer.h"
 #include "eos_bg_indicator.h"
 #include "ui/system/eos_round_clip.h"
-#ifdef EOS_ENABLE_TEST_APP
+#if EOS_ENABLE_TEST_APP
 #include "eos_test.h"
 #endif
 /* When the simulator builds the adaptive framework Launcher (EOS_USE_CUSTOM_
@@ -65,21 +66,21 @@
 
 const char *eos_sys_app_id_list[EOS_SYS_APP_LAST] = {"sys.settings",
                                                      "sys.flash_light",
-#ifdef EOS_ENABLE_TEST_APP
+#if EOS_ENABLE_TEST_APP
                                                      "sys.test"
 #endif
 };
 
 const char *eos_sys_app_icon_list[EOS_SYS_APP_LAST] = {EOS_IMG_SETTINGS,
                                                        EOS_IMG_FLASH_LIGHT,
-#ifdef EOS_ENABLE_TEST_APP
+#if EOS_ENABLE_TEST_APP
                                                        EOS_IMG_APP
 #endif
 };
 
 const eos_sys_app_entry_t eos_sys_app_entry_list[EOS_SYS_APP_LAST] = {eos_settings_enter,
                                                                       eos_flash_light_enter,
-#ifdef EOS_ENABLE_TEST_APP
+#if EOS_ENABLE_TEST_APP
                                                                       eos_test_start
 #endif
 };
@@ -113,8 +114,39 @@ typedef struct
     bool background;
 } app_launch_ctx_t;
 
+/* Paged app grid: each page shows 6 icons; swipe left/right flips between
+ * pages. Up to 4 pages (24 apps) are supported.
+ * Layout is a true honeycomb: the 6 icons per page are staggered as 2-3-1
+ * (top row 2 icons nested between the middle row's 3 icons, bottom row 1
+ * centered). Row gap is kept smaller than the column gap so neighbours nest
+ * vertically like a hex grid; every row is centered on the round 240x240
+ * screen and never exceeds the circle clipping. */
+#define _APP_GRID_PAGE_SIZE     7
+#define _APP_GRID_COL_COUNT     3
+#define _APP_GRID_ROW_COUNT     3
+#define _APP_GRID_MAX_ICONS     24
+#define _APP_GRID_ICON_SIZE     50
+#define _APP_GRID_COL_GAP       58
+#define _APP_GRID_ROW_GAP       50
+
+/* Pager arrow buttons (RemixIcon glyphs, see eos_icon.h / RemixIcon.c). */
+#define _APP_ARROW_SIZE         30
+#define _APP_ARROW_PAD_X        6
+
+typedef struct
+{
+    uint32_t index;
+    char *app_id;
+} _app_grid_icon_ctx_t;
+
+static eos_card_pager_t *_app_list_pager = NULL;
+static lv_obj_t *_app_icon_cache[_APP_GRID_MAX_ICONS];
+static lv_obj_t *_app_arrow_prev = NULL;
+static lv_obj_t *_app_arrow_next = NULL;
+
 /* Function Implementations -----------------------------------*/
-static void _app_list_icon_clicked_cb(lv_event_t *e);
+static void _app_grid_icon_clicked_cb(lv_event_t *e);
+static lv_obj_t *_app_list_find_icon_by_index(uint32_t index);
 static void _app_installed_cb(eos_event_t *e);
 static void _app_uninstalled_cb(eos_event_t *e);
 static void _container_delete_cb(lv_event_t *e);
@@ -765,11 +797,10 @@ static void _app_list_play_transition_anim(lv_anim_timeline_t *at,
     }
 
     lv_obj_t *list_view = opening ? eos_activity_get_view(from) : eos_activity_get_view(to);
-    lv_obj_t *bubble_grid = _app_list_get_bubble_grid(opening ? from : to);
     lv_obj_t *focus_icon = NULL;
-    if (bubble_grid && _app_list_last_click_index >= 0)
+    if (_app_list_last_click_index >= 0)
     {
-        focus_icon = eos_bubble_get_icon_obj(bubble_grid, (uint32_t)_app_list_last_click_index);
+        focus_icon = _app_list_find_icon_by_index((uint32_t)_app_list_last_click_index);
     }
 
     /* Closing animation should not render app header on top. */
@@ -1062,38 +1093,62 @@ static void _app_list_on_resueme(eos_activity_t *a)
 
 /************************** App Entry **************************/
 /**
- * @brief App click event callback (handles system apps and script apps)
- * Gets app ID from bubble_grid's LV_EVENT_CLICKED event
+ * @brief Delete callback for a grid icon: releases the duplicated app id.
  */
-static void _app_list_icon_clicked_cb(lv_event_t *e)
+static void _app_grid_icon_delete_cb(lv_event_t *e)
 {
-    lv_obj_t *bubble_grid = lv_event_get_current_target(e);
-    EOS_CHECK_PTR_RETURN(bubble_grid);
+    _app_grid_icon_ctx_t *ctx = (_app_grid_icon_ctx_t *)lv_event_get_user_data(e);
+    if (!ctx)
+    {
+        return;
+    }
+    if (ctx->app_id)
+    {
+        eos_free(ctx->app_id);
+    }
+    eos_free(ctx);
+}
 
-    eos_bubble_click_event_t *click_event = (eos_bubble_click_event_t *)lv_event_get_param(e);
-    EOS_CHECK_PTR_RETURN(click_event);
+/**
+ * @brief App click event callback (handles system apps and script apps)
+ * @note The grid icon owns a duplicated app id, so the id stays valid even if
+ *       the plugin manager's internal list is rebuilt later.
+ */
+static void _app_grid_icon_clicked_cb(lv_event_t *e)
+{
+    _app_grid_icon_ctx_t *ctx = (_app_grid_icon_ctx_t *)lv_event_get_user_data(e);
+    EOS_CHECK_PTR_RETURN(ctx && ctx->app_id);
 
-    const char *app_id = (const char *)click_event->icon_user_data;
-    EOS_CHECK_PTR_RETURN(app_id);
-
-    _app_list_set_last_launch_app_id(app_id);
-    _app_list_last_click_index = (int32_t)click_event->index;
+    _app_list_set_last_launch_app_id(ctx->app_id);
+    _app_list_last_click_index = (int32_t)ctx->index;
 
     /* Use the icon's center, not the click point, so animation pivot/translate
      * is consistent regardless of where the user touches. */
-    lv_obj_t *clicked_bubble = eos_bubble_get_icon_obj(bubble_grid, click_event->index);
-    if (clicked_bubble)
+    lv_obj_t *icon = lv_event_get_target(e);
+    if (icon)
     {
         lv_area_t area;
-        lv_obj_get_coords(clicked_bubble, &area);
+        lv_obj_get_coords(icon, &area);
         _app_list_record_icon_center_point(area.x1 + lv_area_get_width(&area) / 2,
                                            area.y1 + lv_area_get_height(&area) / 2);
     }
 
-    if (eos_app_launch_immediately(app_id) != EOS_OK)
+    if (eos_app_launch_immediately(ctx->app_id) != EOS_OK)
     {
-        EOS_LOG_E("Launch app failed: %s", app_id);
+        EOS_LOG_E("Launch app failed: %s", ctx->app_id);
     }
+}
+
+/**
+ * @brief Find the icon object by its global index (used by transition anims).
+ */
+static lv_obj_t *_app_list_find_icon_by_index(uint32_t index)
+{
+    if (index >= _APP_GRID_MAX_ICONS)
+    {
+        return NULL;
+    }
+    return _app_icon_cache[index];
 }
 
 static void _register_anim_routes_once(void)
@@ -1113,6 +1168,176 @@ static void _register_anim_routes_once(void)
  * @brief Refresh app list - using bubble_grid
  * @param bubble_grid App list's bubble_grid object
  */
+/**
+ * @brief Append one icon to the paged grid, starting a new page every 6 icons.
+ */
+static void _app_list_append_icon(eos_card_pager_t *cp,
+                                  lv_obj_t **cur_page,
+                                  uint32_t *icon_index,
+                                  const char *icon_src,
+                                  const char *app_id)
+{
+    if (!(cp && cur_page && icon_index && icon_src && app_id))
+    {
+        return;
+    }
+
+    /* Start a new page every 7 icons (3 rows: 2-3-2). */
+    if (*icon_index % _APP_GRID_PAGE_SIZE == 0)
+    {
+        *cur_page = eos_card_pager_create_page(cp);
+        if (*cur_page)
+        {
+            lv_obj_set_style_bg_color(*cur_page, EOS_COLOR_BLACK, 0);
+            lv_obj_set_style_bg_opa(*cur_page, LV_OPA_COVER, 0);
+            lv_obj_set_style_border_width(*cur_page, 0, 0);
+        }
+    }
+    if (!*cur_page)
+    {
+        return;
+    }
+
+    uint32_t slot = *icon_index % _APP_GRID_PAGE_SIZE;
+    /* Icon slot table (rows 2-3-2, columns 0-based per row):
+     *   top    : [0][1]
+     *   middle : [0][1][2]
+     *   bottom : [0][1]
+     * Every row is horizontally centered so the cluster reads as a balanced
+     * 2-3-2 grid instead of a skewed honeycomb. */
+    static const int8_t _hc_row_of[7] = {0, 0, 1, 1, 1, 2, 2};
+    static const int8_t _hc_col_of[7] = {0, 1, 0, 1, 2, 0, 1};
+    static const int8_t _hc_row_icons[3] = {2, 3, 2};
+    int32_t row = _hc_row_of[slot];
+    int32_t col = _hc_col_of[slot];
+    int32_t row_icons = _hc_row_icons[row];
+    /* Center the row horizontally: each row's icon centers are spread by the
+     * column gap and the whole row is shifted so its midpoint sits at 120. */
+    int32_t cx = EOS_DISPLAY_WIDTH / 2
+                 + col * _APP_GRID_COL_GAP
+                 - (row_icons * _APP_GRID_COL_GAP / 2 - _APP_GRID_COL_GAP / 2);
+    int32_t cy = (EOS_DISPLAY_HEIGHT - (2 * _APP_GRID_ROW_GAP)) / 2 + row * _APP_GRID_ROW_GAP;
+
+    /* Icon: round tile + child image loaded from the icon_src path, so the
+     * launch transition anim can clone the child image and pivot around the
+     * tile center. */
+    lv_obj_t *icon = lv_obj_create(*cur_page);
+    lv_obj_remove_style_all(icon);
+    lv_obj_set_size(icon, _APP_GRID_ICON_SIZE, _APP_GRID_ICON_SIZE);
+    lv_obj_set_style_radius(icon, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(icon, lv_color_hex(0x242424), 0);
+    lv_obj_set_style_bg_opa(icon, LV_OPA_COVER, 0);
+    lv_obj_set_pos(icon, cx - _APP_GRID_ICON_SIZE / 2, cy - _APP_GRID_ICON_SIZE / 2);
+    lv_obj_remove_flag(icon, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICK_FOCUSABLE);
+    lv_obj_remove_flag(icon, LV_OBJ_FLAG_PRESS_LOCK);
+
+    lv_obj_t *img = lv_image_create(icon);
+    lv_image_set_src(img, icon_src);
+    lv_image_set_scale_x(img, 256);
+    lv_image_set_scale_y(img, 256);
+    lv_obj_center(img);
+
+    _app_grid_icon_ctx_t *ctx = (_app_grid_icon_ctx_t *)eos_malloc(sizeof(_app_grid_icon_ctx_t));
+    if (!ctx)
+    {
+        return;
+    }
+    ctx->index = *icon_index;
+    ctx->app_id = eos_strdup(app_id);
+    if (!ctx->app_id)
+    {
+        eos_free(ctx);
+        return;
+    }
+    lv_obj_add_event_cb(icon, _app_grid_icon_clicked_cb, LV_EVENT_CLICKED, ctx);
+    lv_obj_add_event_cb(icon, _app_grid_icon_delete_cb, LV_EVENT_DELETE, ctx);
+
+    if (*icon_index < _APP_GRID_MAX_ICONS)
+    {
+        _app_icon_cache[*icon_index] = icon;
+    }
+    (*icon_index)++;
+}
+
+/*------------------- Pager arrow navigation -------------------*/
+
+static void _app_list_update_arrows(void)
+{
+    eos_card_pager_t *cp = _app_list_pager;
+    if (!cp)
+    {
+        return;
+    }
+    bool multi = cp->page_count > 1;
+    if (_app_arrow_prev)
+    {
+        bool show = multi && cp->current_page_index > 0;
+        lv_obj_set_style_opa(_app_arrow_prev, show ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
+        lv_obj_clear_flag(_app_arrow_prev, LV_OBJ_FLAG_CLICKABLE);
+        if (show)
+            lv_obj_add_flag(_app_arrow_prev, LV_OBJ_FLAG_CLICKABLE);
+    }
+    if (_app_arrow_next)
+    {
+        bool show = multi && cp->current_page_index < cp->page_count - 1;
+        lv_obj_set_style_opa(_app_arrow_next, show ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
+        lv_obj_clear_flag(_app_arrow_next, LV_OBJ_FLAG_CLICKABLE);
+        if (show)
+            lv_obj_add_flag(_app_arrow_next, LV_OBJ_FLAG_CLICKABLE);
+    }
+}
+
+static void _app_list_page_changed_cb(eos_card_pager_t *cp, uint8_t page_index, void *user_data)
+{
+    (void)cp;
+    (void)page_index;
+    (void)user_data;
+    _app_list_update_arrows();
+}
+
+static void _app_arrow_clicked_cb(lv_event_t *e)
+{
+    eos_card_pager_t *cp = _app_list_pager;
+    if (!cp)
+    {
+        return;
+    }
+    bool next = (bool)(intptr_t)lv_event_get_user_data(e);
+    if (next && cp->current_page_index < cp->page_count - 1)
+    {
+        eos_card_pager_move_page(cp, cp->current_page_index + 1);
+    }
+    else if (!next && cp->current_page_index > 0)
+    {
+        eos_card_pager_move_page(cp, cp->current_page_index - 1);
+    }
+}
+
+static lv_obj_t *_app_arrow_create(lv_obj_t *parent, bool next)
+{
+    lv_obj_t *btn = lv_obj_create(parent);
+    lv_obj_remove_style_all(btn);
+    lv_obj_set_size(btn, _APP_ARROW_SIZE, _APP_ARROW_SIZE);
+    lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, 0);
+    lv_obj_remove_flag(btn, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICK_FOCUSABLE);
+    lv_obj_add_flag(btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_align(btn, next ? LV_ALIGN_RIGHT_MID : LV_ALIGN_LEFT_MID, -_APP_ARROW_PAD_X, 0);
+
+    lv_obj_t *label = lv_label_create(btn);
+    lv_label_set_text(label, next ? RI_ARROW_RIGHT_S_LINE : RI_ARROW_LEFT_S_LINE);
+    lv_obj_set_style_text_font(label, &EOS_FONT_ICON, 0);
+    lv_obj_set_style_text_color(label, EOS_COLOR_WHITE, 0);
+    lv_obj_center(label);
+
+    lv_obj_add_event_cb(btn, _app_arrow_clicked_cb, LV_EVENT_CLICKED, (void *)(intptr_t)next);
+    return btn;
+}
+
+/**
+ * @brief Refresh the paged app list.
+ * @param bubble_grid App list's page container object (card pager container)
+ */
 static void _app_list_refresh(lv_obj_t *bubble_grid)
 {
     if (!bubble_grid)
@@ -1120,14 +1345,24 @@ static void _app_list_refresh(lv_obj_t *bubble_grid)
         return;
     }
 
-    // Clear previous icon slots to avoid dangling pointers from deleting internal objects.
-    for (uint32_t i = 0; i < _app_list_icon_count; ++i)
+    eos_card_pager_t *cp = _app_list_pager;
+    if (!cp)
     {
-        eos_bubble_set_icon_src(bubble_grid, i, NULL);
-        eos_bubble_set_icon_user_data(bubble_grid, i, NULL);
+        return;
+    }
+
+    /* Clear all existing pages (last -> first) and the icon cache. */
+    while (cp->page_count > 0)
+    {
+        eos_card_pager_remove_page(cp, cp->page_count - 1);
+    }
+    for (uint32_t i = 0; i < _APP_GRID_MAX_ICONS; i++)
+    {
+        _app_icon_cache[i] = NULL;
     }
 
     uint32_t icon_index = 0;
+    lv_obj_t *cur_page = NULL;
 
     // Load application order from config
     cJSON *app_order = eos_config_get_json(EOS_CONFIG_KEY_APP_ORDER_ARRAY);
@@ -1138,43 +1373,41 @@ static void _app_list_refresh(lv_obj_t *bubble_grid)
         cJSON *item = NULL;
         cJSON_ArrayForEach(item, app_order)
         {
-            if (cJSON_IsString(item))
+            if (!cJSON_IsString(item))
             {
-                const char *order_id = item->valuestring;
-
-                // If it's a system app, use built-in icon and skip installed app check
-                bool is_sys = false;
-                for (int si = 0; si < EOS_SYS_APP_LAST; si++)
-                {
-                    if (strcmp(order_id, eos_sys_app_id_list[si]) == 0)
-                    {
-                        eos_bubble_set_icon_src(bubble_grid, icon_index, eos_sys_app_icon_list[si]);
-                        eos_bubble_set_icon_user_data(bubble_grid, icon_index, (void *)eos_sys_app_id_list[si]);
-                        icon_index++;
-                        is_sys = true;
-                        break;
-                    }
-                }
-                if (is_sys)
-                    continue;
-
-                // Non-system app: look up existing ID in installed list
-                const char *app_id = eos_app_list_get_existing_id(order_id);
-                if (!app_id)
-                {
-                    continue;
-                }
-
-                char icon_path[EOS_FS_PATH_MAX];
-                snprintf(icon_path, sizeof(icon_path), EOS_APP_INSTALLED_DIR "%s/" EOS_APP_ICON_FILE_NAME, app_id);
-                if (!eos_storage_is_file(icon_path))
-                {
-                    snprintf(icon_path, sizeof(icon_path), "%s", EOS_IMG_APP);
-                }
-                eos_bubble_set_icon_src(bubble_grid, icon_index, icon_path);
-                eos_bubble_set_icon_user_data(bubble_grid, icon_index, (void *)app_id);
-                icon_index++;
+                continue;
             }
+            const char *order_id = item->valuestring;
+
+            // System apps are shown in the control center, not in the launcher.
+            bool is_sys = false;
+            for (int si = 0; si < EOS_SYS_APP_LAST; si++)
+            {
+                if (strcmp(order_id, eos_sys_app_id_list[si]) == 0)
+                {
+                    is_sys = true;
+                    break;
+                }
+            }
+            if (is_sys)
+            {
+                continue;
+            }
+
+            // Non-system app: look up existing ID in installed list
+            const char *app_id = eos_app_list_get_existing_id(order_id);
+            if (!app_id)
+            {
+                continue;
+            }
+
+            char icon_path[EOS_FS_PATH_MAX];
+            snprintf(icon_path, sizeof(icon_path), EOS_APP_INSTALLED_DIR "%s/" EOS_APP_ICON_FILE_NAME, app_id);
+            if (!eos_storage_is_file(icon_path))
+            {
+                snprintf(icon_path, sizeof(icon_path), "%s", EOS_IMG_APP);
+            }
+            _app_list_append_icon(cp, &cur_page, &icon_index, icon_path, app_id);
         }
         cJSON_Delete(app_order);
     }
@@ -1186,23 +1419,24 @@ static void _app_list_refresh(lv_obj_t *bubble_grid)
         {
             const char *app_id = eos_app_list_get_id(i);
             if (!app_id)
+            {
                 continue;
+            }
 
-            // System built-in apps use built-in icons
+            // System apps are shown in the control center, not in the launcher.
             bool is_sys = false;
             for (int si = 0; si < EOS_SYS_APP_LAST; si++)
             {
                 if (strcmp(app_id, eos_sys_app_id_list[si]) == 0)
                 {
-                    eos_bubble_set_icon_src(bubble_grid, icon_index, eos_sys_app_icon_list[si]);
-                    eos_bubble_set_icon_user_data(bubble_grid, icon_index, (void *)eos_sys_app_id_list[si]);
-                    icon_index++;
                     is_sys = true;
                     break;
                 }
             }
             if (is_sys)
+            {
                 continue;
+            }
 
             // Non-system app
             char icon_path[EOS_FS_PATH_MAX];
@@ -1211,13 +1445,12 @@ static void _app_list_refresh(lv_obj_t *bubble_grid)
             {
                 snprintf(icon_path, sizeof(icon_path), "%s", EOS_IMG_APP);
             }
-            eos_bubble_set_icon_src(bubble_grid, icon_index, icon_path);
-            eos_bubble_set_icon_user_data(bubble_grid, icon_index, (void *)app_id);
-            icon_index++;
+            _app_list_append_icon(cp, &cur_page, &icon_index, icon_path, app_id);
         }
     }
 
     _app_list_icon_count = icon_index;
+    _app_list_update_arrows();
 }
 
 /************************** Animation **************************/
@@ -1257,6 +1490,38 @@ static void _container_delete_cb(lv_event_t *e)
     EOS_CHECK_PTR_RETURN(bubble_grid);
     eos_event_unsubscribe_with_obj(EOS_EVENT_APP_INSTALLED, _app_installed_cb, bubble_grid);
     eos_event_unsubscribe_with_obj(EOS_EVENT_APP_UNINSTALLED, _app_uninstalled_cb, bubble_grid);
+    _app_list_pager = NULL;
+    _app_arrow_prev = NULL;
+    _app_arrow_next = NULL;
+    for (uint32_t i = 0; i < _APP_GRID_MAX_ICONS; i++)
+    {
+        _app_icon_cache[i] = NULL;
+    }
+}
+
+/**
+ * @brief Swipe-back handler for the app list activity.
+ * @return true (consume): pager pages handle right-swipe internally; on the
+ *         first page the framework would otherwise pop the activity.
+ */
+static bool _app_list_on_swipe_back(eos_activity_t *activity, lv_dir_t dir)
+{
+    if (dir != LV_DIR_RIGHT)
+    {
+        return false;
+    }
+
+    eos_card_pager_t *cp = _app_list_pager;
+    if (cp && cp->current_page_index > 0)
+    {
+        /* Swipe back to the previous page: the card pager already animated
+         * the page move on release, just consume the gesture. */
+        return true;
+    }
+
+    /* First page: go back to the watch face. */
+    eos_activity_back();
+    return true;
 }
 
 void eos_app_list_enter(void)
@@ -1291,43 +1556,31 @@ void eos_app_list_enter(void)
     lv_obj_set_style_bg_color(view, EOS_COLOR_BLACK, 0);
     lv_obj_set_style_bg_opa(view, LV_OPA_COVER, 0);
 
-    // Create bubble_grid as app list container
-    lv_obj_t *bubble_grid = eos_bubble_create(view);
-    if (!bubble_grid)
+    /* Paged app grid (card pager) as the app list container. Every page shows
+     * up to 6 icons (2 rows x 3 cols); swiping left reveals the next page. */
+    eos_card_pager_t *pager = eos_card_pager_create(view, EOS_CARD_PAGER_DIR_HOR);
+    if (!pager)
     {
-        EOS_LOG_E("Failed to create bubble_grid");
+        EOS_LOG_E("Failed to create card pager");
         eos_activity_back();
         return;
     }
-
-    /* Round-screen tuning. 7 icons (3 sys + 4 eapk) on hex grid:
-     *   row0 (3): sys.settings / sys.flash_light / sys.test
-     *   row1 (4): pmdemo / clock / timer / alarm
-     * Earlier 80/80 left row1.col3 (alarm) at x_radius edge with min_scale=10%,
-     * shrunk to ~3px and effectively off-screen, so user reported "clock/app off
-     * screen" + "auto-rebound hides it". Bump x_radius to 105 and raise
-     * min_scale to 80% so all 7 icons render full-sized inside the round safe
-     * area. */
-    eos_bubble_config_t bg_cfg;
-    eos_bubble_init_config(&bg_cfg);
-    bg_cfg.bubble_size_px = 32;
-    bg_cfg.row_pitch_x_px = 62;
-    bg_cfg.row_pitch_y_px = 62;
-    bg_cfg.x_radius_px = 105;
-    bg_cfg.y_radius_px = 75;
-    bg_cfg.corner_radius_px = 80;
-    bg_cfg.fringe_width_px = 25;
-    bg_cfg.max_scale_permille = 1000;
-    bg_cfg.min_scale_permille = 80;
-    eos_bubble_set_config(bubble_grid, &bg_cfg);
-
-    // Set bubble_grid size and position
+    lv_obj_t *bubble_grid = pager->container;
     lv_obj_set_size(bubble_grid, EOS_DISPLAY_WIDTH, EOS_DISPLAY_HEIGHT);
     lv_obj_center(bubble_grid);
+    _app_list_pager = pager;
     eos_activity_set_user_data(a, bubble_grid);
 
-    // Register click event callback
-    lv_obj_add_event_cb(bubble_grid, _app_list_icon_clicked_cb, LV_EVENT_CLICKED, NULL);
+    /* Pager arrow navigation (left/right, created last so they sit on top of
+     * the pages). */
+    _app_arrow_prev = _app_arrow_create(view, false);
+    _app_arrow_next = _app_arrow_create(view, true);
+    eos_card_pager_set_page_changed_cb(pager, _app_list_page_changed_cb, NULL);
+    _app_list_update_arrows();
+
+    // Swipe-back: page 1+ consumes right-swipe (go back one page, handled by
+    // the pager itself); page 0 lets the framework exit to the watch face.
+    eos_activity_set_swipe_back_handler(a, _app_list_on_swipe_back);
 
     // Set callback
     lv_obj_add_event_cb(bubble_grid, _container_delete_cb, LV_EVENT_DELETE, NULL);

@@ -32,6 +32,8 @@
 #include "eos_service_storage.h"
 #include "eos_mem.h"
 #include "eos_service_haptic.h"
+/* [DIAG] 内存诊断:崩溃点前打印 PSRAM / 内部 DMA 状态 */
+#include "esp_heap_caps.h"
 
 /* Macros and Definitions -------------------------------------*/
 
@@ -230,6 +232,11 @@ void eos_service_config_init()
         if (_create_default_cfg_json(EOS_CONFIG_FILE_PATH) != EOS_OK)
         {
             EOS_LOG_E("Create default config json failed");
+            EOS_LOG_E("[DIAG] PSRAM free=%u largest=%u | INT|DMA free=%u largest=%u",
+                      (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+                      (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM),
+                      (unsigned)heap_caps_get_free_size(MALLOC_CAP_DMA),
+                      (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
             EOS_ASSERT(0);
         }
     }

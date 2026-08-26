@@ -30,10 +30,13 @@ idf_component_register(
         nvs_flash
         esp_event
         microlink
+        fatfs
+        esp_driver_sdspi
+        sdmmc
 )
 
 # ── ElenixOS Core 全部源文件(仅排除模拟器专属) ──────────
-file(GLOB_RECURSE EOS_CORE_SRCS "${EOS_ROOT}/src/**/*.c")
+file(GLOB_RECURSE EOS_CORE_SRCS CONFIGURE_DEPENDS "${EOS_ROOT}/src/**/*.c")
 list(FILTER EOS_CORE_SRCS EXCLUDE REGEX ".*eos_sim_hw_mock\\.c$")
 list(FILTER EOS_CORE_SRCS EXCLUDE REGEX ".*eos_virtual_display\\.c$")
 list(FILTER EOS_CORE_SRCS EXCLUDE REGEX ".*eos_net_sock_sim\\.c$")
@@ -44,8 +47,8 @@ set(CJSON_SRCS "${EOS_ROOT}/third_party/cJSON/cJSON.c")
 # ── JerryScript(jerry-core / jerry-ext / 默认 port) ─────
 #   jerry_port.c(ElenixOS 自定义)已在 EOS_CORE_SRCS 中
 #   jerry-port/common + unix 提供 context/fs/date(ESP-IDF VFS/newlib 兼容)
-file(GLOB_RECURSE JERRY_CORE_SRCS "${EOS_ROOT}/third_party/jerryscript/jerry-core/**/*.c")
-file(GLOB_RECURSE JERRY_EXT_SRCS  "${EOS_ROOT}/third_party/jerryscript/jerry-ext/**/*.c")
+file(GLOB_RECURSE JERRY_CORE_SRCS CONFIGURE_DEPENDS "${EOS_ROOT}/third_party/jerryscript/jerry-core/**/*.c")
+file(GLOB_RECURSE JERRY_EXT_SRCS  CONFIGURE_DEPENDS "${EOS_ROOT}/third_party/jerryscript/jerry-ext/**/*.c")
 # 排除 debugger 扩展(未启用,且依赖 socket)
 list(FILTER JERRY_EXT_SRCS EXCLUDE REGEX ".*/jerry-ext/debugger/.*")
 # 排除平台无关的测试工具
@@ -62,8 +65,9 @@ set(JERRY_PORT_SRCS
 
 # ── 字体:内置 C 字体编译进 Flash(XIP 映射,不占 PSRAM) ──
 #    EOS_FONT_C_MULTI 模式(eos_platform_config.h 强制)下,eos_font_c_multi.c 依赖
-#    eos_font_jbm_{22,26,30}(JetBrains Mono,ASCII/拉丁/箭头,共 ~500KB)。
-#    fallback 链:jbm_22 -> han_sans_22 -> eos_font_icon;jbm_26/30 -> eos_font_icon。
+#    eos_font_jbm_{16,20,26,30}(JetBrains Mono,ASCII/拉丁/箭头,共 ~600KB)。
+#    fallback 链:jbm_16 -> han_sans_16 -> eos_font_icon;jbm_20 -> han_sans_22 -> eos_font_icon;
+#    jbm_26/30 -> eos_font_icon。
 
 target_sources(${COMPONENT_LIB} PRIVATE
     ${EOS_CORE_SRCS}
@@ -72,19 +76,28 @@ target_sources(${COMPONENT_LIB} PRIVATE
     ${JERRY_EXT_SRCS}
     ${JERRY_PORT_SRCS}
     # 内置 C 字体(EOS_FONT_C_MULTI 必需)
-    "${EOS_ROOT}/resources/font/eos_font_jbm_22.c"
+    "${EOS_ROOT}/resources/font/eos_font_jbm_16.c"
+    "${EOS_ROOT}/resources/font/eos_font_jbm_20.c"
     "${EOS_ROOT}/resources/font/eos_font_jbm_26.c"
     "${EOS_ROOT}/resources/font/eos_font_jbm_30.c"
     # 中文子集字体(eos_font_jbm_22 的 fallback,GB2312 全量,约 1MB)
     "${EOS_ROOT}/resources/font/eos_font_han_sans_22.c"
+    # 16px 中文子集字体(表盘 hint 轮播,177 字符,fallback han_sans_22 兜底)
+    "${EOS_ROOT}/resources/font/eos_font_han_sans_16.c"
     # 图标字体子集(RI_*/LV_SYMBOL_* 字符,jbm/han_sans 的 fallback,约 90KB)
     "${EOS_ROOT}/resources/font/eos_font_icon.c"
+    # 全量 Remix 图标字体(30px,eos_font.h 的 EOS_FONT_ICON 宏引用,app 页翻页箭头等)
+    #   源码约 6MB,编译进 flash 约 700-800KB(factory 5.94MB,余量 1.87MB,可容纳)
+    "${EOS_ROOT}/resources/font/RemixIcon.c"
     # Control Center 彩色图标(webp 转换的 ARGB8888 静态图)
     "${EOS_ROOT}/resources/images/icon/eos_icon_bluetooth.c"
     "${EOS_ROOT}/resources/images/icon/eos_icon_wifi.c"
     "${EOS_ROOT}/resources/images/icon/eos_icon_torch.c"
     "${EOS_ROOT}/resources/images/icon/eos_icon_powersave.c"
     "${EOS_ROOT}/resources/images/icon/eos_icon_setting.c"
+    # Settings 页面图标(wireguard.webp 普通转换; pwd.webp 白色抠图生成)
+    "${EOS_ROOT}/resources/images/icon/eos_icon_wireguard.c"
+    "${EOS_ROOT}/resources/images/icon/eos_icon_pwd.c"
 )
 
 # ── Include 目录(复刻根 CMakeLists.txt:所有含头文件的目录) ──
@@ -139,10 +152,21 @@ target_compile_definitions(${COMPONENT_LIB} PUBLIC
     JERRY_VM_HALT=1
     JERRY_LINE_INFO=1
     JERRY_ERROR_MESSAGES=1
-    # JS 堆 256KB:用系统分配器(CONFIG_SPIRAM_USE_MALLOC=y → PSRAM),
-    # 避免 256KB 静态 BSS 塞爆内部 DRAM(144KB over 的元凶)
-    JERRY_GLOBAL_HEAP_SIZE=256
-    JERRY_SYSTEM_ALLOCATOR=1
+    # JERRY_LOGGING=1:恢复 jerry_assert_fail 的 ICE 现场行打印。
+    # JERRY_ERROR_MSG 在 JERRY_LOGGING=0 时被编译为空,
+    # 断言失败只剩 Fatal code=120,没有文件/行号/表达式,无法定位凶手。
+    # 仅启用错误级 log,无额外刷屏。
+    JERRY_LOGGING=1
+    # JS 堆 512KB:内部堆模式(SYSTEM_ALLOCATOR=0) + 外部 context。
+    # JERRY_EXTERNAL_CONTEXT=1 使 512KB 堆走 jerry_port_context_alloc
+    # 一次大分配(实现中放入 PSRAM),BSS 不再占用内部 DRAM;
+    # 避免 SYSTEM_ALLOCATOR=1 时小对象 malloc 碎片化内部 DMA RAM
+    # (内部 DMA largest 30KB→32B,直接导致 SD/FATFS 写路径失败的根因)
+    # 256KB 时多个常驻 app realm(Activity 栈保留旧程序)会瓜分殆尽,
+    # 新 app 启动即 JerryScript fatal OOM(120);PSRAM 充足,放大到 512KB。
+    JERRY_GLOBAL_HEAP_SIZE=512
+    JERRY_SYSTEM_ALLOCATOR=0
+    JERRY_EXTERNAL_CONTEXT=1
     JERRY_CPOINTER_32_BIT=1
     # microlink 已接入 → eos_net_vpn.c 编译真机驱动路径
     EOS_HAVE_MICROLINK=1

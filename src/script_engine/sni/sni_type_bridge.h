@@ -26,7 +26,14 @@ extern "C" {
 #define sni_tb_c2js_boolean jerry_boolean
 #define sni_tb_js2c_boolean jerry_value_to_boolean
 
-#define sni_tb_c2js_string jerry_string_sz
+/* C→JS 字符串转换统一走安全净化版本:
+ * 任意 C 字节串 → 合法 CESU-8 JS 字符串。
+ * SD 文件名/JSON 文本/外部数据若含非 UTF-8 字节(如 GBK 中文、
+ * 4 字节 emoji), 直接 jerry_string_sz 会触发
+ * jerry_validate_string 断言失败 → Fatal 120。
+ * 净化: 非法字节替换为 U+FFFD, 保证不崩。 */
+jerry_value_t sni_tb_c2js_string_safe(const char *s);
+#define sni_tb_c2js_string sni_tb_c2js_string_safe
 
 /* Public typedefs --------------------------------------------*/
 

@@ -1,6 +1,6 @@
 /**
  * @file eos_wos.h
- * @brief ElenixOS Watch OS UI framework — master header
+ * @brief Canto Mk.6 Watch OS UI framework — master header
  *
  * One include pulls the whole framework. See WatchOS_UI框架设计.md for the
  * architecture (layers / App Manager / lifecycle / layout / animation rules).

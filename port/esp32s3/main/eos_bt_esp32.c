@@ -6,7 +6,7 @@
  * eos_port.h), overriding the weak stub in src/port/eos_port.c. The Bluetooth
  * service (src/services/network/eos_net_bt.c) calls it whenever the radio is
  * toggled, so the device advertises itself over BLE and becomes discoverable
- * by phones as the configured name (default "Cyberwatch").
+ * by phones as the configured name (default "Canto Mk.6").
  *
  * - enable  -> NimBLE stack init (once) + undirected connectable advertising
  *              (general discoverable, name in ADV data)
@@ -59,13 +59,23 @@ static void _host_task(void *param)
     nimble_port_freertos_deinit();
 }
 
-/* Low-priority init task: nimble_port_init() blocks until the controller is
- * ready, so it must not run on the LVGL/UI thread (eos_port.h constraint). */
-static void _init_task(void *param)
+/* 核心初始化:diagnose + nimble_port_init + GAP 回调注册 + host 任务。
+ *
+ * BLE controller 需要大块 internal|DMA 连续内存(em 表 / TX-RX buffer)。
+ * 若在系统运行很久后(内部 RAM 已碎片化,largest 只有几 KB)才初始化,
+ * nimble_port_init() 会因 ESP_ERR_NO_MEM 失败——所以必须在 app_main
+ * 早期 internal RAM 尚连续时调用(eos_bt_esp32_early_init),开关只控制广播。
+ *
+ * 失败时做清理(esp_bt_controller_deinit):残留的 ROM/固件状态会与
+ * WiFi coex 冲突(打开 WiFi 时卡死 → TG1WDT 复位)。
+ * 返回 ESP_OK 表示栈已就绪(s_initialized=true)。
+ */
+static esp_err_t _bt_do_init(void)
 {
-    (void)param;
-    /* 诊断:controller 需要大块 internal|DMA 连续内存(Funcs table),
-     * 分别打印 INTERNAL 与 INTERNAL|DMA 的碎片情况,便于定位 ESP_ERR_NO_MEM */
+    if (s_initialized)
+        return ESP_OK;
+
+    /* 诊断:分别打印 INTERNAL 与 INTERNAL|DMA 的碎片情况 */
     size_t f_i    = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
     size_t l_i    = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
     size_t f_id   = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
@@ -73,6 +83,7 @@ static void _init_task(void *param)
     ESP_LOGI(EOS_BT_ESP_TAG,
              "controller init: INT free=%u largest=%u | INT|DMA free=%u largest=%u",
              (unsigned)f_i, (unsigned)l_i, (unsigned)f_id, (unsigned)l_id);
+
     esp_err_t ret = nimble_port_init();
     if (ret != ESP_OK)
     {
@@ -84,16 +95,11 @@ static void _init_task(void *param)
                  "(INT free=%u largest=%u | INT|DMA free=%u largest=%u)",
                  esp_err_to_name(ret), (unsigned)fa_i, (unsigned)la_i,
                  (unsigned)fa_id, (unsigned)la_id);
-        /* 清理半初始化的 controller:失败后残留的 ROM/固件状态
-         * 会与 WiFi coex 冲突(打开 WiFi 时卡死 → TG1WDT 复位)。 */
         esp_err_t derr = esp_bt_controller_deinit();
         if (derr != ESP_OK)
             ESP_LOGW(EOS_BT_ESP_TAG, "controller deinit after failed init: %s",
                      esp_err_to_name(derr));
-        s_enabled = false;
-        s_initialized = false;
-        vTaskDelete(NULL);
-        return;
+        return ret;
     }
 
     ble_svc_gap_device_name_set(s_name);
@@ -103,6 +109,38 @@ static void _init_task(void *param)
 
     nimble_port_freertos_init(_host_task);
     s_initialized = true;
+    return ESP_OK;
+}
+
+/* 提前初始化入口:由 app_main 在 eos_init() 之前(internal RAM 连续时)调用。
+ * 失败不致命:s_initialized 保持 false,用户打开蓝牙开关时 _init_task 会再试。 */
+void eos_bt_esp32_early_init(void)
+{
+    if (s_initialized)
+        return;
+
+    esp_err_t ret = _bt_do_init();
+    if (ret != ESP_OK)
+    {
+        ESP_LOGW(EOS_BT_ESP_TAG, "early init deferred (%s); will retry on switch toggle",
+                 esp_err_to_name(ret));
+        return;
+    }
+    ESP_LOGI(EOS_BT_ESP_TAG,
+             "early init OK: stack ready, advertising waits for the radio switch");
+}
+
+/* Low-priority init task: nimble_port_init() blocks until the controller is
+ * ready, so it must not run on the LVGL/UI thread (eos_port.h constraint).
+ * Kept as fallback when the early init was skipped or failed. */
+static void _init_task(void *param)
+{
+    (void)param;
+    if (_bt_do_init() != ESP_OK)
+    {
+        s_enabled = false;
+        s_initialized = false;
+    }
     vTaskDelete(NULL);
 }
 
@@ -202,6 +240,10 @@ eos_result_t eos_net_bt_backend_set_enabled(bool enabled, const char *name)
     {
         strncpy(s_name, name, EOS_BT_NAME_MAX);
         s_name[EOS_BT_NAME_MAX] = '\0';
+        /* early init 时 GAP 服务可能已注册:adv fields 用 s_name,但 GAP
+         * Service 的 device-name 属性需单独同步,否则手机读到的名字是旧的 */
+        if (s_initialized)
+            ble_svc_gap_device_name_set(s_name);
     }
 
     if (!enabled)

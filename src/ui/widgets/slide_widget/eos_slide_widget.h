@@ -307,6 +307,24 @@ void eos_slide_widget_add_event_cb_done(eos_slide_widget_t *sw, lv_event_cb_t cb
 void eos_slide_widget_add_event_cb_opened(eos_slide_widget_t *sw, lv_event_cb_t cb, void *user_data);
 void eos_slide_widget_add_event_cb_closed(eos_slide_widget_t *sw, lv_event_cb_t cb, void *user_data);
 
+/**
+ * @brief Destroy notification callback type
+ * @param sw The slide widget being destroyed (valid during the callback)
+ * @param user_data User data passed to the callback
+ */
+typedef void (*eos_slide_widget_delete_notify_cb_t)(eos_slide_widget_t *sw, void *user_data);
+
+/**
+ * @brief Register a callback invoked right before the slide widget is destroyed
+ *        (either via target-object deletion or eos_slide_widget_delete).
+ * @param sw Slide widget
+ * @param cb Callback
+ * @param user_data User data passed to the callback
+ * @note Lets owners (e.g. card pager) clear their pointer to sw so a dangling
+ *       reference is never dereferenced afterwards (UAF fix).
+ */
+void eos_slide_widget_set_delete_notify(eos_slide_widget_t *sw, eos_slide_widget_delete_notify_cb_t cb, void *user_data);
+
 #ifdef __cplusplus
 }
 #endif

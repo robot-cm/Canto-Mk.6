@@ -3,7 +3,7 @@
 """
 gen_icon.py — 入侵协议(Breach Protocol) 图标生成器
 =====================================================
-产出 1: I:\\ElenixOS\\icon\\breach.webp    (512×512 RGBA webp, 扁平 Material 风格, 终端 ">_" motif)
+产出 1: I:\\Canto Mk.6\\icon\\breach.webp    (512×512 RGBA webp, 扁平 Material 风格, 终端 ">_" motif)
 产出 2: apps/breach/icon.bin             (48×48 RGBA PNG, 简化 ">_" + 光标, 启动器用)
 配色取自应用主题: GREEN #00FF41 / YELLOW #FCEE0A / RED #FF003C / DARK #14141C; 背景透明。
 """

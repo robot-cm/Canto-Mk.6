@@ -71,7 +71,7 @@ var LEVELS = [
     { id: "D", label: "6x6", matrixCols: 6, matrixRows: 6, bufferSize: 6, solutionSize: 6,
       numberOfSequences: 3, minSequenceSize: 3, maxSequenceSize: 5, time: 75 }
 ];
-var curLv = 2;   // 默认等级 C（5x5，与原固定配置一致）
+var curLv = 1;   // 默认等级 B（4x4，矩阵底 y156 与目标序列 y178 拉开间距，避免贴边/重叠）
 function levelConfig(li) {
     var base = LEVELS[li];
     var c = { matrixCols: base.matrixCols, matrixRows: base.matrixRows,
@@ -238,7 +238,7 @@ function fadeTo(target) {
 var bootTitle = new lv.label(pageBoot);
 bootTitle.setSize(240, 36);          // 全宽 240 + 居中；两行高度 36（y56..92，文本宽≤187）
 bootTitle.setPos(0, 56);
-bootTitle.setFontSize(16);
+bootTitle.setFontSize(14);
 bootTitle.setStyleTextColor(hex(YELLOW), 0);
 bootTitle.setStyleTextLetterSpace(2, 0);
 bootTitle.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);   // CENTER
@@ -252,32 +252,6 @@ bootSub.setStyleTextColor(hex(GRAY), 0);
 bootSub.setStyleTextLetterSpace(2, 0);
 bootSub.setStyleTextAlign(2, 0);
 bootSub.setText("INITIATING...");
-
-var PB_W = 12, PB_H = 12, PB_GAP = 4, PB_N = 10;
-var pbTotal = PB_N * PB_W + (PB_N - 1) * PB_GAP;   // 156
-var pbX0 = (240 - pbTotal) / 2;                    // 42
-var progBlocks = [];
-for (var i = 0; i < PB_N; i++) {
-    var b = new lv.obj(pageBoot);
-    b.setSize(PB_W, PB_H);
-    b.setPos(pbX0 + i * (PB_W + PB_GAP), 130);
-    b.setStyleRadius(0, 0);
-    b.setStyleBgColor(hex(0x222228), 0);
-    b.setStyleBgOpa(255, 0);
-    b.setStyleBorderWidth(0, 0);
-    b.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-    b.setScrollbarMode(0);
-    progBlocks.push(b);
-}
-
-var bootCount = new lv.label(pageBoot);
-bootCount.setSize(80, 36);
-bootCount.setPos(80, 170);
-bootCount.setFontSize(28);
-bootCount.setStyleTextColor(hex(RED), 0);
-bootCount.setStyleTextLetterSpace(2, 0);
-bootCount.setStyleTextAlign(2, 0);
-    bootCount.setText("");
 
 // 玩法说明（UI 全英文）：Boot 页 y210 一行，font9 灰，居中。"TAP ROW/COL TO MATCH SEQS" 21 字符 font9≈105px 居中安全（弦宽≈159px）
 var bootHint = new lv.label(pageBoot);
@@ -295,34 +269,10 @@ function startBoot() {
     var tw = safeTimer(function () {
         ti++;
         bootTitle.setText(full.substring(0, ti));
-        if (ti >= full.length) { tw.delete(); startProgress(); }
+        if (ti >= full.length) { tw.delete(); newGame(); fadeTo(pageHack); }   // 打字结束直接开局（无逐格进度条）
     }, 50, null);
     tw.setRepeatCount(-1);
     tw.setAutoDelete(true);
-}
-function startProgress() {
-    var lit = 0;
-    var pt = safeTimer(function () {
-        if (lit < PB_N) {
-            progBlocks[lit].setStyleBgColor(hex(YELLOW), 0);
-            lit++;
-        } else {
-            pt.delete();
-            startCountdown();
-        }
-    }, 200, null);
-    pt.setRepeatCount(-1);
-    pt.setAutoDelete(true);
-}
-function startCountdown() {
-    var nums = ["3", "2", "1"];
-    var ci = 0;
-    var ct = safeTimer(function () {
-        if (ci < nums.length) { bootCount.setText(nums[ci]); ci++; }
-        else { bootCount.setText(""); ct.delete(); newGame(); fadeTo(pageHack); }
-    }, 500, null);
-    ct.setRepeatCount(-1);
-    ct.setAutoDelete(true);
 }
 startBoot();
 
@@ -368,8 +318,14 @@ function applyLayout() {
         }
     }
     for (var t = 0; t < tgtLabels.length; t++) {
-        if (t < cfg.numberOfSequences) tgtLabels[t].removeFlag(lv.OBJ_FLAG_HIDDEN);
-        else { tgtLabels[t].setText(""); tgtLabels[t].addFlag(lv.OBJ_FLAG_HIDDEN); }
+        if (t < cfg.numberOfSequences) {
+            tgtLabels[t].removeFlag(lv.OBJ_FLAG_HIDDEN);
+            tgtBgs[t].removeFlag(lv.OBJ_FLAG_HIDDEN);
+        } else {
+            tgtLabels[t].setText("");
+            tgtLabels[t].addFlag(lv.OBJ_FLAG_HIDDEN);
+            tgtBgs[t].addFlag(lv.OBJ_FLAG_HIDDEN);
+        }
     }
 }
 
@@ -406,15 +362,19 @@ for (var bi = 0; bi < MAX_BUF; bi++) {
     so.setStyleBorderWidth(1, 0);                   // 槽轮廓，空态也看出是槽
     so.setStyleBorderColor(hex(0x55585F), 0);
     so.setStyleBorderOpa(180, 0);
+    so.setStylePadAll(0, 0);   // 清默认 padding（对齐格子已验证模式），否则 26×14 槽内容区被挤压，label 不显示
     so.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
     so.setScrollbarMode(0);
     so.addFlag(lv.OBJ_FLAG_HIDDEN);      // 池对象初始隐藏
     var sl = new lv.label(so);
     sl.setSize(BUF_W, BUF_H);
     sl.setPos(0, 0);
+    sl.setLongMode(lv.LABEL_LONG_CLIP);             // 禁换行（对齐格子）
     sl.setFontSize(12);
     sl.setStyleTextColor(hex(GRAY), 0);
     sl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    sl.setStyleTextLetterSpace(1, 0);               // LS1 防双字符截断（对齐格子）
+    sl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
     sl.setText("-");
     bufSlots.push({ obj: so, lab: sl });
 }
@@ -467,17 +427,30 @@ scanLine.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 scanLine.setScrollbarMode(0);
 scanLine.addFlag(lv.OBJ_FLAG_HIDDEN);
 
-// --- 目标序列（3，三态；font10 / CLIP 禁换行 / 居中盒(10..230 中心120) / y178·194·210 步距16 → 底224 ≤ chord-16≈103；三行零重叠硬验收）---
+// --- 目标序列（3，三态；font9 / CLIP 禁换行 / 居中盒(25..215 中心120) / y175·194·213 步距19 行高16 → 底229；三行零重叠硬验收）---
 // 括号被删：纯序列 "BD 1C E9 1C" 才是换行元凶（长串 + 默认 WRAP 模式 → 换行叠字）。
-// CLIP 结构性禁换行（不包即裁，绝不换行叠字）；盒 220 宽居中，文本 CENTER 对齐即居中。
-var TGT_Y = [178, 194, 210];
+// CLIP 结构性禁换行（不包即裁，绝不换行叠字）；盒 190 宽居中，文本 CENTER 对齐即居中。
+var TGT_Y = [175, 194, 213];
 var tgtLabels = [];
+var tgtBgs = [];
 for (var ti = 0; ti < 3; ti++) {
+    var tb = new lv.obj(pageHack);              // 序列深色胶囊背景条（先创建 → z 序在文字下方）
+    tb.setSize(190, 16);
+    tb.setPos(25, TGT_Y[ti]);
+    tb.setStyleRadius(2, 0);
+    tb.setStyleBgColor(hex(0x15151B), 0);
+    tb.setStyleBgOpa(255, 0);
+    tb.setStyleBorderWidth(0, 0);
+    tb.setStylePadAll(0, 0);
+    tb.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+    tb.setScrollbarMode(0);
+    tb.addFlag(lv.OBJ_FLAG_HIDDEN);
+    tgtBgs.push(tb);
     var tl = new lv.label(pageHack);
     tl.setLongMode(lv.LABEL_LONG_CLIP);   // 结构性禁换行（CLIP，SNI 严格 1 参）
-    tl.setSize(220, 14);                      // 盒居中（10..230，中心120）
-    tl.setPos(10, TGT_Y[ti]);
-    tl.setFontSize(10);
+    tl.setSize(190, 16);                      // 盒居中（25..215，中心120）
+    tl.setPos(25, TGT_Y[ti]);
+    tl.setFontSize(7);                        // 7px：再小两档；行高 16 容 7px 行高≈9 无截断
     tl.setStyleTextColor(hex(GRAY), 0);
     tl.setStyleTextLetterSpace(1, 0);
     tl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
@@ -486,12 +459,12 @@ for (var ti = 0; ti < 3; ti++) {
 }
 
 // --- 状态 ---
-var state = { active: false, buffer: [], picked: {}, pickOrder: [], sel: { direction: "ROW", value: 0 }, seqs: [], matrix: [], solution: [], path: [], timeLeft: 60, win: false, round: 0 };
+var state = { active: false, buffer: [], picked: {}, pickOrder: [], sel: { direction: "ROW", value: 0 }, seqs: [], matrix: [], solution: [], path: [], timeLeft: 60, win: false, round: 0, countdownStarted: false };
 var cfg = defaultConfig();
 
 // --- 游戏计时器（池化常驻；state.active 门控）---
 var gameTimer = safeTimer(function () {
-    if (!state.active) return;
+    if (!state.active || !state.countdownStarted) return;   // 计时从第一个号码按下才开始
     state.timeLeft--;
     if (state.timeLeft < 0) state.timeLeft = 0;
     hackTimer.setText(String(state.timeLeft));
@@ -523,6 +496,7 @@ function newGame() {
     state.timeLeft = cfg.time;
     state.win = false;
     state.active = true;
+    state.countdownStarted = false;   // 每次新局：等待第一次点击才启动计时
     hackTimer.setText(String(state.timeLeft));
     hackTimer.removeFlag(lv.OBJ_FLAG_HIDDEN);   // Fix1：retry/重开恢复计时可见
     refreshAll();
@@ -538,6 +512,7 @@ function doSelect(r, c) {
     state.pickOrder.push(idx);
     state.buffer.push(state.matrix[idx].code);
     state.sel = afterSelect(state.sel, { row: r, col: c });
+    if (!state.countdownStarted) state.countdownStarted = true;   // 第一个号码按下 → 开始倒计时
     refreshAll();
     flashCell(cells[r][c]);
     var allSolved = true;
@@ -624,7 +599,7 @@ function refreshTargets() {
             var seq = state.seqs[s].codes;
             var st = seqState(state.buffer, seq);
             tl.setText(seq.join(" "));   // 纯序列（去括号，CLIP 禁换行，避免叠字）
-            tl.setStyleTextColor(hex(st === 2 ? GREEN : (st === 1 ? YELLOW : GRAY)), 0);
+            tl.setStyleTextColor(hex(st === 2 ? GREEN : (st === 1 ? YELLOW : 0xC8CCD4)), 0);   // 未命中亮灰提亮（原 0x8A8F98）
             tl.removeFlag(lv.OBJ_FLAG_HIDDEN);   // 注：本 fork SNI 未注册 clearFlag，用 removeFlag
         } else {
             // 防御：序列数 < 3 时清空多余标签（避免占位符 "-- -- --" 横线残留）—— generateSequences 已修，此为双保险
@@ -832,7 +807,7 @@ function auditLayout() {
         var b = boxOf(tgtLabels[i]);
         tb.push(b);
         LOG("[breach-overlap] t" + i + "=(" + b.x1 + "," + b.y1 + ")-(" + b.x2 + "," + b.y2 + ") w" + b.w + " h" + b.h);
-        if (b.h > 14) { ok = false; why += " t" + i + ".h=" + b.h + ">14"; }
+        if (b.h > 16) { ok = false; why += " t" + i + ".h=" + b.h + ">16"; }
     }
     for (var a = 0; a < tb.length; a++)
         for (var c = a + 1; c < tb.length; c++)

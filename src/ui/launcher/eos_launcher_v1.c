@@ -1,6 +1,6 @@
 /**
  * @file eos_launcher.c
- * @brief ElenixOS adaptive Launcher (root activity)
+ * @brief Canto Mk.6 adaptive Launcher (root activity)
  *
  * Full migration onto the UI framework (P8+): the Launcher is now a single
  * adaptive Home screen that renders its app list through the framework —
@@ -182,7 +182,7 @@ static void _build_app_defs(void)
         {
             a->name = "Flash Light"; a->color = 0x9B59B6; a->mono = 'F';
         }
-#ifdef EOS_ENABLE_TEST_APP
+#if EOS_ENABLE_TEST_APP
         else if (strcmp(id, "sys.test") == 0)
         {
             a->name = "Test"; a->color = 0xE67E22; a->mono = 'T';

@@ -2,7 +2,7 @@
  * @file eos_net_proxy.h
  * @brief SOCKS5 client — a Core / System Service.
  *
- * ElenixOS acts as a SOCKS5 *client*: it connects to an external SOCKS5 proxy
+ * Canto Mk.6 acts as a SOCKS5 *client*: it connects to an external SOCKS5 proxy
  * server and tunnels outbound TCP through it. This is NOT a SOCKS5 server and
  * is NOT an app — it belongs to Core so that every network app routes through
  * one unified Network API instead of re-implementing SOCKS5.

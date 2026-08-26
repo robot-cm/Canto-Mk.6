@@ -75,7 +75,16 @@ eos_result_t eos_plugin_manager_scan(bool force, eos_plugin_scan_result_t *out_r
         else
         {
             if (id && eos_app_list_contains(id))
-                already = true;
+            {
+                /* The install dir entry may be a stale/empty directory left
+                 * behind by a failed unpack or a manual wipe. Require the
+                 * manifest file to actually exist before treating the app as
+                 * installed, otherwise force a (re)install. */
+                char manifest[EOS_FS_PATH_MAX + EOS_FS_NAME_MAX];
+                snprintf(manifest, sizeof(manifest),
+                         EOS_APP_INSTALLED_DIR "%s/" EOS_APP_MANIFEST_FILE_NAME, id);
+                already = eos_storage_is_file(manifest);
+            }
         }
 
         if (already && !force)

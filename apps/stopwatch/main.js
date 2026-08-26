@@ -1,7 +1,10 @@
-// ElenixOS 秒表（计时器）— 计时器.html 移植 + 动效 v1 + Round 33e 小修
+// Canto Mk.6 秒表（计时器）— 计时器.html 移植 + 动效 v1 + Round 33e 小修
 //
-// 小修：① styleBtn 统一三按钮 ② 计次列表 y176 h52 w190 行高 15 PadTop 2
-// 百分位：tick 50ms（elapsed += 50 → 百分位 .00 .05 .10... 两位都动；性能红线 ≥30ms）
+// 精度 v2：运行不再累加（elapsed += 100 在 LVGL tick 周期不准时必然漂移）。
+// 改为 ms 级绝对时间戳差值：elapsedMs() = accum + (nowMs() - runStartMs)，
+// nowMs = dateToSec(...)*1000 + eos.time.getNow().ms（RTC 秒 + tick 内插 ms）。
+// 暂停落盘 accum，运行落盘 runStartMs（RTC 绝对毫秒）→ 退出期间 RTC 继续走，
+// 重进时 nowMs - runStartMs 自动补上退出时长，无需再存整秒。
 // 后台：manifest background=true（切后台计时继续）
 // 动效 v1：① 状态点呼吸 800ms ping-pong ② 按钮按压 Opa60→28 120ms（scale 降级）
 //          ③ 计次行 fadeIn 120ms ④ 状态切换 fadeIn 120ms ⑤ 重置 Opa 250→80→250
@@ -108,9 +111,9 @@ function layoutTimeRow() {
 }
 
 
-// ===================== 按钮行（图标胶囊 w44 h28 @y180 x=44/98/152，gap10 居中） =====================
-var BTN_X = [29, 93, 157];
-var BTN_W = 54, BTN_H = 28;
+// ===================== 按钮行（图标胶囊 w48 h28 @y180 x=36/96/156，gap12 居中，向内靠拢） =====================
+var BTN_X = [36, 96, 156];
+var BTN_W = 48, BTN_H = 28;
 var btnRefs = {};
 
 function styleBtn(b) {                        // 统一胶囊样式（亮态 Opa36，暗底上有形）
@@ -146,10 +149,11 @@ makeBtn(BTN_X[0], "START", "start");
 makeBtn(BTN_X[1], "LAP", "lap");
 makeBtn(BTN_X[2], "RESET", "reset");
 
-// ===================== 计次列表（y100 h56 w180 居中；白Opa8 r12 PadAll4） =====================
+// ===================== 计次列表（y96 h80 w180 居中；白Opa8 r12 PadAll4，内容超高可滚动） =====================
+var MAX_LAP_ROWS = 40;
 var lapsBox = new lv.obj(dial);
-lapsBox.setSize(180, 56);
-lapsBox.setPos(30, 100);
+lapsBox.setSize(180, 80);
+lapsBox.setPos(30, 96);
 lapsBox.setStyleBgOpa(12, 0);                   // 白 Opa12 玻璃（暗底上有形）
 lapsBox.setStyleRadius(12, 0);
 lapsBox.setStylePadAll(4, 0);
@@ -159,7 +163,7 @@ lapsBox.setScrollbarMode(0);
 
 var lapsEmpty = new lv.label(lapsBox);
 lapsEmpty.setSize(180, 14);
-lapsEmpty.setPos(0, 21);                        // 盒内垂直居中
+lapsEmpty.setPos(0, 33);                        // 盒内垂直居中（新盒高 80）
 lapsEmpty.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
 lapsEmpty.setFontSize(10);                      // → 22px（三档）
 lapsEmpty.setStyleTextColor(WHITE, 0);
@@ -167,10 +171,10 @@ lapsEmpty.setStyleTextOpa(90, 0);
 lapsEmpty.setText("— No Laps —");
 
 var lapRows = [];
-for (var li = 0; li < 3; li++) {
+for (var li = 0; li < MAX_LAP_ROWS; li++) {
     var lr = new lv.label(lapsBox);
-    lr.setSize(180, 14);
-    lr.setPos(0, 4 + li * 14);                  // 行高 14（PadAll4 内）
+    lr.setSize(180, 13);
+    lr.setPos(0, 4 + li * 13);                  // 行高 13（PadAll4 内；40 行内容超高 → 盒内可滚动）
     lr.setFontSize(10);
     lr.setStyleTextColor(WHITE, 0);
     lr.setStyleTextOpa(170, 0);
@@ -181,34 +185,50 @@ for (var li = 0; li < 3; li++) {
     lapRows.push(lr);
 }
 
-// ===================== 状态与逻辑（后台续计时：eos.config 持久化 + 时间戳补差） =====================
-// 退出期间不计时（JS 程序销毁）→ 存"退出时刻日期秒序号"，重进补差 elapsed += 差×1000。
-// laps 也持久化（JSON 字符串）。
-function nowSec() {                              // 单调递增日期秒序号（无 epoch API 的近似）
+// ===================== 状态与逻辑（后台续计时：eos.config 持久化 + 毫秒时间戳补差） =====================
+// 退出期间不计时（JS 程序销毁）→ 运行态持久化 runStartMs（RTC 绝对毫秒），
+// 重进 elapsedMs() = accum + (nowMs() - runStartMs) 自动补上退出时长。laps 也持久化。
+function dateToSec(y, m, d, h, mi, s) {          // days-from-civil（精确，跨月跨年正确）
+    var yy = y - (m <= 2 ? 1 : 0);
+    var era = Math.floor((yy >= 0 ? yy : yy - 399) / 400);
+    var yoe = yy - era * 400;
+    var mp = m + (m > 2 ? -3 : 9);
+    var doy = Math.floor((153 * mp + 2) / 5) + d - 1;
+    var doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy;
+    return ((era * 146097 + doe - 719468) * 86400) + h * 3600 + mi * 60 + s;
+}
+function nowMs() {                               // ms 级绝对时间戳（RTC 秒 + tick 内插 ms）
     var t = eos.time.getNow();
-    return ((t.year * 372 + t.month * 31 + t.day) * 86400) + (t.hour * 3600 + t.min * 60 + t.sec);
+    return dateToSec(t.year, t.month, t.day, t.hour, t.min, t.sec) * 1000 + (t.ms || 0);
 }
 
-var _savedRunning = false, _savedElapsed = 0, _savedSec = 0, _savedLaps = [];
+var _savedRunning = false, _savedAccum = 0, _savedStart = 0, _savedLaps = [];
 try { _savedRunning = eos.config.getBool("timer.running") === true; } catch (e) {}
-try { _savedElapsed = eos.config.getNumber("timer.elapsed") || 0; } catch (e) {}
-try { _savedSec = eos.config.getNumber("timer.sec") || 0; } catch (e) {}
+try { _savedAccum = eos.config.getNumber("timer.accum") || 0; } catch (e) {}
+try { _savedStart = eos.config.getNumber("timer.start") || 0; } catch (e) {}
 try { var _ls = eos.config.getStr("timer.laps"); if (_ls) { _savedLaps = JSON.parse(_ls) || []; } } catch (e) {}
 
 var running = _savedRunning;
-var elapsed = _savedElapsed;
-if (running && _savedSec > 0) {                  // 上次运行中 → 补退出期间秒数
-    var _diff = nowSec() - _savedSec;
-    if (_diff > 0) { elapsed += _diff * 1000; }
+var accum = _savedAccum;
+var runStartMs = _savedStart;
+if (running && runStartMs <= 0) {                // 旧版数据兼容：无 timer.start → 用旧整秒 sec 近似
+    var _oldSec = 0;
+    try { _oldSec = eos.config.getNumber("timer.sec") || 0; } catch (e) {}
+    if (_oldSec > 0) { runStartMs = _oldSec * 1000; }
+    else { running = false; accum = 0; }
 }
 var laps = _savedLaps;                           // 最新在前（恢复持久化计次）
+
+function elapsedMs() {                           // 当前累计毫秒（运行中实时 = 暂停累计 + 本次运行时长）
+    return accum + (running ? Math.max(0, nowMs() - runStartMs) : 0);
+}
 
 function saveState() {
     try { eos.config.setBool("app.background", running); } catch (e) {}   // 最优先独立 try：异常不影响
     try {
-        eos.config.setNumber("timer.elapsed", elapsed);
+        eos.config.setNumber("timer.accum", accum);
         eos.config.setBool("timer.running", running);
-        eos.config.setNumber("timer.sec", nowSec());
+        eos.config.setNumber("timer.start", running ? runStartMs : 0);
         eos.config.setStr("timer.laps", JSON.stringify(laps));
     } catch (e) {}
 }
@@ -229,8 +249,9 @@ function fmtLap(ms) {                            // 计次格式 "MM:SS.xx"（08
 }
 
 function update() {
-    timeTxt.setText(fmtMs(elapsed));
-    millisTxt.setText("." + Math.floor((elapsed % 1000) / 100));   // 百分位 1 位 .0 .1 .2（每 100ms +1）
+    var e = elapsedMs();
+    timeTxt.setText(fmtMs(e));
+    millisTxt.setText("." + Math.floor((e % 1000) / 100));   // 百分位 1 位 .0 .1 .2（每 100ms +1）
     layoutTimeRow();
     renderLaps();
 }
@@ -238,11 +259,11 @@ function update() {
 function renderLaps() {
     if (laps.length === 0) {
         lapsEmpty.setText("— No Laps —");
-        for (var i = 0; i < 3; i++) lapRows[i].setText("");
+        for (var i = 0; i < MAX_LAP_ROWS; i++) lapRows[i].setText("");
         return;
     }
     lapsEmpty.setText("");
-    for (var j = 0; j < 3; j++) {
+    for (var j = 0; j < MAX_LAP_ROWS; j++) {
         if (j < laps.length) {
             var txt = pad2(laps.length - j) + " · " + fmtLap(laps[j]);   // "07 · 00:08.25"
             if (lapRows[j].getText() !== txt) {
@@ -257,12 +278,24 @@ function renderLaps() {
 
 function btnHandler(key) {
     if (key === "start") {
-        if (running) { running = false; btnRefs.start.lbl.setText("START"); styleBtn(btnRefs.start.btn); setStatus("PAUSED", PAUSE_COLOR); setBreath(false); saveState(); }
-        else { running = true; btnRefs.start.lbl.setText("PAUSE"); styleBtn(btnRefs.start.btn); setStatus("RUNNING", ACCENT); setBreath(true); saveState(); }
+        if (running) {
+            accum += Math.max(0, nowMs() - runStartMs);   // 暂停：本次运行时长并入累计（ms 精确）
+            runStartMs = 0; running = false;
+            btnRefs.start.lbl.setText("START"); styleBtn(btnRefs.start.btn); setStatus("PAUSED", PAUSE_COLOR); setBreath(false);
+            update(); saveState();
+        } else {
+            runStartMs = nowMs(); running = true;         // 开始：记录 RTC 绝对毫秒起点
+            btnRefs.start.lbl.setText("PAUSE"); styleBtn(btnRefs.start.btn); setStatus("RUNNING", ACCENT); setBreath(true);
+            saveState();
+        }
     } else if (key === "lap") {
-        if (elapsed > 0) { laps.unshift(elapsed); renderLaps(); saveState(); }   // 计次即落盘
+        var e = elapsedMs();
+        if (e > 0) {
+            laps.unshift(e); renderLaps(); saveState();              // 计次即落盘
+            try { lapsBox.scrollToY(0, 0); } catch (err2) {}          // 新计次滚回顶部查看最新
+        }
     } else if (key === "reset") {
-        running = false; elapsed = 0; laps = [];
+        running = false; accum = 0; runStartMs = 0; laps = [];
         btnRefs.start.lbl.setText("START"); styleBtn(btnRefs.start.btn);
         setStatus("READY", IDLE_COLOR); setBreath(false);
         timeTxt.setText("00:00:00");
@@ -368,18 +401,17 @@ function resetFx() {
 var _saveCnt = 0;
 var tick = new lv.timer(function () {
     if (running) {
-        elapsed += 100;
-        update();
+        update();                                // 显示基于时间戳实时计算，不再累加
         _saveCnt++;
-        if (_saveCnt >= 10) { _saveCnt = 0; saveState(); }   // 每 1s 存 elapsed
+        if (_saveCnt >= 10) { _saveCnt = 0; saveState(); }   // 每 1s 落盘（运行态 start/accum 不变）
     }
 }, 100, null);
 tick.setRepeatCount(-1);
 
-if (running) {                                 // 上次运行中 → 恢复续计时 UI
+if (running) {                                 // 上次运行中 → 恢复续计时 UI（elapsedMs 自动补退出时长）
     btnRefs.start.lbl.setText("PAUSE");
     setStatus("RUNNING", ACCENT); setBreath(true);
-} else if (elapsed > 0) {                      // 暂停后退出 → 恢复暂停态
+} else if (accum > 0) {                        // 暂停后退出 → 恢复暂停态
     btnRefs.start.lbl.setText("START");
     setStatus("PAUSED", PAUSE_COLOR);
 } else {

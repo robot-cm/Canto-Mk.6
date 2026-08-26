@@ -1094,6 +1094,8 @@ void eos_flash_light_enter(void)
 
     eos_activity_set_type(a, EOS_ACTIVITY_TYPE_APP);
     eos_activity_set_app_header_visible(a, true);
+    /* 恢复 header 时钟(Settings 系列页面将其隐藏) */
+    eos_app_header_set_clock_visible(true);
     /* 必须设置 title:header 的 _play_title_changed_anim 会以 %s 打印 title,
      * NULL → vsnprintf → strlen(NULL) → LoadProhibited(日志已证实) */
     eos_activity_set_title(a, "Flash Light");

@@ -2,7 +2,8 @@
  * @file main.c
  * @brief ElenixOS ESP32-S3 板级入口(XIAO ESP32-S3 + Round Display)
  *
- * 阶段:集成 GC9A01 真实驱动 + CHSC6X 真实触摸(SD/RTC 仍为 stub,阶段C 后续)
+ * 阶段:集成 GC9A01 真实驱动 + CHSC6X 真实触摸 + microSD(SDSPI 真 SD,
+ * 优先挂载 /sdcard,无卡回退 SPIFFS;RTC 为 BM8563 真实驱动)。
  *   - SPI/I2C 总线初始化(SPI 由 GC9A01 驱动初始化,I2C 板级初始化)
  *   - GC9A01 LCD 真实驱动:init + register HAL + LVGL display
  *   - CHSC6X 触摸:LVGL POINTER indev(read timer 自动轮询)
@@ -17,13 +18,22 @@
 
 /* ESP-IDF 板级 API */
 #include <stdio.h>
+#include <errno.h>
+#include <sys/stat.h>
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_err.h"
 #include "esp_spiffs.h"
 #include "esp_heap_caps.h"
+#include "nvs_flash.h"
 #include "driver/gpio.h"
 #include "driver/i2c.h"
+/* microSD(SDSPI,与 LCD 共用 SPI3 总线,见 board_sd_mount) */
+#include "driver/sdspi_host.h"
+#include "driver/spi_common.h"
+#include "sdmmc_cmd.h"
+#include "esp_vfs_fat.h"
+#include "esp_dma_utils.h" /* esp_dma_is_buffer_alignment_satisfied 诊断 */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -50,6 +60,11 @@
 #include "eos_dev_sensor.h"
 
 static const char *TAG = "Board";
+
+/* eos_bt_esp32.c 导出:在 eos_init() 之前、internal RAM 尚连续时预初始化
+ * NimBLE(controller 需 internal|DMA 大块连续内存,见 eos_bt_esp32.c 注释) */
+extern void eos_bt_esp32_early_init(void);
+#include "eos_net_wifi_esp32.h" /* eos_net_wifi_esp32_early_init():带内存门控 */
 
 /* eos_init() 完成信号:ui_task 必须等 Core/UI 服务就绪后才开始 LVGL 渲染 */
 static SemaphoreHandle_t s_eos_ready = NULL;
@@ -267,14 +282,131 @@ static void board_shell_usb_cdc_start(void)
 }
 
 /* ════════════════════════════════════════════════════════════════
- *  SPIFFS 挂载(/sdcard)— 模拟 SD 卡根目录
+ *  microSD 挂载(/sdcard)— 真 SD 优先,SPIFFS 兜底
+ *  microSD 与 LCD 共用 SPI3 总线(SCK=D8/MOSI=D10/MISO=D9),SD CS=D2=GPIO3:
+ *   - SPI bus 已由 eos_dev_display_gc9a01_init() 完成 spi_bus_initialize
+ *     (main 第 3 步先于本函数执行),SD 通过 sdspi_host_init_device
+ *     (内部 spi_bus_add_device) 挂到同一 bus,绝不重复初始化总线。
+ *   - 互斥:ESP-IDF SPI master 的 bus lock(spi_bus_lock)保证 LCD 刷屏
+ *     与 SD IO 的 SPI transaction 原子互斥,无需手写 mutex。
+ *   - 挂载失败(无卡/坏卡/非 FAT)绝不格式化用户卡,返回错误 → 回退 SPIFFS。
+ * ════════════════════════════════════════════════════════════════ */
+/* [FIX] SDSPI DMA 内存策略:ESP32-S3 的 AHB GDMA 支持 PSRAM。
+ * 默认 sdspi_host_get_dma_info 只返回 MALLOC_CAP_DMA(内部 RAM):
+ * 内部 DMA RAM 被 BT controller / LCD SPI 总线缓冲占满后,sdmmc 读写
+ * 的临时缓冲 esp_dma_capable_malloc() 直接失败(ESP_ERR_NO_MEM 0x101,
+ * 日志 "dma_utils: Not enough heap memory")→ FATFS 读失败 → 系统崩溃。
+ * 返回 DMA|SPIRAM caps 后:临时缓冲可落 PSRAM(8MB),不再受内部 DMA 限制。 */
+static void board_sd_get_dma_info(int slot, esp_dma_mem_info_t *dma_mem_info)
+{
+    (void)slot;
+    dma_mem_info->extra_heap_caps = MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM;
+    dma_mem_info->dma_alignment_bytes = 4;
+}
+
+static esp_err_t board_sd_mount(void)
+{
+    sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+    host.slot         = BOARD_SD_SPI_HOST;               /* SPI3_HOST,与 LCD 同总线 */
+    host.max_freq_khz = BOARD_SD_SPI_FREQ_HZ / 1000;     /* 20 MHz */
+    host.get_dma_info = &board_sd_get_dma_info;          /* [FIX] PSRAM fallback */
+
+    sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+    slot_config.gpio_cs = BOARD_SD_CS_PIN;               /* D2 = GPIO3 */
+    slot_config.host_id = host.slot;
+
+    esp_vfs_fat_mount_config_t mount_config = {
+        .format_if_mount_failed = false,                 /* 绝不格式化用户卡 */
+        .max_files              = 8,
+        .allocation_unit_size   = 16 * 1024,
+    };
+
+    sdmmc_card_t *card = NULL;
+    esp_err_t ret = esp_vfs_fat_sdspi_mount("/sdcard", &host, &slot_config,
+                                            &mount_config, &card);
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "SD mount failed(%s) - falling back to SPIFFS",
+                 esp_err_to_name(ret));
+        return ret;
+    }
+    ESP_LOGI(TAG, "SD card mounted: /sdcard");
+    sdmmc_card_print_info(stdout, card);
+
+    /* [DIAG-FS] 文件系统逐层实验:定位 fopen("wb") errno=22 的层次 */
+    {
+        FILE *f = NULL;
+        int r = 0;
+        errno = 0;
+        f = fopen("/sdcard/_fs_test.txt", "wb");
+        ESP_LOGI(TAG, "[DIAG-FS] 1 fopen /sdcard/_fs_test.txt wb -> %s errno=%d (%s)",
+                 f ? "OK" : "FAIL", errno, strerror(errno));
+        if (f) { fputs("hi", f); fclose(f); }
+        errno = 0;
+        r = mkdir("/sdcard/.sys", 0755);
+        ESP_LOGI(TAG, "[DIAG-FS] 2 mkdir /sdcard/.sys -> %d errno=%d (%s)",
+                 r, errno, strerror(errno));
+        errno = 0;
+        f = fopen("/sdcard/.sys/_fs_test2.txt", "wb");
+        ESP_LOGI(TAG, "[DIAG-FS] 3 fopen /sdcard/.sys/_fs_test2.txt wb -> %s errno=%d (%s)",
+                 f ? "OK" : "FAIL", errno, strerror(errno));
+        if (f) { fputs("hi", f); fclose(f); }
+        errno = 0;
+        r = mkdir("/sdcard/.sys/config", 0755);
+        ESP_LOGI(TAG, "[DIAG-FS] 4 mkdir /sdcard/.sys/config -> %d errno=%d (%s)",
+                 r, errno, strerror(errno));
+        errno = 0;
+        f = fopen("/sdcard/.sys/config/cfg.json", "wb");
+        ESP_LOGI(TAG, "[DIAG-FS] 5 fopen /sdcard/.sys/config/cfg.json wb -> %s errno=%d (%s)",
+                 f ? "OK" : "FAIL", errno, strerror(errno));
+        if (f) { fputs("{}", f); fclose(f); }
+        errno = 0;
+        f = fopen("/sdcard/.sys/config/", "wb");
+        ESP_LOGI(TAG, "[DIAG-FS] 6 fopen dir-as-file -> %s errno=%d (%s)",
+                 f ? "OK" : "FAIL", errno, strerror(errno));
+        if (f) fclose(f);
+    }
+
+    /* [DIAG] SD 读路径:确认临时缓冲是否可落 PSRAM、FATFS 缓冲是否满足直读 */
+    {
+        esp_dma_mem_info_t dma_info;
+        card->host.get_dma_info(card->host.slot, &dma_info);
+        ESP_LOGI(TAG, "[DIAG] sd dma align=%d caps=0x%x | INT|DMA free=%u largest=%u",
+                 (int)dma_info.dma_alignment_bytes, (unsigned)dma_info.extra_heap_caps,
+                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_DMA),
+                 (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
+        void *probe = malloc(512); /* 模拟 FATFS ff_memalloc 缓冲 */
+        if (probe) {
+            ESP_LOGI(TAG, "[DIAG] probe=%p ext=%d dma=%d sat=%d",
+                     probe, (int)esp_ptr_external_ram(probe),
+                     (int)esp_ptr_dma_capable(probe),
+                     (int)esp_dma_is_buffer_alignment_satisfied(probe, 512, dma_info));
+            free(probe);
+        }
+        /* 直接测试 sdmmc 写路径的临时缓冲分配(读已直读,写仍依赖它) */
+        void *tb = NULL;
+        size_t asz = 0;
+        esp_err_t merr = esp_dma_capable_malloc(512, &dma_info, &tb, &asz);
+        ESP_LOGI(TAG, "[DIAG] esp_dma_capable_malloc(512)=%s buf=%p size=%u PSRAM_free=%u",
+                 esp_err_to_name(merr), tb, (unsigned)asz,
+                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+        if (tb) free(tb);
+    }
+    return ESP_OK;
+}
+
+/* ════════════════════════════════════════════════════════════════
+ *  文件系统挂载(/sdcard)— 真 SD 优先,SD 缺失时回退 SPIFFS
  *  eos_platform_config.h 定义 EOS_SYS_ROOT_DIR="/sdcard",
  *  eos_fs_realpath() 会把所有 POSIX 绝对路径(/.sys/... 等)
  *  自动映射到 /sdcard 下,故挂载此处即可覆盖 config/state/资源。
- *  首次挂载失败会自动格式化(format_if_mount_failed)。
+ *  Plugin Manager 扫描 /sdcard/apps/ 下的 .eapk/.ewpk 自动安装。
+ *  回退分支:SPIFFS 首次挂载失败会自动格式化(format_if_mount_failed)。
  * ════════════════════════════════════════════════════════════════ */
 static esp_err_t board_fs_mount(void)
 {
+    if (board_sd_mount() == ESP_OK)
+        return ESP_OK;
+
     esp_vfs_spiffs_conf_t conf = {
         .base_path            = "/sdcard",
         .partition_label      = "spiffs",
@@ -285,13 +417,38 @@ static esp_err_t board_fs_mount(void)
     if (ret == ESP_OK) {
         size_t total = 0, used = 0;
         esp_spiffs_info(conf.partition_label, &total, &used);
-        ESP_LOGI(TAG, "SPIFFS mounted: /sdcard (%u/%u KB)",
+        ESP_LOGI(TAG, "SPIFFS mounted (fallback): /sdcard (%u/%u KB)",
                  (unsigned)(used / 1024), (unsigned)(total / 1024));
     } else {
         ESP_LOGE(TAG, "SPIFFS mount failed: %s", esp_err_to_name(ret));
     }
     return ret;
 }
+
+/* ════════════════════════════════════════════════════════════════
+ *  Power OPS:把 PM 服务的熄屏/亮屏状态接到 GC9A01 背光。
+ *  DEV_POWER_STATE_ON -> 背光 100%;SLEEP/AOD -> 背光 0%。
+ *  这是"手掌覆盖熄屏/双击亮屏"生效的前提(此前 ops 为 NULL,
+ *  eos_service_pm._pm_set_state 只打错误日志,屏幕无任何变化)。
+ * ════════════════════════════════════════════════════════════════ */
+static int board_power_set(dev_power_state_t state)
+{
+    eos_dev_display_t *disp = eos_dev_display_get_instance();
+    if (!disp || !disp->ops || !disp->ops->power_on || !disp->ops->power_off)
+    {
+        ESP_LOGE(TAG, "Power set(%d) failed: display HAL not ready", (int)state);
+        return -1;
+    }
+    if (state == DEV_POWER_STATE_ON)
+        disp->ops->power_on();
+    else
+        disp->ops->power_off();
+    return 0;
+}
+
+static const eos_dev_power_ops_t s_board_power_ops = {
+    .set_power = board_power_set,
+};
 
 /* ════════════════════════════════════════════════════════════════
  *  板级驱动注册(对接 ElenixOS 设备 HAL)
@@ -301,8 +458,10 @@ static void board_drivers_register(void)
     /* GC9A01 / CHSC6X / BM8563 已是真实驱动 */
     eos_dev_display_gc9a01_register();
     eos_dev_rtc_bm8563_init();
-    /* TODO 阶段C: eos_dev_battery_register / power / sensor */
-    ESP_LOGI(TAG, "Drivers registered (GC9A01/CHSC6X/BM8563 real)");
+    /* Power ops 必须在 eos_init()(PM 服务读取 instance)之前注册 */
+    eos_dev_power_register(&s_board_power_ops);
+    /* TODO 阶段C: eos_dev_battery_register / sensor */
+    ESP_LOGI(TAG, "Drivers registered (GC9A01/CHSC6X/BM8563 real, power->backlight)");
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -350,6 +509,24 @@ void app_main(void)
         board_i2c_scan();  /* [DIAG] 扫描扩展板 I2C 设备,验证物理连接 */
     }
 
+    /* 1.5 NVS 初始化(phy 校准数据 / BT 配对 / Wi-Fi 配置存储;
+     * 必须在 BT/Wi-Fi early init 之前调用,否则每次启动全校准、
+     * NimBLE IRK 存储失败) */
+    {
+        esp_err_t nvs_ret = nvs_flash_init();
+        if (nvs_ret == ESP_ERR_NVS_NO_FREE_PAGES || nvs_ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+            ESP_LOGW(TAG, "NVS full/version mismatch, erasing and re-init");
+            nvs_flash_erase();
+            nvs_ret = nvs_flash_init();
+        }
+        if (nvs_ret == ESP_OK) {
+            ESP_LOGI(TAG, "NVS initialized (phy cal / BT / Wi-Fi storage)");
+        } else {
+            ESP_LOGW(TAG, "NVS init failed: %s (BT/Wi-Fi storage unavailable)",
+                     esp_err_to_name(nvs_ret));
+        }
+    }
+
     /* 2. LVGL 核心初始化(必须在 display 注册前) */
     lv_init();
 
@@ -370,10 +547,22 @@ void app_main(void)
     /* 5. 注册板级驱动到 ElenixOS HAL */
     board_drivers_register();
 
+    /* 5.5 BLE 提前初始化:必须在 eos_init() 之前(internal RAM 尚连续、
+     * largest≈45KB)完成 NimBLE/controller 初始化——eos_init() 之后 largest
+     * 只剩 ≈7KB,controller 的大块 internal|DMA 分配必然 ESP_ERR_NO_MEM
+     * (表现为打开蓝牙开关时 init 失败)。失败不致命:开关仍会懒初始化重试。 */
+    eos_bt_esp32_early_init();
+
+    /* 5.6 Wi-Fi 提前初始化:与蓝牙同理(esp_wifi_init 的 static RX buffer
+     * 需 internal DMA 连续内存)。内部带内存门控:largest 不足时自动跳过、
+     * 保持懒初始化,绝不挤占 eos_init()/LVGL UI 加载的 internal 空间。 */
+    eos_net_wifi_esp32_early_init();
+
     /* 6. Shell:USB-CDC(永远可用,不依赖 SD) */
     board_shell_usb_cdc_start();
 
-    /* 6.5 SPIFFS 挂载到 /sdcard(config/state/资源依赖,须在 eos_init 前) */
+    /* 6.5 文件系统:真 microSD 优先挂载 /sdcard,无卡回退 SPIFFS
+     * (config/state/资源依赖,须在 eos_init 前) */
     board_fs_mount();
 
     /* 7. FreeRTOS 任务已在 app_main 最开头创建(步骤 0:internal 最完整时

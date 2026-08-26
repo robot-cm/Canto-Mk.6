@@ -196,6 +196,13 @@ sni_context_t *sni_cb_get_context(void);
 
 void sni_cb_context_cleanup_events(sni_context_t *ctx);
 
+/**
+ * @brief Unlink and free all event callback contexts bound to an LVGL object
+ * @param ctx SNI context
+ * @param obj LVGL object being destroyed (LV_EVENT_DELETE path)
+ */
+void sni_cb_event_cleanup_by_obj(sni_context_t *ctx, lv_obj_t *obj);
+
 #ifdef __cplusplus
 }
 #endif

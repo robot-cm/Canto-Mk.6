@@ -23,15 +23,15 @@ extern "C" {
 /* Public function prototypes --------------------------------*/
 
 /**
- * @brief ElenixOS initialization function
+ * @brief Canto Mk.6 initialization function
  */
 void eos_init(void);
 /**
- * @brief Check whether ElenixOS core has completed initialization
+ * @brief Check whether Canto Mk.6 core has completed initialization
  */
 bool eos_is_initialized(void);
 /**
- * @brief ElenixOS main loop function
+ * @brief Canto Mk.6 main loop function
  */
 uint32_t eos_main_loop(void);
 /**
@@ -40,11 +40,23 @@ uint32_t eos_main_loop(void);
  */
 uint32_t eos_tick_get(void);
 /**
- * @brief Start ElenixOS Logo page
+ * @brief Start Canto Mk.6 Logo page
  * @param anim Whether to display Logo fade animation
  * @note Will only be displayed once and will remain until the system is fully started.
  */
 void eos_logo_play(bool anim);
+/**
+ * @brief Set periodic memory report interval (real ESP32-S3 only)
+ * @param sec Report every N seconds; 0 disables the periodic report.
+ * @note The report is emitted through the log system at INFO level so it can
+ *       be watched with `idf.py monitor` (or any serial console).
+ */
+void eos_mem_report_set_interval(uint32_t sec);
+/**
+ * @brief Get the current periodic memory report interval
+ * @return Seconds between reports, or 0 if disabled.
+ */
+uint32_t eos_mem_report_get_interval(void);
 #ifdef __cplusplus
 }
 #endif

@@ -9,12 +9,19 @@
 # ESP32-S3R8: 8 MB Flash,8 MB PSRAM(Quad)
 # 固件更新方式:USB 重刷(Shell 走 USB-CDC,配套)
 #
+# 2026-08-26: spiffs 512KB -> 2MB。
+#   原因:9 个 eapk(≈252KB 源文件)+ 解包结果(≈252KB)+ 现有系统资源,
+#   512KB 装不下,Plugin Manager 扫描安装必然 ENOSPC(日志只有 sys.* 3 个)。
+#   收益:可容纳 9 个 eapk 源+解包+资源,未来 app 扩容空间。
+#   代价:factory 从 7.46MB 减到 5.94MB(固件当前 3.88MB,余量 2MB);
+#   改分区后 SPIFFS 需重新格式化(format_if_mount_failed=true 自动),现有文件丢失。
+#
 # Name,   Type, SubType,  Offset,   Size,     Flags
 # nvs      16 KB   - 键值配置(wifi.*/proxy.* 等)
 # phy_init 4 KB    - PHY 校准数据
-# factory  7.46 MB - ElenixOS Core + Service + LVGL + JerryScript + 系统资源
-# spiffs   512 KB  - /sdcard 挂载点(EOS_SYS_ROOT_DIR),存 config/state/资源
+# factory  5.94 MB - ElenixOS Core + Service + LVGL + JerryScript + 系统资源
+# spiffs   2 MB    - /sdcard 挂载点(EOS_SYS_ROOT_DIR),存 config/state/资源/eapk 源+解包
 nvs,      data, nvs,      0x9000,   0x4000,
 phy_init, data, phy,      0xf000,   0x1000,
-factory,  app,  factory,  0x10000,  0x770000,
-spiffs,   data, spiffs,   0x780000, 0x80000,
+factory,  app,  factory,  0x10000,  0x5F0000,
+spiffs,   data, spiffs,   0x600000, 0x200000,

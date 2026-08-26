@@ -26,6 +26,16 @@ extern "C" {
 esp_err_t eos_net_wifi_esp32_init(void);
 
 /**
+ * @brief Early-init hook: called by app_main BEFORE eos_init(), while internal
+ *        RAM is still contiguous (esp_wifi_init needs internal DMA buffers that
+ *        fail with ESP_ERR_NO_MEM once the heap is fragmented at runtime).
+ *        Memory-gated internally: skips (keeps lazy init) when the largest free
+ *        internal block is below a threshold, so it never starves the LVGL UI.
+ *        Failure/skip is non-fatal — scan/connect still retry lazily.
+ */
+esp_err_t eos_net_wifi_esp32_early_init(void);
+
+/**
  * @brief Perform a real active scan and fill out_aps (sorted by RSSI desc).
  */
 esp_err_t eos_net_wifi_esp32_scan(eos_wifi_ap_t *out_aps,

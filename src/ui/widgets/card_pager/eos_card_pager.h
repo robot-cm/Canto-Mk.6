@@ -52,6 +52,7 @@ struct eos_card_pager_t
     lv_obj_t *container;
     lv_obj_t *background;
     lv_obj_t *indicator_container;
+    lv_obj_t *touch_area;
     eos_card_pager_node_t *page_list_head;
     uint8_t current_page_index;
     uint8_t page_count;

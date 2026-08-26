@@ -47,6 +47,8 @@ struct eos_slide_widget_t
     bool owns_touch_obj;
     bool sync_touch_obj;
     eos_slide_widget_state_t origin_settle_state;
+    eos_slide_widget_delete_notify_cb_t delete_notify_cb;
+    void *delete_notify_user_data;
 };
 
 /* Variables --------------------------------------------------*/
@@ -660,6 +662,8 @@ void eos_slide_widget_sync_touch_obj(eos_slide_widget_t *sw)
 
 /*============================ Deletion ============================*/
 
+static void _fire_delete_notify(eos_slide_widget_t *sw);
+
 static void _slide_widget_delete_cb(lv_event_t *e)
 {
     eos_slide_widget_t *sw = (eos_slide_widget_t *)lv_event_get_user_data(e);
@@ -674,17 +678,44 @@ static void _slide_widget_delete_cb(lv_event_t *e)
      * EXCVADDR 为已释放堆指针)。lv_anim_del 直接移除动画且不触发 completed_cb。 */
     lv_anim_del(sw, NULL);
 
-    if (sw->touch_obj && sw->owns_touch_obj)
+    /* UAF 修复: target_obj 被删除(LV_EVENT_DELETE)触发本回调时,touch_obj 可能仍然存活
+     * (尤其 create_with_touch 由外部拥有的 touch_obj)。若不解除 touch_obj 上的
+     * PRESSED/PRESSING/RELEASED 回调,后续触摸会调用已 eos_free 的 sw(野指针) →
+     * _touch_obj_pressed_cb → lv_obj_get_x(sw->target_obj) LoadProhibited。
+     * 必须按 user_data 精确移除,避免误删同对象上其他 slide widget 的回调。 */
+    if (sw->touch_obj)
     {
         if (lv_obj_is_valid(sw->touch_obj))
         {
-            lv_obj_delete(sw->touch_obj);
+            lv_obj_remove_event_cb_with_user_data(sw->touch_obj, _touch_obj_pressed_cb, sw);
+            lv_obj_remove_event_cb_with_user_data(sw->touch_obj, _touch_obj_pressing_cb, sw);
+            lv_obj_remove_event_cb_with_user_data(sw->touch_obj, _touch_obj_released_cb, sw);
+            if (sw->owns_touch_obj)
+            {
+                lv_obj_delete(sw->touch_obj);
+            }
         }
         sw->touch_obj = NULL;
     }
 
     sw->target_obj = NULL;
+    _fire_delete_notify(sw);
     eos_free(sw);
+}
+
+static void _fire_delete_notify(eos_slide_widget_t *sw)
+{
+    if (sw && sw->delete_notify_cb)
+    {
+        sw->delete_notify_cb(sw, sw->delete_notify_user_data);
+    }
+}
+
+void eos_slide_widget_set_delete_notify(eos_slide_widget_t *sw, eos_slide_widget_delete_notify_cb_t cb, void *user_data)
+{
+    EOS_CHECK_PTR_RETURN(sw);
+    sw->delete_notify_cb = cb;
+    sw->delete_notify_user_data = user_data;
 }
 
 void eos_slide_widget_delete(eos_slide_widget_t *sw)
@@ -716,6 +747,8 @@ void eos_slide_widget_delete(eos_slide_widget_t *sw)
     {
         sw->target_obj = NULL;
     }
+
+    _fire_delete_notify(sw);
 
     eos_anim_blocker_hide();
     eos_free(sw);

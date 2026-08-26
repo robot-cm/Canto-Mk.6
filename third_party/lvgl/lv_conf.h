@@ -144,6 +144,14 @@
 #define LV_FONT_DEFAULT         &lv_font_montserrat_14
 #define LV_FONT_FMT_TXT_LARGE   1
 
+/* 压缩字体支持(必须开启)。
+ * 必须开启,否则 lv_font_get_bitmap_fmt_txt() 对压缩字体直接返回 NULL
+ * → draw_letter_cb 访问空 draw_buf → LoadProhibited panic
+ * (实测:右滑打开 Control Center 渲染图标字符时崩溃重启)。
+ * 压缩字体: eos_font_icon.c / eos_font_han_sans_22.c (bitmap_format=1,
+ * lv_font_conv 默认 --compress; jbm_22/26/30 显式 --no-compress 不受影响)。 */
+#define LV_USE_FONT_COMPRESSED  1
+
 /* ── 日志 / 调试 ──────────────────────────────────────── */
 #define LV_USE_LOG              1
 #define LV_LOG_LEVEL            LV_LOG_LEVEL_WARN

@@ -64,6 +64,8 @@ typedef struct
 static eos_app_header_t *app_header = NULL;
 static bool _back_btn_visible = true; /**< Master switch for the back button
     (apps use swipe-back, so the header back button is hidden while an app runs) */
+static bool _clock_visible = true; /**< Master switch for the header clock label
+    (Settings pages hide it because the status bar already shows the time) */
 /* Function Implementations -----------------------------------*/
 static void _clock_update_cb(lv_timer_t *timer);
 
@@ -119,7 +121,10 @@ static void _app_header_apply_activity_mode(eos_activity_t *activity)
     if (app_header->clock_label && lv_obj_is_valid(app_header->clock_label))
     {
         lv_obj_set_style_text_color(app_header->clock_label, clock_color, 0);
-        lv_obj_remove_flag(app_header->clock_label, LV_OBJ_FLAG_HIDDEN);
+        if (_clock_visible)
+            lv_obj_remove_flag(app_header->clock_label, LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_add_flag(app_header->clock_label, LV_OBJ_FLAG_HIDDEN);
     }
 
     if (app_header->title_label && lv_obj_is_valid(app_header->title_label))
@@ -148,6 +153,18 @@ void eos_app_header_set_back_btn_visible(bool visible)
             lv_obj_remove_flag(app_header->back_btn, LV_OBJ_FLAG_HIDDEN);
         else
             lv_obj_add_flag(app_header->back_btn, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+void eos_app_header_set_clock_visible(bool visible)
+{
+    _clock_visible = visible;
+    if (app_header && app_header->clock_label && lv_obj_is_valid(app_header->clock_label))
+    {
+        if (visible)
+            lv_obj_remove_flag(app_header->clock_label, LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_add_flag(app_header->clock_label, LV_OBJ_FLAG_HIDDEN);
     }
 }
 

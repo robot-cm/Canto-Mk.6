@@ -1,15 +1,16 @@
-# ElenixOS + XIAO ESP32-S3 自定义系统开发任务
+# Canto Mk.6 + XIAO ESP32-S3 自定义系统开发任务
 
 ## 0. 项目目标
 
 基于现有的 **ElenixOS** 开源项目进行二次开发。
+注：新名称叫 Canto Mk.6，项目中有残留注释和底层 API,请把 ElenixOS 直接视为 Canto Mk.6。
 
 目标硬件：
 
 * Seeed Studio XIAO ESP32-S3 Pre-Soldered
 * Seeed Studio 1.28" Round Touch Display for XIAO
 
-目标不是简单修改一个 Demo，而是逐步把 ElenixOS 改造成一个：
+目标不是简单修改一个 Demo，而是逐步把 Canto Mk.6 改造成一个：
 
 > **Core 固件 + System Services + SD 卡插件 APP + 统一 UI**
 
@@ -18,7 +19,7 @@
 最终目标类似一个微型设备 OS：
 
 ```text
-ElenixOS
+Canto Mk.6
 │
 ├── Core
 │   ├── Boot
@@ -131,7 +132,7 @@ https://wiki.seeedstudio.com/get_start_round_display/
 
 ```text
 ┌─────────────────────────────────┐
-│           ElenixOS Core         │
+│           Canto Mk.6 Core         │
 │                                 │
 │ Boot / RTOS / Hardware / LVGL   │
 │ Shell / Network / System UI     │
@@ -180,7 +181,7 @@ PSRAM = 8 MB
 
 * Bootloader
 * Partition Table
-* ElenixOS Core
+* Canto Mk.6 Core
 * FreeRTOS
 * Hardware abstraction
 * LVGL
@@ -262,11 +263,11 @@ PSRAM = 8 MB
         assets/
 ```
 
-其中 `<entry>` 的具体格式必须根据 ElenixOS 当前实际 runtime 决定。
+其中 `<entry>` 的具体格式必须根据 Canto Mk.6 当前实际 runtime 决定。
 
 **不要默认它一定是 JavaScript。**
 
-必须先检查 ElenixOS 源码，确认它到底支持：
+必须先检查 Canto Mk.6 源码，确认它到底支持：
 
 * JavaScript
 * scripting
@@ -421,7 +422,7 @@ settings.*
 app.*
 ```
 
-具体 API 必须根据实际 ElenixOS 架构设计。
+具体 API 必须根据实际 Canto Mk.6 架构设计。
 
 ---
 
@@ -693,7 +694,7 @@ Updater
 
 # 15. UI 系统
 
-需要重新设计现有 ElenixOS UI。
+需要重新设计现有 Canto Mk.6 UI。
 
 目标：
 
@@ -976,7 +977,7 @@ malloc → PSRAM
 
 由于 Flash 只有 8MB：
 
-必须检查当前 ElenixOS partition table。
+必须检查当前 Canto Mk.6 partition table。
 
 分析：
 
@@ -1056,7 +1057,7 @@ release resources
 return Launcher
 ```
 
-如果当前 ElenixOS 无法做到真正隔离：
+如果当前 Canto Mk.6 无法做到真正隔离：
 
 必须明确说明。
 
@@ -1097,7 +1098,7 @@ Plugin Manager 必须检查：
 
 你必须：
 
-> **先理解现有 ElenixOS，再进行最小必要修改。**
+> **先理解现有 Canto Mk.6，再进行最小必要修改。**
 
 ## 修改之前
 
@@ -1128,7 +1129,7 @@ Plugin Manager 必须检查：
 * SD CS
 * RTC 地址
 * LVGL API
-* ElenixOS API
+* Canto Mk.6 API
 * Plugin API
 
 不确定时：
@@ -1144,7 +1145,7 @@ Plugin Manager 必须检查：
 1. 实际硬件原理图 / Datasheet
 2. Seeed 官方 Wiki
 3. Seeed 官方代码 / Library
-4. ElenixOS 当前源码
+4. Canto Mk.6 当前源码
 5. 其他可靠资料
 6. 网络博客
 7. 模型自身记忆
@@ -1198,7 +1199,7 @@ Plugin Manager 必须检查：
 
 **现在禁止修改任何代码。**
 
-首先完整扫描当前 ElenixOS 仓库。
+首先完整扫描当前 Canto Mk.6 仓库。
 
 输出以下报告：
 
@@ -1296,7 +1297,7 @@ Plugin Manager 必须检查：
 
 重点回答：
 
-> **当前 ElenixOS 最适合采用哪种 SD 卡插件机制？**
+> **当前 Canto Mk.6 最适合采用哪种 SD 卡插件机制？**
 
 比较：
 
@@ -1335,7 +1336,7 @@ Plugin Manager 必须检查：
 
 ```text
                      ┌──────────────────┐
-                     │   ElenixOS Core  │
+                     │   Canto Mk.6 Core  │
                      │                  │
                      │ Boot             │
                      │ FreeRTOS         │

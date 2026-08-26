@@ -13,11 +13,16 @@
  *    the app was closed. Ringing UI itself lives here.
  *
  * Data contract (JS <-> Core service, same config.json file):
- *   alarms = [ { id, h, m, days, rep, on, lf, tmp? } ]
+ *   alarms = [ { id, h, m, days, rep, on, lf, note?, tmp? } ]
  *     days : bitmask bit0=MON ... bit6=SUN ; 0 = daily
  *     rep  : -1 = infinite ; N>0 = remaining rings (decremented here)
  *     lf   : last ring minute key YYYYMMDDHHMM (written here on ring start)
+ *     note : optional text note (entered via the system round keyboard)
  *     tmp  : temporary snooze alarm (auto-removed after it rings)
+ *
+ * Add/Edit is a 4-step wizard (TIME -> WEEKDAYS -> REPEAT -> NOTE) so each
+ * field gets roomy spacing; NOTE uses eos.ime.open (the same round keyboard
+ * as the Wi-Fi password page).
  *
  * Red lines: no arc / no border / radius<54 / no flex / anim<=6.
  * EVENT_CLICKED broken in this fork -> use EVENT_PRESSED.
@@ -29,7 +34,7 @@ var view = eos.activity.getView(activity);
 var COL_BG = 0x12121A, COL_WHITE = 0xFFFFFF, COL_GRAY = 0x9A9AA8,
     COL_BLUE = 0x4C8DFF, COL_PURPLE = 0x9C27B0, COL_RED = 0xE5484D;
 
-function hex(v) { return lv.colorMake((v >> 16) & 255, (v >> 8) & 255, v & 255); }
+function hex(v) { return lv.color.hex(v); }
 function pad2(n) { return (n < 10 ? "0" : "") + n; }
 
 var WDAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
@@ -75,14 +80,14 @@ function newAlarm() {
 var page = 0;
 var editing = null;                 /* { a, isNew } */
 var editH = 7, editM = 0, editDays = 0, editRep = -1;
+var editStep = 0, editNote = "";
 var ringAlarm = null;
 var ringTicks = 0, ringSeqIdx = 0, ringSeqElapsed = 0;
 var tickCount = 0;
 
 /* ---------- root ---------- */
-view.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-view.removeFlag(lv.OBJ_FLAG_CLICKABLE);
-
+/* Note: the activity view wrapper has no removeFlag() — do not touch it.
+ * Children below manage their own flags. */
 var homeC = new lv.obj(view);
 homeC.setSize(240, 210); homeC.setPos(0, 30);
 homeC.setStyleBgOpa(0, 0);
@@ -154,16 +159,16 @@ function buildHome() {
     prevBtn = smallBtn(homeC, 40, 176, 36, 24, "<", 40, COL_WHITE,
         function () { if (page > 0) { page--; paintHome(); } });
     pageLbl = new lv.label(homeC);
-    pageLbl.setSize(32, 20); pageLbl.setPos(104, 178);
+    pageLbl.setSize(32, 20); pageLbl.setPos(78, 178);
     pageLbl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
     pageLbl.setFontSize(11);
     pageLbl.setStyleTextColor(hex(COL_WHITE), 0);
     pageLbl.setStyleTextOpa(170, 0);
     pageLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-    nextBtn = smallBtn(homeC, 168, 176, 36, 24, ">", 40, COL_WHITE,
+    nextBtn = smallBtn(homeC, 114, 176, 32, 24, ">", 40, COL_WHITE,
         function () { paintHome(); });
-    addBtn = smallBtn(homeC, 210, 176, 24, 24, "+", 255, COL_BLUE,
-        function () { openEdit(newAlarm(), true); });
+    addBtn = smallBtn(homeC, 152, 176, 30, 24, "+", 255, COL_BLUE,
+        function () { openEdit(newAlarm(), true); });   // 原 x210 完全在圆外（y206 右界≈204），内移
 }
 
 function paintHome() {
@@ -193,36 +198,55 @@ function paintHome() {
         (function (a, i) {
             var y = 6 + i * 56;
             var row = new lv.obj(homeC);
-            row.setSize(180, 56); row.setPos(0, y);
+            row.setSize(170, 56); row.setPos(0, y);   // 右缘 170，给开关留出圆内空间
             row.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
             row.addEventCb(function () { openEdit(a, false); }, lv.EVENT_PRESSED, null);
 
             var tl = new lv.label(row);
-            tl.setText(pad2(a.h) + ":" + pad2(a.m));
-            tl.setFontSize(20);
-            tl.setStyleTextColor(hex(COL_WHITE), 0);
-            tl.setStyleTextOpa(255, 0);
-            tl.setPos(22, 6);
-            tl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+            var note = a.note || "";
+            if (note.length > 14) note = note.slice(0, 14) + "\u2026";
+            if (note) {
+                /* 有备注:备注用当前时间字号(20px),时间小 4 号(16px) */
+                var nl = new lv.label(row);
+                nl.setText(note);
+                nl.setFontSize(20);
+                nl.setStyleTextColor(hex(COL_WHITE), 0);
+                nl.setStyleTextOpa(255, 0);
+                nl.setPos(22, 2);
+                nl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+                tl.setText(pad2(a.h) + ":" + pad2(a.m));
+                tl.setFontSize(16);
+                tl.setStyleTextColor(hex(COL_WHITE), 0);
+                tl.setStyleTextOpa(255, 0);
+                tl.setPos(22, 26);
+                tl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+            } else {
+                tl.setText(pad2(a.h) + ":" + pad2(a.m));
+                tl.setFontSize(20);
+                tl.setStyleTextColor(hex(COL_WHITE), 0);
+                tl.setStyleTextOpa(255, 0);
+                tl.setPos(22, 6);
+                tl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+            }
 
             var sl = new lv.label(row);
             sl.setText(daysLabel(a.days) + "  " + repLabel(a.rep));
             sl.setFontSize(9);
             sl.setStyleTextColor(hex(COL_GRAY), 0);
             sl.setStyleTextOpa(170, 0);
-            sl.setPos(22, 32);
+            sl.setPos(note ? 88 : 22, note ? 30 : 32);
             sl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
             var sep = new lv.obj(row);
-            sep.setSize(200, 1); sep.setPos(0, 55);
+            sep.setSize(170, 1); sep.setPos(0, 55);
             sep.setStyleBgOpa(15, 0);
             sep.setStyleBgColor(hex(COL_WHITE), 0);
             sep.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
             /* on/off switch: outside the row so it never bubbles to row press */
             var tg = new lv.button(homeC);
-            tg.setSize(44, 24); tg.setPos(190, y + 16);
-            tg.setStyleRadius(12, 0);
+            tg.setSize(34, 24); tg.setPos(174, y + 16);   // 内移：第一行 y52 处圆内右界≈219，34+174=208 安全
+            tg.setStyleRadius(10, 0);
             tg.setStylePadAll(0, 0);
             tg.setStyleBorderWidth(0, 0);
             tg.setExtClickArea(8);
@@ -254,66 +278,76 @@ function paintHome() {
     nextBtn.lbl.setStyleTextOpa(page < tp - 1 ? 230 : 90, 0);
 }
 
-/* ================= EDIT (add / edit alarm) ================= */
-var hVal, mVal, dayChips = [], allBtn, noneBtn, rptVal, delBtn, saveBtn, cancelBtn;
+/* ================= EDIT (4-step wizard) =================
+ * TIME -> WEEKDAYS -> REPEAT -> NOTE, one page at a time so each field
+ * gets roomy spacing on the round screen. NOTE opens the system round
+ * keyboard (eos.ime.open, same as the Wi-Fi password page).
+ * Bottom nav: BACK / NEXT; step0 BACK=CANCEL; step3 NEXT=SAVE;
+ * DEL (edit mode only, on step 0) sits top-right. */
+var stepTtl;
+var hVal, colonL, mVal, hUp, hDn, mUp, mDn;
+var dayChips = [], allBtn, noneBtn;
+var rptSub, rptVal, rptDn, rptUp;
+var noteHint, noteBox, noteLbl, noteSum;
+var navBackBtn, navNextBtn, navDelBtn;
 
 function buildEdit() {
-    /* hour */
-    smallBtn(editC, 74, 6, 30, 16, "+", 20, COL_WHITE,
-        function () { editH = (editH + 1) % 24; paintEdit(); });
+    stepTtl = new lv.label(editC);
+    stepTtl.setSize(240, 14); stepTtl.setPos(0, 0);
+    stepTtl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    stepTtl.setFontSize(9);
+    stepTtl.setStyleTextColor(hex(COL_GRAY), 0);
+    stepTtl.setStyleTextOpa(170, 0);
+    stepTtl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+    /* ---- step 1: TIME (HH:MM) ---- */
     hVal = new lv.label(editC);
-    hVal.setSize(50, 30); hVal.setPos(64, 24);
+    hVal.setSize(56, 44); hVal.setPos(48, 24);
     hVal.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
     hVal.setFontSize(24);
     hVal.setStyleTextColor(hex(COL_WHITE), 0);
     hVal.setStyleTextOpa(255, 0);
     hVal.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-    smallBtn(editC, 74, 56, 30, 16, "-", 20, COL_WHITE,
-        function () { editH = (editH + 23) % 24; paintEdit(); });
 
-    var colon = new lv.label(editC);
-    colon.setSize(12, 26); colon.setPos(114, 26);
-    colon.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-    colon.setText(":");
-    colon.setFontSize(24);
-    colon.setStyleTextColor(hex(COL_WHITE), 0);
-    colon.setStyleTextOpa(255, 0);
-    colon.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+    colonL = new lv.label(editC);
+    colonL.setSize(12, 44); colonL.setPos(114, 24);
+    colonL.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    colonL.setText(":");
+    colonL.setFontSize(24);
+    colonL.setStyleTextColor(hex(COL_WHITE), 0);
+    colonL.setStyleTextOpa(255, 0);
+    colonL.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
-    /* minute */
-    smallBtn(editC, 136, 6, 30, 16, "+", 20, COL_WHITE,
-        function () { editM = (editM + 1) % 60; paintEdit(); });
     mVal = new lv.label(editC);
-    mVal.setSize(50, 30); mVal.setPos(126, 24);
+    mVal.setSize(56, 44); mVal.setPos(136, 24);
     mVal.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
     mVal.setFontSize(24);
     mVal.setStyleTextColor(hex(COL_WHITE), 0);
     mVal.setStyleTextOpa(255, 0);
     mVal.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-    smallBtn(editC, 136, 56, 30, 16, "-", 20, COL_WHITE,
+
+    hUp = smallBtn(editC, 56, 72, 40, 24, "+", 20, COL_WHITE,
+        function () { editH = (editH + 1) % 24; paintEdit(); });
+    hDn = smallBtn(editC, 56, 100, 40, 24, "-", 20, COL_WHITE,
+        function () { editH = (editH + 23) % 24; paintEdit(); });
+    mUp = smallBtn(editC, 144, 72, 40, 24, "+", 20, COL_WHITE,
+        function () { editM = (editM + 1) % 60; paintEdit(); });
+    mDn = smallBtn(editC, 144, 100, 40, 24, "-", 20, COL_WHITE,
         function () { editM = (editM + 59) % 60; paintEdit(); });
 
-    /* days label */
-    var dLbl = new lv.label(editC);
-    dLbl.setText("Days");
-    dLbl.setFontSize(9);
-    dLbl.setStyleTextColor(hex(COL_GRAY), 0);
-    dLbl.setStyleTextOpa(170, 0);
-    dLbl.setPos(20, 76);
-    dLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-
-    /* weekday chips: row1 MON..THU, row2 FRI..SUN + ALL / NONE */
+    /* ---- step 2: WEEKDAYS (roomy 52x38 chips) ---- */
     for (var i = 0; i < 7; i++) {
         (function (i) {
-            var col = i % 4, row = Math.floor(i / 4);
+            var row = i < 4 ? 0 : 1;
             var b = new lv.button(editC);
-            b.setSize(50, 26); b.setPos(16 + col * 54, 88 + row * 30);
+            b.setSize(52, 38);
+            b.setPos(row === 0 ? 12 + i * 54 : 20 + (i - 4) * 58, row === 0 ? 34 : 78);
             b.setStyleRadius(13, 0);
             b.setStyleBgOpa(18, 0);
             b.setStyleBgColor(hex(COL_WHITE), 0);
             b.setStylePadAll(0, 0);
             b.setStyleBorderWidth(0, 0);
-            b.setExtClickArea(6);
+            b.setExtClickArea(4);
             b.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
             var l = new lv.label(b);
             l.setText(WDAYS[i]);
@@ -327,48 +361,92 @@ function buildEdit() {
             dayChips.push({ btn: b, lbl: l });
         })(i);
     }
-    allBtn = smallBtn(editC, 184, 118, 26, 26, "ALL", 18, COL_WHITE,
+    allBtn = smallBtn(editC, 76, 122, 36, 24, "ALL", 18, COL_WHITE,
         function () { editDays = 127; paintEdit(); });
-    noneBtn = smallBtn(editC, 212, 118, 26, 26, "NONE", 18, COL_WHITE,
+    noneBtn = smallBtn(editC, 128, 122, 44, 24, "NONE", 18, COL_WHITE,
         function () { editDays = 0; paintEdit(); });
 
-    /* repeat count */
-    var rLbl = new lv.label(editC);
-    rLbl.setText("Rpt");
-    rLbl.setFontSize(9);
-    rLbl.setStyleTextColor(hex(COL_GRAY), 0);
-    rLbl.setStyleTextOpa(170, 0);
-    rLbl.setPos(20, 150);
-    rLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+    /* ---- step 3: REPEAT ---- */
+    rptSub = new lv.label(editC);
+    rptSub.setSize(240, 14); rptSub.setPos(0, 22);
+    rptSub.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    rptSub.setText("INF = infinite");
+    rptSub.setFontSize(10);
+    rptSub.setStyleTextColor(hex(COL_GRAY), 0);
+    rptSub.setStyleTextOpa(170, 0);
+    rptSub.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
-    smallBtn(editC, 74, 148, 30, 20, "-", 20, COL_WHITE,
-        function () {
-            if (editRep > 1) editRep--;
-            else if (editRep === 1) editRep = -1;
-            paintEdit();
-        });
     rptVal = new lv.label(editC);
-    rptVal.setSize(46, 20); rptVal.setPos(110, 148);
+    rptVal.setSize(56, 44); rptVal.setPos(92, 48);
     rptVal.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-    rptVal.setFontSize(16);
+    rptVal.setFontSize(28);
     rptVal.setStyleTextColor(hex(COL_WHITE), 0);
     rptVal.setStyleTextOpa(255, 0);
     rptVal.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-    smallBtn(editC, 160, 148, 30, 20, "+", 20, COL_WHITE,
+
+    rptDn = smallBtn(editC, 44, 96, 40, 30, "-", 20, COL_WHITE,
+        function () {
+            if (editRep <= 1) editRep = -1;
+            else editRep--;
+            paintEdit();
+        });
+    rptUp = smallBtn(editC, 156, 96, 40, 30, "+", 20, COL_WHITE,
         function () { editRep = (editRep < 0 ? 1 : Math.min(999, editRep + 1)); paintEdit(); });
 
-    /* actions */
-    delBtn = smallBtn(editC, 30, 176, 56, 26, "DEL", 255, COL_RED,
+    /* ---- step 4: NOTE (system round keyboard) ---- */
+    noteHint = new lv.label(editC);
+    noteHint.setSize(240, 14); noteHint.setPos(0, 22);
+    noteHint.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    noteHint.setText("TAP TO EDIT NOTE");
+    noteHint.setFontSize(10);
+    noteHint.setStyleTextColor(hex(COL_GRAY), 0);
+    noteHint.setStyleTextOpa(170, 0);
+    noteHint.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+    noteBox = new lv.button(editC);
+    noteBox.setSize(192, 56); noteBox.setPos(24, 42);
+    noteBox.setStyleRadius(12, 0);
+    noteBox.setStyleBgOpa(10, 0);
+    noteBox.setStyleBgColor(hex(COL_WHITE), 0);
+    noteBox.setStylePadAll(0, 0);
+    noteBox.setStyleBorderWidth(0, 0);
+    noteBox.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+    noteLbl = new lv.label(noteBox);
+    noteLbl.setSize(176, 40); noteLbl.setPos(8, 8);
+    noteLbl.setFontSize(11);
+    noteLbl.setStyleTextColor(hex(COL_GRAY), 0);
+    noteLbl.setStyleTextOpa(180, 0);
+    noteLbl.addFlag(lv.OBJ_FLAG_SCROLLABLE);
+    noteLbl.setLongMode(lv.LABEL_LONG_SCROLL_CIRCULAR);
+    noteBox.addEventCb(function () {
+        eos.ime.open(function (text) {
+            if (text !== undefined) { editNote = text; paintEdit(); }
+        });
+    }, lv.EVENT_PRESSED, null);
+
+    noteSum = new lv.label(editC);
+    noteSum.setSize(240, 16); noteSum.setPos(0, 112);
+    noteSum.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    noteSum.setFontSize(11);
+    noteSum.setStyleTextColor(hex(COL_WHITE), 0);
+    noteSum.setStyleTextOpa(220, 0);
+    noteSum.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+    /* ---- bottom nav ---- */
+    navBackBtn = smallBtn(editC, 32, 140, 78, 30, "CANCEL", 20, COL_WHITE, backStep);
+    navNextBtn = smallBtn(editC, 118, 140, 78, 30, "NEXT", 255, COL_BLUE, nextStep);
+    navDelBtn = smallBtn(editC, 158, 4, 36, 22, "DEL", 255, COL_RED,
         function () { delEdit(); });
-    saveBtn = smallBtn(editC, 90, 176, 56, 26, "SAVE", 255, COL_BLUE,
-        function () { saveEdit(); });
-    cancelBtn = smallBtn(editC, 150, 176, 62, 26, "CANCEL", 20, COL_WHITE,
-        function () { editing = null; paintHome(); showHome(); });
 }
 
 function paintEdit() {
+    stepTtl.setText(["TIME", "WEEKDAYS", "REPEAT", "NOTE"][editStep]);
+
+    /* step 1 */
     hVal.setText(pad2(editH));
     mVal.setText(pad2(editM));
+
+    /* step 2 */
     for (var i = 0; i < 7; i++) {
         var on = (editDays & (1 << i)) !== 0;
         var c = dayChips[i];
@@ -386,30 +464,73 @@ function paintEdit() {
     noneBtn.btn.setStyleBgOpa(editDays === 0 ? 200 : 18, 0);
     noneBtn.btn.setStyleBgColor(hex(editDays === 0 ? COL_BLUE : COL_WHITE), 0);
     noneBtn.lbl.setStyleTextColor(hex(editDays === 0 ? COL_WHITE : COL_GRAY), 0);
+
+    /* step 3 */
     rptVal.setText(repLabel(editRep));
 
-    if (editing && !editing.isNew) {
-        delBtn.btn.removeFlag(lv.OBJ_FLAG_HIDDEN);
-        delBtn.btn.setPos(30, 176);
-        saveBtn.btn.setPos(90, 176);
-        cancelBtn.btn.setPos(150, 176);
+    /* step 4 */
+    if (editNote) {
+        noteLbl.setText(editNote);
+        noteLbl.setStyleTextColor(hex(COL_WHITE), 0);
+        noteLbl.setStyleTextOpa(255, 0);
     } else {
-        delBtn.btn.addFlag(lv.OBJ_FLAG_HIDDEN);
-        saveBtn.btn.setPos(60, 176);
-        cancelBtn.btn.setPos(120, 176);
+        noteLbl.setText("No note");
+        noteLbl.setStyleTextColor(hex(COL_GRAY), 0);
+        noteLbl.setStyleTextOpa(160, 0);
     }
+    try { noteLbl.scrollToX(0, 0); } catch (e) {}
+    noteSum.setText(pad2(editH) + ":" + pad2(editM) + "  \u00b7  "
+        + daysLabel(editDays) + "  \u00b7  " + repLabel(editRep));
+
+    /* visibility per step */
+    function show(objs, v) {
+        for (var k = 0; k < objs.length; k++) {
+            if (v) objs[k].removeFlag(lv.OBJ_FLAG_HIDDEN);
+            else objs[k].addFlag(lv.OBJ_FLAG_HIDDEN);
+        }
+    }
+    var s2 = [];
+    for (i = 0; i < 7; i++) s2.push(dayChips[i].btn);
+    s2.push(allBtn.btn); s2.push(noneBtn.btn);
+    show([hVal, colonL, mVal, hUp.btn, hDn.btn, mUp.btn, mDn.btn], editStep === 0);
+    show(s2, editStep === 1);
+    show([rptSub, rptVal, rptDn.btn, rptUp.btn], editStep === 2);
+    show([noteHint, noteBox, noteLbl, noteSum], editStep === 3);
+
+    /* bottom nav */
+    navDelBtn.btn.addFlag(lv.OBJ_FLAG_HIDDEN);
+    if (editStep === 0) {
+        navBackBtn.lbl.setText("CANCEL");
+        navNextBtn.lbl.setText("NEXT");
+        if (editing && !editing.isNew) navDelBtn.btn.removeFlag(lv.OBJ_FLAG_HIDDEN);
+    } else {
+        navBackBtn.lbl.setText("BACK");
+        navNextBtn.lbl.setText(editStep === 3 ? "SAVE" : "NEXT");
+    }
+}
+
+function backStep() {
+    if (editStep === 0) { editing = null; paintHome(); showHome(); }
+    else { editStep--; paintEdit(); }
+}
+function nextStep() {
+    if (editStep === 3) { saveEdit(); return; }
+    editStep++;
+    paintEdit();
 }
 
 function openEdit(a, isNew) {
     editing = { a: a, isNew: isNew };
     editH = a.h; editM = a.m; editDays = a.days; editRep = a.rep;
+    editStep = 0; editNote = a.note || "";
     paintEdit();
     showEdit();
 }
 
 function saveEdit() {
     var a = editing.a;
-    a.h = editH; a.m = editM; a.days = editDays; a.rep = editRep; a.lf = 0;
+    a.h = editH; a.m = editM; a.days = editDays; a.rep = editRep;
+    a.note = editNote; a.lf = 0;
     if (editing.isNew) alarms.push(a);
     editing = null;
     saveAlarms();

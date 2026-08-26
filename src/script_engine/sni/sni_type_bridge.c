@@ -226,6 +226,17 @@ static void sni_obj_deleted_cb(lv_event_t *e)
        prevents use-after-free of cb after it is freed by free_cb. */
     cb->is_alive = false;
 
+    /* Unlink this object's event callback contexts while its LVGL
+       event descriptors are still alive (LV_EVENT_DELETE precedes
+       lv_event_remove_all).  Otherwise the contexts dangle and
+       sni_cb_context_cleanup_events later calls
+       lv_obj_remove_event_dsc on already-freed descriptors →
+       wild-pointer crash on program exit (alarm/timer/stopwatch). */
+    if (cb->owner_ctx)
+    {
+        sni_cb_event_cleanup_by_obj(cb->owner_ctx, obj);
+    }
+
     /* Cascade-invalidate sub-resource handles.  LVGL destroys
        sub-resource native objects when the parent is deleted
        (e.g., chart series/cursors disappear with the chart), so
@@ -654,7 +665,7 @@ jerry_value_t sni_tb_c2js(void *c_val, sni_type_t type)
             return jerry_boolean(*(bool *)c_val);
 
         case SNI_T_STRING:
-            return jerry_string_sz(*(const char **)c_val);
+            return sni_tb_c2js_string_safe(*(const char **)c_val);
 
         case SNI_T_PTR:
             return jerry_number((double)(uintptr_t)*(void **)c_val);
@@ -973,6 +984,174 @@ void sni_tb_unlink_sub_resource(void *sub_ptr, sni_type_t sub_type)
     }
 
     sub_node->parent_cb = NULL;
+}
+
+/* ── UTF-8/CESU-8 净化工具 ─────────────────────────────────────
+ * 把任意 C 字节串转换为合法 CESU-8 字符串(供 jerry_string_sz 使用):
+ *   - ASCII 0x00-0x7F           保留
+ *   - 合法 2/3 字节 UTF-8       保留
+ *   - 4 字节 UTF-8(emoji 等)    整个序列替换为 U+FFFD(CESU-8 不支持)
+ *   - 非法首字节/续字节/截断    替换为 U+FFFD
+ * 返回新分配字符串(调用方负责释放); 失败返回 NULL。
+ * 动机: SD 文件名/外部文本含 GBK 等非 UTF-8 字节时,
+ *       jerry_validate_string 断言失败 → Fatal 120。
+ * ────────────────────────────────────────────────────────────── */
+char *sni_tb_utf8_sanitize_dup(const char *in)
+{
+    if (!in)
+    {
+        return NULL;
+    }
+
+    size_t in_len = strlen(in);
+
+    /* 快速路径: 纯 ASCII 无需处理 */
+    bool need = false;
+    for (size_t i = 0; i < in_len; i++)
+    {
+        if ((unsigned char)in[i] >= 0x80)
+        {
+            need = true;
+            break;
+        }
+    }
+    if (!need)
+    {
+        /* 用 eos 分配器复制,与调用方 eos_free 释放契约一致。
+         * 此前用 libc strdup → eos_free 识别为 foreign 拒绝释放 → 每次
+         * C→JS 字符串转换都泄漏一份 (internal RAM 持续下降)。 */
+        char *dup = (char *)eos_malloc_core(in_len + 1);
+        if (dup)
+        {
+            memcpy(dup, in, in_len + 1);
+        }
+        return dup;
+    }
+
+    /* 最坏情况: 每字节都替换为 U+FFFD(3 字节) */
+    char *out = (char *)eos_malloc_core(in_len * 3 + 1);
+    if (!out)
+    {
+        return NULL;
+    }
+
+    size_t o = 0;
+    size_t i = 0;
+    while (i < in_len)
+    {
+        unsigned char c = (unsigned char)in[i];
+
+        if (c < 0x80)
+        {
+            out[o++] = (char)c;
+            i++;
+            continue;
+        }
+
+        int extra = 0;
+        uint32_t min_cp = 0;
+        uint32_t cp = 0;
+        if ((c & 0xE0) == 0xC0)
+        {
+            extra = 1;
+            min_cp = 0x80;
+            cp = c & 0x1F;
+        }
+        else if ((c & 0xF0) == 0xE0)
+        {
+            extra = 2;
+            min_cp = 0x800;
+            cp = c & 0x0F;
+        }
+        else if ((c & 0xF8) == 0xF0)
+        {
+            /* 4 字节 UTF-8: CESU-8 不合法, 整个序列替换为单个 U+FFFD */
+            out[o++] = (char)0xEF;
+            out[o++] = (char)0xBF;
+            out[o++] = (char)0xBD;
+            size_t skip = 1;
+            while (skip <= 3 && i + skip < in_len && ((unsigned char)in[i + skip] & 0xC0) == 0x80)
+            {
+                skip++;
+            }
+            i += skip;
+            continue;
+        }
+        else
+        {
+            /* 非法首字节 (0x80-0xBF 孤立续字节 / 0xF8-0xFF) */
+            extra = 0;
+        }
+
+        if (extra == 0)
+        {
+            out[o++] = (char)0xEF;
+            out[o++] = (char)0xBF;
+            out[o++] = (char)0xBD;
+            i++;
+            continue;
+        }
+
+        /* 截断序列: 只剩首字节, 续字节不足 */
+        if (i + extra >= in_len)
+        {
+            out[o++] = (char)0xEF;
+            out[o++] = (char)0xBF;
+            out[o++] = (char)0xBD;
+            i++;
+            continue;
+        }
+
+        /* 校验续字节 */
+        bool ok = true;
+        for (int k = 1; k <= extra; k++)
+        {
+            unsigned char cc = (unsigned char)in[i + k];
+            if ((cc & 0xC0) != 0x80)
+            {
+                ok = false;
+                break;
+            }
+            cp = (cp << 6) | (cc & 0x3F);
+        }
+
+        if (!ok || cp < min_cp)
+        {
+            /* 非法续字节或 overlong 编码 */
+            out[o++] = (char)0xEF;
+            out[o++] = (char)0xBF;
+            out[o++] = (char)0xBD;
+            i++;
+            continue;
+        }
+
+        /* 合法 2/3 字节序列: 原样复制 */
+        memcpy(&out[o], &in[i], (size_t)extra + 1);
+        o += (size_t)extra + 1;
+        i += (size_t)extra + 1;
+    }
+
+    out[o] = '\0';
+    return out;
+}
+
+jerry_value_t sni_tb_c2js_string_safe(const char *s)
+{
+    if (!s)
+    {
+        return jerry_undefined();
+    }
+
+    char *clean = sni_tb_utf8_sanitize_dup(s);
+    if (clean)
+    {
+        jerry_value_t v = jerry_string_sz(clean);
+        eos_free(clean);
+        return v;
+    }
+
+    /* 净化分配失败(极端): 退回原始路径, 若原串非法则由引擎报 fatal */
+    return jerry_string_sz(s);
 }
 
 void sni_tb_init(void)

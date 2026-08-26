@@ -1,4 +1,4 @@
-# ElenixOS UI Framework 设计计划表
+# Canto Mk.6 UI Framework 设计计划表
 
 > 目标：先搭一个**自适应 UI Framework**（不是单个页面），未来所有 App（表盘/天气/音乐/闹钟/设置/小游戏）都跑在同一套布局系统上。
 > 硬件：ESP32-S3 + 240×240 圆屏，LVGL v9，性能有限 → 不用实时模糊/3D GPU/复杂粒子，目标 60FPS 稳定流畅。

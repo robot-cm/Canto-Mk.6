@@ -1,6 +1,6 @@
 /**
  * @file eos_error.h
- * @brief ElenixOS error code definitions
+ * @brief Canto Mk.6 error code definitions
  */
 
 #ifndef EOS_ERROR_H
@@ -19,7 +19,7 @@ extern "C" {
 /* Public typedefs --------------------------------------------*/
 
 /**
- * @brief ElenixOS return value status
+ * @brief Canto Mk.6 return value status
  */
 typedef enum
 {

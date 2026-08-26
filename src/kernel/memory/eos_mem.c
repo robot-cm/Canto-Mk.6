@@ -62,7 +62,23 @@ static void eos_mem_track_add(void *ptr, size_t size)
             return;
         }
     }
-    EOS_LOG_W("Memory track table full");
+    /* Table full: the accounting is now permanently wedged (a failed add is
+       never removable by track_remove, so the table would stay full forever
+       and every later free silently mismatches). Reset the tracker once and
+       keep the stats coherent. Repeated resets in the log are a strong hint
+       of a live leak, so the snapshot below doubles as a debug aid. */
+    EOS_LOG_W("Memory track table full: resetting tracker (live=%d, tracked=%dB, freed=%dB)",
+              (int)mon.used_cnt, (int)mon.total_size, (int)mon.free_size);
+    for (int i = 0; i < EOS_MEM_TRACK_MAX; i++)
+    {
+        _mem_track[i].ptr = NULL;
+        _mem_track[i].size = 0;
+    }
+    memset(&mon, 0, sizeof(mon));
+    _mem_track[0].ptr = ptr;
+    _mem_track[0].size = size;
+    mon.total_size += size;
+    mon.used_cnt++;
 }
 static size_t eos_mem_track_remove(void *ptr)
 {

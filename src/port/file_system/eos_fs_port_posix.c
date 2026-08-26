@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -154,7 +155,11 @@ eos_file_t eos_fs_open_read(const char *path)
 #ifdef _WIN32
     return _eos_fopen_utf8(eos_fs_realpath(path, resolved, sizeof(resolved)), "rb");
 #else
-    return fopen(eos_fs_realpath(path, resolved, sizeof(resolved)), "rb");
+    FILE *fp = fopen(eos_fs_realpath(path, resolved, sizeof(resolved)), "rb");
+    if (fp == NULL)
+        EOS_LOG_E("[eos_fs] open_read FAIL: '%s' errno=%d (%s) root='%s'",
+                  resolved, errno, strerror(errno), _s_fs_root);
+    return fp;
 #endif
 }
 
@@ -167,7 +172,11 @@ eos_file_t eos_fs_open_write(const char *path)
 #ifdef _WIN32
     return _eos_fopen_utf8(eos_fs_realpath(path, resolved, sizeof(resolved)), "wb");
 #else
-    return fopen(eos_fs_realpath(path, resolved, sizeof(resolved)), "wb");
+    FILE *fp = fopen(eos_fs_realpath(path, resolved, sizeof(resolved)), "wb");
+    if (fp == NULL)
+        EOS_LOG_E("[eos_fs] open_write FAIL: '%s' errno=%d (%s) root='%s'",
+                  resolved, errno, strerror(errno), _s_fs_root);
+    return fp;
 #endif
 }
 
@@ -253,7 +262,10 @@ eos_result_t eos_fs_mkdir(const char *path)
     free(wp);
     return r == 0 ? EOS_OK : EOS_ERR_IO;
 #else
-    return mkdir(rp, 0755) == 0 ? EOS_OK : EOS_ERR_IO;
+    int mr = mkdir(rp, 0755);
+    if (mr != 0)
+        EOS_LOG_E("[eos_fs] mkdir FAIL: '%s' errno=%d (%s)", rp, errno, strerror(errno));
+    return mr == 0 ? EOS_OK : EOS_ERR_IO;
 #endif
 }
 

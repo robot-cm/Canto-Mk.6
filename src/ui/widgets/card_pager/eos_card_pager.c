@@ -31,6 +31,7 @@
 /* Function Implementations -----------------------------------*/
 static void _page_switch_handler(eos_card_pager_t *cp);
 static void _bring_pages_to_front(eos_card_pager_t *cp);
+static void _rebuild_sw(eos_card_pager_t *cp);
 static inline void _set_indicator_active(lv_obj_t *indicator)
 {
     lv_obj_set_style_bg_color(indicator, _INDICATOR_ACTIVE_COLOR, 0);
@@ -51,19 +52,22 @@ static void _update_z_order(eos_card_pager_t *cp)
 {
     EOS_CHECK_PTR_RETURN(cp);
 
+    /* z-order bottom -> top: background, touch area (below pages so taps on
+     * page content win the hit test), pages, indicator. */
     lv_obj_move_foreground(cp->background);
-    lv_obj_t *cur_page = eos_card_pager_get_page(cp, cp->current_page_index);
-    if (cur_page)
-        lv_obj_move_foreground(cur_page);
 
     if (cp->sw)
     {
         lv_obj_t *touch_obj = eos_slide_widget_get_touch_obj(cp->sw);
-        if (touch_obj)
+        if (touch_obj && lv_obj_is_valid(touch_obj))
             lv_obj_move_foreground(touch_obj);
     }
 
-    if (cp->indicator_container)
+    lv_obj_t *cur_page = eos_card_pager_get_page(cp, cp->current_page_index);
+    if (cur_page)
+        lv_obj_move_foreground(cur_page);
+
+    if (cp->indicator_container && lv_obj_is_valid(cp->indicator_container))
         lv_obj_move_foreground(cp->indicator_container);
 }
 
@@ -80,6 +84,14 @@ static void _bring_pages_to_front(eos_card_pager_t *cp)
     lv_obj_t *next_page = eos_card_pager_get_page(cp, next_index);
     lv_obj_t *cur_page = eos_card_pager_get_page(cp, cur);
 
+    /* Touch area stays below the pages (see _update_z_order). */
+    if (cp->sw)
+    {
+        lv_obj_t *touch_obj = eos_slide_widget_get_touch_obj(cp->sw);
+        if (touch_obj && lv_obj_is_valid(touch_obj))
+            lv_obj_move_foreground(touch_obj);
+    }
+
     if (prev_page && prev_page != cur_page)
         lv_obj_move_foreground(prev_page);
     if (next_page && next_page != cur_page)
@@ -87,14 +99,8 @@ static void _bring_pages_to_front(eos_card_pager_t *cp)
     if (cur_page)
         lv_obj_move_foreground(cur_page);
 
-    if (cp->indicator_container)
+    if (cp->indicator_container && lv_obj_is_valid(cp->indicator_container))
         lv_obj_move_foreground(cp->indicator_container);
-    if (cp->sw)
-    {
-        lv_obj_t *touch_obj = eos_slide_widget_get_touch_obj(cp->sw);
-        if (touch_obj)
-            lv_obj_move_foreground(touch_obj);
-    }
 }
 
 static void _on_threshold_reached_cb(lv_event_t *e)
@@ -235,6 +241,10 @@ static void _page_init(lv_obj_t *page)
     lv_obj_set_style_bg_color(page, EOS_COLOR_WHITE, 0);
     lv_obj_set_style_bg_opa(page, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(page, EOS_DISPLAY_RADIUS, 0);
+    /* Pages must NOT be clickable: the full-screen touch area below them
+     * handles swipe gestures, while taps on page content (e.g. app icons)
+     * must reach those children instead of being swallowed by the page. */
+    lv_obj_remove_flag(page, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
 }
 
 lv_obj_t *eos_card_pager_create_page(eos_card_pager_t *cp)
@@ -280,8 +290,13 @@ lv_obj_t *eos_card_pager_create_page(eos_card_pager_t *cp)
             lv_obj_set_pos(page, EOS_DISPLAY_WIDTH, 0);
         }
         cp->page_count++;
-        _page_switch_handler(cp);
     }
+
+    /* Rebuild the slide widget first (it may have been destroyed together with
+     * a removed page during refresh), then configure its threshold/range for
+     * the new page count. */
+    _rebuild_sw(cp);
+    _page_switch_handler(cp);
 
     EOS_LOG_I("Page created: [%p]\nPage count: %d", page, cp->page_count);
     lv_obj_move_foreground(cp->indicator_container);
@@ -445,8 +460,15 @@ void eos_card_pager_set_page_changed_cb(eos_card_pager_t *cp, eos_card_pager_pag
 static void _on_slide_pressed_cb(lv_event_t *e)
 {
     eos_card_pager_t *cp = (eos_card_pager_t *)lv_event_get_user_data(e);
-    lv_obj_move_foreground(cp->indicator_container);
-    lv_obj_move_foreground(eos_slide_widget_get_touch_obj(cp->sw));
+    /* UAF guard: the slide widget may have been destroyed (e.g. all pages
+     * removed & rebuilt); cp->sw is cleared via the destroy notification. */
+    EOS_CHECK_PTR_RETURN(cp && cp->sw);
+    if (cp->indicator_container && lv_obj_is_valid(cp->indicator_container))
+    {
+        lv_obj_move_foreground(cp->indicator_container);
+    }
+    /* Intentionally do NOT raise the touch area here: it must stay below the
+     * pages so a tap on an app icon is delivered to the icon, not swallowed. */
 }
 
 static void _on_slide_moving_cb(lv_event_t *e)
@@ -560,10 +582,63 @@ static void _on_slide_reverted_cb(lv_event_t *e)
     _page_switch_handler(cp);
 }
 
+static void _slide_widget_deleted_cb(eos_slide_widget_t *sw, void *user_data)
+{
+    (void)sw;
+    eos_card_pager_t *cp = (eos_card_pager_t *)user_data;
+    if (cp)
+    {
+        cp->sw = NULL;
+    }
+}
+
+/* Rebuild the slide widget after the old one was destroyed together with its
+ * target page (e.g. all pages removed & recreated). */
+static void _rebuild_sw(eos_card_pager_t *cp)
+{
+    EOS_CHECK_PTR_RETURN(cp);
+    if (cp->sw || !cp->touch_area)
+    {
+        return;
+    }
+    lv_obj_t *page = eos_card_pager_get_page(cp, 0);
+    if (!page)
+    {
+        page = eos_card_pager_get_page(cp, cp->current_page_index);
+    }
+    if (!page)
+    {
+        return;
+    }
+    bool vertical = (cp->dir == EOS_CARD_PAGER_DIR_VER);
+    cp->sw = eos_slide_widget_create_with_touch(cp->touch_area,
+                                                page,
+                                                vertical ? EOS_SLIDE_DIR_VER : EOS_SLIDE_DIR_HOR,
+                                                vertical ? EOS_DISPLAY_HEIGHT : EOS_DISPLAY_WIDTH,
+                                                EOS_THRESHOLD_30);
+    if (!cp->sw)
+    {
+        return;
+    }
+    eos_slide_widget_set_bidirectional(cp->sw, true);
+    eos_slide_widget_set_range(cp->sw, 0, vertical ? EOS_DISPLAY_HEIGHT : EOS_DISPLAY_WIDTH);
+    eos_slide_widget_add_event_cb_reached_threshold(cp->sw, _on_threshold_reached_cb, cp);
+    eos_slide_widget_add_event_cb_moving(cp->sw, _on_slide_moving_cb, cp);
+    eos_slide_widget_add_event_cb_reverted(cp->sw, _on_slide_reverted_cb, cp);
+    eos_slide_widget_set_delete_notify(cp->sw, _slide_widget_deleted_cb, cp);
+}
+
 static void _container_delete_cb(lv_event_t *e)
 {
     eos_card_pager_t *cp = (eos_card_pager_t *)lv_event_get_user_data(e);
     EOS_CHECK_PTR_RETURN(cp);
+
+    /* Detach the press handler from the touch area before cp is freed so a
+     * later touch can never reach a freed card_pager (UAF). */
+    if (cp->touch_area && lv_obj_is_valid(cp->touch_area))
+    {
+        lv_obj_remove_event_cb_with_user_data(cp->touch_area, _on_slide_pressed_cb, cp);
+    }
     cp->sw = NULL;
 
     eos_card_pager_node_t *node = cp->page_list_head;
@@ -598,8 +673,9 @@ eos_card_pager_t *eos_card_pager_create(lv_obj_t *parent, eos_card_pager_dir_t d
 
     lv_obj_t *indicator_container = lv_obj_create(cp->container);
     lv_obj_remove_style_all(indicator_container);
+    lv_obj_remove_flag(indicator_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
     cp->indicator_container = indicator_container;
-    lv_obj_t *page = eos_card_pager_create_page(cp);
+    eos_card_pager_create_page(cp);
 
     lv_obj_t *touch_area = lv_obj_create(cp->container);
     lv_obj_remove_style_all(touch_area);
@@ -622,13 +698,6 @@ eos_card_pager_t *eos_card_pager_create(lv_obj_t *parent, eos_card_pager_dir_t d
                                   LV_FLEX_ALIGN_CENTER,
                                   LV_FLEX_ALIGN_CENTER);
             lv_obj_remove_flag(indicator_container, LV_OBJ_FLAG_SCROLLABLE);
-
-            cp->sw = eos_slide_widget_create_with_touch(touch_area,
-                                                        page,
-                                                        EOS_SLIDE_DIR_VER,
-                                                        EOS_DISPLAY_HEIGHT,
-                                                        EOS_THRESHOLD_30);
-            eos_slide_widget_set_bidirectional(cp->sw, true);
             break;
         }
         case EOS_CARD_PAGER_DIR_HOR:
@@ -643,24 +712,14 @@ eos_card_pager_t *eos_card_pager_create(lv_obj_t *parent, eos_card_pager_dir_t d
                                   LV_FLEX_ALIGN_CENTER,
                                   LV_FLEX_ALIGN_CENTER);
             lv_obj_remove_flag(indicator_container, LV_OBJ_FLAG_SCROLLABLE);
-
-            cp->sw = eos_slide_widget_create_with_touch(touch_area,
-                                                        page,
-                                                        EOS_SLIDE_DIR_HOR,
-                                                        EOS_DISPLAY_WIDTH,
-                                                        EOS_THRESHOLD_30);
-            eos_slide_widget_set_bidirectional(cp->sw, true);
             break;
         }
     }
 
-    eos_slide_widget_set_range(cp->sw, 0, (dir == EOS_CARD_PAGER_DIR_VER) ? EOS_DISPLAY_HEIGHT : EOS_DISPLAY_WIDTH);
+    cp->touch_area = touch_area;
+    _rebuild_sw(cp);
 
-    eos_slide_widget_add_event_cb_reached_threshold(cp->sw, _on_threshold_reached_cb, cp);
-    eos_slide_widget_add_event_cb_moving(cp->sw, _on_slide_moving_cb, cp);
-    eos_slide_widget_add_event_cb_reverted(cp->sw, _on_slide_reverted_cb, cp);
-
-    lv_obj_add_event_cb(eos_slide_widget_get_touch_obj(cp->sw), _on_slide_pressed_cb, LV_EVENT_PRESSED, cp);
+    lv_obj_add_event_cb(cp->touch_area, _on_slide_pressed_cb, LV_EVENT_PRESSED, cp);
 
     lv_obj_add_event_cb(cp->container, _container_delete_cb, LV_EVENT_DELETE, cp);
 

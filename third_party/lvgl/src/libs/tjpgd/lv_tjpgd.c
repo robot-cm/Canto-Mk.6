@@ -107,18 +107,35 @@ static lv_result_t decoder_info(lv_image_decoder_t * decoder, lv_image_decoder_d
         const char * fn = src;
         const char * ext = lv_fs_get_ext(fn);
         if((lv_strcmp(ext, "jpg") == 0) || (lv_strcmp(ext, "jpeg") == 0)) {
-            uint8_t workb[TJPGD_WORKBUFF_SIZE];
-            JDEC jd;
-            JRESULT rc = jd_prepare(&jd, input_func, workb, TJPGD_WORKBUFF_SIZE, &dsc->file);
+            /* TJPGD wants a 4KB work buffer plus a large JDEC struct (huffman
+               tables). On targets with small task stacks the ~7KB of stack
+               locals used to overflow the stack here (get_info failed on real
+               hardware while the file opened fine), so keep both on the heap. */
+            uint8_t * workb = lv_malloc(TJPGD_WORKBUFF_SIZE);
+            JDEC * jd = lv_malloc(sizeof(JDEC));
+            if(workb == NULL || jd == NULL) {
+                LV_LOG_WARN("tjpgd: out of memory in get_info (%d + %d bytes)",
+                            TJPGD_WORKBUFF_SIZE, (int)sizeof(JDEC));
+                lv_free(workb);
+                lv_free(jd);
+                return LV_RESULT_INVALID;
+            }
+            uint32_t fsize = 0;
+            lv_fs_size(&dsc->file, &fsize);
+            JRESULT rc = jd_prepare(jd, input_func, workb, (size_t)TJPGD_WORKBUFF_SIZE, &dsc->file);
             if(rc) {
-                LV_LOG_WARN("jd_prepare error: %d", rc);
+                LV_LOG_WARN("tjpgd: jd_prepare failed (rc=%d) file=%s size=%" LV_PRId32
+                            " (progressive JPEG or not a real JPEG?)", rc, fn, fsize);
+                lv_free(workb);
+                lv_free(jd);
                 return LV_RESULT_INVALID;
             }
             header->cf = LV_COLOR_FORMAT_RAW;
-            header->w = jd.width;
-            header->h = jd.height;
-            header->stride = jd.width * 3;
-
+            header->w = jd->width;
+            header->h = jd->height;
+            header->stride = jd->width * 3;
+            lv_free(workb);
+            lv_free(jd);
             return LV_RESULT_OK;
         }
     }

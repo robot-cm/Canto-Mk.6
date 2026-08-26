@@ -26,7 +26,7 @@
 /* Macros and Definitions -------------------------------------*/
 #define EOS_BT_LOG_TAG "NetBt"
 
-#define EOS_NET_BT_DEFAULT_NAME "Cyberwatch" /* 设备 BLE 广播名,手机扫描可见 */
+#define EOS_NET_BT_DEFAULT_NAME "Canto Mk.6" /* 设备 BLE 广播名,手机扫描可见 */
 
 /* Variables --------------------------------------------------*/
 typedef struct

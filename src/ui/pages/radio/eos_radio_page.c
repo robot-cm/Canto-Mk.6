@@ -171,6 +171,8 @@ eos_radio_page_t *eos_radio_page_create(const char *title)
     EOS_CHECK_PTR_RETURN_VAL(a, NULL);
     eos_activity_set_title(a, title);
     eos_activity_set_app_header_visible(a, true);
+    /* 恢复 header 时钟(Settings 系列页面将其隐藏) */
+    eos_app_header_set_clock_visible(true);
     lv_obj_t *view = eos_activity_get_view(a);
 
     lv_obj_t *list = eos_list_create(view);

@@ -257,7 +257,7 @@ static void _invoke_callback(jerry_value_t cb, const char *result, const char *a
     if (!prog)
         return;
 
-    jerry_value_t result_val = jerry_string_sz(result);
+    jerry_value_t result_val = sni_tb_c2js_string(result);
     jerry_value_t ret = spm_call(prog, cb, jerry_undefined(), &result_val, 1);
     jerry_value_free(result_val);
 

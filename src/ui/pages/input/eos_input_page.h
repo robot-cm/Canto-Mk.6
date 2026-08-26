@@ -1,6 +1,6 @@
 /**
  * @file eos_input_page.h
- * @brief Interface for the input page of ElenixOS
+ * @brief Interface for the input page of Canto Mk.6
  */
 
 #ifndef EOS_INPUT_PAGE_H

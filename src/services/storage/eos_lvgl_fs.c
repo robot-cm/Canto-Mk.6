@@ -1,6 +1,6 @@
 /**
  * @file eos_lvgl_fs.c
- * @brief LVGL file system interface implementation using ElenixOS storage service
+ * @brief LVGL file system interface implementation using Canto Mk.6 storage service
  */
 
 #include "eos_lvgl_fs.h"
@@ -22,7 +22,7 @@
 #endif
 
 /**
- * LVGL FS must route to ElenixOS storage backend.
+ * LVGL FS must route to Canto Mk.6 storage backend.
  * Ensure the default driver letter matches EOS driver.
  *
  * Note:
@@ -82,7 +82,9 @@ static void *_drv_open_cb(lv_fs_drv_t *drv, const char *path, lv_fs_mode_t mode)
 
     if (fp == EOS_FILE_INVALID)
     {
-        EOS_LOG_E("Failed to open file: %s", path);
+        /* Normal on first run / missing optional resources: keep as WARN so
+         * genuine errors are not drowned by expected "file absent" noise. */
+        EOS_LOG_W("Failed to open file: %s", path);
         eos_free(handle);
         return NULL;
     }

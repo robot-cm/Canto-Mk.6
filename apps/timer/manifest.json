@@ -1,9 +1,9 @@
 {
   "id": "com.elenix.timer",
   "name": "Timer",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": "EraShaperAVM",
-  "description": "Countdown timer: presets 1M/5M/10M/30M/1H + -30s/-10s/+10s/+30s fine-tune, start/pause/reset, background resume",
+  "description": "Multi countdown: numbered task list, scroll-wheel HR/MIN/SEC picker, start/pause/reset, delete, background alert via Core service",
   "minApiLevel": 0,
   "targetApiLevel": 0,
   "background": true

@@ -3,6 +3,8 @@
 
 用法:
     python3 scripts/icon/webp2c.py [--size 36] bluetooth wifi torch powersave
+    # 抠图(把接近某色的像素转透明, 例如白色背景的 pwd.webp):
+    python3 scripts/icon/webp2c.py --key FFFFFF --key-tol 48 pwd
 输出:
     resources/images/icon/eos_icon_<name>.c
 """
@@ -19,7 +21,18 @@ MAGIC = 0x19          # LV_IMAGE_HEADER_MAGIC
 CF_ARGB8888 = 0x10    # LV_COLOR_FORMAT_ARGB8888
 
 
-def gen_c(src: Path, name: str, size: int) -> str:
+def key_out(r: int, g: int, b: int, a: int, key: tuple, tol: int) -> int:
+    """把接近 key 颜色的像素 alpha 线性过渡到 0, 边缘平滑无白边。"""
+    kr, kg, kb = key
+    # Chebyshev 距离: 颜色分明的图足够, 且对单个通道噪声不敏感
+    d = max(abs(r - kr), abs(g - kg), abs(b - kb))
+    if d >= tol:
+        return a
+    # d: 0 → 全透明, tol → 保留原 alpha
+    return int(a * d / tol)
+
+
+def gen_c(src: Path, name: str, size: int, key: tuple = None, key_tol: int = 40) -> str:
     im = Image.open(src).convert("RGBA")
     # 缩放到目标尺寸
     if im.size != (size, size):
@@ -30,6 +43,8 @@ def gen_c(src: Path, name: str, size: int) -> str:
     for y in range(size):
         for x in range(size):
             r, g, b, a = pixels[x, y]
+            if key is not None:
+                a = key_out(r, g, b, a, key, key_tol)
             # ARGB8888 小端内存布局: [B, G, R, A]
             data += struct.pack("<I", (a << 24) | (r << 16) | (g << 8) | b)
 
@@ -64,7 +79,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("names", nargs="+")
     ap.add_argument("--size", type=int, default=36)
+    ap.add_argument("--key", default=None,
+                    help="抠图: 把接近该 RGB(如 FFFFFF) 的像素转透明")
+    ap.add_argument("--key-tol", type=int, default=40,
+                    help="抠图容差(0-255), 默认 40")
     args = ap.parse_args()
+
+    key = None
+    if args.key:
+        key = (int(args.key[0:2], 16), int(args.key[2:4], 16), int(args.key[4:6], 16))
 
     for name in args.names:
         src = ROOT / "resources" / "images" / "icon" / f"{name}.webp"
@@ -72,7 +95,8 @@ def main():
             print(f"SKIP {name}: {src} 不存在")
             continue
         out = OUT_DIR / f"eos_icon_{name}.c"
-        out.write_text(gen_c(src, f"eos_icon_{name}", args.size), encoding="utf-8")
+        out.write_text(gen_c(src, f"eos_icon_{name}", args.size, key, args.key_tol),
+                       encoding="utf-8")
         print(f"生成 {out} ({out.stat().st_size} B)")
 
 

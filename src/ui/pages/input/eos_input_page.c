@@ -1,6 +1,6 @@
 /**
  * @file eos_input_page.c
- * @brief Implementation of the input page for ElenixOS
+ * @brief Implementation of the input page for Canto Mk.6
  */
 
 #include "eos_input_page.h"

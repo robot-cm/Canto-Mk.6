@@ -1,6 +1,6 @@
 /**
  * @file sni_api_eos.h
- * @brief ElenixOS API
+ * @brief Canto Mk.6 API
  */
 
 #ifndef SNI_API_EOS_H
@@ -21,12 +21,12 @@ extern "C" {
 /* Public function prototypes --------------------------------*/
 
 /**
- * @brief Initialize ElenixOS API
+ * @brief Initialize Canto Mk.6 API
  */
 void sni_api_eos_init(void);
 
 /**
- * @brief Mount ElenixOS API to specified Realm
+ * @brief Mount Canto Mk.6 API to specified Realm
  * @param realm Target Realm value
  */
 void sni_api_eos_mount(jerry_value_t realm);

@@ -121,11 +121,11 @@ extern "C" {
 
 /* ── 产品标识 ─────────────────────────────────────────── */
 #ifndef ELENIX_WATCH_MARKETING_NAME
-#define ELENIX_WATCH_MARKETING_NAME "Elenix Round"
+#define ELENIX_WATCH_MARKETING_NAME "Canto Mk.6"
 #endif
 
 #ifndef ELENIX_WATCH_MODEL_NUMBER
-#define ELENIX_WATCH_MODEL_NUMBER "ESP32S3-Round-1.28"
+#define ELENIX_WATCH_MODEL_NUMBER "Canto Mk.6 1.28 Round"
 #endif
 
 #ifdef __cplusplus

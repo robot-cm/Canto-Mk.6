@@ -1,6 +1,6 @@
 /**
  * @file sni_api_eos.c
- * @brief ElenixOS API
+ * @brief Canto Mk.6 API
  */
 
 #include "sni_api_eos.h"
@@ -159,13 +159,13 @@ static bool sni_api_eos_config_write_to_file(cJSON *root)
     }
     else
     {
-        eos_free(json_str);
+        cJSON_free(json_str); /* cJSON 分配,勿用 eos_free(会错位解析头导致系统堆崩溃) */
         return false;
     }
 
     ret = (eos_storage_write_file(config_file_path, json_str, strlen(json_str)) == EOS_OK);
 
-    eos_free(json_str);
+    cJSON_free(json_str); /* cJSON 分配,勿用 eos_free */
     return ret;
 }
 
@@ -456,7 +456,7 @@ jerry_value_t sni_api_eos_config_get_str(const jerry_call_info_t *call_info_p,
     item = cJSON_GetObjectItem(root, key);
     if (item && cJSON_IsString(item))
     {
-        ret = jerry_string_sz(item->valuestring);
+        ret = sni_tb_c2js_string(item->valuestring);
     }
 
     cJSON_Delete(root);
@@ -613,7 +613,7 @@ jerry_value_t sni_api_eos_fs_list(const jerry_call_info_t *call_info_p,
         {
             continue;
         }
-        jerry_value_t js_name = jerry_string_sz(name);
+        jerry_value_t js_name = sni_tb_c2js_string(name);
         jerry_object_set_index(arr, idx++, js_name);
         jerry_value_free(js_name);
     }
@@ -794,6 +794,76 @@ jerry_value_t sni_api_eos_fs_read(const jerry_call_info_t *call_info_p,
     return ta;
 }
 
+/* ---- Album: eos.fs.peek(path, offset, len) -> Uint8Array ----
+   只读取文件任意一段(默认从头 64 字节,上限 8KB),用于探测图片魔数/
+   JPEG SOF(progressive)而不用 fs.read 整读大图撑爆 JS 堆。 */
+jerry_value_t sni_api_eos_fs_peek(const jerry_call_info_t *call_info_p,
+                                  const jerry_value_t args_p[],
+                                  const jerry_length_t args_count)
+{
+    char *path = NULL;
+    (void)call_info_p;
+
+    if (args_count < 1 || !jerry_value_is_string(args_p[0]))
+    {
+        return sni_api_throw_error("Usage: fs.peek(path, offset, len)");
+    }
+
+    path = (char *)sni_tb_js2c_string(args_p[0]);
+    if (!path)
+    {
+        return sni_api_throw_error("Failed to convert argument");
+    }
+
+    uint32_t offset = 0, len = 64;
+    if (args_count >= 2 && jerry_value_is_number(args_p[1]))
+        offset = (uint32_t)jerry_value_as_number(args_p[1]);
+    if (args_count >= 3 && jerry_value_is_number(args_p[2]))
+        len = (uint32_t)jerry_value_as_number(args_p[2]);
+    if (len > 8192)
+        len = 8192;
+
+    eos_file_t fp = eos_fs_open_read(path);
+    if (!fp)
+    {
+        eos_free(path);
+        return jerry_undefined();
+    }
+    if (eos_fs_seek(fp, offset) != EOS_OK)
+    {
+        eos_fs_close(fp);
+        eos_free(path);
+        return jerry_undefined();
+    }
+    uint8_t *buf = (uint8_t *)eos_malloc(len);
+    if (!buf)
+    {
+        eos_fs_close(fp);
+        eos_free(path);
+        return jerry_undefined();
+    }
+    int rd = eos_fs_read(fp, buf, len);
+    eos_fs_close(fp);
+    eos_free(path);
+    if (rd <= 0)
+    {
+        eos_free(buf);
+        return jerry_undefined();
+    }
+
+    jerry_value_t ab = jerry_arraybuffer((jerry_length_t)rd);
+    uint8_t *dst = jerry_arraybuffer_data(ab);
+    if (dst)
+    {
+        memcpy(dst, buf, (size_t)rd);
+    }
+    eos_free(buf);
+
+    jerry_value_t ta = jerry_typedarray_with_buffer(JERRY_TYPEDARRAY_UINT8, ab);
+    jerry_value_free(ab);
+    return ta;
+}
+
 /* ---- P0.5 相册: eos.app.openFiles() -> 原生文件管理器 ---- */
 jerry_value_t sni_api_eos_app_open_files(const jerry_call_info_t *call_info_p,
                                          const jerry_value_t args_p[],
@@ -827,7 +897,7 @@ static void _sni_ime_close_cb(const char *text, eos_input_result_t result, void 
     jerry_value_t js_text = jerry_undefined();
     if (text && result == EOS_INPUT_RESULT_OK)
     {
-        js_text = jerry_string_sz(text);
+        js_text = sni_tb_c2js_string(text);
     }
     jerry_value_t args[1] = { js_text };
     jerry_value_t ret = spm_call(ctx->owner_ctx->owner, ctx->js_cb, jerry_undefined(), args, 1);
@@ -1254,7 +1324,7 @@ jerry_value_t sni_api_eos_activity_get_title(const jerry_call_info_t *call_info_
         return jerry_undefined();
     }
 
-    return jerry_string_sz(title);
+    return sni_tb_c2js_string(title);
 }
 
 jerry_value_t sni_api_eos_activity_set_title(const jerry_call_info_t *call_info_p,
@@ -1520,6 +1590,7 @@ const sni_method_desc_t eos_class_static_methods_fs[] = {
     {.name = "remove", .handler = sni_api_eos_fs_remove},   /* 相册删除 */
     {.name = "write", .handler = sni_api_eos_fs_write},   /* 笔记/画图 */
     {.name = "read", .handler = sni_api_eos_fs_read},     /* 笔记/画图 */
+    {.name = "peek", .handler = sni_api_eos_fs_peek},     /* 相册探测(不整读) */
     {.name = NULL, .handler = NULL},
 };
 

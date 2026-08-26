@@ -1,6 +1,6 @@
 /**
  * @file eos_ui_framework.h
- * @brief Umbrella header for the ElenixOS adaptive UI Framework.
+ * @brief Umbrella header for the Canto Mk.6 adaptive UI Framework.
  *
  * One include pulls in the whole stack: Display Adaptation, Layout Engine,
  * Physics, Animation, ArcList, Personalization and Liquid Glass. Every App

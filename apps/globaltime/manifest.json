@@ -3,7 +3,7 @@
   "name": "GlobalTime",
   "version": "1.0.0",
   "author": "EraShaperAVM",
-  "description": "GlobalTime: Dot-Matrix Earth + City Time Zones (GlobalTimeEarth Spiritual Port)",
+  "description": "GlobalTime: City Time Zones (6 cities)",
   "minApiLevel": 0,
   "targetApiLevel": 0,
   "background": false

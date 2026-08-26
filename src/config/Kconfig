@@ -6,11 +6,11 @@ menu "Product identity"
 
 config ELENIX_WATCH_MARKETING_NAME
     string "Marketing name"
-    default "Elenix Watch"
+    default "Canto Mk.6"
 
 config ELENIX_WATCH_MODEL_NUMBER
     string "Model number"
-    default "S2508(0)"
+    default "Canto Mk.6 1.28 Round"
 
 endmenu
 

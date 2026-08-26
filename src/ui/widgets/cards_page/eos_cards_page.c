@@ -279,7 +279,12 @@ void eos_cards_page_init(void)
      * framework rebuilds the stack. The underlying register / unregister /
      * de-dup / rebuild machinery is kept fully intact. */
     eos_cards_page_refresh();
-    EOS_LOG_I("Cards page initialized [%p] (no seed cards)", cards_page_instance);
+    /* 按设计移除底部边缘上滑打开卡片页：创建后立即隐藏触摸条，系统任何
+     * 界面（含主界面）都不再显示该边缘条，底部上滑不再触发任何动作。
+     * register_card API 保留，未来若恢复该交互只需去掉此行并让 watchface
+     * 重新调用 show()。 */
+    eos_cards_page_hide();
+    EOS_LOG_I("Cards page initialized [%p] (hidden, up-swipe edge disabled)", cards_page_instance);
 }
 
 eos_cards_page_t *eos_cards_page_get_instance(void)

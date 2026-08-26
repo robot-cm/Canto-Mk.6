@@ -24,6 +24,7 @@
 #include "eos_port.h"
 #include "eos_swipe_panel.h"
 #include "eos_app.h"
+#include "eos_app_list.h" /* eos_sys_app_* / eos_app_launch_immediately() */
 #include "eos_watchface.h"
 #include "eos_theme.h"
 #include "eos_pkg_mgr.h"
@@ -58,6 +59,13 @@
 /* Macros and Definitions -------------------------------------*/
 #define _BRIGHTNESS_SMOOTH_DURATION 200
 #define _SETTINGS_PASSCODE_MAGIC 0x53504D47U
+
+/* Settings 页彩色图标(webp 转换的 ARGB8888 静态图, 见 resources/images/icon) */
+extern const lv_image_dsc_t eos_icon_wifi;
+extern const lv_image_dsc_t eos_icon_bluetooth;
+extern const lv_image_dsc_t eos_icon_wireguard;
+extern const lv_image_dsc_t eos_icon_pwd;
+
 /* Variables --------------------------------------------------*/
 
 /* Function Implementations -----------------------------------*/
@@ -91,6 +99,8 @@ static eos_activity_t *_create_activity_with_header(lang_string_id_t id, lv_obj_
     EOS_CHECK_PTR_RETURN_VAL(view, NULL);
     eos_activity_set_title_id(a, id);
     eos_activity_set_app_header_visible(a, true);
+    /* 右上角时间已在状态栏显示,Settings 系列页面不再重复显示 */
+    eos_app_header_set_clock_visible(false);
     if (out_view)
     {
         *out_view = view;
@@ -963,6 +973,7 @@ static void _settings_perm_entry_clicked_cb(lv_event_t *e)
 
     eos_activity_set_title_id(a, STR_ID_PERM_TITLE);
     eos_activity_set_app_header_visible(a, true);
+    eos_app_header_set_clock_visible(false);
 
     lv_obj_t *list = eos_list_create(view);
 
@@ -1118,6 +1129,7 @@ static void _settings_app_list_btn_cb(lv_event_t *e)
     EOS_CHECK_PTR_RETURN(view);
     eos_activity_set_title(a, pkg.name);
     eos_activity_set_app_header_visible(a, true);
+    eos_app_header_set_clock_visible(false);
 
     lv_obj_t *list = eos_list_create(view);
 
@@ -1203,31 +1215,88 @@ static void _settings_app_list_btn_cb(lv_event_t *e)
     eos_pkg_free(&pkg);
 }
 
+/* Launch a built-in system app (sys.*) directly from the App list. */
+static void _settings_sys_app_btn_cb(lv_event_t *e)
+{
+    const char *app_id = (const char *)lv_event_get_user_data(e);
+    EOS_CHECK_PTR_RETURN(app_id);
+    if (eos_app_launch_immediately(app_id) != EOS_OK)
+    {
+        EOS_LOG_W("Failed to launch system app '%s'", app_id);
+    }
+}
+
 static void _app_btn_create(lv_obj_t *parent, const char *app_id)
 {
+    EOS_CHECK_PTR_RETURN(parent && app_id);
+
+    /* Built-in system apps have no manifest / icon.bin on disk: show the
+     * built-in icon + a friendly name and launch them directly on tap. */
+    for (int si = 0; si < EOS_SYS_APP_LAST; si++)
+    {
+        if (strcmp(app_id, eos_sys_app_id_list[si]) == 0)
+        {
+            const char *sys_name = "App";
+            if (strcmp(app_id, "sys.settings") == 0)
+            {
+                sys_name = "Settings";
+            }
+            else if (strcmp(app_id, "sys.flash_light") == 0)
+            {
+                sys_name = "Flash Light";
+            }
+            lv_obj_t *sys_btn = eos_list_add_button(parent, eos_sys_app_icon_list[si], sys_name);
+            if (sys_btn)
+            {
+                lv_obj_add_event_cb(sys_btn, _settings_sys_app_btn_cb, LV_EVENT_CLICKED,
+                                    (void *)eos_sys_app_id_list[si]);
+            }
+            return;
+        }
+    }
+
     char icon_path[EOS_FS_PATH_MAX];
     snprintf(icon_path, sizeof(icon_path), EOS_APP_INSTALLED_DIR "%s/" EOS_APP_ICON_FILE_NAME, app_id);
     if (!eos_storage_is_file(icon_path))
     {
         memcpy(icon_path, EOS_IMG_APP, sizeof(EOS_IMG_APP));
     }
-    EOS_LOG_D("Icon: %s", icon_path);
 
-    // Get app manifest
+    /* Resolve the display name from the manifest; fall back to the app id so
+     * the row always renders (e.g. unpack failure / missing manifest). */
     char manifest_path[EOS_FS_PATH_MAX];
     snprintf(manifest_path, sizeof(manifest_path), EOS_APP_INSTALLED_DIR "%s/" EOS_APP_MANIFEST_FILE_NAME, app_id);
     script_pkg_t pkg = {0};
-    if (script_engine_get_manifest(manifest_path, &pkg) != EOS_OK)
+    const char *display_name = app_id;
+    if (script_engine_get_manifest(manifest_path, &pkg) == EOS_OK)
     {
-        EOS_LOG_E("Read manifest failed: %s", manifest_path);
+        display_name = pkg.name ? pkg.name : app_id;
+    }
+    else
+    {
+        EOS_LOG_W("Manifest missing, showing app id: %s", app_id);
+    }
+
+    /* Keep our own copy of app_id: the plugin manager list may be freed or
+     * rebuilt (uninstall / rescan) while this button is still alive. */
+    char *stored_id = eos_strdup(app_id);
+    if (!stored_id)
+    {
+        eos_pkg_free(&pkg);
         return;
     }
 
-    EOS_LOG_I("name = %s\n", pkg.name);
-
-    lv_obj_t *btn = eos_list_add_button(parent, icon_path, pkg.name);
-    lv_obj_add_event_cb(btn, _settings_app_list_btn_cb, LV_EVENT_CLICKED, (void *)app_id);
-    eos_app_obj_auto_delete(btn, app_id);
+    lv_obj_t *btn = eos_list_add_button(parent, icon_path, display_name);
+    if (btn)
+    {
+        lv_obj_add_event_cb(btn, _settings_app_list_btn_cb, LV_EVENT_CLICKED, stored_id);
+        lv_obj_add_event_cb(btn, _free_user_data_on_delete_cb, LV_EVENT_DELETE, stored_id);
+        eos_app_obj_auto_delete(btn, stored_id);
+    }
+    else
+    {
+        eos_free(stored_id);
+    }
     eos_pkg_free(&pkg);
 }
 
@@ -1271,11 +1340,16 @@ static void _settings_view_apps(lv_event_t *e)
 
     eos_activity_set_title_id(a, STR_ID_SETTINGS_APPS);
     eos_activity_set_app_header_visible(a, true);
+    eos_app_header_set_clock_visible(false);
 
     lv_obj_t *app_list = eos_list_create(view);
     eos_event_subscribe_ex(EOS_EVENT_APP_INSTALLED, _app_installed_cb, NULL, app_list);
 
     size_t app_list_size = eos_app_get_installed();
+    if (app_list_size == 0)
+    {
+        eos_list_add_comment(app_list, eos_lang_get_text(STR_ID_SETTINGS_APPS_EMPTY));
+    }
     for (size_t i = 0; i < app_list_size; i++)
     {
         _app_btn_create(app_list, eos_app_list_get_id(i));
@@ -1871,6 +1945,7 @@ static void _settings_view_password(lv_event_t *e)
     EOS_CHECK_PTR_RETURN(view);
     eos_activity_set_title_id(a, STR_ID_SETTINGS_PASSWORD);
     eos_activity_set_app_header_visible(a, true);
+    eos_app_header_set_clock_visible(false);
 
     _password_subpage_refs_t *refs = (_password_subpage_refs_t *)eos_malloc_zeroed(sizeof(_password_subpage_refs_t));
     eos_activity_set_user_data(a, refs);
@@ -2070,20 +2145,21 @@ void eos_settings_enter(void)
     EOS_CHECK_PTR_RETURN(view);
     eos_activity_set_title_id(a, STR_ID_SETTINGS);
     eos_activity_set_app_header_visible(a, true);
+    eos_app_header_set_clock_visible(false);
 
     lv_obj_t *settings_list = eos_list_create(view);
 
     lv_obj_t *btn;
     // Wi-Fi settings
-    btn = eos_list_add_round_icon_button_str_id(settings_list, EOS_COLOR_BLUE, RI_WIFI_FILL, STR_ID_SETTINGS_WIFI);
+    btn = eos_list_add_round_icon_button_str_id(settings_list, EOS_COLOR_BLUE, &eos_icon_wifi, STR_ID_SETTINGS_WIFI);
     lv_obj_add_event_cb(btn, _settings_view_wifi, LV_EVENT_CLICKED, NULL);
     // VPN (WireGuard via microlink) settings
-    btn = eos_list_add_round_icon_button(settings_list, EOS_COLOR_GREEN, RI_SHIELD_KEYHOLE_FILL, "VPN");
+    btn = eos_list_add_round_icon_button(settings_list, EOS_COLOR_GREEN, &eos_icon_wireguard, "VPN");
     lv_obj_add_event_cb(btn, _settings_view_vpn, LV_EVENT_CLICKED, NULL);
     // Bluetooth settings
     btn = eos_list_add_round_icon_button_str_id(settings_list,
                                                 EOS_COLOR_BLUE,
-                                                RI_BLUETOOTH_FILL,
+                                                &eos_icon_bluetooth,
                                                 STR_ID_SETTINGS_BLUETOOTH);
     lv_obj_add_event_cb(btn, _settings_view_bluetooth, LV_EVENT_CLICKED, NULL);
     // Display settings
@@ -2095,11 +2171,8 @@ void eos_settings_enter(void)
                                                 RI_NOTIFICATION_2_FILL,
                                                 STR_ID_SETTINGS_NOTIFICATION);
     lv_obj_add_event_cb(btn, _settings_view_notification, LV_EVENT_CLICKED, NULL);
-    // Password settings
-    btn = eos_list_add_round_icon_button_str_id(settings_list,
-                                                EOS_COLOR_TEAL_BLUE,
-                                                RI_LOCK_LINE,
-                                                STR_ID_SETTINGS_PASSWORD);
+    // Password settings (名字统一缩写为 PWD)
+    btn = eos_list_add_round_icon_button(settings_list, EOS_COLOR_TEAL_BLUE, &eos_icon_pwd, "PWD");
     lv_obj_add_event_cb(btn, _settings_view_password, LV_EVENT_CLICKED, NULL);
     // App list
     btn =

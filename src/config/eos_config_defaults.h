@@ -23,11 +23,11 @@
 /* Product identity -------------------------------------------*/
 
 #ifndef ELENIX_WATCH_MARKETING_NAME
-#define ELENIX_WATCH_MARKETING_NAME "Elenix Watch"
+#define ELENIX_WATCH_MARKETING_NAME "Canto Mk.6"
 #endif
 
 #ifndef ELENIX_WATCH_MODEL_NUMBER
-#define ELENIX_WATCH_MODEL_NUMBER "S2508(0)"
+#define ELENIX_WATCH_MODEL_NUMBER "Canto Mk.6 1.28 Round"
 #endif
 
 /* Build / compilation mode -----------------------------------*/
@@ -136,7 +136,7 @@
 #endif
 
 #ifndef EOS_FONT_CFG_SMALL_SIZE
-#define EOS_FONT_CFG_SMALL_SIZE (EOS_FONT_CFG_MEDIUM_SIZE - 4)
+#define EOS_FONT_CFG_SMALL_SIZE (EOS_FONT_CFG_MEDIUM_SIZE - 6) /* 20px:整体小两号,见 eos_font_jbm_20 */
 #endif
 
 #if EOS_FONT_TYPE == EOS_FONT_C_MULTI
@@ -149,11 +149,13 @@
 /* JetBrainsMono-Medium (拉丁/数字/符号, 清晰等宽) + 内置 fallback=source_han_sans_*(中文) */
 #define EOS_FONT_LARGE_NAME eos_font_jbm_30
 #define EOS_FONT_MEDIUM_NAME eos_font_jbm_26
-#define EOS_FONT_SMALL_NAME eos_font_jbm_22
+#define EOS_FONT_SMALL_NAME eos_font_jbm_20
+#define EOS_FONT_EXTRA_SMALL_NAME eos_font_jbm_16
 #else
 #define EOS_FONT_LARGE_NAME lv_font_montserrat_30
 #define EOS_FONT_MEDIUM_NAME lv_font_montserrat_30
 #define EOS_FONT_SMALL_NAME lv_font_montserrat_30
+#define EOS_FONT_EXTRA_SMALL_NAME eos_font_jbm_16
 #endif
 
 #elif EOS_FONT_TYPE == EOS_FONT_TTF
@@ -253,8 +255,10 @@
 
 /* Miscellaneous -----------------------------------------------*/
 
+/* Built-in test app (sys.test). Disabled by default: it is only useful
+ * during development and shows up in app list / launcher. */
 #ifndef EOS_ENABLE_TEST_APP
-#define EOS_ENABLE_TEST_APP 1
+#define EOS_ENABLE_TEST_APP 0
 #endif
 
 /* Logging -----------------------------------------------------*/

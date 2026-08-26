@@ -1,21 +1,27 @@
 cd /home/erashaperavm/下载/ElenixOS-fork/port/esp32s3 && idf.py -p /dev/ttyACM0 build flash monitor
 
 
-
-状态栏无法完整显示，考虑改为三次轮播，电量显示分开
-
-
-
-[Warn] lv_draw_unit_draw_letter: lv_draw_letter: glyph dsc. not found for U+E571
-[Warn] lv_draw_unit_draw_letter: lv_draw_letter: glyph dsc. not found for U+E8BE
-[Warn] lv_draw_unit_draw_letter: lv_draw_letter: glyph dsc. not found for U+EBF2
-[Warn] lv_draw_unit_draw_letter: lv_draw_letter: glyph dsc. not found for U+E7BB
-[Warn] lv_draw_unit_draw_letter: lv_draw_letter: glyph dsc. not found for U+E571
-[Warn] lv_draw_unit_draw_letter: lv_draw_letter: glyph dsc. not found for U+E8BE
+> memlog          → 查看当前状态
+> memlog 10       → 改成每 10 秒报一次
+> memlog off      → 关闭周期报告
 
 
 
-手掌覆盖屏幕熄屏，双击屏幕任意一处亮屏。可以做到吗？
+[INFO] [PowerManager] Timer paused
+[DEBUG] [BasicWidgets] list_clicked: code=1, list=0x3c430db8, target=0x3c4330e0
+[DEBUG] [BasicWidgets] list_clicked: press point=(113,100)
+[DEBUG] [BasicWidgets] list_clicked: target class=lv_button
+[DEBUG] [BasicWidgets] resolve_button: found button at depth 0, obj=0x3c4330e0
+[DEBUG] [BasicWidgets] list_clicked: saving state list=0x3c430db8, button=0x3c4330e0, click_activity=0x3fccf16c
+[INFO] [PowerManager] Timer resumed
+[ERROR] [Image] Image src is NULL
+[DEBUG] [Toast] Toast will show for 2760 ms
+[DEBUG] [BasicWidgets] list_clicked: code=10, list=0x3c430db8, target=0x3c4330e0
+[DEBUG] [BasicWidgets] resolve_button: found button at depth 0, obj=0x3c4330e0
+[DEBUG] [BasicWidgets] list_clicked: saving state list=0x3c430db8, button=0x3c4330e0, click_activity=0x3fccf16c
+wifi 扫描失败（日志如上）
+蓝牙的扫描结果似乎是 mock 的
+而且 wifi 和蓝牙表示 ap 或者蓝牙设备信号强度的数字直接显示到了名称上面，考虑在扫描结果列表每一个 ap 或 蓝牙设备左侧 wifi 或 蓝牙的图标背景根据信号强度划分为：优秀（绿色）、中（黄色）、差（红色）（不明确设计问我）
 
 
 

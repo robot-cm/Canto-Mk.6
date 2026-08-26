@@ -760,7 +760,41 @@ jerry_value_t script_engine_call_raw(jerry_value_t func,
             engine_rt.script_start_time = eos_tick_get();
     }
 
+    /*
+     * Timer/event callbacks (SNI dispatch) run from the LVGL main loop,
+     * OUTSIDE script_engine_run()'s setjmp fatal scope. If the JS heap is
+     * exhausted while a callback runs (e.g. Calendar grid build, code=10
+     * OOM), jerry_port_fatal would find no active scope and abort() the
+     * whole system -> watch reboots. Establish a nested recovery point so
+     * the failure degrades to a skipped callback instead.
+     *
+     * Nested case: if call_raw is invoked from inside engine_run (already
+     * inside a fatal scope), do NOT overwrite the outer setjmp — the fatal
+     * longjmp must propagate to engine_run's recovery block which fully
+     * rebuilds the engine.
+     */
+    bool own_scope = !engine_rt.fatal_scope_active;
+    int fatal_code = 0;
+    if (own_scope)
+    {
+        fatal_code = setjmp(engine_rt.fatal_jmp_buf);
+        if (fatal_code != 0)
+        {
+            /* Recovered: clear flags, restore idle state, skip this callback */
+            engine_rt.fatal_scope_active = false;
+            engine_rt.fatal_recovering = false;
+            if (engine_rt.state == SCRIPT_ENGINE_STATE_RUNNING)
+                _change_state(SCRIPT_ENGINE_STATE_IDLE);
+            EOS_LOG_E("Callback recovered from fatal error (code=%d), skipping callback", fatal_code);
+            return jerry_undefined();
+        }
+        engine_rt.fatal_scope_active = true;
+    }
+
     jerry_value_t result = jerry_call(func, this_val, args_p, args_count);
+
+    if (own_scope)
+        engine_rt.fatal_scope_active = false;
 
     if (jerry_value_is_exception(result))
     {

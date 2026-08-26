@@ -1,6 +1,6 @@
 /**
  * @file eos_port.c
- * @brief ElenixOS porting
+ * @brief Canto Mk.6 porting
  */
 
 #include "eos_port.h"

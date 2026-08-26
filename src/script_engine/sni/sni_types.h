@@ -94,7 +94,7 @@ typedef enum
     SNI_H_LV_STYLE_VALUE,
     SNI_H_LV_SUBJECT,
 
-    /* ElenixOS UI framework bridges (JerryScript-exposed adaptive UI) */
+    /* Canto Mk.6 UI framework bridges (JerryScript-exposed adaptive UI) */
     SNI_H_EOS_UI_PROFILE,   /**< eos_display_profile_t* (malloc'd copy) */
     SNI_H_EOS_UI_HOME,      /**< sni_ui_home_t* (framework home wrapper) */
 

@@ -1,6 +1,6 @@
 /**
  * @file eos_launcher.h
- * @brief ElenixOS adaptive Launcher (root activity)
+ * @brief Canto Mk.6 adaptive Launcher (root activity)
  *
  * The Launcher is now a framework-backed adaptive Home: it renders its app
  * list through the UI framework (ArcList on round, LayoutManager grid on

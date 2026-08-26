@@ -1,6 +1,6 @@
 /**
  * @file eos_shell.c
- * @brief ElenixOS low-level Shell implementation (Core subsystem)
+ * @brief Canto Mk.6 low-level Shell implementation (Core subsystem)
  */
 
 #include "eos_shell.h"
@@ -16,6 +16,7 @@
 #include "eos_config.h"
 #include "eos_log.h"
 #include "eos_mem.h"
+#include "eos_core.h"
 #include "eos_app.h"
 #include "eos_app_list.h"
 #include "eos_service_storage.h"
@@ -36,6 +37,9 @@
 #include "framework/watchface/eos_watchface.h"
 #include "eos_service_display.h"
 #include "lvgl.h"
+#ifdef EOS_PLATFORM_ESP32
+#include "esp_spiffs.h"   /* cmd_sd: SPIFFS 兜底时的容量统计 */
+#endif
 
 #define EOS_LOG_TAG "Shell"
 #include "eos_log.h"
@@ -55,6 +59,7 @@ typedef void (*eos_shell_cmd_fn_t)(eos_shell_output_cb_t out, void *user,
 static void cmd_help(eos_shell_output_cb_t out, void *user, int argc, char **argv);
 static void cmd_version(eos_shell_output_cb_t out, void *user, int argc, char **argv);
 static void cmd_mem(eos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_memlog(eos_shell_output_cb_t out, void *user, int argc, char **argv);
 static void cmd_psram(eos_shell_output_cb_t out, void *user, int argc, char **argv);
 static void cmd_flash(eos_shell_output_cb_t out, void *user, int argc, char **argv);
 static void cmd_sd(eos_shell_output_cb_t out, void *user, int argc, char **argv);
@@ -109,6 +114,7 @@ static const eos_shell_cmd_t s_cmds[] =
     {"ver",     "alias of version",                        cmd_version},
     {"mem",     "show memory usage",                       cmd_mem},
     {"heap",    "alias of mem",                            cmd_mem},
+    {"memlog",  "memlog [<sec>|off]  periodic mem report", cmd_memlog},
     {"psram",   "show PSRAM usage",                        cmd_psram},
     {"flash",   "show flash layout",                       cmd_flash},
     {"sd",      "show SD / storage status",                cmd_sd},
@@ -195,6 +201,45 @@ static void cmd_psram(eos_shell_output_cb_t out, void *user, int argc, char **ar
     sh_out(out, user, "  page data and plugin runtime objects.");
 }
 
+static void cmd_memlog(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+{
+#if EOS_SIMULATOR
+    (void)argc;
+    (void)argv;
+    sh_out(out, user, "[memlog] periodic memory report is only available on real ESP32-S3");
+    sh_out(out, user, "  (the desktop simulator has no heap_caps backend)");
+#else
+    if (argc >= 2)
+    {
+        if (strcmp(argv[1], "off") == 0 || strcmp(argv[1], "0") == 0)
+        {
+            eos_mem_report_set_interval(0);
+            sh_out(out, user, "[memlog] periodic memory report disabled");
+            return;
+        }
+        char *end = NULL;
+        long sec = strtol(argv[1], &end, 10);
+        if (end == argv[1] || *end != '\0' || sec <= 0 || sec > 3600)
+        {
+            sh_out(out, user, "usage: memlog <seconds>   (1-3600, or 'off' to disable)");
+            return;
+        }
+        eos_mem_report_set_interval((uint32_t)sec);
+        sh_out(out, user, "[memlog] report every %lds (see serial monitor: [MemReport])", sec);
+        return;
+    }
+    uint32_t cur = eos_mem_report_get_interval();
+    if (cur == 0)
+        sh_out(out, user, "[memlog] periodic memory report: disabled");
+    else
+    {
+        sh_out(out, user, "[memlog] periodic memory report: enabled");
+        sh_out(out, user, "  interval: %us (see serial monitor: [MemReport])", (unsigned)cur);
+    }
+    sh_out(out, user, "  usage: memlog <seconds> | memlog off");
+#endif
+}
+
 static void cmd_flash(eos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     (void)argc;
@@ -210,9 +255,30 @@ static void cmd_sd(eos_shell_output_cb_t out, void *user, int argc, char **argv)
     bool mounted = eos_storage_is_dir(EOS_SYS_ROOT_DIR);
     sh_out(out, user, "[sd] storage root: %s", EOS_SYS_ROOT_DIR);
     sh_out(out, user, "  mounted : %s", mounted ? "yes" : "no");
+#ifdef EOS_PLATFORM_ESP32
+    {
+        /* 真机:SDSPI 真 SD 优先挂载,无卡回退 SPIFFS(见 port/esp32s3/main.c) */
+        bool spiffs_fallback = esp_spiffs_mounted("spiffs");
+        sh_out(out, user, "  fs      : %s", spiffs_fallback ? "SPIFFS (fallback, no SD)"
+                                                           : "SD/FAT (real microSD)");
+        if (spiffs_fallback)
+        {
+            size_t total = 0, used = 0;
+            esp_spiffs_info("spiffs", &total, &used);
+            sh_out(out, user, "  capacity: %u KB", (unsigned)(total / 1024));
+            sh_out(out, user, "  free    : %u KB", (unsigned)((total - used) / 1024));
+        }
+        else
+        {
+            sh_out(out, user, "  capacity: see boot log (SD card info printed on mount)");
+        }
+    }
+#else
     sh_out(out, user, "  fs      : %s", "host/POSIX (simulator)");
     sh_out(out, user, "  capacity/free: N/A on simulator");
+#endif
     sh_out(out, user, "  app dir : %s", EOS_APP_INSTALLED_DIR);
+    sh_out(out, user, "  eapk src: /sdcard/apps (scanned at boot, auto install)");
 }
 
 static const char *_time_source_name(eos_time_source_t s)

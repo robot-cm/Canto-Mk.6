@@ -5,7 +5,7 @@
  *
  * # Animation System
  *
- * An animation library wrapped based on LVGL animation, providing unified and easy-to-use animation interfaces for ElenixOS.
+ * An animation library wrapped based on LVGL animation, providing unified and easy-to-use animation interfaces for Canto Mk.6.
  * This library summarizes common animation effects and standardizes them, representing them with the enum type `eos_anim`,
  * facilitating consistent creation and usage of standard animations throughout the system.
  *
@@ -97,7 +97,7 @@ typedef struct eos_anim_t eos_anim_t; // Forward declaration
  */
 typedef void (*eos_anim_cb_t)(eos_anim_t *a);
 /**
- * @brief ElenixOS animation object structure
+ * @brief Canto Mk.6 animation object structure
  */
 struct eos_anim_t
 {

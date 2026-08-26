@@ -21,12 +21,30 @@
 /* Macros and Definitions -------------------------------------*/
 #define DEBUG_DISABLE_TIMER 1 /**< [Debug] Whether to disable the timer */
 #define _DEFAULT_TIMEOUT_SEC 15
+
+/* ---- 触摸手势:手掌覆盖(长按静止)熄屏 / 双击亮屏 ----
+ * CHSC6X 触摸芯片只有单点坐标、无手势寄存器,故:
+ *   - "手掌覆盖"近似为"按住 ≥ PM_PALM_HOLD_MS 且位移 ≤ PM_PALM_SLOP_PX"
+ *     (手掌整个贴上时触摸点持续存在、几乎不动,与手指长按数据无法区分);
+ *   - "双击"为纯软件检测:非亮屏状态下 400ms 内两次 PRESSED。
+ * 注意:与 watchface 的 400ms 长按(打开表盘列表)共存——手掌覆盖 0.4s 会
+ * 先弹出表盘列表,2.5s 后才熄屏;若不想看到列表弹出,可改用下滑手势熄屏。 */
+#define PM_PALM_HOLD_MS  (2500)
+#define PM_PALM_SLOP_PX  (15)
+#define PM_DOUBLE_TAP_MS (400)
+
 /* Variables --------------------------------------------------*/
 static lv_timer_t *t; /**< Sleep timer, triggers sleep mode after timeout */
 static eos_pm_state_t pm_state = EOS_PM_DISPLAY_ON;
 static bool aod_mode = true;
 static lv_obj_t *_ds_mask = NULL;  /**< Deep-sleep black full-screen mask (simulator) */
 static lv_timer_t *_ds_timer = NULL; /**< Auto-wake timer for deep sleep */
+/* 手势跟踪状态 */
+static uint32_t s_press_tick_ms = 0; /**< 本次按压开始时刻(lv_tick_get) */
+static lv_point_t s_press_pt = {0, 0}; /**< 本次按压起点坐标 */
+static bool s_pressing = false;       /**< 手指当前是否按着 */
+static bool s_tap_armed = false;      /**< 已记下第一次点击,等待第二次(双击) */
+static uint32_t s_tap_first_ms = 0;   /**< 第一次点击时刻 */
 /* Function Implementations -----------------------------------*/
 void eos_pm_reset_timer(void);
 
@@ -106,7 +124,8 @@ static void _pm_set_state(eos_pm_state_t state)
                 lv_timer_resume(t);
             break;
         case EOS_PM_SLEEP:
-            lv_timer_pause(t);
+            if (t)
+                lv_timer_pause(t);
             eos_event_post(EOS_EVENT_SYSTEM_SLEEP, NULL, NULL);
 #if EOS_DFW_ENABLE
             eos_dfw_sync();
@@ -114,7 +133,8 @@ static void _pm_set_state(eos_pm_state_t state)
             dev->ops->set_power(DEV_POWER_STATE_SLEEP);
             break;
         case EOS_PM_DISPLAY_AOD:
-            lv_timer_pause(t);
+            if (t)
+                lv_timer_pause(t);
             eos_event_post(EOS_EVENT_SYSTEM_DISPLAY_AOD, NULL, NULL);
             dev->ops->set_power(DEV_POWER_STATE_AOD);
             break;
@@ -203,25 +223,77 @@ void eos_pm_reset_timer(void)
         lv_timer_reset(t);
 }
 
+/* 手指按下:记录按压起点;非亮屏状态下检测双击亮屏 */
 static void _indev_pressed_cb(lv_event_t *e)
 {
     EOS_LOG_I("Timer paused");
+
+    lv_indev_t *indev = lv_event_get_indev(e);
+    if (indev)
+        lv_indev_get_point(indev, &s_press_pt);
+    s_press_tick_ms = lv_tick_get();
+    s_pressing = true;
+
     /* Any touch wakes the device from deep sleep. */
     if (pm_state == EOS_PM_DEEP_SLEEP)
     {
         eos_pm_wake_up();
         return;
     }
-    if (t && pm_state == EOS_PM_DISPLAY_ON)
+
+    /* AOD/SLEEP 状态:双击任意处亮屏(两次 PRESSED 间隔 < 400ms)。 */
+    if (pm_state != EOS_PM_DISPLAY_ON)
+    {
+        uint32_t now = lv_tick_get();
+        if (s_tap_armed && (now - s_tap_first_ms) < PM_DOUBLE_TAP_MS)
+        {
+            s_tap_armed = false;
+            EOS_LOG_I("Double tap -> wake up");
+            eos_pm_wake_up();
+        }
+        else
+        {
+            s_tap_first_ms = now;
+            s_tap_armed = true;
+        }
+        return;
+    }
+
+    if (t)
     {
         lv_timer_pause(t);
         lv_timer_reset(t);
     }
 }
 
+/* 手指按住中:亮屏状态下,按住 ≥ 2.5s 且几乎不动 → 判定"手掌覆盖",熄屏 */
+static void _indev_pressing_cb(lv_event_t *e)
+{
+    if (pm_state != EOS_PM_DISPLAY_ON || !s_pressing)
+        return;
+
+    if ((lv_tick_get() - s_press_tick_ms) < PM_PALM_HOLD_MS)
+        return;
+
+    lv_indev_t *indev = lv_event_get_indev(e);
+    if (!indev)
+        return;
+    lv_point_t p;
+    lv_indev_get_point(indev, &p);
+    if (LV_ABS(p.x - s_press_pt.x) > PM_PALM_SLOP_PX ||
+        LV_ABS(p.y - s_press_pt.y) > PM_PALM_SLOP_PX)
+        return;
+
+    s_pressing = false; /* 防重复触发 */
+    EOS_LOG_I("Palm-cover detected (stationary hold %u ms) -> sleep",
+              (unsigned)PM_PALM_HOLD_MS);
+    eos_pm_request_sleep();
+}
+
 static void _indev_released_cb(lv_event_t *e)
 {
     EOS_LOG_I("Timer resumed");
+    s_pressing = false;
     if (t && pm_state == EOS_PM_DISPLAY_ON)
     {
         lv_timer_resume(t);
@@ -247,6 +319,7 @@ void eos_service_pm_init(void)
     if (touch)
     {
         lv_indev_add_event_cb(touch, _indev_pressed_cb, LV_EVENT_PRESSED, NULL);
+        lv_indev_add_event_cb(touch, _indev_pressing_cb, LV_EVENT_PRESSING, NULL);
         lv_indev_add_event_cb(touch, _indev_released_cb, LV_EVENT_RELEASED, NULL);
     }
     else

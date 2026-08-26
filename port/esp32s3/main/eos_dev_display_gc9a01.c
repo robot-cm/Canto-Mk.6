@@ -1,20 +1,20 @@
 /**
  * @file eos_dev_display_gc9a01.c
- * @brief GC9A01 LCD 驱动(ElenixOS 设备 HAL + LVGL 端口)— 裸 SPI master 实现
+ * @brief GC9A01 LCD 驱动(Canto Mk.6 设备 HAL + LVGL 端口)— 裸 SPI master 实现
  *
  * 位置:port/esp32s3/main/(板级专属,非 Core)。Core HAL 接口在
  * src/devices/display/eos_dev_display.h(平台无关)。
  *
  * 移植背景(2026-08-23):
  *   原实现基于 ESP-IDF esp_lcd_panel_gc9a01 组件 + bit-bang 诊断,真机黑屏;
- *   而项目根目录 ElenixOS-main(上游)在真机显示正常。经对比:
+ *   而项目根目录 Canto Mk.6-main(上游)在真机显示正常。经对比:
  *     - 引脚定义完全相同(MOSI=9/SCLK=7/CS=2/DC=4/BL=43)
  *     - 差异在驱动实现:esp_lcd 组件 vs 裸 spi_master + 自研完整 init 序列
- *   故本文件整体重写为裸 spi_master 实现,逐字节照搬 ElenixOS-main 已验证代码:
+ *   故本文件整体重写为裸 spi_master 实现,逐字节照搬 Canto Mk.6-main 已验证代码:
  *     - 总线:SPI mode 0, 26MHz, 硬件 CS, 写入专用
  *     - init:完整 GC9A01 序列(软复位,0x11/0x29)
  *     - RST:不接硬件引脚。GPIO3 = SD CS,绝不能占用做 RST;
- *           GC9A01 走软件复位(ElenixOS-main 注释"uses software reset only")
+ *           GC9A01 走软件复位(Canto Mk.6-main 注释"uses software reset only")
  *     - 颜色字节序:配合 lv_conf.h 的 LV_COLOR_16_SWAP=1(GC9A01 大端 RGB565)
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -56,7 +56,9 @@
 /* ElenixOS-main 真机验证的 SPI 参数 */
 #define DISPLAY_SPI_CLK_HZ (26 * 1000 * 1000)
 #define DISPLAY_SPI_MODE   0
-#define DISPLAY_MAX_XFER   48000                   /* partial buffer 传输 */
+#define DISPLAY_MAX_XFER   24000                   /* partial buffer 传输(实际最大 flush 19200B;
+                                                       此前 48000 使 spi_master 占用 2×48KB 内部
+                                                       DMA 缓冲,加剧内部 RAM 碎片化导致 SD 写失败) */
 
 /* 背光 LEDC(ElenixOS-main 参数:5kHz, 10bit) */
 #define BL_LEDC_TIMER     LEDC_TIMER_1

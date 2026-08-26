@@ -1,4 +1,4 @@
-// ElenixOS Album - recursive browser of /sdcard/album (240x240 round, English)
+// Canto Mk.6 Album - recursive browser of /sdcard/album (240x240 round, English)
 //
 // - Recursive scan (depth <= 4, max 200 files), filter png/jpg/jpeg/bmp,
 //   sorted by full path (i.e. by name within the album tree).
@@ -157,6 +157,42 @@ function scanDir(dir, depth, out) {
     }
 }
 
+/* ---------------- image probing (magic + JPEG SOF) ---------------- */
+/* Reads only the file head via fs.peek (never the whole file) and classifies:
+   real format by magic number, and baseline vs progressive JPEG by SOF. */
+function probeImage(path) {
+    var b;
+    try { b = eos.fs.peek(path, 0, 8192); } catch (e) { return { ok: false, reason: "Probe error" }; }
+    if (!b || b.length < 4) return { ok: false, reason: "Unreadable" };
+    if (b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) {
+        /* JPEG: walk the segment table to find SOF0/1 (baseline) or SOF2 (progressive) */
+        var prog = false, sof = false, i = 2;
+        while (i + 3 < b.length) {
+            if (b[i] !== 0xFF) { i++; continue; }
+            var m = b[i + 1];
+            if (m === 0xFF) { i += 2; continue; }            /* fill byte */
+            if (m === 0xD8 || m === 0x01) { i += 2; continue; }  /* SOI / TEM */
+            if (m >= 0xD0 && m <= 0xD7) { i += 2; continue; }    /* RSTn */
+            if (m === 0xD9 || m === 0xDA) break;                 /* EOI / SOS */
+            if (m === 0xC0 || m === 0xC1 || m === 0xC2) { sof = true; if (m === 0xC2) prog = true; break; }
+            var sl = (b[i + 2] << 8) | b[i + 3];
+            if (sl < 2) break;
+            i += 2 + sl;
+        }
+        return { ok: true, jpeg: true, progressive: prog, hasSOF: sof };
+    }
+    if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) return { ok: true, real: "PNG" };
+    if (b[0] === 0x42 && b[1] === 0x4D) return { ok: true, real: "BMP" };
+    if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return { ok: true, real: "GIF" };
+    if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46) return { ok: true, real: "WebP" };
+    return { ok: false, reason: "Unknown format" };
+}
+
+function hasExt(name, ext) {
+    var l = name.toLowerCase();
+    return l.length > ext.length && l.lastIndexOf(ext) === l.length - ext.length;
+}
+
 function show(i) {
     var n = items.length;
     if (n === 0) {
@@ -181,6 +217,30 @@ function show(i) {
         img.addFlag(lv.OBJ_FLAG_HIDDEN);
         msgLbl.removeFlag(lv.OBJ_FLAG_HIDDEN);
         msgLbl.setText("Too large\n(" + Math.floor(it.size / 1024) + "KB)");
+        return;
+    }
+
+    /* Probe the real format before decoding: a .jpg whose bytes are actually
+       PNG/WebP, or a progressive JPEG, can never be shown by the built-in
+       decoders - report it clearly instead of a bare "Decode failed". */
+    var p = probeImage(it.path);
+    var isJpgName = hasExt(it.name, ".jpg") || hasExt(it.name, ".jpeg");
+    if (p.real && isJpgName) {
+        img.addFlag(lv.OBJ_FLAG_HIDDEN);
+        msgLbl.removeFlag(lv.OBJ_FLAG_HIDDEN);
+        msgLbl.setText("Real " + p.real + "\nrename to ." + p.real.toLowerCase());
+        return;
+    }
+    if (p.jpeg && !isJpgName) {
+        img.addFlag(lv.OBJ_FLAG_HIDDEN);
+        msgLbl.removeFlag(lv.OBJ_FLAG_HIDDEN);
+        msgLbl.setText("Real JPEG\nrename to .jpg");
+        return;
+    }
+    if (p.jpeg && p.progressive) {
+        img.addFlag(lv.OBJ_FLAG_HIDDEN);
+        msgLbl.removeFlag(lv.OBJ_FLAG_HIDDEN);
+        msgLbl.setText("Progressive JPEG\nnot supported");
         return;
     }
 

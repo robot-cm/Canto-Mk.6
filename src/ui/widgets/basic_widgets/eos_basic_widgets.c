@@ -49,7 +49,7 @@
 #define _LIST_TRANSITION_HALF_SCALE 128
 #define _LIST_TRANSITION_NORMAL_SCALE 256
 #define _LIST_TRANSITION_DELAY_PCT 20
-#define _LIST_TRANSITION_MAX_VISIBLE_ITEMS 16
+#define _LIST_TRANSITION_MAX_VISIBLE_ITEMS 8 /* 240x240 屏一屏最多 5-6 行,8 个足够且减少 scale 重绘 */
 #define _LIST_TRANSITION_STATE_HISTORY_CAP 16
 
 /* Variables --------------------------------------------------*/
@@ -61,12 +61,16 @@ typedef struct
     eos_activity_t *activity;
     int32_t button_hidden_x;
     uint32_t sequence;
+    bool scroll_throw_active; /**< 惯性滚动进行中(新 press 停止 throw 后仍保留到该 press 消耗) */
+    bool scroll_guard_armed;  /**< 本次 press 发生在惯性滚动刚停止后,CLICKED 应被忽略 */
 } eos_list_transition_state_t;
 
 static eos_list_transition_state_t *_list_transition_state = NULL;
 static uint32_t _list_transition_sequence = 0U;
 
 static eos_list_transition_state_t *_list_transition_get_state(lv_obj_t *list);
+static void _list_scroll_state_cb(lv_event_t *e);
+static void _list_item_click_guard_cb(lv_event_t *e);
 static void _list_transition_clear_state(void);
 static void _list_transition_record_state(lv_obj_t *list, lv_obj_t *button, eos_activity_t *activity);
 static bool _list_transition_select_state_for_activity(eos_activity_t *expected_activity);
@@ -274,8 +278,31 @@ lv_obj_t *eos_list_create(lv_obj_t *parent)
     }
     lv_obj_add_event_cb(list, _list_transition_list_clicked_cb, LV_EVENT_PRESSED, list);
     lv_obj_add_event_cb(list, _list_transition_list_clicked_cb, LV_EVENT_CLICKED, list);
+    lv_obj_add_event_cb(list, _list_scroll_state_cb, LV_EVENT_SCROLL_THROW_BEGIN, list);
+    lv_obj_add_event_cb(list, _list_scroll_state_cb, LV_EVENT_SCROLL_END, list);
     lv_obj_add_event_cb(list, _list_transition_list_delete_cb, LV_EVENT_DELETE, list);
     return list;
+}
+
+/* 跟踪列表惯性滚动(throw)状态,用于滑动误触消歧:
+ * throw 进行中用户按下想"停住"列表,该 press 会被 LVGL 当作普通点击触发 CLICKED,
+ * 导致误进子页面。press 时刻若 throw_active 为 true,则本次点击直接放行忽略。 */
+static void _list_scroll_state_cb(lv_event_t *e)
+{
+    lv_obj_t *list = lv_event_get_user_data(e);
+    eos_list_transition_state_t *state = _list_transition_get_state(list);
+    if (!state)
+    {
+        return;
+    }
+    if (lv_event_get_code(e) == LV_EVENT_SCROLL_THROW_BEGIN)
+    {
+        state->scroll_throw_active = true;
+    }
+    else if (lv_event_get_code(e) == LV_EVENT_SCROLL_END)
+    {
+        state->scroll_throw_active = false;
+    }
 }
 
 static eos_list_transition_state_t *_list_transition_get_state(lv_obj_t *list)
@@ -428,19 +455,15 @@ static lv_obj_t *_list_transition_resolve_button_target(lv_obj_t *list, lv_obj_t
     }
 
     lv_obj_t *obj = target;
-    int depth = 0;
     while (obj && obj != list)
     {
         if (lv_obj_has_flag(obj, LV_OBJ_FLAG_USER_1))
         {
-            EOS_LOG_D("resolve_button: found button at depth %d, obj=%p", depth, obj);
             return obj;
         }
         obj = lv_obj_get_parent(obj);
-        depth++;
     }
 
-    EOS_LOG_D("resolve_button: no USER_1 flag found, depth=%d", depth);
     return NULL;
 }
 
@@ -454,56 +477,36 @@ static void _list_transition_list_clicked_cb(lv_event_t *e)
         return;
     }
 
-    EOS_LOG_D("list_clicked: code=%d, list=%p, target=%p", code, list, target);
     if (code == LV_EVENT_PRESSED)
     {
-        lv_indev_t *diag_indev = lv_indev_active();
-        if (diag_indev)
+        /* 滑动误触消歧:惯性滚动(throw)进行中按下,LVGL 会停止 throw 并把这次
+         * press 当作普通点击,release 时照常发 CLICKED → 误进子页面。
+         * 这里在 press 时刻武装 guard,条目上的 _list_item_click_guard_cb
+         * 会在 CLICKED 时消耗它并丢弃本次点击。 */
+        eos_list_transition_state_t *state = _list_transition_get_state(list);
+        if (state)
         {
-            lv_point_t diag_pt;
-            lv_indev_get_point(diag_indev, &diag_pt);
-            EOS_LOG_D("list_clicked: press point=(%d,%d)", diag_pt.x, diag_pt.y);
-        }
-        if (target)
-        {
-            const lv_obj_class_t *diag_cls = lv_obj_get_class(target);
-            EOS_LOG_D("list_clicked: target class=%s",
-                      diag_cls ? diag_cls->name : "?");
-            if (list && target == list)
+            if (state->scroll_throw_active)
             {
-                uint32_t diag_i, diag_n = lv_obj_get_child_count(list);
-                EOS_LOG_D("list_clicked: dump %u direct children", diag_n);
-                for (diag_i = 0; diag_i < diag_n; diag_i++)
-                {
-                    lv_obj_t *child = lv_obj_get_child(list, diag_i);
-                    if (!child)
-                    {
-                        continue;
-                    }
-                    lv_area_t diag_a;
-                    lv_obj_get_coords(child, &diag_a);
-                    const lv_obj_class_t *ccls = lv_obj_get_class(child);
-                    EOS_LOG_D("  child[%u] %s (%d,%d,%d,%d) user1=%d clickable=%d hidden=%d",
-                              diag_i,
-                              ccls ? ccls->name : "?",
-                              diag_a.x1, diag_a.y1, diag_a.x2, diag_a.y2,
-                              lv_obj_has_flag(child, LV_OBJ_FLAG_USER_1) ? 1 : 0,
-                              lv_obj_has_flag(child, LV_OBJ_FLAG_CLICKABLE) ? 1 : 0,
-                              lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN) ? 1 : 0);
-                }
+                state->scroll_guard_armed = true;
+                state->scroll_throw_active = false;
+            }
+            else
+            {
+                state->scroll_guard_armed = false;
             }
         }
+        return;
     }
+
     if (!(list && target))
     {
-        EOS_LOG_D("list_clicked: list or target is NULL, skip");
         return;
     }
 
     lv_obj_t *button = _list_transition_resolve_button_target(list, target);
     if (!button)
     {
-        EOS_LOG_D("list_clicked: button is NULL after resolve, skip");
         return;
     }
 
@@ -517,38 +520,24 @@ static void _list_transition_list_clicked_cb(lv_event_t *e)
     }
     if (!click_activity)
     {
-        EOS_LOG_D("list_clicked: previous/current activity is NULL, fallback to visible_activity");
         click_activity = eos_activity_get_visible();
     }
-    EOS_LOG_D("list_clicked: saving state list=%p, button=%p, click_activity=%p", list, button, click_activity);
     _list_transition_record_state(list, button, click_activity);
 }
 
 bool eos_list_transition_should_animate(eos_activity_t *from, eos_activity_t *to, bool back)
 {
     eos_activity_t *expected_activity = back ? to : from;
-    EOS_LOG_D("should_animate: from=%p, to=%p, back=%d, expected=%p", from, to, back, expected_activity);
-
     if (!expected_activity)
     {
-        EOS_LOG_D("should_animate: FAIL gate 1: expected activity is NULL");
         return false;
     }
 
     if (!_list_transition_select_state_for_activity(expected_activity))
     {
-        EOS_LOG_D("should_animate: FAIL gate 2: no matching list transition state for expected activity");
         return false;
     }
 
-    if (_list_transition_state->activity != expected_activity)
-    {
-        EOS_LOG_D("should_animate: activity mismatch tolerated, saved=%p, expected=%p",
-                  _list_transition_state->activity,
-                  expected_activity);
-    }
-
-    EOS_LOG_D("should_animate: PASS - will animate");
     return true;
 }
 
@@ -978,7 +967,27 @@ lv_obj_t *_list_btn_container_create(lv_obj_t *list)
     /* 230%(2.3x)缩放过大导致滑动残影,降到 1.4x(同按压缩放残影处理) */
     lv_obj_set_style_transform_scale(btn, 140, LV_STATE_PRESSED);
     lv_obj_set_style_bg_color(btn, lv_color_darken(EOS_THEME_SECONDARY_COLOR, 64), LV_STATE_PRESSED);
+    /* 滑动误触消歧:先于页面点击回调注册,惯性滚动刚停止后的 CLICKED 在此拦截 */
+    lv_obj_add_event_cb(btn, _list_item_click_guard_cb, LV_EVENT_CLICKED, NULL);
     return btn;
+}
+
+/* 条目点击守卫:press 时若列表正处于惯性滚动(用户想"停住"列表),
+ * 该 press 的 CLICKED 会被丢弃,避免误进子页面(见 _list_transition_list_clicked_cb) */
+static void _list_item_click_guard_cb(lv_event_t *e)
+{
+    lv_obj_t *item = lv_event_get_current_target(e);
+    if (!item)
+    {
+        return;
+    }
+    lv_obj_t *list = lv_obj_get_parent(item);
+    eos_list_transition_state_t *state = _list_transition_get_state(list);
+    if (state && state->scroll_guard_armed)
+    {
+        state->scroll_guard_armed = false; /* 一次性:消耗本次误触 */
+        lv_event_stop_processing(e);       /* 阻止页面点击回调与冒泡 */
+    }
 }
 
 lv_obj_t *eos_list_add_button(lv_obj_t *list, const void *icon, const char *txt)
@@ -1024,10 +1033,23 @@ lv_obj_t *eos_round_icon_create(lv_obj_t *parent, lv_color_t bg_color, const voi
     lv_obj_set_style_pad_all(round, 0, 0);
     lv_obj_set_style_radius(round, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(round, bg_color, 0);
-    // Draw image
-    lv_obj_t *icon = lv_label_create(round);
-    lv_label_set_text(icon, icon_src);
-    lv_obj_set_style_translate_y(icon, 2, 0);
+
+    lv_obj_t *icon;
+    // 同时支持两类图标源:
+    //   1. 字体图标(传字符/字符串, 如 RI_WIFI_FILL)
+    //   2. webp 转换的彩色图片(传 &eos_icon_xxx, 头部 magic 校验)
+    const lv_image_dsc_t *dsc = (const lv_image_dsc_t *)icon_src;
+    if (icon_src && dsc->header.magic == LV_IMAGE_HEADER_MAGIC)
+    {
+        icon = lv_image_create(round);
+        lv_image_set_src(icon, icon_src);
+    }
+    else
+    {
+        icon = lv_label_create(round);
+        lv_label_set_text(icon, icon_src);
+        lv_obj_set_style_translate_y(icon, 2, 0);
+    }
     lv_obj_center(icon);
 
     lv_obj_add_flag(icon, LV_OBJ_FLAG_EVENT_BUBBLE);

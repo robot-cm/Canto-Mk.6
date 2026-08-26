@@ -1,8 +1,23 @@
-// Timer - countdown timer (240x240 round, all-English)
-// Presets 1M/5M/10M/30M/1H chips + fine-tune -30s/-10s/+10s/+30s (tap, hold to repeat)
-// + START/PAUSE/RESET, HH:MM:SS display.
-// Background resume via eos.config persistence + timestamp diff (same scheme as Stopwatch).
-// Red lines: no arc / no border triple / radius<54 / no flex / anim<=6.
+// Timer - multi-countdown manager (240x240 round, all-English)
+//
+// Home   : numbered task list (3 per page). Tap a row to START / PAUSE /
+//          RESUME / RESET (depends on state), tap "x" to delete.
+// New    : three vertical wheels (HR / MIN / SEC) - scroll to pick, then OK.
+//          The created task gets an id (#N) shown in a toast right away.
+// Background: tasks persist in config.json ("countdown"). A Core service
+//          (eos_service_countdown.c) polls the clock every 1s and relaunches
+//          this app when a RUN task reaches its end timestamp, so a timer
+//          still fires after the app was closed (same scheme as Alarm).
+//
+// Data contract (JS <-> Core service, same config.json):
+//   countdown = [ { id, dur, remain, end, state } ]
+//     id     : auto-increment number (shown as #N)
+//     dur    : total seconds
+//     remain : seconds left (last persisted)
+//     end    : absolute end second (RTC-based) while RUN, else 0
+//     state  : READY | RUN | PAUSE | DONE
+//
+// Red lines: no arc / no border / radius<54 / no flex / anim<=6.
 // EVENT_CLICKED broken in this fork -> use EVENT_PRESSED.
 
 var activity = eos.activity.current();
@@ -12,13 +27,35 @@ eos.activity.setTitle(activity, "Timer");
 function pad2(n) { return (n < 10 ? "0" : "") + n; }
 function hex(v) { return lv.color.hex(v); }
 
-var BG = 0x12121A;
-var ACCENT = 0x4A90D9;
-var PAUSE_C = 0xE5A34D;
-var DONE_C = 0x3FB950;
-var IDLE_C = 0x8A8F98;
-var WHITE = 0xFFFFFF;
+var BG = 0x12121A, WHITE = 0xFFFFFF, GREY = 0x9A9AA8,
+    BLUE = 0x4C8DFF, ORANGE = 0xE5A34D, GREEN = 0x3FB950, RED = 0xE5484D;
 
+/* ---------- time (days-from-civil, matches the Core service) ---------- */
+function dateToSec(y, m, d, h, mi, s) {
+    var yy = y - (m <= 2 ? 1 : 0);
+    var era = Math.floor((yy >= 0 ? yy : yy - 399) / 400);
+    var yoe = yy - era * 400;
+    var mp = m + (m > 2 ? -3 : 9);
+    var doy = Math.floor((153 * mp + 2) / 5) + d - 1;
+    var doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy;
+    return ((era * 146097 + doe - 719468) * 86400) + h * 3600 + mi * 60 + s;
+}
+function nowMs() {
+    var t = eos.time.getNow();
+    return dateToSec(t.year, t.month, t.day, t.hour, t.min, t.sec) * 1000 + (t.ms || 0);
+}
+function nowSec() {
+    var t = eos.time.getNow();
+    return dateToSec(t.year, t.month, t.day, t.hour, t.min, t.sec);
+}
+function fmt(sec) {
+    var h = Math.floor(sec / 3600);
+    var m = Math.floor((sec % 3600) / 60);
+    var s = sec % 60;
+    return pad2(h) + ":" + pad2(m) + ":" + pad2(s);
+}
+
+/* ---------- root ---------- */
 var root = new lv.obj(view);
 root.setSize(240, 240);
 root.setPos(0, 0);
@@ -27,322 +64,464 @@ root.setStyleBgOpa(255, 0);
 root.setStyleBgColor(hex(BG), 0);
 root.setStylePadAll(0, 0);
 root.setStyleBorderWidth(0, 0);
-root.removeFlag(lv.OBJ_FLAG_CLICKABLE);
 root.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+root.removeFlag(lv.OBJ_FLAG_CLICKABLE);
 
-// ===================== status row (dot + text, centered) =====================
-var statusDot = new lv.obj(root);
-statusDot.setSize(8, 8);
-statusDot.setStyleRadius(4, 0);
-statusDot.setStyleBgColor(hex(IDLE_C), 0);
-statusDot.setStyleBgOpa(255, 0);
-statusDot.removeFlag(lv.OBJ_FLAG_CLICKABLE);
-statusDot.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+var homeC = new lv.obj(view);
+homeC.setSize(240, 210); homeC.setPos(0, 30);
+homeC.setStyleBgOpa(0, 0);
+homeC.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+homeC.removeFlag(lv.OBJ_FLAG_CLICKABLE);
 
-var statusTxt = new lv.label(root);
-statusTxt.setStyleTextColor(hex(WHITE), 0);
-statusTxt.setStyleTextOpa(160, 0);
+var editC = new lv.obj(view);
+editC.setSize(240, 210); editC.setPos(0, 30);
+editC.setStyleBgOpa(0, 0);
+editC.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+editC.removeFlag(lv.OBJ_FLAG_CLICKABLE);
+editC.addFlag(lv.OBJ_FLAG_HIDDEN);
 
-function layoutStatusRow() {
-    try { root.updateLayout(); } catch (e) {}
-    var tw = statusTxt.getWidth();
-    var x0 = Math.floor((240 - (8 + 6 + tw)) / 2);
-    statusDot.setPos(x0, 46);
-    statusTxt.setPos(x0 + 14, 36);
-}
+/* toast drawn last -> sits on top of both pages */
+var toastLbl = new lv.label(view);
+toastLbl.setSize(240, 24); toastLbl.setPos(0, 96);
+toastLbl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+toastLbl.setFontSize(13);
+toastLbl.setStyleTextColor(hex(GREEN), 0);
+toastLbl.setStyleTextOpa(240, 0);
+toastLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+toastLbl.addFlag(lv.OBJ_FLAG_HIDDEN);
 
-// ===================== time display =====================
-var timeTxt = new lv.label(root);
-timeTxt.setStyleTextColor(hex(WHITE), 0);
-timeTxt.setStyleTextOpa(250, 0);
-timeTxt.setFontSize(26);
-timeTxt.setStyleTextLetterSpace(2, 0);
-
-function layoutTime() {
-    try { root.updateLayout(); } catch (e) {}
-    var w1 = timeTxt.getWidth();
-    timeTxt.setPos(Math.floor((240 - w1) / 2), 60);
-}
-
-// ===================== preset chips (1M 5M 10M 30M 1H) =====================
-var PRESETS = [60, 300, 600, 1800, 3600];
-var PRESET_TXT = ["1M", "5M", "10M", "30M", "1H"];
-var chips = [];
-for (var ci = 0; ci < 5; ci++) {
-    var b = new lv.button(root);
-    b.setSize(42, 26);
-    b.setPos(7 + ci * 46, 100);
+/* ---------- small button ---------- */
+function smallBtn(parent, x, y, w, h, label, opa, color, cb) {
+    var b = new lv.button(parent);
+    b.setSize(w, h); b.setPos(x, y);
     b.setStyleRadius(999, 0);
-    b.setStyleBgOpa(36, 0);
-    b.setStyleBgColor(hex(WHITE), 0);
+    b.setStyleBgOpa(opa, 0);
+    b.setStyleBgColor(hex(color), 0);
     b.setStylePadAll(0, 0);
     b.setStyleBorderWidth(0, 0);
-    b.setExtClickArea(6);
+    b.setExtClickArea(8);
+    b.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
     var l = new lv.label(b);
-    l.setSize(42, 26);
+    l.setText(label);
     l.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-    l.setFontSize(12);
+    l.setFontSize(10);
     l.setStyleTextColor(hex(WHITE), 0);
-    l.setStyleTextOpa(250, 0);
-    l.setText(PRESET_TXT[ci]);
+    l.setStyleTextOpa(230, 0);
     l.align(lv.ALIGN_CENTER, 0, 0);
     l.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-    chips.push({ btn: b, lbl: l });
-    (function (idx) {
-        b.addEventCb(function () { chipPress(idx); }, lv.EVENT_PRESSED, null);
-    })(ci);
+    b.addEventCb(cb, lv.EVENT_PRESSED, null);
+    return { btn: b, lbl: l };
 }
 
-// ===================== fine-tune row (-30s -10s +10s +30s) =====================
-var MICRO = [[-30, "-30s"], [-10, "-10s"], [10, "+10s"], [30, "+30s"]];
-var microBtns = [];
-for (var mi = 0; mi < 4; mi++) {
-    (function (m0, step) {
-        var b = new lv.button(root);
-        b.setSize(44, 26);
-        b.setPos(26 + m0 * 48, 140);
-        b.setStyleRadius(999, 0);
-        b.setStyleBgOpa(20, 0);
-        b.setStyleBgColor(hex(WHITE), 0);
-        b.setStylePadAll(0, 0);
-        b.setStyleBorderWidth(0, 0);
-        b.setExtClickArea(6);
-        var l = new lv.label(b);
-        l.setSize(44, 26);
+/* ---------- data ---------- */
+var tasks = [];
+var nextId = 1;
+
+function loadTasks() {
+    try {
+        var s = eos.config.getStr("countdown");
+        if (s) { tasks = JSON.parse(s); if (!Array.isArray(tasks)) tasks = []; }
+    } catch (e) { tasks = []; }
+    nextId = 1;
+    var dirty = false;
+    for (var i = 0; i < tasks.length; i++) {
+        var t = tasks[i];
+        if (t.id >= nextId) nextId = t.id + 1;
+        if (!t.dur || t.dur <= 0) t.dur = 1;
+        if (t.state === "RUN") {
+            var r = Math.ceil((t.end * 1000 - nowMs()) / 1000);   /* ms-accurate resume */
+            if (r <= 0) { t.state = "DONE"; t.end = 0; t.remain = 0; dirty = true; }
+            else t.remain = r;
+        }
+        if (typeof t.remain !== "number" || isNaN(t.remain)) t.remain = t.dur;
+    }
+    if (dirty) saveTasks();
+}
+function saveTasks() { try { eos.config.setStr("countdown", JSON.stringify(tasks)); } catch (e) {} }
+
+function stateCol(st) {
+    return st === "RUN" ? BLUE : st === "PAUSE" ? ORANGE : st === "DONE" ? RED : GREY;
+}
+function stateTxt(st) {
+    return st === "RUN" ? "RUNNING" : st === "PAUSE" ? "PAUSED" : st === "DONE" ? "DONE" : "READY";
+}
+function taskRemain(t) {
+    if (t.state === "RUN") return Math.max(0, Math.ceil((t.end * 1000 - nowMs()) / 1000));
+    return t.remain;
+}
+
+/* ---------- toast ---------- */
+var _toastUntil = 0;
+function showToast(s, col) {
+    toastLbl.setText(s);
+    toastLbl.setStyleTextColor(hex(col || GREEN), 0);
+    toastLbl.removeFlag(lv.OBJ_FLAG_HIDDEN);
+    _toastUntil = nowSec() + 2;
+}
+
+/* ================= HOME (task list) ================= */
+var page = 0;
+var rowRefs = [];
+var emptyTtl, emptySub, prevBtn, pageLbl, nextBtn, addBtn;
+
+function buildHome() {
+    emptyTtl = new lv.label(homeC);
+    emptyTtl.setSize(240, 20); emptyTtl.setPos(0, 80);
+    emptyTtl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    emptyTtl.setText("No timers");
+    emptyTtl.setFontSize(16);
+    emptyTtl.setStyleTextColor(hex(WHITE), 0);
+    emptyTtl.setStyleTextOpa(220, 0);
+    emptyTtl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+    emptySub = new lv.label(homeC);
+    emptySub.setSize(240, 16); emptySub.setPos(0, 106);
+    emptySub.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    emptySub.setText("Tap + NEW to add");
+    emptySub.setFontSize(11);
+    emptySub.setStyleTextColor(hex(GREY), 0);
+    emptySub.setStyleTextOpa(150, 0);
+    emptySub.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+    prevBtn = smallBtn(homeC, 56, 168, 24, 24, "<", 40, WHITE,
+        function () { if (page > 0) { page--; paintHome(); } });
+    pageLbl = new lv.label(homeC);
+    pageLbl.setSize(32, 20); pageLbl.setPos(84, 170);
+    pageLbl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    pageLbl.setFontSize(11);
+    pageLbl.setStyleTextColor(hex(WHITE), 0);
+    pageLbl.setStyleTextOpa(170, 0);
+    pageLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+    nextBtn = smallBtn(homeC, 120, 168, 24, 24, ">", 40, WHITE,
+        function () { page++; paintHome(); });
+    addBtn = smallBtn(homeC, 146, 168, 36, 24, "+NEW", 255, BLUE,
+        function () { openNew(); });   // 原 y180 宽 98 完全出圆，内收
+}
+
+function paintHome() {
+    for (var i = 0; i < rowRefs.length; i++) {
+        try { rowRefs[i].row.delete(); } catch (e) {}
+        try { rowRefs[i].delBtn.delete(); } catch (e) {}
+    }
+    rowRefs = [];
+
+    var n = tasks.length;
+    var tp = Math.max(1, Math.ceil(n / 3));
+    if (page >= tp) page = tp - 1;
+    if (page < 0) page = 0;
+
+    if (n === 0) {
+        emptyTtl.removeFlag(lv.OBJ_FLAG_HIDDEN);
+        emptySub.removeFlag(lv.OBJ_FLAG_HIDDEN);
+    } else {
+        emptyTtl.addFlag(lv.OBJ_FLAG_HIDDEN);
+        emptySub.addFlag(lv.OBJ_FLAG_HIDDEN);
+    }
+
+    var start = page * 3;
+    for (var i = 0; i < 3; i++) {
+        var idx = start + i;
+        if (idx >= n) break;
+        var t = tasks[idx];
+        (function (t, i) {
+            var y = 4 + i * 55;
+            var row = new lv.obj(homeC);
+            row.setSize(166, 50); row.setPos(37, y);   // 收窄上移：行1/行3 均进圆内
+            row.setStyleBgOpa(10, 0);
+            row.setStyleBgColor(hex(WHITE), 0);
+            row.setStyleRadius(12, 0);
+            row.setStylePadAll(0, 0);
+            row.setStyleBorderWidth(0, 0);
+            row.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+            row.addEventCb(function () { tapTask(t); }, lv.EVENT_PRESSED, null);
+
+            var numLbl = new lv.label(row);
+            numLbl.setSize(30, 12); numLbl.setPos(10, 4);
+            numLbl.setText("#" + t.id);
+            numLbl.setFontSize(11);
+            numLbl.setStyleTextColor(hex(BLUE), 0);
+            numLbl.setStyleTextOpa(240, 0);
+            numLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+            var timeLbl = new lv.label(row);
+            timeLbl.setSize(150, 24); timeLbl.setPos(10, 16);
+            timeLbl.setFontSize(18);
+            timeLbl.setStyleTextColor(hex(WHITE), 0);
+            timeLbl.setStyleTextOpa(255, 0);
+            timeLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+            var stateLbl = new lv.label(row);
+            stateLbl.setSize(90, 12); stateLbl.setPos(76, 4);
+            stateLbl.setFontSize(9);
+            stateLbl.setStyleTextColor(hex(GREY), 0);
+            stateLbl.setStyleTextOpa(220, 0);
+            stateLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+            /* delete button lives on homeC (outside the row) so taps never bubble */
+            var delBtn = new lv.button(homeC);
+            delBtn.setSize(20, 20); delBtn.setPos(146, y + 14);
+            delBtn.setStyleRadius(10, 0);
+            delBtn.setStyleBgOpa(16, 0);
+            delBtn.setStyleBgColor(hex(WHITE), 0);
+            delBtn.setStylePadAll(0, 0);
+            delBtn.setStyleBorderWidth(0, 0);
+            delBtn.setExtClickArea(8);
+            delBtn.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+            var dl = new lv.label(delBtn);
+            dl.setText("x");
+            dl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+            dl.setFontSize(11);
+            dl.setStyleTextColor(hex(RED), 0);
+            dl.align(lv.ALIGN_CENTER, 0, 0);
+            dl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+            delBtn.addEventCb(function () { delTask(t); }, lv.EVENT_PRESSED, null);
+
+            rowRefs.push({ row: row, delBtn: delBtn, numLbl: numLbl, timeLbl: timeLbl, stateLbl: stateLbl });
+        })(t, i);
+    }
+
+    pageLbl.setText((page + 1) + "/" + tp);
+    prevBtn.btn.setStyleBgOpa(page > 0 ? 40 : 12, 0);
+    prevBtn.lbl.setStyleTextOpa(page > 0 ? 230 : 90, 0);
+    nextBtn.btn.setStyleBgOpa(page < tp - 1 ? 40 : 12, 0);
+    nextBtn.lbl.setStyleTextOpa(page < tp - 1 ? 230 : 90, 0);
+    updateRows();
+}
+
+function updateRows() {
+    var start = page * 3;
+    for (var i = 0; i < rowRefs.length; i++) {
+        var idx = start + i;
+        if (idx >= tasks.length) break;
+        var t = tasks[idx];
+        var r = rowRefs[i];
+        r.numLbl.setText("#" + t.id);
+        r.timeLbl.setText(fmt(taskRemain(t)));
+        r.stateLbl.setText(stateTxt(t.state));
+        r.stateLbl.setStyleTextColor(hex(stateCol(t.state)), 0);
+    }
+}
+
+/* ================= actions ================= */
+function tapTask(t) {
+    if (t.state === "RUN") {
+        t.state = "PAUSE"; t.end = 0;
+    } else if (t.state === "PAUSE" || t.state === "READY") {
+        t.state = "RUN"; t.end = Math.ceil(nowMs() / 1000) + Math.max(1, t.remain);
+    } else {                                   /* DONE -> reset */
+        t.state = "READY"; t.remain = t.dur; t.end = 0;
+    }
+    saveTasks();
+    updateRows();
+}
+
+function delTask(t) {
+    for (var i = 0; i < tasks.length; i++) {
+        if (tasks[i] === t) { tasks.splice(i, 1); break; }
+    }
+    saveTasks();
+    paintHome();
+}
+
+/* ================= NEW (wheel editor) ================= */
+var wheels = [];
+
+function makeWheel(x, count) {
+    var ITEM_H = 32, VIEW_H = 120, CENTER = 60, PAD = 44;
+    var box = new lv.obj(editC);
+    box.setSize(58, VIEW_H); box.setPos(x, 14);   // 宽 66→58：三列收进圆内
+    box.setStyleBgOpa(0, 0);
+    box.setStyleRadius(12, 0);
+    box.setStylePadAll(0, 0);
+    box.setStyleBorderWidth(0, 0);
+    box.addFlag(lv.OBJ_FLAG_SCROLLABLE);
+    box.addFlag(lv.OBJ_FLAG_CLICKABLE);
+    box.setScrollDir(lv.DIR_VER);
+    box.setScrollbarMode(lv.SCROLLBAR_MODE_OFF);
+
+    /* spacer defines the scrollable range (PAD top/bottom keeps ends centered) */
+    var spacer = new lv.obj(box);
+    spacer.setSize(58, PAD + count * ITEM_H + PAD);
+    spacer.setPos(0, 0);
+    spacer.setStyleBgOpa(0, 0);
+    spacer.removeFlag(lv.OBJ_FLAG_CLICKABLE);
+    spacer.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+    /* 7-slot moving window */
+    var labels = [];
+    for (var i = 0; i < 7; i++) {
+        var l = new lv.label(box);
+        l.setSize(58, ITEM_H);
         l.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
         l.setFontSize(12);
         l.setStyleTextColor(hex(WHITE), 0);
-        l.setStyleTextOpa(250, 0);
-        l.setText(MICRO[m0][1]);
-        l.align(lv.ALIGN_CENTER, 0, 0);
+        l.setStyleTextOpa(120, 0);
         l.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-        microBtns.push({ btn: b, lbl: l });
-        var pressed = false;
-        b.addEventCb(function () { pressFx(b); microStep(step); pressed = true; }, lv.EVENT_PRESSED, null);
-        b.addEventCb(function () { pressed = false; }, lv.EVENT_RELEASED, null);
-        b.addEventCb(function () { pressed = false; }, lv.EVENT_PRESS_LOST, null);
-        var ht = new lv.timer(function () { if (pressed) microStep(step); }, 280, null);
-        ht.setRepeatCount(-1);
-    })(mi, MICRO[mi][0]);
-}
-
-// ===================== buttons =====================
-var btnRefs = {};
-function makeBtn(x, label, key) {
-    var b = new lv.button(root);
-    b.setSize(96, 28);
-    b.setPos(x, 180);
-    b.setStyleRadius(999, 0);
-    b.setStyleBgOpa(36, 0);
-    b.setStyleBgColor(hex(WHITE), 0);
-    b.setStylePadAll(0, 0);
-    b.setStyleBorderWidth(0, 0);
-    b.setExtClickArea(6);
-    var l = new lv.label(b);
-    l.setSize(96, 28);
-    l.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-    l.setFontSize(12);
-    l.setStyleTextColor(hex(WHITE), 0);
-    l.setStyleTextOpa(250, 0);
-    l.setText(label);
-    l.align(lv.ALIGN_CENTER, 0, 0);
-    l.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-    b.addEventCb(function () { pressFx(b); btnHandler(key); }, lv.EVENT_PRESSED, null);
-    btnRefs[key] = { btn: b, lbl: l };
-    return b;
-}
-makeBtn(20, "START", "start");
-makeBtn(124, "RESET", "reset");
-
-// ===================== state (background resume: eos.config + timestamp diff) =====================
-function nowSec() {
-    var t = eos.time.getNow();
-    return ((t.year * 372 + t.month * 31 + t.day) * 86400) + (t.hour * 3600 + t.min * 60 + t.sec);
-}
-
-var _svRun = false, _svRemain = 0, _svSec = 0, _svDur = 300, _svIdx = 2, _svMode = "READY";
-try { _svRun = eos.config.getBool("sw.running") === true; } catch (e) {}
-try { _svRemain = eos.config.getNumber("sw.remaining") || 0; } catch (e) {}
-try { _svSec = eos.config.getNumber("sw.sec") || 0; } catch (e) {}
-try { _svDur = eos.config.getNumber("sw.duration") || 300; if (isNaN(_svDur) || _svDur < 1) { _svDur = 300; } } catch (e) {}
-try { _svIdx = eos.config.getNumber("sw.idx"); if (isNaN(_svIdx)) { _svIdx = 2; } else if (_svIdx < -1) { _svIdx = -1; } else if (_svIdx > 4) { _svIdx = 4; } } catch (e) {}
-try { var _m = eos.config.getStr("sw.mode"); if (_m === "RUN" || _m === "PAUSE") { _svMode = _m; } } catch (e) {}
-
-var selIdx = _svIdx;
-var duration = (selIdx >= 0 && selIdx <= 4) ? PRESETS[selIdx] : _svDur;
-var remaining = 0;
-var running = false;
-var mode = "READY";
-
-if (_svMode === "RUN") {
-    running = true; mode = "RUN";
-    remaining = _svRemain - (nowSec() - _svSec);
-    if (remaining <= 0) { remaining = 0; running = false; mode = "DONE"; }
-} else if (_svMode === "PAUSE") {
-    remaining = _svRemain;
-    mode = "PAUSE";
-} else {
-    remaining = duration;
-    mode = "READY";
-}
-
-function saveState() {
-    try { eos.config.setBool("app.background", running); } catch (e) {}
-    try {
-        eos.config.setNumber("sw.duration", duration);
-        eos.config.setNumber("sw.remaining", remaining);
-        eos.config.setBool("sw.running", running);
-        eos.config.setNumber("sw.sec", nowSec());
-        eos.config.setNumber("sw.idx", selIdx);
-        eos.config.setStr("sw.mode", mode);
-    } catch (e) {}
-}
-
-// ===================== UI update =====================
-function fmt(sec) {
-    var h = Math.floor(sec / 3600);
-    var m = Math.floor((sec % 3600) / 60);
-    var s = sec % 60;
-    return pad2(h) + ":" + pad2(m) + ":" + pad2(s);
-}
-
-function update() {
-    timeTxt.setText(fmt(remaining));
-    layoutTime();
-}
-
-function paintChips() {
-    for (var i = 0; i < 5; i++) {
-        var on = (i === selIdx);
-        chips[i].btn.setStyleBgOpa(on ? 200 : 36, 0);
-        chips[i].lbl.setStyleTextOpa(mode === "RUN" ? 90 : 250, 0);
+        l.removeFlag(lv.OBJ_FLAG_CLICKABLE);
+        labels.push(l);
     }
-}
 
-function setMode() {
-    var m = mode;
-    var txt = m === "RUN" ? "RUNNING" : m === "PAUSE" ? "PAUSED" : m === "DONE" ? "DONE" : "READY";
-    statusTxt.setText(txt);
-    layoutStatusRow();
-    var col = m === "RUN" ? ACCENT : m === "PAUSE" ? PAUSE_C : m === "DONE" ? DONE_C : IDLE_C;
-    statusDot.setStyleBgColor(hex(col), 0);
-    statusDot.setStyleBgOpa(255, 0);
-    if (m === "RUN" || m === "DONE") setBreath(true);
-    else setBreath(false);
-    btnRefs.start.lbl.setText(m === "RUN" ? "PAUSE" : "START");
-    paintChips();
-    paintMicro();
-}
+    var maxScroll = PAD + count * ITEM_H + PAD - VIEW_H;
+    var lastN = [-1, -1, -1, -1, -1, -1, -1];
+    var w = { box: box, labels: labels, count: count, value: 0, maxScroll: maxScroll };
 
-function paintMicro() {
-    for (var i = 0; i < microBtns.length; i++) {
-        microBtns[i].lbl.setStyleTextOpa(mode === "RUN" ? 90 : 250, 0);
-    }
-}
-
-function chipPress(idx) {
-    if (mode === "RUN") return;                 // running: presets locked
-    pressFx(chips[idx].btn);
-    selIdx = idx;
-    duration = PRESETS[idx];
-    remaining = duration;
-    running = false;
-    mode = "READY";
-    setMode();
-    update();
-    saveState();
-}
-
-function microStep(step) {
-    if (mode === "RUN") return;                 // running: fine-tune locked
-    if (mode === "PAUSE") {
-        remaining = Math.min(86400, Math.max(1, remaining + step));
-        duration = remaining;                   // keep RESET in sync
-    } else {
-        duration = Math.min(86400, Math.max(1, duration + step));
-        remaining = duration;
-        running = false;
-        mode = "READY";
-    }
-    selIdx = -1;                                // custom unless matching a preset
-    for (var i = 0; i < PRESETS.length; i++) {
-        if (duration === PRESETS[i]) { selIdx = i; break; }
-    }
-    setMode();
-    update();
-    saveState();
-}
-
-function btnHandler(key) {
-    if (key === "start") {
-        if (mode === "RUN") { mode = "PAUSE"; running = false; }
-        else if (mode === "DONE") { mode = "RUN"; running = true; remaining = duration; }
-        else { mode = "RUN"; running = true; }
-    } else if (key === "reset") {
-        running = false; mode = "READY"; remaining = duration;
-    }
-    saveState();
-    setMode();
-    update();
-}
-
-// ===================== effects =====================
-var breathAnim = null;
-function setBreath(on) {
-    if (on && !breathAnim) {
-        var a = new lv.anim();
-        a.init(); a.setVar(statusDot);
-        var dur = (mode === "DONE") ? 250 : 400;
-        a.setValues(80, 255); a.setDuration(dur); a.setPlaybackTime(dur); a.setRepeatCount(65535);
-        a.setPathCb(4);
-        a.setCustomExecCb(function (an, v) {
-            if (running || mode === "DONE") statusDot.setStyleBgOpa(Math.round(v), 0);
-            else statusDot.setStyleBgOpa(255, 0);
-        });
-        breathAnim = a;
-    } else if (!on) {
-        breathAnim = null;
-        statusDot.setStyleBgOpa(255, 0);
-    }
-}
-
-function pressFx(b) {
-    b.setStyleTransformScale(232, 0);
-    var a = new lv.anim();
-    a.init(); a.setVar(b);
-    a.setValues(232, 256); a.setDuration(120);
-    a.setCustomExecCb(function (an, v) { b.setStyleTransformScale(Math.round(v), 0); });
-}
-
-function doneFx() {
-    var a = new lv.anim();
-    a.init(); a.setVar(timeTxt);
-    a.setValues(250, 80); a.setDuration(120); a.setPlaybackTime(120); a.setRepeatCount(5);
-    a.setCustomExecCb(function (an, v) { timeTxt.setStyleTextOpa(Math.round(v), 0); });
-}
-
-// ===================== tick (250ms; decrement every 4th -> 1s) =====================
-var _cnt = 0;
-var tick = new lv.timer(function () {
-    if (running) {
-        _cnt++;
-        if (_cnt % 4 === 0) {
-            remaining--;
-            if (remaining <= 0) {
-                remaining = 0; running = false; mode = "DONE";
-                setMode(); update(); doneFx(); saveState();
-            } else {
-                update();
-                if (remaining % 30 === 0) saveState();   // persist every 30s
+    function paint(s) {
+        var v = Math.round(s / ITEM_H);
+        v = Math.max(0, Math.min(count - 1, v));
+        w.value = v;
+        for (var i = 0; i < 7; i++) {
+            var n = v - 3 + i;
+            var l = labels[i];
+            if (n < 0 || n >= count) {
+                if (lastN[i] !== -1) { l.addFlag(lv.OBJ_FLAG_HIDDEN); lastN[i] = -1; }
+                continue;
+            }
+            l.removeFlag(lv.OBJ_FLAG_HIDDEN);
+            l.setPos(0, PAD + n * ITEM_H);
+            if (lastN[i] !== n) {
+                lastN[i] = n;
+                l.setText(pad2(n));
+                var cen = (i === 3);
+                l.setFontSize(cen ? 20 : 12);
+                l.setStyleTextOpa(cen ? 255 : 120, 0);
             }
         }
     }
-}, 250, null);
-tick.setRepeatCount(-1);
+    function snap() {
+        var s = box.getScrollY();
+        var v = Math.round(s / ITEM_H);
+        v = Math.max(0, Math.min(count - 1, v));
+        var target = Math.max(0, Math.min(maxScroll, v * ITEM_H));
+        box.scrollToY(target, 0);
+        paint(box.getScrollY());
+    }
+    box.addEventCb(function () { paint(box.getScrollY()); }, lv.EVENT_SCROLL, null);
+    box.addEventCb(function () { snap(); }, lv.EVENT_SCROLL_END, null);
 
-// ===================== boot =====================
-setMode();
-update();
-if (mode === "DONE") { doneFx(); }          // finished while in background
-saveState();
-eos.console.log("[stopwatch] countdown v0.1 loaded");
+    w.setValue = function (v) {
+        var target = Math.max(0, Math.min(maxScroll, v * ITEM_H));
+        box.scrollToY(target, 0);
+        paint(box.getScrollY());
+    };
+    paint(0);
+    return w;
+}
+
+function buildEdit() {
+    var cols = [["HR", 24], ["MIN", 24], ["SEC", 24]];
+    var wx = [28, 92, 156];   // 三列整体内移，第三列右缘 214 进圆内（y44 处右界≈213）
+    for (var i = 0; i < 3; i++) {
+        var tl = new lv.label(editC);
+        tl.setSize(58, 12); tl.setPos(wx[i], 0);
+        tl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+        tl.setText(cols[i][0]);
+        tl.setFontSize(9);
+        tl.setStyleTextColor(hex(GREY), 0);
+        tl.setStyleTextOpa(170, 0);
+        tl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+
+        /* center highlight bar (under the wheel) */
+        var bar = new lv.obj(editC);
+        bar.setSize(58, 32); bar.setPos(wx[i], 58);   // 随 VIEW_H 120 中心对齐（box.y+CENTER-ITEM_H/2）
+        bar.setStyleBgOpa(22, 0);
+        bar.setStyleBgColor(hex(WHITE), 0);
+        bar.setStyleRadius(12, 0);
+        bar.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+        bar.removeFlag(lv.OBJ_FLAG_CLICKABLE);
+    }
+    wheels.push(makeWheel(wx[0], 24));     /* hours */
+    wheels.push(makeWheel(wx[1], 60));     /* minutes */
+    wheels.push(makeWheel(wx[2], 60));     /* seconds */
+
+    smallBtn(editC, 36, 142, 68, 26, "CANCEL", 20, WHITE,
+        function () { paintHome(); showHome(); });
+    smallBtn(editC, 138, 142, 68, 26, "OK", 255, BLUE,
+        function () { okNew(); });
+}
+
+function openNew() {
+    wheels[0].setValue(0);   /* 0h */
+    wheels[1].setValue(5);   /* 5m */
+    wheels[2].setValue(0);   /* 0s */
+    showEdit();
+}
+
+function okNew() {
+    var total = wheels[0].value * 3600 + wheels[1].value * 60 + wheels[2].value;
+    if (total <= 0) { showToast("Set a time > 0", RED); return; }
+    var t = { id: nextId++, dur: total, remain: total, end: 0, state: "READY" };
+    tasks.push(t);
+    saveTasks();
+    page = Math.ceil(tasks.length / 3) - 1;
+    paintHome();
+    showHome();
+    showToast("Timer #" + t.id + " created", GREEN);
+}
+
+/* ================= page switching ================= */
+function setTitle(s) { try { eos.activity.setTitle(activity, s); } catch (e) {} }
+function showHome() {
+    homeC.removeFlag(lv.OBJ_FLAG_HIDDEN);
+    editC.addFlag(lv.OBJ_FLAG_HIDDEN);
+    setTitle("Timer");
+    paintHome();
+}
+function showEdit() {
+    homeC.addFlag(lv.OBJ_FLAG_HIDDEN);
+    editC.removeFlag(lv.OBJ_FLAG_HIDDEN);
+    setTitle("New Timer");
+}
+
+/* ================= tick (250ms: <1s keeps C ms-interp continuous) ================= */
+var tickTimer = new lv.timer(function () {
+    var dirty = false, doneId = 0;
+    for (var i = 0; i < tasks.length; i++) {
+        var t = tasks[i];
+        if (t.state !== "RUN") continue;
+        var r = Math.ceil((t.end * 1000 - nowMs()) / 1000);
+        if (r <= 0) {
+            t.state = "DONE"; t.end = 0; t.remain = 0;
+            dirty = true; doneId = t.id;
+        } else {
+            t.remain = r;
+            if (t.remain % 5 === 0) dirty = true;   /* persist every 5s */
+        }
+    }
+    if (doneId) {
+        saveTasks();
+        showToast("Timer #" + doneId + " finished", RED);
+        flashDone(doneId);
+    } else if (dirty) {
+        saveTasks();
+    }
+    updateRows();
+    if (_toastUntil && nowSec() >= _toastUntil) { toastLbl.addFlag(lv.OBJ_FLAG_HIDDEN); _toastUntil = 0; }
+}, 250, null);
+tickTimer.setRepeatCount(-1);
+
+/* brief blink of the just-finished row's time (light touch) */
+function flashDone(doneId) {
+    var start = page * 3;
+    for (var j = 0; j < rowRefs.length; j++) {
+        var idx = start + j;
+        if (idx < tasks.length && tasks[idx].id === doneId) {
+            (function (r) {
+                var a = new lv.anim();
+                a.init(); a.setVar(r.timeLbl);
+                a.setValues(255, 70); a.setDuration(150); a.setPlaybackTime(150); a.setRepeatCount(5);
+                a.setCustomExecCb(function (an, v) {
+                    try { r.timeLbl.setStyleTextOpa(Math.round(v), 0); } catch (e) {}
+                });
+            })(rowRefs[j]);
+            break;
+        }
+    }
+}
+
+/* ---------- boot ---------- */
+loadTasks();
+buildHome();
+buildEdit();
+paintHome();
+showHome();
+eos.console.log("[timer] multi-countdown v0.2 loaded");

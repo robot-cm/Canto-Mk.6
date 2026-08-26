@@ -73,6 +73,13 @@ bool eos_app_header_is_visible(void);
  */
 void eos_app_header_set_back_btn_visible(bool visible);
 /**
+ * @brief Set whether the header clock label is visible.
+ * @param visible true = show clock, false = hide it
+ * @note Settings pages hide the header clock because the status bar
+ *       already shows the time. Other header pages re-enable it.
+ */
+void eos_app_header_set_clock_visible(bool visible);
+/**
  * @brief Attach app header to specified view
  * @param view View to attach
  */

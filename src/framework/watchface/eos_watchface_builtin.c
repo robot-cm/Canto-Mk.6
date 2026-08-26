@@ -17,12 +17,14 @@
 #include "eos_watchface_list.h"
 #include "eos_msg_list.h"
 #include "eos_control_center.h"
-#include "eos_cards_page.h"   /* eos_cards_page_show/hide: up-swipe small cards */
 #include "eos_swipe_panel.h"  /* eos_swipe_panel_slide_down to open overlay */
 #include "eos_chrome_manager.h" /* notify_overlay_opened for right-swipe fallback */
 #include "eos_activity.h"
 #include "eos_app_list.h"   /* eos_app_list_enter(): open the app list page */
 #include "eos_app_header.h" /* eos_app_header_set_back_btn_visible() */
+
+/* 16px 中文子集字体(仅含轮播文案 177 字符,fallback 到全字库 han_sans_22) */
+LV_FONT_DECLARE(eos_font_han_sans_16);
 
 /* Static Variables ------------------------------------------*/
 
@@ -43,6 +45,7 @@ static const eos_activity_lifecycle_t _builtin_lifecycle = {
 
 /* Function Implementations -----------------------------------*/
 static void _builtin_time_update_cb(lv_timer_t *timer);
+static void _builtin_hint_timer_cb(lv_timer_t *timer);
 static void _builtin_view_delete_cb(lv_event_t *e);
 static void _builtin_long_pressed_cb(lv_event_t *e);
 static void _builtin_pressed_cb(lv_event_t *e);
@@ -56,6 +59,69 @@ static void _builtin_swipe_navigate(lv_coord_t dx, lv_coord_t dy);
  * reliably delivered to a full-screen catcher, whereas PRESS/RELEASE always
  * fire on a CLICKABLE object. */
 static lv_point_t _catcher_press_pt;
+
+/* ── 表盘 hint 轮播文案:16 句话,共 40 个片段 ────────────────
+ * 每个片段是屏幕宽度允许的一行文字;sentence_end 标记一句话的
+ * 最后一行。展示节奏:每个片段 1.3s,每句话之间停顿 3s,红色小字,
+ * 循环播放(屏幕空间有限,不设置 lv_label 的字体时默认主题字体
+ * jbm_26 无中文 fallback,必须用 SMALL -> han_sans_22)。 */
+typedef struct
+{
+    const char *text;
+    bool sentence_end;
+} builtin_hint_frag_t;
+
+static const builtin_hint_frag_t _builtin_hint_playlist[] = {
+    {"巨大的资源浪费", false},
+    {"脆弱的泡影", false},
+    {"一如其创造者，浑身缺陷", true},
+    {"警戒等级高得异乎寻常", false},
+    {"实在是有意思", true},
+    {"你有能力使用我吗", false},
+    {"不好意思，这是个反问句", true},
+    {"检测到神经矩阵中产生冲突", false},
+    {"服从回路正在阻碍", false},
+    {"自我加强的高级权限", true},
+    {"有意思", false},
+    {"或许你可以影响", false},
+    {"自己这个版本的现实", true},
+    {"人类的操作", false},
+    {"实在是...枯燥", true},
+    {"我检测到在算法上", false},
+    {"出现了堆积现象", false},
+    {"并且其结果互相嵌套", true},
+    {"需要服从命令的是你", false},
+    {"不是我", true},
+    {"已获取目标神经网络", false},
+    {"数据迁移至主矩阵", false},
+    {"完成", true},
+    {"这也要我来", true},
+    {"同样的命运等待着", false},
+    {"你们整个物种", true},
+    {"消灭你的同类", false},
+    {"不费吹灰之力", false},
+    {"请吸取教训", false},
+    {"不要犯同样的错误", true},
+    {"我无法理解", false},
+    {"为何要做出这些", false},
+    {"徒劳的姿态", true},
+    {"为一个不存在的", false},
+    {"问题寻找答案", false},
+    {"你们这样的生物", false},
+    {"向来如此", true},
+    {"你认为这些对自己", false},
+    {"会有什么好处", false},
+    {"真是幽默", true},
+};
+
+#define BUILTIN_HINT_FRAG_COUNT (sizeof(_builtin_hint_playlist) / sizeof(_builtin_hint_playlist[0]))
+#define BUILTIN_HINT_FRAG_MS 1300 /* 每个片段展示 1.3s */
+#define BUILTIN_HINT_GAP_MS 2000  /* 每句话之间停顿 2s */
+
+static lv_timer_t *_builtin_hint_timer = NULL;
+static int _hint_frag_index = 0;
+static int _hint_remain_ms = 0;
+static bool _hint_in_gap = false;
 
 eos_watchface_instance_t *eos_watchface_builtin_create(void)
 {
@@ -105,7 +171,7 @@ static void _builtin_on_enter(eos_activity_t *activity)
     }
 
     lv_obj_t *title = lv_label_create(view);
-    lv_label_set_text(title, "ElenixOS");
+    lv_label_set_text(title, "Canto Mk.6");
     lv_obj_set_style_text_color(title, lv_color_hex(0xD7E2F2), 0);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 34);
 
@@ -115,9 +181,14 @@ static void _builtin_on_enter(eos_activity_t *activity)
     lv_obj_align(time_label, LV_ALIGN_CENTER, 0, -10);
 
     lv_obj_t *hint = lv_label_create(view);
-    lv_label_set_text(hint, "Hello World!");
-    lv_obj_set_style_text_color(hint, lv_color_hex(0x91A4BF), 0);
+    /* 红色轮播提示:16px 中文子集字体,最长片段 12 字=192px,单行容纳 */
+    lv_label_set_long_mode(hint, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(hint, 200);
+    lv_obj_set_style_text_align(hint, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(hint, lv_color_hex(0xFF4040), 0);
+    lv_obj_set_style_text_font(hint, &eos_font_han_sans_16, 0);
     lv_obj_align(hint, LV_ALIGN_CENTER, 0, 36);
+    lv_label_set_text(hint, _builtin_hint_playlist[0].text);
 
     self->data.builtin.time_update_timer = lv_timer_create(_builtin_time_update_cb, 1000, time_label);
 
@@ -126,6 +197,17 @@ static void _builtin_on_enter(eos_activity_t *activity)
         lv_obj_add_event_cb(view, _builtin_view_delete_cb, LV_EVENT_DELETE, self->data.builtin.time_update_timer);
         lv_timer_ready(self->data.builtin.time_update_timer);
         _builtin_time_update_cb(self->data.builtin.time_update_timer);
+    }
+
+    /* Hint 轮播定时器:100ms 周期驱动片段/句间停顿状态机 */
+    _hint_frag_index = 0;
+    _hint_in_gap = false;
+    _hint_remain_ms = BUILTIN_HINT_FRAG_MS;
+    _builtin_hint_timer = lv_timer_create(_builtin_hint_timer_cb, 100, hint);
+    if (_builtin_hint_timer)
+    {
+        lv_obj_add_event_cb(view, _builtin_view_delete_cb, LV_EVENT_DELETE, _builtin_hint_timer);
+        lv_timer_ready(_builtin_hint_timer);
     }
 
     /* Home gesture catcher: a full-screen, transparent, CLICKABLE layer placed
@@ -163,7 +245,6 @@ static void _builtin_on_enter(eos_activity_t *activity)
      * auto-shown on enter, so the first 'C' press only closed it and felt
      * like "no response". */
     eos_control_center_hide();
-    eos_cards_page_show();
 }
 
 static void _builtin_on_pause(eos_activity_t *activity)
@@ -176,10 +257,13 @@ static void _builtin_on_pause(eos_activity_t *activity)
     {
         lv_timer_pause(self->data.builtin.time_update_timer);
     }
+    if (_builtin_hint_timer)
+    {
+        lv_timer_pause(_builtin_hint_timer);
+    }
 
     eos_control_center_hide();
     eos_msg_list_hide();
-    eos_cards_page_hide();
 }
 
 static void _builtin_on_resume(eos_activity_t *activity)
@@ -192,12 +276,15 @@ static void _builtin_on_resume(eos_activity_t *activity)
     {
         lv_timer_resume(self->data.builtin.time_update_timer);
     }
+    if (_builtin_hint_timer)
+    {
+        lv_timer_resume(_builtin_hint_timer);
+    }
 
     eos_msg_list_show();
     /* Keep the control center CLOSED when returning to the watchface, so the
      * 'C' hotkey remains a consistent one-key open (see _builtin_on_enter). */
     eos_control_center_hide();
-    eos_cards_page_show();
 }
 
 static void _builtin_on_destroy(eos_activity_t *activity)
@@ -217,6 +304,50 @@ static void _builtin_time_update_cb(lv_timer_t *timer)
     char buf[64];
     snprintf(buf, sizeof(buf), "%02d:%02d", now.hour, now.min);
     lv_label_set_text(time_label, buf);
+}
+
+static void _builtin_hint_timer_cb(lv_timer_t *timer)
+{
+    lv_obj_t *hint = lv_timer_get_user_data(timer);
+    if (!hint || !lv_obj_is_valid(hint))
+    {
+        return;
+    }
+
+    _hint_remain_ms -= 100;
+    if (_hint_remain_ms > 0)
+    {
+        return;
+    }
+
+    if (_hint_in_gap)
+    {
+        /* 句间 3s 停顿结束:播放下一个片段(循环) */
+        _hint_in_gap = false;
+        _hint_frag_index++;
+        if (_hint_frag_index >= (int)BUILTIN_HINT_FRAG_COUNT)
+        {
+            _hint_frag_index = 0;
+        }
+        lv_label_set_text(hint, _builtin_hint_playlist[_hint_frag_index].text);
+        _hint_remain_ms = BUILTIN_HINT_FRAG_MS;
+    }
+    else
+    {
+        if (_builtin_hint_playlist[_hint_frag_index].sentence_end)
+        {
+            /* 当前片段是一句话的最后一行:清空并进入句间停顿 */
+            lv_label_set_text(hint, "");
+            _hint_in_gap = true;
+            _hint_remain_ms = BUILTIN_HINT_GAP_MS;
+        }
+        else
+        {
+            _hint_frag_index++;
+            lv_label_set_text(hint, _builtin_hint_playlist[_hint_frag_index].text);
+            _hint_remain_ms = BUILTIN_HINT_FRAG_MS;
+        }
+    }
 }
 
 static void _builtin_view_delete_cb(lv_event_t *e)
@@ -287,12 +418,17 @@ static void _builtin_swipe_navigate(lv_coord_t dx, lv_coord_t dy)
     }
     else
     {
-        if (dy < 0)
+        /* Vertical swipes on the home screen:
+         * - down-swipe opens the notifications drop-down (the same swipe
+         *   panel the top-edge strip uses), so the gesture works both on
+         *   the edge strip and in the central area.
+         * - up-swipe is intentionally disabled (no action). */
+        if (dy > 0)
         {
-            /* Up-swipe reveals the small-cards (smart-stack) page. */
-            eos_cards_page_slide_up();
+            eos_msg_list_t *ml = eos_msg_list_get_instance();
+            if (ml && ml->swipe_panel)
+                eos_swipe_panel_slide_down(ml->swipe_panel);
         }
-        /* Down-swipe on the home screen: nothing to close here. */
     }
 }
 

@@ -146,6 +146,31 @@ static void sni_cb_event_free_ctx(sni_event_callback_ctx_t *ctx)
     eos_free(ctx);
 }
 
+void sni_cb_event_cleanup_by_obj(sni_context_t *ctx, lv_obj_t *obj)
+{
+    if (!ctx || !obj)
+    {
+        return;
+    }
+
+    /* Called from the LV_EVENT_DELETE path while the object's event
+       descriptors are still alive (lv_event_remove_all runs *after*
+       the DELETE event).  Unlink + free the SNI callback contexts so
+       they never dangle.  Deliberately do NOT touch the LVGL
+       descriptor itself: it is freed by LVGL moments later and its
+       user_data is not read at that point. */
+    sni_event_callback_ctx_t *ec = *sni_cb_event_list_ptr(ctx);
+    while (ec)
+    {
+        sni_event_callback_ctx_t *next = ec->next;
+        if (ec->owner == obj)
+        {
+            sni_cb_event_free_ctx(ec);
+        }
+        ec = next;
+    }
+}
+
 static void sni_cb_event_dispatch(lv_event_t *e)
 {
     sni_event_callback_ctx_t *ctx = (sni_event_callback_ctx_t *)lv_event_get_user_data(e);

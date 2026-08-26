@@ -198,6 +198,41 @@ err_after_wifi:
 }
 
 /* ------------------------------------------------------------------ */
+/*  early init (app_main calls before eos_init, internal RAM contiguous) */
+/* ------------------------------------------------------------------ */
+
+/* 提前初始化入口:由 app_main 在 eos_init() 之前、internal RAM 尚连续时调用,
+ * 与 eos_bt_esp32_early_init() 同理——esp_wifi_init 的 static RX buffer 等
+ * 必须 internal DMA 连续内存,系统运行后碎片化(largest 只剩几 KB)时必然
+ * ESP_ERR_NO_MEM。
+ *
+ * 内存门控:internal largest 低于阈值即跳过、保持懒初始化,绝不挤占
+ * eos_init()/LVGL UI 加载所需的 internal 空间。蓝牙 early init 已占用
+ * ~25-30KB,Wi-Fi 再占 ~20-30KB 可能超出预算——宁可不预初始化也不压垮 UI。
+ * 失败/跳过均不致命:s_wifi_inited 保持 false,scan/connect 时仍会重试。 */
+#define EOS_NET_WIFI_EARLY_MIN_LARGEST (40 * 1024)
+
+esp_err_t eos_net_wifi_esp32_early_init(void)
+{
+    if (s_wifi_inited) {
+        return ESP_OK;
+    }
+
+    size_t l_i = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (l_i < EOS_NET_WIFI_EARLY_MIN_LARGEST) {
+        ESP_LOGW(TAG, "early init SKIPPED: internal largest=%u < %u "
+                      "(keep lazy init; UI/RAM budget takes priority)",
+                 (unsigned)l_i, (unsigned)EOS_NET_WIFI_EARLY_MIN_LARGEST);
+        return ESP_ERR_NO_MEM;
+    }
+    ESP_LOGI(TAG, "early init: internal largest=%u, calling esp_wifi_init ...",
+             (unsigned)l_i);
+    esp_err_t ret = eos_net_wifi_esp32_init();
+    ESP_LOGI(TAG, "early init -> %s", esp_err_to_name(ret));
+    return ret;
+}
+
+/* ------------------------------------------------------------------ */
 /*  auth mapping                                                       */
 /* ------------------------------------------------------------------ */
 static eos_wifi_auth_t _map_auth(wifi_auth_mode_t m)

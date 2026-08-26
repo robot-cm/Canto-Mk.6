@@ -54,7 +54,7 @@ extern "C" {
 #define EOS_CONFIG_KEY_VPN_DEVICE_NAME_STR "vpn_device_name"
 #define EOS_CONFIG_KEY_TIMEZONE_OFFSET_MIN_NUMBER "timezone_offset_min"
 /************************** Default values **************************/
-#define EOS_CONFIG_DEFAULT_DEVICE_NAME "Elenix Watch"
+#define EOS_CONFIG_DEFAULT_DEVICE_NAME "Canto Mk.6"
 /* Default language string is determined by EOS_CONFIG_DEFAULT_LANGUAGE in eos_config.h */
 #define EOS_CONFIG_DEFAULT_LANG_STR (EOS_CONFIG_DEFAULT_LANGUAGE == 1 ? "简体中文" : "English")
 #define EOS_CONFIG_DEFAULT_WATCHFACE_ID_STR "cn.sab1e.clock"

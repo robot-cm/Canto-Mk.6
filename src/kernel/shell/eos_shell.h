@@ -1,6 +1,6 @@
 /**
  * @file eos_shell.h
- * @brief ElenixOS low-level Shell (belongs to Core, must not depend on SD/UI)
+ * @brief Canto Mk.6 low-level Shell (belongs to Core, must not depend on SD/UI)
  *
  * The Shell is a Core subsystem. It must remain usable even when the SD card
  * is missing, corrupted, every app has crashed, or the Launcher UI is down.

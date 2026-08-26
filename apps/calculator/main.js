@@ -36,7 +36,7 @@ R.root.setScrollbarMode(0);
 // ===================== display area =====================
 var modeBtn = new lv.button(R.root);
 modeBtn.setSize(60, 20);
-modeBtn.setPos(172, 32);
+modeBtn.setPos(140, 32);
 modeBtn.setStyleRadius(999, 0);
 modeBtn.setStyleBgOpa(26, 0);
 modeBtn.setStyleBgColor(hex(ACCENT), 0);
@@ -56,7 +56,7 @@ modeLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 var exprLabel = new lv.label(R.root);
 exprLabel.setSize(220, 14);
 exprLabel.setPos(12, 54);
-exprLabel.setFontSize(12);
+exprLabel.setFontSize(10);
 exprLabel.setStyleTextColor(GREY, 0);
 exprLabel.setStyleTextOpa(170, 0);
 exprLabel.setStyleTextAlign(lv.TEXT_ALIGN_RIGHT, 0);
@@ -66,7 +66,7 @@ exprLabel.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 var resLabel = new lv.label(R.root);
 resLabel.setSize(220, 30);
 resLabel.setPos(12, 70);
-resLabel.setFontSize(22);
+resLabel.setFontSize(18);
 resLabel.setStyleTextColor(WHITE, 0);
 resLabel.setStyleTextOpa(250, 0);
 resLabel.setStyleTextAlign(lv.TEXT_ALIGN_RIGHT, 0);
@@ -75,8 +75,8 @@ resLabel.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
 // ===================== key grid =====================
 var COLS = 4, ROWS = 6;
-var COL_W = 52, COL_GAP = 3, ROW_H = 19, ROW_GAP = 2;
-var GRID_X = 11, GRID_Y = 104;
+var COL_W = 38, COL_GAP = 3, ROW_H = 21, ROW_GAP = 2;
+var GRID_X = 40, GRID_Y = 90;
 
 var STD = [["C", "DEL", "/", "*"],
            ["7", "8", "9", "-"],
@@ -108,7 +108,7 @@ function makeKey(r, c) {
     var l = new lv.label(b);
     l.setSize(COL_W, ROW_H);
     l.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-    l.setFontSize(12);
+    l.setFontSize(9);
     l.setStyleTextColor(WHITE, 0);
     l.setStyleTextOpa(230, 0);
     l.setText("");
@@ -275,7 +275,7 @@ function render() {
         if (op && !fresh) expr += " " + cur;
     }
     exprLabel.setText(expr);
-    try { resLabel.setFontSize(cur.length > 12 ? 15 : 22); } catch (e) {}
+    try { resLabel.setFontSize(cur.length > 12 ? 13 : 18); } catch (e) {}
 }
 
 function updateGrid() {

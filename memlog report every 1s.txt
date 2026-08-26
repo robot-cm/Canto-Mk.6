@@ -1,0 +1,2758 @@
+[memlog] report every 1s (see serial monitor: [MemReport])
+EOS> EOS> [INFO] [MemReport] internal: free=71547B largest=30720B | psram: free=7515120B largest=7471104B | dma: free=64015B largest=30720B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (59989) Board: ui heartbeat: 11000 ticks, DRAM free=71539
+I (60956) Board: ui heartbeat: 11200 ticks, DRAM free=71539
+I (61956) Board: ui heartbeat: 11400 ticks, DRAM free=71539
+I (62956) Board: ui heartbeat: 11600 ticks, DRAM free=71539
+I (63956) Board: ui heartbeat: 11800 ticks, DRAM free=71539
+[INFO] [MemReport] internal: free=71539B largest=30720B | psram: free=7515120B largest=7471104B | dma: free=64007B largest=30720B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (64989) Board: ui heartbeat: 12000 ticks, DRAM free=71539
+I (65956) Board: ui heartbeat: 12200 ticks, DRAM free=71539
+I (66956) Board: ui heartbeat: 12400 ticks, DRAM free=71551
+I (67956) Board: ui heartbeat: 12600 ticks, DRAM free=71551
+I (68956) Board: ui heartbeat: 12800 ticks, DRAM free=71551
+[INFO] [MemReport] internal: free=71551B largest=30720B | psram: free=7515120B largest=7471104B | dma: free=64019B largest=30720B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (69989) Board: ui heartbeat: 13000 ticks, DRAM free=71559
+I (70956) Board: ui heartbeat: 13200 ticks, DRAM free=71559
+I (71956) Board: ui heartbeat: 13400 ticks, DRAM free=71559
+I (72956) Board: ui heartbeat: 13600 ticks, DRAM free=71567
+I (73956) Board: ui heartbeat: 13800 ticks, DRAM free=71567
+[INFO] [MemReport] internal: free=71567B largest=30720B | psram: free=7515120B largest=7471104B | dma: free=64035B largest=30720B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (74989) Board: ui heartbeat: 14000 ticks, DRAM free=71567
+I (75956) Board: ui heartbeat: 14200 ticks, DRAM free=71567
+I (76956) Board: ui heartbeat: 14400 ticks, DRAM free=71567
+I (77956) Board: ui heartbeat: 14600 ticks, DRAM free=71567
+I (78956) Board: ui heartbeat: 14800 ticks, DRAM free=71567
+[INFO] [MemReport] internal: free=71567B largest=30720B | psram: free=7515120B largest=7471104B | dma: free=64035B largest=30720B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (79989) Board: ui heartbeat: 15000 ticks, DRAM free=71567
+I (80956) Board: ui heartbeat: 15200 ticks, DRAM free=71567
+I (81956) Board: ui heartbeat: 15400 ticks, DRAM free=71567
+I (82956) Board: ui heartbeat: 15600 ticks, DRAM free=71567
+I (83956) Board: ui heartbeat: 15800 ticks, DRAM free=71567
+[INFO] [MemReport] internal: free=71567B largest=30720B | psram: free=7515120B largest=7471104B | dma: free=64035B largest=30720B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (84988) Board: ui heartbeat: 16000 ticks, DRAM free=71567
+I (85956) Board: ui heartbeat: 16200 ticks, DRAM free=71567
+I (86956) Board: ui heartbeat: 16400 ticks, DRAM free=71567
+I (87956) Board: ui heartbeat: 16600 ticks, DRAM free=71551
+I (88956) Board: ui heartbeat: 16800 ticks, DRAM free=71551
+[INFO] [MemReport] internal: free=71551B largest=30720B | psram: free=7515120B largest=7471104B | dma: free=64019B largest=30720B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (89989) Board: ui heartbeat: 17000 ticks, DRAM free=71551
+I (90956) Board: ui heartbeat: 17200 ticks, DRAM free=71551
+I (91956) Board: ui heartbeat: 17400 ticks, DRAM free=71551
+I (92956) Board: ui heartbeat: 17600 ticks, DRAM free=71551
+I (93956) Board: ui heartbeat: 17800 ticks, DRAM free=71551
+[INFO] [MemReport] internal: free=71543B largest=30720B | psram: free=7515120B largest=7471104B | dma: free=64011B largest=30720B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]202
+I (94995) Board: ui heartbeat: 18000 ticks, DRAM free=71543
+I (95956) Board: ui heartbeat: 18200 ticks, DRAM free=71543
+I (96956) Board: ui heartbeat: 18400 ticks, DRAM free=71543
+I (97956) Board: ui heartbeat: 18600 ticks, DRAM free=71543
+I (98956) Board: ui heartbeat: 18800 ticks, DRAM free=71543
+[INFO] [MemReport] internal: free=71543B largest=30720B | psram: free=7515120B largest=7471104B | dma: free=64011B largest=30720B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (99989) Board: ui heartbeat: 19000 ticks, DRAM free=71543
+I (100956) Board: ui heartbeat: 19200 ticks, DRAM free=71567
+I (101956) Board: ui heartbeat: 19400 ticks, DRAM free=71567
+I (102956) Board: ui heartbeat: 19600 ticks, DRAM free=71567
+I (103956) Board: ui heartbeat: 19800 ticks, DRAM free=71567
+[INFO] [MemReport] internal: free=71567B largest=30720B | psram: free=7515120B largest=7471104B | dma: free=64035B largest=30720B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (104988) Board: ui heartbeat: 20000 ticks, DRAM free=71567
+I (105956) Board: ui heartbeat: 20200 ticks, DRAM free=71567
+I (106956) Board: ui heartbeat: 20400 ticks, DRAM free=71567
+I (107956) Board: ui heartbeat: 20600 ticks, DRAM free=71567
+I (108956) Board: ui heartbeat: 20800 ticks, DRAM free=71567
+[INFO] [MemReport] internal: free=71567B largest=30720B | psram: free=7515120B largest=7471104B | dma: free=64035B largest=30720B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (109988) Board: ui heartbeat: 21000 ticks, DRAM free=71567
+I (110956) Board: ui heartbeat: 21200 ticks, DRAM free=71567
+I (111956) Board: ui heartbeat: 21400 ticks, DRAM free=71567
+I (112956) Board: ui heartbeat: 21600 ticks, DRAM free=71567
+I (113956) Board: ui heartbeat: 21800 ticks, DRAM free=71567
+[INFO] [MemReport] internal: free=71567B largest=30720B | psram: free=7515120B largest=7471104B | dma: free=64035B largest=30720B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (114988) Board: ui heartbeat: 22000 ticks, DRAM free=71567
+I (115956) Board: ui heartbeat: 22200 ticks, DRAM free=71539
+I (116956) Board: ui heartbeat: 22400 ticks, DRAM free=71539
+I (117956) Board: ui heartbeat: 22600 ticks, DRAM free=71539
+I (118956) Board: ui heartbeat: 22800 ticks, DRAM free=71539
+[INFO] [MemReport] internal: free=71539B largest=30720B | psram: free=7515120B largest=7471104B | dma: free=64007B largest=30720B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (119989) Board: ui heartbeat: 23000 ticks, DRAM free=71539
+I (120956) Board: ui heartbeat: 23200 ticks, DRAM free=71539
+I (121956) Board: ui heartbeat: 23400 ticks, DRAM free=71539
+I (122956) Board: ui heartbeat: 23600 ticks, DRAM free=71551
+I (123956) Board: ui heartbeat: 23800 ticks, DRAM free=71551
+[INFO] [MemReport] internal: free=71551B largest=30720B | psram: free=7515120B largest=7471104B | dma: free=64019B largest=30720B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (124989) Board: ui heartbeat: 24000 ticks, DRAM free=71551
+I (125956) Board: ui heartbeat: 24200 ticks, DRAM free=71551
+I (126956) Board: ui heartbeat: 24400 ticks, DRAM free=71551
+I (127956) Board: ui heartbeat: 24600 ticks, DRAM free=71551
+I (128956) Board: ui heartbeat: 24800 ticks, DRAM free=71551
+[INFO] [MemReport] internal: free=71551B largest=30720B | psram: free=7515120B largest=7471104B | dma: free=64019B largest=30720B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (129989) Board: ui heartbeat: 25000 ticks, DRAM free=71551
+I (130956) Board: ui heartbeat: 25200 ticks, DRAM free=71551
+I (131956) Board: ui heartbeat: 25400 ticks, DRAM free=71551
+I (132956) Board: ui heartbeat: 25600 ticks, DRAM free=71551
+I (133956) Board: ui heartbeat: 25800 ticks, DRAM free=71551
+[INFO] [MemReport] internal: free=71551B largest=30720B | psram: free=7515120B largest=7471104B | dma: free=64019B largest=30720B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (134988) Board: ui heartbeat: 26000 ticks, DRAM free=71551
+I (135956) Board: ui heartbeat: 26200 ticks, DRAM free=71567
+I (136956) Board: ui heartbeat: 26400 ticks, DRAM free=71567
+I (137956) Board: ui heartbeat: 26600 ticks, DRAM free=71567
+[INFO] [PowerManager] Timer paused
+[DEBUG] [Activity] Indev gesture: dir=1
+[INFO] [PowerManager] Timer resumed
+[DEBUG] [WFBuiltin] home catcher release: dx=-180 dy=30 (right-swipe->control center, left-swipe->app list)
+[ERROR] [SlideWidget] NULL pointer at /home/erashaperavm/下载/ElenixOS-fork/src/ui/widgets/slide_widget/eos_slide_widget.c:424, at function: eos_slide_widget_set_target_obj
+[ERROR] [SlideWidget] NULL pointer at /home/erashaperavm/下载/ElenixOS-fork/src/ui/widgets/slide_widget/eos_slide_widget.c:463, at function: eos_slide_widget_set_threshold
+[ERROR] [SlideWidget] NULL pointer at /home/erashaperavm/下载/ElenixOS-fork/src/ui/widgets/slide_widget/eos_slide_widget.c:442, at function: eos_slide_widget_set_range
+[DEBUG] [SlideWidget] Slide widget created: [0x3fcc7c90]
+target path 0->240
+touch path 0->0
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]32
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]32
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]461
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.alarm/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.alarm/icon.bin
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.album/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.album/icon.bin
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.breach/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.breach/icon.bin
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]26
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.calculator/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.calculator/icon.bin
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]30
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.calendar/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.calendar/icon.bin
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]28
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.globaltime/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.globaltime/icon.bin
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]30
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.stopwatch/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.stopwatch/icon.bin
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]29
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.texthub/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.texthub/icon.bin
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.timer/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.timer/icon.bin
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[INFO] [Activity] Activity enter request: activity=0x3fcc7810[APP_LIST] current=0x3fcf0380[WATCHFACE] visible=0x3fcf0380[WATCHFACE] transition=0
+[INFO] [Stack] Push data[0x3fcc7810]
+[INFO] [Activity] Activity enter pushed to stack: activity=0x3fcc7810[APP_LIST] stack_size=1
+[INFO] [Activity] Activity switch request: next=0x3fcc7810[APP_LIST] returning=0 current=0x3fcf0380[WATCHFACE] visible=0x3fcf0380[WATCHFACE] transition=0
+[INFO] [WFBuiltin] Builtin watchface: pause
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity switch no-transition path: cur=0x3fcf0380[WATCHFACE destroy=0] next=0x3fcc7810[APP_LIST]
+[INFO] [Activity] Activity visible updated: visible=0x3fcc7810[APP_LIST] current=0x3fcc7810[APP_LIST] trans=0
+[INFO] [SlideWidget] Deleting slide widget for target obj 0x3fcc7aa8
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.alarm/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.alarm/icon.bin
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.alarm/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.alarm/icon.bin
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.album/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.album/icon.bin
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.album/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.album/icon.bin
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.breach/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.breach/icon.bin
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.breach/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.breach/icon.bin
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.calculator/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.calculator/icon.bin
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.calculator/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.calculator/icon.bin
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.calendar/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.calendar/icon.bin
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.calendar/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.calendar/icon.bin
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.globaltime/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.globaltime/icon.bin
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.globaltime/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.globaltime/icon.bin
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.stopwatch/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.stopwatch/icon.bin
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.stopwatch/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.stopwatch/icon.bin
+I (139098) Board: ui heartbeat: 26800 ticks, DRAM free=24711
+[INFO] [MemReport] internal: free=24711B largest=7168B | psram: free=7487448B largest=7340032B | dma: free=17179B largest=5888B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (140011) Board: ui heartbeat: 27000 ticks, DRAM free=24711
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]313
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]126
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]41
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]26333
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [AppList] view_size: 240, 240
+[INFO] [Activity] Activity enter request: activity=0x3fcc8c68[APP] current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[INFO] [Stack] Push data[0x3fcc8c68]
+[INFO] [Activity] Activity enter pushed to stack: activity=0x3fcc8c68[APP] stack_size=2
+[INFO] [Activity] Activity switch request: next=0x3fcc8c68[APP] returning=0 current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]126
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]26333
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]41
+[DEBUG] [SNI-Context] CREATE context=0x3fccaed0 (size=260)
+[INFO] [SPM] Starting program 0x3fcca2e8 type=1 id=com.elenix.alarm
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]126
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]26333
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]41
+[DEBUG] [ScriptEngine] ENGINE_RUN: entered fatal_code=0
+[DEBUG] [ScriptEngine] ENGINE_RUN: normal flow start
+[DEBUG] [ScriptEngine] _realm_create: created realm=0x3c51576b
+[DEBUG] [ScriptEngine] _realm_save_and_switch: old_realm=0x3c4f92db, new_realm=0x3c51576b
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3fcc8c68 type=EOS_ACTIVITY(25) idx=8 (count=1)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3fcf6ac0 type=LV_TIMER(17) idx=0 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]15
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]202
+[ERROR] [MemAuto] Free: foreign pointer 0x3c4f80fc magic=0x0002 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3fcf7180 type=LV_EVENT_DSC(34) idx=17 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3fcf7648 type=LV_EVENT_DSC(34) idx=17 (count=2)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3fcf7998 type=LV_EVENT_DSC(34) idx=17 (count=3)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3fcd4148 type=LV_EVENT_DSC(34) idx=17 (count=4)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3fcd44c0 type=LV_EVENT_DSC(34) idx=17 (count=5)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3fcd4838 type=LV_EVENT_DSC(34) idx=17 (count=6)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3fcd4bb0 type=LV_EVENT_DSC(34) idx=17 (count=7)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c595738 type=LV_EVENT_DSC(34) idx=17 (count=8)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c595ac8 type=LV_EVENT_DSC(34) idx=17 (count=9)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c595e40 type=LV_EVENT_DSC(34) idx=17 (count=10)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c5961b8 type=LV_EVENT_DSC(34) idx=17 (count=11)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c596530 type=LV_EVENT_DSC(34) idx=17 (count=12)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c5968a8 type=LV_EVENT_DSC(34) idx=17 (count=13)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c596c20 type=LV_EVENT_DSC(34) idx=17 (count=14)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c596fd0 type=LV_EVENT_DSC(34) idx=17 (count=15)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]13
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c597360 type=LV_EVENT_DSC(34) idx=17 (count=16)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]23
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c5979f8 type=LV_EVENT_DSC(34) idx=17 (count=17)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c597d70 type=LV_EVENT_DSC(34) idx=17 (count=18)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c5982f0 type=LV_EVENT_DSC(34) idx=17 (count=19)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]15
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c598800 type=LV_EVENT_DSC(34) idx=17 (count=20)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]13
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c598bb0 type=LV_EVENT_DSC(34) idx=17 (count=21)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c598f28 type=LV_EVENT_DSC(34) idx=17 (count=22)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c599778 type=LV_EVENT_DSC(34) idx=17 (count=23)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]15
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c599b08 type=LV_EVENT_DSC(34) idx=17 (count=24)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c599c50 type=LV_EVENT_DSC(34) idx=17 (count=25)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c5adee0 type=LV_EVENT_DSC(34) idx=17 (count=26)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c5ae050 type=LV_EVENT_DSC(34) idx=17 (count=27)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c5ae5c8 type=LV_EVENT_DSC(34) idx=17 (count=28)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [ScriptEngine] _realm_assign_to_program: prog=0x3fcca2e8, realm=0x3c51576b (ref copied)
+[DEBUG] [ScriptEngine] _realm_restore_and_cleanup: restoring old_realm=0x3c4f92db, freed current=0x3c51576b
+[DEBUG] [ScriptEngine] _realm_release_program: freeing realm=0x3c51576b for prog=0x3fcca2e8
+[DEBUG] [ScriptEngine] ENGINE_RUN: returning result=0
+[INFO] [SPM] Program 0x3fcca2e8 started successfully realm=72 sni_ctx=0x3fccaed0
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity transition start: from=0x3fcc7810[APP_LIST destroy=0] to=0x3fcc8c68[APP destroy=0] anim_cb=0x42089dd8 list_anim=0
+--- 0x42089dd8: _app_list_open_app_anim_cb at /home/erashaperavm/下载/ElenixOS-fork/src/framework/app/eos_app_list.c:1459
+[DEBUG] [AppHeader] New title: Alarm
+I (142812) Board: ui heartbeat: 27200 ticks, DRAM free=9339
+[INFO] [Activity] Anim completed PRE-SET: visible=0x3fcc7810[APP_LIST] current=0x3fcc8c68[APP] to=0x3fcc8c68[APP] from=0x3fcc7810[APP_LIST] trans=1
+[INFO] [Activity] Anim completed gate open: visible=0x3fcc8c68[APP] trans=false
+[INFO] [Activity] Anim cleanup begin: anim_ctx=0x3c5ae870 from=0x3fcc7810 to=0x3fcc8c68[APP destroy=0] destroy_from=0 snapshots=0x3c5cad68
+[INFO] [Activity] Anim cleanup end
+I (144697) Board: ui heartbeat: 27400 ticks, DRAM free=9491
+I (144706) Board: ui heartbeat: 27600 ticks, DRAM free=9491
+I (144714) Board: ui heartbeat: 27800 ticks, DRAM free=9491
+[INFO] [MemReport] internal: free=9491B largest=7168B | psram: free=7413872B largest=7340032B | dma: free=1959B largest=32B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (145000) Board: ui heartbeat: 28000 ticks, DRAM free=9507
+I (145956) Board: ui heartbeat: 28200 ticks, DRAM free=9507
+I (146956) Board: ui heartbeat: 28400 ticks, DRAM free=9507
+I (147956) Board: ui heartbeat: 28600 ticks, DRAM free=9507
+I (148956) Board: ui heartbeat: 28800 ticks, DRAM free=9507
+[INFO] [MemReport] internal: free=9507B largest=7168B | psram: free=7413856B largest=7340032B | dma: free=1975B largest=32B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (150000) Board: ui heartbeat: 29000 ticks, DRAM free=9507
+I (150956) Board: ui heartbeat: 29200 ticks, DRAM free=9507
+I (151956) Board: ui heartbeat: 29400 ticks, DRAM free=9507
+[INFO] [PowerManager] Timer paused
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3fce0c50 type=LV_EVENT(32) idx=15 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]13
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]32
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]15
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]13
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]13
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]13
+[INFO] [PowerManager] Timer resumed
+I (152956) Board: ui heartbeat: 29600 ticks, DRAM free=9555
+I (153956) Board: ui heartbeat: 29800 ticks, DRAM free=9555
+[INFO] [PowerManager] Timer paused
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c5ae310 type=LV_EVENT_DSC(34) idx=17 (count=29)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c599e58 type=LV_EVENT_DSC(34) idx=17 (count=30)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c5adb70 type=LV_EVENT_DSC(34) idx=17 (count=31)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccaed0 ptr=0x3c5af110 type=LV_EVENT_DSC(34) idx=17 (count=32)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[INFO] [PowerManager] Timer resumed
+[INFO] [MemReport] internal: free=9295B largest=7168B | psram: free=7412504B largest=7340032B | dma: free=1763B largest=16B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]202
+I (155009) Board: ui heartbeat: 30000 ticks, DRAM free=9327
+[INFO] [PowerManager] Timer paused
+[DEBUG] [Activity] Indev gesture: dir=2
+[DEBUG] [Activity] Indev swipe-back: firing back, current=0x3fcc8c68
+[INFO] [Activity] Activity back request: current=0x3fcc8c68[APP] visible=0x3fcc8c68[APP] root=0x3fcf0380[WATCHFACE] transition=0 stack_size=2
+[INFO] [Stack] Pop data[0x3fcc8c68]
+[INFO] [Activity] Activity back will destroy current after switch: current=0x3fcc8c68[APP] prev=0x3fcc7810[APP_LIST]
+[INFO] [Activity] Activity switch request: next=0x3fcc7810[APP_LIST] returning=1 current=0x3fcc8c68[APP] visible=0x3fcc8c68[APP] transition=0
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity transition start: from=0x3fcc8c68[APP destroy=1] to=0x3fcc7810[APP_LIST destroy=0] anim_cb=0x42089dc4 list_anim=0
+--- 0x42089dc4: _app_list_close_app_anim_cb at /home/erashaperavm/下载/ElenixOS-fork/src/framework/app/eos_app_list.c:1464
+[DEBUG] [AppHeader] New title: (null)
+[INFO] [PowerManager] Timer resumed
+I (156725) Board: ui heartbeat: 30200 ticks, DRAM free=9291
+[INFO] [Activity] Anim completed PRE-SET: visible=0x3fcc8c68[APP] current=0x3fcc7810[APP_LIST] to=0x3fcc7810[APP_LIST] from=0x3fcc8c68[APP] trans=1
+[INFO] [Activity] Anim completed gate open: visible=0x3fcc7810[APP_LIST] trans=false
+[INFO] [Activity] Anim cleanup begin: anim_ctx=0x3c5aede8 from=0x3fcc8c68 to=0x3fcc7810[APP_LIST destroy=0] destroy_from=1 snapshots=0x3c5cbb90
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity destroy begin: activity=0x3fcc8c68 type=APP destroy_on_exit=1 started=1 view=0x3fccb348 valid=1 snapshot_ref=0 header_visible=0 header_time_only=0 user_data=0x3fcca170
+[INFO] [SPM] Terminating program 0x3fcca2e8 type=1 state=2
+[INFO] [SNI-Context] SWEEP-JS: ctx=0x3fccaed0 releasing JS callback references
+[INFO] [ScriptEngine] Stop script (sync) state=1
+[INFO] [ScriptEngine] Script stop cleanup: state=1 prog=0x3fcca2e8
+[DEBUG] [ScriptEngine] RELEASE_TRACKED: freeing 1 modules
+[INFO] [ScriptEngine] Script terminated
+[DEBUG] [SPM] Destroying program 0x3fcca2e8 type=1 state=0 sni_ctx=0x3fccaed0
+[INFO] [SNI-Context] SWEEP: ctx=0x3fccaed0
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fccaed0 resource counts:
+[INFO] [SNI-Context]   [ 0] LV_TIMER                  : 1
+[INFO] [SNI-Context]   [ 8] EOS_ACTIVITY              : 1
+[INFO] [SNI-Context]   [15] LV_EVENT                  : 1
+[INFO] [SNI-Context]   [17] LV_EVENT_DSC              : 32
+[INFO] [SNI-Context]   TOTAL: 35
+[INFO] [SNI-Context] SWEEP-JS: ctx=0x3fccaed0 releasing JS callback references
+[INFO] [SNI-Context] SWEEP: freed 1 nodes of type [0] LV_TIMER
+[INFO] [SNI-Context] SWEEP: freed 1 nodes of type [8] EOS_ACTIVITY
+[INFO] [SNI-Context] SWEEP: freed 1 nodes of type [15] LV_EVENT
+[INFO] [SNI-Context] SWEEP: freed 32 nodes of type [17] LV_EVENT_DSC
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fccaed0 resource counts:
+[INFO] [SNI-Context]   (all zero)
+[INFO] [SNI-Context] SWEEP: complete for ctx=0x3fccaed0
+[DEBUG] [SNI-Context] DESTROY context=0x3fccaed0
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fccaed0 resource counts:
+[INFO] [SNI-Context]   (all zero)
+[DEBUG] [SNI-Context] DESTROY complete: context freed
+[INFO] [SPM] Program terminated
+[INFO] [Activity] Activity destroy end
+[INFO] [Activity] Anim cleanup end
+I (157866) Board: ui heartbeat: 30400 ticks, DRAM free=23235
+I (157956) Board: ui heartbeat: 30600 ticks, DRAM free=23235
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]294
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]107
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]41
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]11553
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [AppList] view_size: 240, 240
+[INFO] [Activity] Activity enter request: activity=0x3fcc8c38[APP] current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[INFO] [Stack] Push data[0x3fcc8c38]
+[INFO] [Activity] Activity enter pushed to stack: activity=0x3fcc8c38[APP] stack_size=2
+[INFO] [Activity] Activity switch request: next=0x3fcc8c38[APP] returning=0 current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]107
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]11553
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]41
+[DEBUG] [SNI-Context] CREATE context=0x3fccae00 (size=260)
+[INFO] [SPM] Starting program 0x3fcca2b0 type=1 id=com.elenix.album
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]107
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]11553
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]41
+[DEBUG] [ScriptEngine] ENGINE_RUN: entered fatal_code=0
+[DEBUG] [ScriptEngine] ENGINE_RUN: normal flow start
+[DEBUG] [ScriptEngine] _realm_create: created realm=0x3c4fd913
+[DEBUG] [ScriptEngine] _realm_save_and_switch: old_realm=0x3c4f92db, new_realm=0x3c4fd913
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccae00 ptr=0x3fcc8c38 type=EOS_ACTIVITY(25) idx=8 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccae00 ptr=0x3fcf7c60 type=LV_EVENT_DSC(34) idx=17 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccae00 ptr=0x3fcf7260 type=LV_EVENT_DSC(34) idx=17 (count=2)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fccae00 ptr=0x3fcd4630 type=LV_EVENT_DSC(34) idx=17 (count=3)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]22
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5add00 magic=0x0000 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]63
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]49
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]63
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]8200
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]63
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]65
+[INFO] [LVGL_FS] open path: /sdcard/album/_1920x1080Corporate_Pl_q70_1920x1080.jpg, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /sdcard/album/_1920x1080Corporate_Pl_q70_1920x1080.jpg
+[Warn] lv_image_set_src: failed to get image info: S:/sdcard/album/_1920x1080Corporate_Pl_q70_1920x1080.jpg
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]22
+[DEBUG] [ScriptEngine] _realm_assign_to_program: prog=0x3fcca2b0, realm=0x3c4fd913 (ref copied)
+[DEBUG] [ScriptEngine] _realm_restore_and_cleanup: restoring old_realm=0x3c4f92db, freed current=0x3c4fd913
+[DEBUG] [ScriptEngine] _realm_release_program: freeing realm=0x3c4fd913 for prog=0x3fcca2b0
+[DEBUG] [ScriptEngine] ENGINE_RUN: returning result=0
+[INFO] [SPM] Program 0x3fcca2b0 started successfully realm=72 sni_ctx=0x3fccae00
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity transition start: from=0x3fcc7810[APP_LIST destroy=0] to=0x3fcc8c38[APP destroy=0] anim_cb=0x42089dd8 list_anim=0
+--- 0x42089dd8: _app_list_open_app_anim_cb at /home/erashaperavm/下载/ElenixOS-fork/src/framework/app/eos_app_list.c:1459
+[DEBUG] [AppHeader] New title: Album
+I (159636) Board: ui heartbeat: 30800 ticks, DRAM free=12915
+[INFO] [MemReport] internal: free=12915B largest=7168B | psram: free=7231764B largest=6946816B | dma: free=5383B largest=480B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (161528) Board: ui heartbeat: 31000 ticks, DRAM free=12867
+[INFO] [Activity] Anim completed PRE-SET: visible=0x3fcc7810[APP_LIST] current=0x3fcc8c38[APP] to=0x3fcc8c38[APP] from=0x3fcc7810[APP_LIST] trans=1
+[INFO] [Activity] Anim completed gate open: visible=0x3fcc8c38[APP] trans=false
+[INFO] [Activity] Anim cleanup begin: anim_ctx=0x3fcd40e0 from=0x3fcc7810 to=0x3fcc8c38[APP destroy=0] destroy_from=0 snapshots=0x3fcf7ab0
+[INFO] [Activity] Anim cleanup end
+I (161937) Board: ui heartbeat: 31200 ticks, DRAM free=14263
+I (162197) Board: ui heartbeat: 31400 ticks, DRAM free=14263
+[INFO] [PowerManager] Timer paused
+[DEBUG] [Activity] Indev gesture: dir=2
+[DEBUG] [Activity] Indev swipe-back: firing back, current=0x3fcc8c38
+[INFO] [Activity] Activity back request: current=0x3fcc8c38[APP] visible=0x3fcc8c38[APP] root=0x3fcf0380[WATCHFACE] transition=0 stack_size=2
+[INFO] [Stack] Pop data[0x3fcc8c38]
+[INFO] [Activity] Activity back will destroy current after switch: current=0x3fcc8c38[APP] prev=0x3fcc7810[APP_LIST]
+[INFO] [Activity] Activity switch request: next=0x3fcc7810[APP_LIST] returning=1 current=0x3fcc8c38[APP] visible=0x3fcc8c38[APP] transition=0
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity transition start: from=0x3fcc8c38[APP destroy=1] to=0x3fcc7810[APP_LIST destroy=0] anim_cb=0x42089dc4 list_anim=0
+--- 0x42089dc4: _app_list_close_app_anim_cb at /home/erashaperavm/下载/ElenixOS-fork/src/framework/app/eos_app_list.c:1464
+[DEBUG] [AppHeader] New title: (null)
+[INFO] [PowerManager] Timer resumed
+I (163503) Board: ui heartbeat: 31600 ticks, DRAM free=12787
+[INFO] [Activity] Anim completed PRE-SET: visible=0x3fcc8c38[APP] current=0x3fcc7810[APP_LIST] to=0x3fcc7810[APP_LIST] from=0x3fcc8c38[APP] trans=1
+[INFO] [Activity] Anim completed gate open: visible=0x3fcc7810[APP_LIST] trans=false
+[INFO] [Activity] Anim cleanup begin: anim_ctx=0x3fcd41e0 from=0x3fcc8c38 to=0x3fcc7810[APP_LIST destroy=0] destroy_from=1 snapshots=0x3fcd3ee8
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity destroy begin: activity=0x3fcc8c38 type=APP destroy_on_exit=1 started=1 view=0x3fcc8c78 valid=1 snapshot_ref=0 header_visible=0 header_time_only=0 user_data=0x3fcca170
+[INFO] [SPM] Terminating program 0x3fcca2b0 type=1 state=2
+[INFO] [SNI-Context] SWEEP-JS: ctx=0x3fccae00 releasing JS callback references
+[INFO] [ScriptEngine] Stop script (sync) state=1
+[INFO] [ScriptEngine] Script stop cleanup: state=1 prog=0x3fcca2b0
+[DEBUG] [ScriptEngine] RELEASE_TRACKED: freeing 1 modules
+[INFO] [ScriptEngine] Script terminated
+[DEBUG] [SPM] Destroying program 0x3fcca2b0 type=1 state=0 sni_ctx=0x3fccae00
+[INFO] [SNI-Context] SWEEP: ctx=0x3fccae00
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fccae00 resource counts:
+[INFO] [SNI-Context]   [ 8] EOS_ACTIVITY              : 1
+[INFO] [SNI-Context]   [17] LV_EVENT_DSC              : 3
+[INFO] [SNI-Context]   TOTAL: 4
+[INFO] [SNI-Context] SWEEP-JS: ctx=0x3fccae00 releasing JS callback references
+[INFO] [SNI-Context] SWEEP: freed 1 nodes of type [8] EOS_ACTIVITY
+[INFO] [SNI-Context] SWEEP: freed 3 nodes of type [17] LV_EVENT_DSC
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fccae00 resource counts:
+[INFO] [SNI-Context]   (all zero)
+[INFO] [SNI-Context] SWEEP: complete for ctx=0x3fccae00
+[DEBUG] [SNI-Context] DESTROY context=0x3fccae00
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fccae00 resource counts:
+[INFO] [SNI-Context]   (all zero)
+[DEBUG] [SNI-Context] DESTROY complete: context freed
+[INFO] [SPM] Program terminated
+[INFO] [Activity] Activity destroy end
+[INFO] [Activity] Anim cleanup end
+I (165171) Board: ui heartbeat: 31800 ticks, DRAM free=23143
+[INFO] [MemReport] internal: free=23143B largest=7168B | psram: free=7486384B largest=7340032B | dma: free=15611B largest=3456B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (165233) Board: ui heartbeat: 32000 ticks, DRAM free=23143
+[INFO] [PowerManager] Timer paused
+I (165956) Board: ui heartbeat: 32200 ticks, DRAM free=23143
+[INFO] [PowerManager] Timer resumed
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]245
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]26
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]13
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]48
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]42
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]40540
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]26
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [AppList] view_size: 240, 240
+[INFO] [Activity] Activity enter request: activity=0x3fcc8c48[APP] current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[INFO] [Stack] Push data[0x3fcc8c48]
+[INFO] [Activity] Activity enter pushed to stack: activity=0x3fcc8c48[APP] stack_size=2
+[INFO] [Activity] Activity switch request: next=0x3fcc8c48[APP] returning=0 current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]26
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]13
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]48
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]40540
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]42
+[DEBUG] [SNI-Context] CREATE context=0x3fcf6948 (size=260)
+[INFO] [SPM] Starting program 0x3fcca270 type=1 id=com.elenix.breach
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]26
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]13
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]48
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]40540
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]42
+[DEBUG] [ScriptEngine] ENGINE_RUN: entered fatal_code=0
+[DEBUG] [ScriptEngine] ENGINE_RUN: normal flow start
+[DEBUG] [ScriptEngine] _realm_create: created realm=0x3c4fd913
+[DEBUG] [ScriptEngine] _realm_save_and_switch: old_realm=0x3c4f92db, new_realm=0x3c4fd913
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3fcc8c48 type=EOS_ACTIVITY(25) idx=8 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [AppHeader] Hide app header
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]22
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]34
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3fcf7be0 type=LV_TIMER(17) idx=0 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]13
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5ae6f0 type=LV_EVENT_DSC(34) idx=17 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5ae890 type=LV_EVENT_DSC(34) idx=17 (count=2)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5aeca0 type=LV_EVENT_DSC(34) idx=17 (count=3)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c597da8 type=LV_EVENT_DSC(34) idx=17 (count=4)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5adae0 type=LV_EVENT_DSC(34) idx=17 (count=5)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c598fd8 type=LV_EVENT_DSC(34) idx=17 (count=6)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c595c20 type=LV_EVENT_DSC(34) idx=17 (count=7)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5ae4e8 type=LV_EVENT_DSC(34) idx=17 (count=8)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5962e8 type=LV_EVENT_DSC(34) idx=17 (count=9)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c595f70 type=LV_EVENT_DSC(34) idx=17 (count=10)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c596638 type=LV_EVENT_DSC(34) idx=17 (count=11)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c596978 type=LV_EVENT_DSC(34) idx=17 (count=12)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c597080 type=LV_EVENT_DSC(34) idx=17 (count=13)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c597a80 type=LV_EVENT_DSC(34) idx=17 (count=14)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5997c0 type=LV_EVENT_DSC(34) idx=17 (count=15)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5adf00 type=LV_EVENT_DSC(34) idx=17 (count=16)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c598ba0 type=LV_EVENT_DSC(34) idx=17 (count=17)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c599ad0 type=LV_EVENT_DSC(34) idx=17 (count=18)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c599dc8 type=LV_EVENT_DSC(34) idx=17 (count=19)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c596ee8 type=LV_EVENT_DSC(34) idx=17 (count=20)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5981d0 type=LV_EVENT_DSC(34) idx=17 (count=21)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5989f8 type=LV_EVENT_DSC(34) idx=17 (count=22)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c595920 type=LV_EVENT_DSC(34) idx=17 (count=23)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5976f0 type=LV_EVENT_DSC(34) idx=17 (count=24)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c598370 type=LV_EVENT_DSC(34) idx=17 (count=25)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5986b8 type=LV_EVENT_DSC(34) idx=17 (count=26)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c599440 type=LV_EVENT_DSC(34) idx=17 (count=27)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5aed70 type=LV_EVENT_DSC(34) idx=17 (count=28)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5af090 type=LV_EVENT_DSC(34) idx=17 (count=29)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5aabe8 type=LV_EVENT_DSC(34) idx=17 (count=30)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5aaf08 type=LV_EVENT_DSC(34) idx=17 (count=31)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5ab268 type=LV_EVENT_DSC(34) idx=17 (count=32)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5ab588 type=LV_EVENT_DSC(34) idx=17 (count=33)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5ab8a8 type=LV_EVENT_DSC(34) idx=17 (count=34)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5abbc8 type=LV_EVENT_DSC(34) idx=17 (count=35)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5abee8 type=LV_EVENT_DSC(34) idx=17 (count=36)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5ac888 type=LV_TIMER(17) idx=0 (count=2)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]23
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5acfa8 type=LV_EVENT_DSC(34) idx=17 (count=37)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5ad2e8 type=LV_EVENT_DSC(34) idx=17 (count=38)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5ad628 type=LV_EVENT_DSC(34) idx=17 (count=39)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5ad968 type=LV_EVENT_DSC(34) idx=17 (count=40)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5b93f0 type=LV_EVENT_DSC(34) idx=17 (count=41)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]13
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]115
+[INFO] [com.elenix.breach] [breach-audit] root.direct=4 pageBoot.desc=3 pageHack.desc=93 pageResult.desc=12 cells=36 buf=6 tgt=3 lv=4
+[DEBUG] [ScriptEngine] _realm_assign_to_program: prog=0x3fcca270, realm=0x3c4fd913 (ref copied)
+[DEBUG] [ScriptEngine] _realm_restore_and_cleanup: restoring old_realm=0x3c4f92db, freed current=0x3c4fd913
+[DEBUG] [ScriptEngine] _realm_release_program: freeing realm=0x3c4fd913 for prog=0x3fcca270
+[DEBUG] [ScriptEngine] ENGINE_RUN: returning result=0
+[INFO] [SPM] Program 0x3fcca270 started successfully realm=72 sni_ctx=0x3fcf6948
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity transition start: from=0x3fcc7810[APP_LIST destroy=0] to=0x3fcc8c48[APP destroy=0] anim_cb=0x42089dd8 list_anim=0
+--- 0x42089dd8: _app_list_open_app_anim_cb at /home/erashaperavm/下载/ElenixOS-fork/src/framework/app/eos_app_list.c:1459
+[DEBUG] [AppHeader] New title: 入侵协议
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+[DEBUG] [WFBuiltin] home catcher release: dx=0 dy=0 (right-swipe->control center, left-swipe->app list)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+I (170315) Board: ui heartbeat: 32400 ticks, DRAM free=9231
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]13
+[INFO] [Activity] Anim completed PRE-SET: visible=0x3fcc7810[APP_LIST] current=0x3fcc8c48[APP] to=0x3fcc8c48[APP] from=0x3fcc7810[APP_LIST] trans=1
+[INFO] [Activity] Anim completed gate open: visible=0x3fcc8c48[APP] trans=false
+[INFO] [Activity] Anim cleanup begin: anim_ctx=0x3c5b9478 from=0x3fcc7810 to=0x3fcc8c48[APP destroy=0] destroy_from=0 snapshots=0x3c5d59d8
+[INFO] [Activity] Anim cleanup end
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]15
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+I (171299) Board: ui heartbeat: 32600 ticks, DRAM free=9355
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+I (171499) Board: ui heartbeat: 32800 ticks, DRAM free=9355
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]22
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]23
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [SNI-Context] REMOVE_RESOURCE: ctx=0x3fcf6948 ptr=0x3fcf7be0 type=LV_TIMER(17) (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5ac858 magic=0xc800 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5ac5a0 magic=0xc500 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5ac2e8 magic=0xc200 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5989c0 magic=0x3f3f - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c598198 magic=0x3f3f - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c596eb0 magic=0x3f3f - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c599db8 magic=0x3f3f - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5adec8 magic=0x3f3f - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c599788 magic=0x3f3f - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c597a48 magic=0x3f3f - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c597048 magic=0x3f3f - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c595f38 magic=0x3f3f - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5962b0 magic=0x3f3f - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5ae4b0 magic=0x3f3f - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c595be8 magic=0x3f3f - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c597d70 magic=0x3f3f - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]87
+[INFO] [com.elenix.breach] [breach-matrix] 7A BD BD 55 | 7A 7A BD E9 | 55 1C 55 BD | E9 55 7A E9  (bad=0)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5b9a38 type=LV_TIMER(17) idx=0 (count=2)
+[INFO] [MemReport] internal: free=9515B largest=7168B | psram: free=7371216B largest=7208960B | dma: free=1983B largest=32B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (172661) Board: ui heartbeat: 33000 ticks, DRAM free=9547
+[DEBUG] [SNI-Context] REMOVE_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5b9a38 type=LV_TIMER(17) (count=1)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5b9a38 type=LV_TIMER(17) idx=0 (count=2)
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5aec90 magic=0x3f3f - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]40
+[INFO] [com.elenix.breach] [breach-target-text] t0="BD 55"
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5aeb30 magic=0x000c - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]43
+[INFO] [com.elenix.breach] [breach-target-text] t1="55 E9 E9"
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5b9490 magic=0x002d - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]40
+[INFO] [com.elenix.breach] [breach-target-text] t2="E9 E9"
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]56
+[INFO] [com.elenix.breach] [breach-overlap] t0=(25,175)-(214,190) w190 h16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]56
+[INFO] [com.elenix.breach] [breach-overlap] t1=(25,194)-(214,209) w190 h16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]56
+[INFO] [com.elenix.breach] [breach-overlap] t2=(25,213)-(214,228) w190 h16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]71
+[INFO] [com.elenix.breach] [breach-overlap] matrix: minLabW=30 maxLabW=30 allWithinCell=1
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]28
+[INFO] [com.elenix.breach] [breach-overlap] OK
+[DEBUG] [SNI-Context] REMOVE_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5b9a38 type=LV_TIMER(17) (count=1)
+I (173979) Board: ui heartbeat: 33200 ticks, DRAM free=9547
+I (173987) Board: ui heartbeat: 33400 ticks, DRAM free=9547
+I (173994) Board: ui heartbeat: 33600 ticks, DRAM free=9547
+I (174001) Board: ui heartbeat: 33800 ticks, DRAM free=9547
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+[INFO] [MemReport] internal: free=9547B largest=7168B | psram: free=7371240B largest=7208960B | dma: free=2015B largest=32B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (175004) Board: ui heartbeat: 34000 ticks, DRAM free=9547
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+I (175956) Board: ui heartbeat: 34200 ticks, DRAM free=9547
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+I (176956) Board: ui heartbeat: 34400 ticks, DRAM free=9547
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+I (177956) Board: ui heartbeat: 34600 ticks, DRAM free=9547
+I (178956) Board: ui heartbeat: 34800 ticks, DRAM free=9547
+[INFO] [PowerManager] Timer paused
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3fce0c50 type=LV_EVENT(32) idx=15 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5b9dd0 type=LV_TIMER(17) idx=0 (count=2)
+[INFO] [PowerManager] Timer resumed
+[DEBUG] [SNI-Context] REMOVE_RESOURCE: ctx=0x3fcf6948 ptr=0x3c5b9dd0 type=LV_TIMER(17) (count=1)
+[INFO] [MemReport] internal: free=9547B largest=7168B | psram: free=7370764B largest=7208960B | dma: free=2015B largest=32B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (180004) Board: ui heartbeat: 35000 ticks, DRAM free=9547
+[INFO] [PowerManager] Timer paused
+[DEBUG] [Activity] Indev gesture: dir=2
+[DEBUG] [Activity] Indev swipe-back: firing back, current=0x3fcc8c48
+[INFO] [Activity] Activity back request: current=0x3fcc8c48[APP] visible=0x3fcc8c48[APP] root=0x3fcf0380[WATCHFACE] transition=0 stack_size=2
+[INFO] [Stack] Pop data[0x3fcc8c48]
+[INFO] [Activity] Activity back will destroy current after switch: current=0x3fcc8c48[APP] prev=0x3fcc7810[APP_LIST]
+[INFO] [Activity] Activity switch request: next=0x3fcc7810[APP_LIST] returning=1 current=0x3fcc8c48[APP] visible=0x3fcc8c48[APP] transition=0
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity transition start: from=0x3fcc8c48[APP destroy=1] to=0x3fcc7810[APP_LIST destroy=0] anim_cb=0x42089dc4 list_anim=0
+--- 0x42089dc4: _app_list_close_app_anim_cb at /home/erashaperavm/下载/ElenixOS-fork/src/framework/app/eos_app_list.c:1464
+[DEBUG] [AppHeader] New title: (null)
+[INFO] [PowerManager] Timer resumed
+I (181454) Board: ui heartbeat: 35200 ticks, DRAM free=9391
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[INFO] [Activity] Anim completed PRE-SET: visible=0x3fcc8c48[APP] current=0x3fcc7810[APP_LIST] to=0x3fcc7810[APP_LIST] from=0x3fcc8c48[APP] trans=1
+[INFO] [Activity] Anim completed gate open: visible=0x3fcc7810[APP_LIST] trans=false
+I (182993) Board: ui heartbeat: 35400 ticks, DRAM free=9407
+[INFO] [Activity] Anim cleanup begin: anim_ctx=0x3c5b9e10 from=0x3fcc8c48 to=0x3fcc7810[APP_LIST destroy=0] destroy_from=1 snapshots=0x3c5ba0a0
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity destroy begin: activity=0x3fcc8c48 type=APP destroy_on_exit=1 started=1 view=0x3fcca168 valid=1 snapshot_ref=0 header_visible=0 header_time_only=0 user_data=0x3fccb308
+[INFO] [SPM] Terminating program 0x3fcca270 type=1 state=2
+[INFO] [SNI-Context] SWEEP-JS: ctx=0x3fcf6948 releasing JS callback references
+[INFO] [ScriptEngine] Stop script (sync) state=1
+[INFO] [ScriptEngine] Script stop cleanup: state=1 prog=0x3fcca270
+[DEBUG] [ScriptEngine] RELEASE_TRACKED: freeing 1 modules
+[INFO] [ScriptEngine] Script terminated
+[DEBUG] [SPM] Destroying program 0x3fcca270 type=1 state=0 sni_ctx=0x3fcf6948
+[INFO] [SNI-Context] SWEEP: ctx=0x3fcf6948
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fcf6948 resource counts:
+[INFO] [SNI-Context]   [ 0] LV_TIMER                  : 1
+[INFO] [SNI-Context]   [ 8] EOS_ACTIVITY              : 1
+[INFO] [SNI-Context]   [15] LV_EVENT                  : 1
+[INFO] [SNI-Context]   [17] LV_EVENT_DSC              : 41
+[INFO] [SNI-Context]   TOTAL: 44
+[INFO] [SNI-Context] SWEEP-JS: ctx=0x3fcf6948 releasing JS callback references
+[INFO] [SNI-Context] SWEEP: freed 1 nodes of type [0] LV_TIMER
+[INFO] [SNI-Context] SWEEP: freed 1 nodes of type [8] EOS_ACTIVITY
+[INFO] [SNI-Context] SWEEP: freed 1 nodes of type [15] LV_EVENT
+[INFO] [SNI-Context] SWEEP: freed 41 nodes of type [17] LV_EVENT_DSC
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fcf6948 resource counts:
+[INFO] [SNI-Context]   (all zero)
+[INFO] [SNI-Context] SWEEP: complete for ctx=0x3fcf6948
+[DEBUG] [SNI-Context] DESTROY context=0x3fcf6948
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fcf6948 resource counts:
+[INFO] [SNI-Context]   (all zero)
+[DEBUG] [SNI-Context] DESTROY complete: context freed
+[INFO] [SPM] Program terminated
+[INFO] [Activity] Activity destroy end
+[INFO] [Activity] Anim cleanup end
+I (183460) Board: ui heartbeat: 35600 ticks, DRAM free=22391
+I (183956) Board: ui heartbeat: 35800 ticks, DRAM free=22391
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]269
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]30
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]72
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]46
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]9042
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]30
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [AppList] view_size: 240, 240
+[INFO] [Activity] Activity enter request: activity=0x3fcc8c50[APP] current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[INFO] [Stack] Push data[0x3fcc8c50]
+[INFO] [Activity] Activity enter pushed to stack: activity=0x3fcc8c50[APP] stack_size=2
+[INFO] [Activity] Activity switch request: next=0x3fcc8c50[APP] returning=0 current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]30
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]72
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]9042
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]46
+[DEBUG] [SNI-Context] CREATE context=0x3fcf7bd8 (size=260)
+[INFO] [SPM] Starting program 0x3fcca2b0 type=1 id=com.elenix.calculator
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]30
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]72
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]9042
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]46
+[DEBUG] [ScriptEngine] ENGINE_RUN: entered fatal_code=0
+[DEBUG] [ScriptEngine] ENGINE_RUN: normal flow start
+[DEBUG] [ScriptEngine] _realm_create: created realm=0x3c4fd913
+[DEBUG] [ScriptEngine] _realm_save_and_switch: old_realm=0x3c4f92db, new_realm=0x3c4fd913
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3fcc8c50 type=EOS_ACTIVITY(25) idx=8 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]13
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]13
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3fcf73a8 type=LV_EVENT_DSC(34) idx=17 (count=1)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3fcf7418 type=LV_EVENT_DSC(34) idx=17 (count=2)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3fcd4098 type=LV_EVENT_DSC(34) idx=17 (count=3)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3fcd4960 type=LV_EVENT_DSC(34) idx=17 (count=4)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3fcd4320 type=LV_EVENT_DSC(34) idx=17 (count=5)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3fcd4330 type=LV_EVENT_DSC(34) idx=17 (count=6)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3fcd4678 type=LV_EVENT_DSC(34) idx=17 (count=7)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3fcd46e8 type=LV_EVENT_DSC(34) idx=17 (count=8)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c596f60 type=LV_EVENT_DSC(34) idx=17 (count=9)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c598eb8 type=LV_EVENT_DSC(34) idx=17 (count=10)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c5982e0 type=LV_EVENT_DSC(34) idx=17 (count=11)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c5982f0 type=LV_EVENT_DSC(34) idx=17 (count=12)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c5964e8 type=LV_EVENT_DSC(34) idx=17 (count=13)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c5ad598 type=LV_EVENT_DSC(34) idx=17 (count=14)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c5abb50 type=LV_EVENT_DSC(34) idx=17 (count=15)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c5ab1b0 type=LV_EVENT_DSC(34) idx=17 (count=16)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c596e58 type=LV_EVENT_DSC(34) idx=17 (count=17)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c596e68 type=LV_EVENT_DSC(34) idx=17 (count=18)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c596bb0 type=LV_EVENT_DSC(34) idx=17 (count=19)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c5b94d8 type=LV_EVENT_DSC(34) idx=17 (count=20)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c597ac8 type=LV_EVENT_DSC(34) idx=17 (count=21)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c5970b8 type=LV_EVENT_DSC(34) idx=17 (count=22)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3fcf77e0 type=LV_EVENT_DSC(34) idx=17 (count=23)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3fcf7560 type=LV_EVENT_DSC(34) idx=17 (count=24)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3fcd4750 type=LV_EVENT_DSC(34) idx=17 (count=25)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3fcd4588 type=LV_EVENT_DSC(34) idx=17 (count=26)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c595e78 type=LV_EVENT_DSC(34) idx=17 (count=27)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c595e88 type=LV_EVENT_DSC(34) idx=17 (count=28)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c5ae348 type=LV_EVENT_DSC(34) idx=17 (count=29)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c5ae3b8 type=LV_EVENT_DSC(34) idx=17 (count=30)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c597610 type=LV_EVENT_DSC(34) idx=17 (count=31)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c597378 type=LV_EVENT_DSC(34) idx=17 (count=32)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c596088 type=LV_EVENT_DSC(34) idx=17 (count=33)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c5960f8 type=LV_EVENT_DSC(34) idx=17 (count=34)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c5ac958 type=LV_EVENT_DSC(34) idx=17 (count=35)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c5956c8 type=LV_EVENT_DSC(34) idx=17 (count=36)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c595c98 type=LV_EVENT_DSC(34) idx=17 (count=37)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c595d08 type=LV_EVENT_DSC(34) idx=17 (count=38)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c599110 type=LV_EVENT_DSC(34) idx=17 (count=39)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c599158 type=LV_EVENT_DSC(34) idx=17 (count=40)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c597f18 type=LV_EVENT_DSC(34) idx=17 (count=41)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c597f88 type=LV_EVENT_DSC(34) idx=17 (count=42)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c596c48 type=LV_EVENT_DSC(34) idx=17 (count=43)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c596cb8 type=LV_EVENT_DSC(34) idx=17 (count=44)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c5ac330 type=LV_EVENT_DSC(34) idx=17 (count=45)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c5ac3a0 type=LV_EVENT_DSC(34) idx=17 (count=46)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c597b00 type=LV_EVENT_DSC(34) idx=17 (count=47)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c597b70 type=LV_EVENT_DSC(34) idx=17 (count=48)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3c597be0 type=LV_EVENT_DSC(34) idx=17 (count=49)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [ScriptEngine] _realm_assign_to_program: prog=0x3fcca2b0, realm=0x3c4fd913 (ref copied)
+[DEBUG] [ScriptEngine] _realm_restore_and_cleanup: restoring old_realm=0x3c4f92db, freed current=0x3c4fd913
+[DEBUG] [ScriptEngine] _realm_release_program: freeing realm=0x3c4fd913 for prog=0x3fcca2b0
+[DEBUG] [ScriptEngine] ENGINE_RUN: returning result=0
+[INFO] [SPM] Program 0x3fcca2b0 started successfully realm=72 sni_ctx=0x3fcf7bd8
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity transition start: from=0x3fcc7810[APP_LIST destroy=0] to=0x3fcc8c50[APP destroy=0] anim_cb=0x42089dd8 list_anim=0
+--- 0x42089dd8: _app_list_open_app_anim_cb at /home/erashaperavm/下载/ElenixOS-fork/src/framework/app/eos_app_list.c:1459
+[DEBUG] [AppHeader] New title: Calc
+[INFO] [MemReport] internal: free=11423B largest=7168B | psram: free=7215532B largest=6946816B | dma: free=3891B largest=52B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (186421) Board: ui heartbeat: 36000 ticks, DRAM free=11391
+[INFO] [Activity] Anim completed PRE-SET: visible=0x3fcc7810[APP_LIST] current=0x3fcc8c50[APP] to=0x3fcc8c50[APP] from=0x3fcc7810[APP_LIST] trans=1
+[INFO] [Activity] Anim completed gate open: visible=0x3fcc8c50[APP] trans=false
+[INFO] [Activity] Anim cleanup begin: anim_ctx=0x3c5af0a0 from=0x3fcc7810 to=0x3fcc8c50[APP destroy=0] destroy_from=0 snapshots=0x3c5967b8
+[INFO] [Activity] Anim cleanup end
+I (188171) Board: ui heartbeat: 36200 ticks, DRAM free=11631
+I (188178) Board: ui heartbeat: 36400 ticks, DRAM free=11631
+I (188185) Board: ui heartbeat: 36600 ticks, DRAM free=11631
+I (188956) Board: ui heartbeat: 36800 ticks, DRAM free=11631
+[INFO] [PowerManager] Timer paused
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf7bd8 ptr=0x3fce0c50 type=LV_EVENT(32) idx=15 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[INFO] [PowerManager] Timer resumed
+[INFO] [PowerManager] Timer paused
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[INFO] [MemReport] internal: free=11615B largest=7168B | psram: free=7447116B largest=7208960B | dma: free=4083B largest=36B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (189969) Board: ui heartbeat: 37000 ticks, DRAM free=11615
+[INFO] [PowerManager] Timer resumed
+[INFO] [PowerManager] Timer paused
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[INFO] [PowerManager] Timer resumed
+I (190958) Board: ui heartbeat: 37200 ticks, DRAM free=11671
+I (191956) Board: ui heartbeat: 37400 ticks, DRAM free=11711
+[INFO] [PowerManager] Timer paused
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[INFO] [PowerManager] Timer resumed
+I (192956) Board: ui heartbeat: 37600 ticks, DRAM free=11663
+[INFO] [PowerManager] Timer paused
+[DEBUG] [Activity] Indev gesture: dir=2
+[DEBUG] [Activity] Indev swipe-back: firing back, current=0x3fcc8c50
+[INFO] [Activity] Activity back request: current=0x3fcc8c50[APP] visible=0x3fcc8c50[APP] root=0x3fcf0380[WATCHFACE] transition=0 stack_size=2
+[INFO] [Stack] Pop data[0x3fcc8c50]
+[INFO] [Activity] Activity back will destroy current after switch: current=0x3fcc8c50[APP] prev=0x3fcc7810[APP_LIST]
+[INFO] [Activity] Activity switch request: next=0x3fcc7810[APP_LIST] returning=1 current=0x3fcc8c50[APP] visible=0x3fcc8c50[APP] transition=0
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity transition start: from=0x3fcc8c50[APP destroy=1] to=0x3fcc7810[APP_LIST destroy=0] anim_cb=0x42089dc4 list_anim=0
+--- 0x42089dc4: _app_list_close_app_anim_cb at /home/erashaperavm/下载/ElenixOS-fork/src/framework/app/eos_app_list.c:1464
+[DEBUG] [AppHeader] New title: (null)
+[INFO] [PowerManager] Timer resumed
+I (194456) Board: ui heartbeat: 37800 ticks, DRAM free=11471
+[INFO] [Activity] Anim completed PRE-SET: visible=0x3fcc8c50[APP] current=0x3fcc7810[APP_LIST] to=0x3fcc7810[APP_LIST] from=0x3fcc8c50[APP] trans=1
+[INFO] [Activity] Anim completed gate open: visible=0x3fcc7810[APP_LIST] trans=false
+[INFO] [Activity] Anim cleanup begin: anim_ctx=0x3c596708 from=0x3fcc8c50 to=0x3fcc7810[APP_LIST destroy=0] destroy_from=1 snapshots=0x3c5abc88
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity destroy begin: activity=0x3fcc8c50 type=APP destroy_on_exit=1 started=1 view=0x3fccb318 valid=1 snapshot_ref=0 header_visible=0 header_time_only=0 user_data=0x3fcca170
+[INFO] [SPM] Terminating program 0x3fcca2b0 type=1 state=2
+[INFO] [SNI-Context] SWEEP-JS: ctx=0x3fcf7bd8 releasing JS callback references
+[INFO] [ScriptEngine] Stop script (sync) state=1
+[INFO] [ScriptEngine] Script stop cleanup: state=1 prog=0x3fcca2b0
+[DEBUG] [ScriptEngine] RELEASE_TRACKED: freeing 1 modules
+[INFO] [ScriptEngine] Script terminated
+[DEBUG] [SPM] Destroying program 0x3fcca2b0 type=1 state=0 sni_ctx=0x3fcf7bd8
+[INFO] [SNI-Context] SWEEP: ctx=0x3fcf7bd8
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fcf7bd8 resource counts:
+[INFO] [SNI-Context]   [ 8] EOS_ACTIVITY              : 1
+[INFO] [SNI-Context]   [15] LV_EVENT                  : 1
+[INFO] [SNI-Context]   [17] LV_EVENT_DSC              : 49
+[INFO] [SNI-Context]   TOTAL: 51
+[INFO] [SNI-Context] SWEEP-JS: ctx=0x3fcf7bd8 releasing JS callback references
+[INFO] [SNI-Context] SWEEP: freed 1 nodes of type [8] EOS_ACTIVITY
+[INFO] [SNI-Context] SWEEP: freed 1 nodes of type [15] LV_EVENT
+[INFO] [SNI-Context] SWEEP: freed 49 nodes of type [17] LV_EVENT_DSC
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fcf7bd8 resource counts:
+[INFO] [SNI-Context]   (all zero)
+[INFO] [SNI-Context] SWEEP: complete for ctx=0x3fcf7bd8
+[DEBUG] [SNI-Context] DESTROY context=0x3fcf7bd8
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fcf7bd8 resource counts:
+[INFO] [SNI-Context]   (all zero)
+[DEBUG] [SNI-Context] DESTROY complete: context freed
+[INFO] [SPM] Program terminated
+[INFO] [Activity] Activity destroy end
+[INFO] [Activity] Anim cleanup end
+[INFO] [MemReport] internal: free=22359B largest=7168B | psram: free=7481652B largest=7208960B | dma: free=14827B largest=3072B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (196257) Board: ui heartbeat: 38000 ticks, DRAM free=22359
+I (196264) Board: ui heartbeat: 38200 ticks, DRAM free=22359
+[INFO] [PowerManager] Timer paused
+I (196957) Board: ui heartbeat: 38400 ticks, DRAM free=22359
+[INFO] [PowerManager] Timer resumed
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]271
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]28
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]78
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]44
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]21301
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]28
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [AppList] view_size: 240, 240
+[INFO] [Activity] Activity enter request: activity=0x3fccb3f8[APP] current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[INFO] [Stack] Push data[0x3fccb3f8]
+[INFO] [Activity] Activity enter pushed to stack: activity=0x3fccb3f8[APP] stack_size=2
+[INFO] [Activity] Activity switch request: next=0x3fccb3f8[APP] returning=0 current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]28
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]78
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]21301
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]44
+[DEBUG] [SNI-Context] CREATE context=0x3fcf6fe0 (size=260)
+[INFO] [SPM] Starting program 0x3fcca2b0 type=1 id=com.elenix.calendar
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]28
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]78
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]21301
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]44
+[DEBUG] [ScriptEngine] ENGINE_RUN: entered fatal_code=0
+[DEBUG] [ScriptEngine] ENGINE_RUN: normal flow start
+[DEBUG] [ScriptEngine] _realm_create: created realm=0x3c4fd913
+[DEBUG] [ScriptEngine] _realm_save_and_switch: old_realm=0x3c4f92db, new_realm=0x3c4fd913
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3fccb3f8 type=EOS_ACTIVITY(25) idx=8 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3fcf7678 type=LV_EVENT_DSC(34) idx=17 (count=1)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3fcf76e8 type=LV_EVENT_DSC(34) idx=17 (count=2)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3fcf7268 type=LV_EVENT_DSC(34) idx=17 (count=3)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3fccd0e0 type=LV_EVENT_DSC(34) idx=17 (count=4)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5abb40 type=LV_EVENT_DSC(34) idx=17 (count=5)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3fcf7980 type=LV_EVENT_DSC(34) idx=17 (count=6)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c596648 type=LV_EVENT_DSC(34) idx=17 (count=7)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c595fb8 type=LV_EVENT_DSC(34) idx=17 (count=8)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c599e90 type=LV_EVENT_DSC(34) idx=17 (count=9)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c599150 type=LV_EVENT_DSC(34) idx=17 (count=10)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5993b0 type=LV_EVENT_DSC(34) idx=17 (count=11)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c596518 type=LV_EVENT_DSC(34) idx=17 (count=12)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c595ba0 type=LV_EVENT_DSC(34) idx=17 (count=13)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5ac968 type=LV_EVENT_DSC(34) idx=17 (count=14)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5acb20 type=LV_EVENT_DSC(34) idx=17 (count=15)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c595680 type=LV_EVENT_DSC(34) idx=17 (count=16)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5acd70 type=LV_EVENT_DSC(34) idx=17 (count=17)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5987b8 type=LV_EVENT_DSC(34) idx=17 (count=18)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c597788 type=LV_EVENT_DSC(34) idx=17 (count=19)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c596a30 type=LV_EVENT_DSC(34) idx=17 (count=20)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5ac3a8 type=LV_EVENT_DSC(34) idx=17 (count=21)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5abaf0 type=LV_EVENT_DSC(34) idx=17 (count=22)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5abd48 type=LV_EVENT_DSC(34) idx=17 (count=23)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c599460 type=LV_EVENT_DSC(34) idx=17 (count=24)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c598518 type=LV_EVENT_DSC(34) idx=17 (count=25)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5aac08 type=LV_EVENT_DSC(34) idx=17 (count=26)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5aeef0 type=LV_EVENT_DSC(34) idx=17 (count=27)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5ab268 type=LV_EVENT_DSC(34) idx=17 (count=28)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5ad480 type=LV_EVENT_DSC(34) idx=17 (count=29)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c599a98 type=LV_EVENT_DSC(34) idx=17 (count=30)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5ab038 type=LV_EVENT_DSC(34) idx=17 (count=31)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5ad1f0 type=LV_EVENT_DSC(34) idx=17 (count=32)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5ac278 type=LV_EVENT_DSC(34) idx=17 (count=33)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5ba1a8 type=LV_EVENT_DSC(34) idx=17 (count=34)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5ba620 type=LV_EVENT_DSC(34) idx=17 (count=35)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b4a58 type=LV_EVENT_DSC(34) idx=17 (count=36)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b4f08 type=LV_EVENT_DSC(34) idx=17 (count=37)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b53b8 type=LV_EVENT_DSC(34) idx=17 (count=38)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b5868 type=LV_EVENT_DSC(34) idx=17 (count=39)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b5d18 type=LV_EVENT_DSC(34) idx=17 (count=40)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b61d0 type=LV_EVENT_DSC(34) idx=17 (count=41)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b6680 type=LV_EVENT_DSC(34) idx=17 (count=42)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b6b30 type=LV_EVENT_DSC(34) idx=17 (count=43)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b6fe0 type=LV_EVENT_DSC(34) idx=17 (count=44)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b7490 type=LV_EVENT_DSC(34) idx=17 (count=45)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b7940 type=LV_EVENT_DSC(34) idx=17 (count=46)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b7e78 type=LV_EVENT_DSC(34) idx=17 (count=47)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b8398 type=LV_EVENT_DSC(34) idx=17 (count=48)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b8730 type=LV_EVENT_DSC(34) idx=17 (count=49)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b8c40 type=LV_EVENT_DSC(34) idx=17 (count=50)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b8fd8 type=LV_EVENT_DSC(34) idx=17 (count=51)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b9370 type=LV_EVENT_DSC(34) idx=17 (count=52)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5a62f8 type=LV_EVENT_DSC(34) idx=17 (count=53)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5a6690 type=LV_EVENT_DSC(34) idx=17 (count=54)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5a6a28 type=LV_EVENT_DSC(34) idx=17 (count=55)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5a6e00 type=LV_EVENT_DSC(34) idx=17 (count=56)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5a7198 type=LV_EVENT_DSC(34) idx=17 (count=57)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5a7530 type=LV_EVENT_DSC(34) idx=17 (count=58)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5a78c8 type=LV_EVENT_DSC(34) idx=17 (count=59)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5a7c60 type=LV_EVENT_DSC(34) idx=17 (count=60)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5a7ff8 type=LV_EVENT_DSC(34) idx=17 (count=61)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5a8060 type=LV_TIMER(17) idx=0 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]52
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5a8540 type=LV_TIMER(17) idx=0 (count=2)
+[DEBUG] [ScriptEngine] _realm_assign_to_program: prog=0x3fcca2b0, realm=0x3c4fd913 (ref copied)
+[DEBUG] [ScriptEngine] _realm_restore_and_cleanup: restoring old_realm=0x3c4f92db, freed current=0x3c4fd913
+[DEBUG] [ScriptEngine] _realm_release_program: freeing realm=0x3c4fd913 for prog=0x3fcca2b0
+[DEBUG] [ScriptEngine] ENGINE_RUN: returning result=0
+[INFO] [SPM] Program 0x3fcca2b0 started successfully realm=72 sni_ctx=0x3fcf6fe0
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity transition start: from=0x3fcc7810[APP_LIST destroy=0] to=0x3fccb3f8[APP destroy=0] anim_cb=0x42089dd8 list_anim=0
+--- 0x42089dd8: _app_list_open_app_anim_cb at /home/erashaperavm/下载/ElenixOS-fork/src/framework/app/eos_app_list.c:1459
+[DEBUG] [AppHeader] New title: Calendar
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]39
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]39
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]9426
+E (207179) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (207179) task_wdt:  - IDLE1 (CPU 1)
+E (207179) task_wdt: Tasks currently running:
+E (207179) task_wdt: CPU 0: IDLE0
+E (207179) task_wdt: CPU 1: ui
+E (207179) task_wdt: Print CPU 1 backtrace
+
+
+Backtrace: 0x4037D11A:0x3FCA6CA0 0x4037B7E2:0x3FCA6CC0 0x4207BF42:0x3FCE0780 0x42081901:0x3FCE07F0 0x420819E5:0x3FCE0810 0x4205D35F:0x3FCE0880 0x4205E23F:0x3FCE08C0 0x4205E1B1:0x3FCE08E0 0x420812BA:0x3FCE0900 0x42081927:0x3FCE0930 0x420819E5:0x3FCE0950 0x4205D35F:0x3FCE09D0 0x4205E23F:0x3FCE0A10 0x4205E1B1:0x3FCE0A30 0x420812BA:0x3FCE0A50 0x42081927:0x3FCE0A80 0x420819E5:0x3FCE0AA0 0x4205D35F:0x3FCE0B10 0x4205E23F:0x3FCE0B50 0x4205E1B1:0x3FCE0B70 0x420812BA:0x3FCE0B90 0x42081927:0x3FCE0BC0 0x420819E5:0x3FCE0BE0 0x4205D35F:0x3FCE0C50 0x4205E23F:0x3FCE0C90 0x4205E1B1:0x3FCE0CB0 0x42046DDC:0x3FCE0CD0 0x4201292D:0x3FCE0CF0 0x4202DD0A:0x3FCE0D30 0x4202BB96:0x3FCE0D50 0x420F1129:0x3FCE0D80 0x420F11E9:0x3FCE0DA0 0x4200FFED:0x3FCE0DC0 0x4200CC77:0x3FCE0DE0 0x40384E3D:0x3FCE0E20
+--- 0x4037d11a: esp_crosscore_isr at /home/erashaperavm/esp/esp-idf/components/esp_system/crosscore_int.c:73
+--- 0x4037b7e2: _xt_lowint1 at /home/erashaperavm/esp/esp-idf/components/xtensa/xtensa_vectors.S:1240
+--- 0x4207bf42: vm_loop at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/vm/vm.c:1144
+--- 0x42081901: vm_execute at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/vm/vm.c:5230
+--- 0x420819e5: vm_run at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/vm/vm.c:5331
+--- 0x4205d35f: ecma_op_function_call_simple at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/ecma/operations/ecma-function-object.c:1180
+--- 0x4205e23f: ecma_op_function_call at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/ecma/operations/ecma-function-object.c:1463
+--- 0x4205e1b1: ecma_op_function_validated_call at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/ecma/operations/ecma-function-object.c:1428
+--- 0x420812ba: opfunc_call at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/vm/vm.c:758
+--- 0x42081927: vm_execute at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/vm/vm.c:5236
+--- 0x420819e5: vm_run at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/vm/vm.c:5331
+--- 0x4205d35f: ecma_op_function_call_simple at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/ecma/operations/ecma-function-object.c:1180
+--- 0x4205e23f: ecma_op_function_call at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/ecma/operations/ecma-function-object.c:1463
+--- 0x4205e1b1: ecma_op_function_validated_call at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/ecma/operations/ecma-function-object.c:1428
+--- 0x420812ba: opfunc_call at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/vm/vm.c:758
+--- 0x42081927: vm_execute at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/vm/vm.c:5236
+--- 0x420819e5: vm_run at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/vm/vm.c:5331
+--- 0x4205d35f: ecma_op_function_call_simple at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/ecma/operations/ecma-function-object.c:1180
+--- 0x4205e23f: ecma_op_function_call at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/ecma/operations/ecma-function-object.c:1463
+--- 0x4205e1b1: ecma_op_function_validated_call at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/ecma/operations/ecma-function-object.c:1428
+--- 0x420812ba: opfunc_call at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/vm/vm.c:758
+--- 0x42081927: vm_execute at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/vm/vm.c:5236
+--- 0x420819e5: vm_run at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/vm/vm.c:5331
+--- 0x4205d35f: ecma_op_function_call_simple at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/ecma/operations/ecma-function-object.c:1180
+--- 0x4205e23f: ecma_op_function_call at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/ecma/operations/ecma-function-object.c:1463
+--- 0x4205e1b1: ecma_op_function_validated_call at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/ecma/operations/ecma-function-object.c:1428
+--- 0x42046ddc: jerry_call at /home/erashaperavm/下载/ElenixOS-fork/third_party/jerryscript/jerry-core/api/jerryscript.c:3984
+--- 0x4201292d: script_engine_call_raw at /home/erashaperavm/下载/ElenixOS-fork/src/script_engine/core/script_engine_core.c:794
+--- 0x4202dd0a: spm_call at /home/erashaperavm/下载/ElenixOS-fork/src/script_engine/spm/spm.c:424
+--- 0x4202bb96: sni_cb_timer_dispatch at /home/erashaperavm/下载/ElenixOS-fork/src/script_engine/sni/sni_callback_runtime.c:279
+--- 0x420f1129: lv_timer_exec at /home/erashaperavm/下载/ElenixOS-fork/third_party/lvgl/src/misc/lv_timer.c:327
+--- 0x420f11e9: lv_timer_handler at /home/erashaperavm/下载/ElenixOS-fork/third_party/lvgl/src/misc/lv_timer.c:107
+--- 0x4200ffed: eos_main_loop at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/core/eos_core.c:353
+--- 0x4200cc77: ui_task at /home/erashaperavm/下载/ElenixOS-fork/port/esp32s3/main/main.c:179
+--- 0x40384e3d: vPortTaskWrapper at /home/erashaperavm/esp/esp-idf/components/freertos/FreeRTOS-Kernel/portable/xtensa/port.c:134
+
+[DEBUG] [SNI-Context] REMOVE_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5a8540 type=LV_TIMER(17) (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]52
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b7ca0 type=LV_TIMER(17) idx=0 (count=2)
+[DEBUG] [SNI-Context] REMOVE_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5a8060 type=LV_TIMER(17) (count=1)
+I (209524) Board: ui heartbeat: 38600 ticks, DRAM free=9023
+[INFO] [Activity] Anim completed PRE-SET: visible=0x3fcc7810[APP_LIST] current=0x3fccb3f8[APP] to=0x3fccb3f8[APP] from=0x3fcc7810[APP_LIST] trans=1
+[INFO] [Activity] Anim completed gate open: visible=0x3fccb3f8[APP] trans=false
+[INFO] [Activity] Anim cleanup begin: anim_ctx=0x3c5a85b8 from=0x3fcc7810 to=0x3fccb3f8[APP destroy=0] destroy_from=0 snapshots=0x3c5a8900
+[INFO] [Activity] Anim cleanup end
+I (210483) Board: ui heartbeat: 38800 ticks, DRAM free=9155
+[INFO] [MemReport] internal: free=9155B largest=7168B | psram: free=7382600B largest=7208960B | dma: free=1623B largest=48B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (210543) Board: ui heartbeat: 39000 ticks, DRAM free=9171
+I (210552) Board: ui heartbeat: 39200 ticks, DRAM free=9171
+I (210560) Board: ui heartbeat: 39400 ticks, DRAM free=9171
+I (210746) Board: ui heartbeat: 39600 ticks, DRAM free=9171
+I (210975) Board: ui heartbeat: 39800 ticks, DRAM free=9171
+[INFO] [MemReport] internal: free=9171B largest=7168B | psram: free=7382584B largest=7208960B | dma: free=1639B largest=32B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]202
+I (211221) Board: ui heartbeat: 40000 ticks, DRAM free=9171
+I (211481) Board: ui heartbeat: 40200 ticks, DRAM free=9171
+I (211698) Board: ui heartbeat: 40400 ticks, DRAM free=9171
+I (211914) Board: ui heartbeat: 40600 ticks, DRAM free=9171
+[INFO] [PowerManager] Timer paused
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3fce0c50 type=LV_EVENT(32) idx=15 (count=1)
+[DEBUG] [SNI-Context] REMOVE_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b7ca0 type=LV_TIMER(17) (count=0)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]34
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5a86f8 type=LV_TIMER(17) idx=0 (count=1)
+I (212210) Board: ui heartbeat: 40800 ticks, DRAM free=9171
+[INFO] [PowerManager] Timer resumed
+[INFO] [MemReport] internal: free=9171B largest=7168B | psram: free=7382480B largest=7208960B | dma: free=1639B largest=32B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (212292) Board: ui heartbeat: 41000 ticks, DRAM free=9171
+I (212339) Board: ui heartbeat: 41200 ticks, DRAM free=9171
+I (212348) Board: ui heartbeat: 41400 ticks, DRAM free=9171
+I (212956) Board: ui heartbeat: 41600 ticks, DRAM free=9171
+I (213956) Board: ui heartbeat: 41800 ticks, DRAM free=9171
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+[INFO] [MemReport] internal: free=9171B largest=7168B | psram: free=7382516B largest=7208960B | dma: free=1639B largest=32B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (214970) Board: ui heartbeat: 42000 ticks, DRAM free=9171
+I (215956) Board: ui heartbeat: 42200 ticks, DRAM free=9171
+[INFO] [PowerManager] Timer paused
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]13
+[INFO] [PowerManager] Timer resumed
+I (217165) Board: ui heartbeat: 42400 ticks, DRAM free=9171
+I (217956) Board: ui heartbeat: 42600 ticks, DRAM free=9171
+I (218956) Board: ui heartbeat: 42800 ticks, DRAM free=9171
+[INFO] [PowerManager] Timer paused
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5a8770 type=LV_ANIM(19) idx=2 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [SNI-Context] REMOVE_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5a86f8 type=LV_TIMER(17) (count=0)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]78
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fe0 ptr=0x3c5b7ca0 type=LV_TIMER(17) idx=0 (count=1)
+[INFO] [PowerManager] Timer resumed
+[INFO] [MemReport] internal: free=9147B largest=7168B | psram: free=7380752B largest=7208960B | dma: free=1615B largest=32B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (221978) Board: ui heartbeat: 43000 ticks, DRAM free=9147
+I (221990) Board: ui heartbeat: 43200 ticks, DRAM free=9171
+I (221999) Board: ui heartbeat: 43400 ticks, DRAM free=9171
+I (222956) Board: ui heartbeat: 43600 ticks, DRAM free=9171
+I (223956) Board: ui heartbeat: 43800 ticks, DRAM free=9171
+[INFO] [MemReport] internal: free=9171B largest=7168B | psram: free=7381644B largest=7208960B | dma: free=1639B largest=32B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (225008) Board: ui heartbeat: 44000 ticks, DRAM free=9171
+I (225956) Board: ui heartbeat: 44200 ticks, DRAM free=9171
+[INFO] [PowerManager] Timer paused
+[DEBUG] [Activity] Indev gesture: dir=2
+[DEBUG] [Activity] Indev swipe-back: firing back, current=0x3fccb3f8
+[INFO] [Activity] Activity back request: current=0x3fccb3f8[APP] visible=0x3fccb3f8[APP] root=0x3fcf0380[WATCHFACE] transition=0 stack_size=2
+[INFO] [Stack] Pop data[0x3fccb3f8]
+[INFO] [Activity] Activity back will destroy current after switch: current=0x3fccb3f8[APP] prev=0x3fcc7810[APP_LIST]
+[INFO] [Activity] Activity switch request: next=0x3fcc7810[APP_LIST] returning=1 current=0x3fccb3f8[APP] visible=0x3fccb3f8[APP] transition=0
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity transition start: from=0x3fccb3f8[APP destroy=1] to=0x3fcc7810[APP_LIST destroy=0] anim_cb=0x42089dc4 list_anim=0
+--- 0x42089dc4: _app_list_close_app_anim_cb at /home/erashaperavm/下载/ElenixOS-fork/src/framework/app/eos_app_list.c:1464
+[DEBUG] [AppHeader] New title: (null)
+[INFO] [PowerManager] Timer resumed
+I (227773) Board: ui heartbeat: 44400 ticks, DRAM free=9039
+[INFO] [Activity] Anim completed PRE-SET: visible=0x3fccb3f8[APP] current=0x3fcc7810[APP_LIST] to=0x3fcc7810[APP_LIST] from=0x3fccb3f8[APP] trans=1
+[INFO] [Activity] Anim completed gate open: visible=0x3fcc7810[APP_LIST] trans=false
+[INFO] [Activity] Anim cleanup begin: anim_ctx=0x3c5a89e8 from=0x3fccb3f8 to=0x3fcc7810[APP_LIST destroy=0] destroy_from=1 snapshots=0x3c5a8ee0
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity destroy begin: activity=0x3fccb3f8 type=APP destroy_on_exit=1 started=1 view=0x3fcc8c10 valid=1 snapshot_ref=0 header_visible=0 header_time_only=0 user_data=0x3fcca170
+[INFO] [SPM] Terminating program 0x3fcca2b0 type=1 state=2
+[INFO] [SNI-Context] SWEEP-JS: ctx=0x3fcf6fe0 releasing JS callback references
+[INFO] [ScriptEngine] Stop script (sync) state=1
+[INFO] [ScriptEngine] Script stop cleanup: state=1 prog=0x3fcca2b0
+[DEBUG] [ScriptEngine] RELEASE_TRACKED: freeing 1 modules
+[INFO] [ScriptEngine] Script terminated
+[DEBUG] [SPM] Destroying program 0x3fcca2b0 type=1 state=0 sni_ctx=0x3fcf6fe0
+[INFO] [SNI-Context] SWEEP: ctx=0x3fcf6fe0
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fcf6fe0 resource counts:
+[INFO] [SNI-Context]   [ 0] LV_TIMER                  : 1
+[INFO] [SNI-Context]   [ 2] LV_ANIM                   : 1
+[INFO] [SNI-Context]   [ 8] EOS_ACTIVITY              : 1
+[INFO] [SNI-Context]   [15] LV_EVENT                  : 1
+[INFO] [SNI-Context]   [17] LV_EVENT_DSC              : 61
+[INFO] [SNI-Context]   TOTAL: 65
+[INFO] [SNI-Context] SWEEP-JS: ctx=0x3fcf6fe0 releasing JS callback references
+[INFO] [SNI-Context] SWEEP: freed 1 nodes of type [0] LV_TIMER
+[INFO] [SNI-Context] SWEEP: freed 1 nodes of type [2] LV_ANIM
+[INFO] [SNI-Context] SWEEP: freed 1 nodes of type [8] EOS_ACTIVITY
+[INFO] [SNI-Context] SWEEP: freed 1 nodes of type [15] LV_EVENT
+[INFO] [SNI-Context] SWEEP: freed 61 nodes of type [17] LV_EVENT_DSC
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fcf6fe0 resource counts:
+[INFO] [SNI-Context]   (all zero)
+[INFO] [SNI-Context] SWEEP: complete for ctx=0x3fcf6fe0
+[DEBUG] [SNI-Context] DESTROY context=0x3fcf6fe0
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fcf6fe0 resource counts:
+[INFO] [SNI-Context]   (all zero)
+[DEBUG] [SNI-Context] DESTROY complete: context freed
+[INFO] [SPM] Program terminated
+[INFO] [Activity] Activity destroy end
+[INFO] [Activity] Anim cleanup end
+I (229023) Board: ui heartbeat: 44600 ticks, DRAM free=21995
+I (229030) Board: ui heartbeat: 44800 ticks, DRAM free=21995
+[INFO] [MemReport] internal: free=21995B largest=7168B | psram: free=7474744B largest=7208960B | dma: free=14463B largest=3072B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (230011) Board: ui heartbeat: 45000 ticks, DRAM free=21979
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]244
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]30
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]47
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]46
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]4926
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]30
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [AppList] view_size: 240, 240
+[INFO] [Activity] Activity enter request: activity=0x3fcc8c18[APP] current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[INFO] [Stack] Push data[0x3fcc8c18]
+[INFO] [Activity] Activity enter pushed to stack: activity=0x3fcc8c18[APP] stack_size=2
+[INFO] [Activity] Activity switch request: next=0x3fcc8c18[APP] returning=0 current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]30
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]47
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]4926
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]46
+[DEBUG] [SNI-Context] CREATE context=0x3fcf6fc0 (size=260)
+[INFO] [SPM] Starting program 0x3fcca2b0 type=1 id=com.elenix.globaltime
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]30
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]47
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]4926
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]46
+[DEBUG] [ScriptEngine] ENGINE_RUN: entered fatal_code=0
+[DEBUG] [ScriptEngine] ENGINE_RUN: normal flow start
+[DEBUG] [ScriptEngine] _realm_create: created realm=0x3c4fd913
+[DEBUG] [ScriptEngine] _realm_save_and_switch: old_realm=0x3c4f92db, new_realm=0x3c4fd913
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fc0 ptr=0x3fcc8c18 type=EOS_ACTIVITY(25) idx=8 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fc0 ptr=0x3fcf7158 type=LV_TIMER(17) idx=0 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fc0 ptr=0x3fcf6ee8 type=LV_EVENT_DSC(34) idx=17 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fc0 ptr=0x3fcf7858 type=LV_EVENT_DSC(34) idx=17 (count=2)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fc0 ptr=0x3fcd4548 type=LV_EVENT_DSC(34) idx=17 (count=3)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fc0 ptr=0x3fcd43c0 type=LV_EVENT_DSC(34) idx=17 (count=4)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fc0 ptr=0x3fcd4ba0 type=LV_EVENT_DSC(34) idx=17 (count=5)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fc0 ptr=0x3c596940 type=LV_EVENT_DSC(34) idx=17 (count=6)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fc0 ptr=0x3c595ee8 type=LV_TIMER(17) idx=0 (count=2)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]65
+[INFO] [com.elenix.globaltime] [globaltime] lite: earth dots removed, 5 city times only
+[DEBUG] [ScriptEngine] _realm_assign_to_program: prog=0x3fcca2b0, realm=0x3c4fd913 (ref copied)
+[DEBUG] [ScriptEngine] _realm_restore_and_cleanup: restoring old_realm=0x3c4f92db, freed current=0x3c4fd913
+[DEBUG] [ScriptEngine] _realm_release_program: freeing realm=0x3c4fd913 for prog=0x3fcca2b0
+[DEBUG] [ScriptEngine] ENGINE_RUN: returning result=0
+[INFO] [SPM] Program 0x3fcca2b0 started successfully realm=72 sni_ctx=0x3fcf6fc0
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity transition start: from=0x3fcc7810[APP_LIST destroy=0] to=0x3fcc8c18[APP destroy=0] anim_cb=0x42089dd8 list_anim=0
+--- 0x42089dd8: _app_list_open_app_anim_cb at /home/erashaperavm/下载/ElenixOS-fork/src/framework/app/eos_app_list.c:1459
+[DEBUG] [AppHeader] New title: 环球时间
+I (231843) Board: ui heartbeat: 45200 ticks, DRAM free=12279
+[INFO] [Activity] Anim completed PRE-SET: visible=0x3fcc7810[APP_LIST] current=0x3fcc8c18[APP] to=0x3fcc8c18[APP] from=0x3fcc7810[APP_LIST] trans=1
+[INFO] [Activity] Anim completed gate open: visible=0x3fcc8c18[APP] trans=false
+[INFO] [Activity] Anim cleanup begin: anim_ctx=0x3c5ace78 from=0x3fcc7810 to=0x3fcc8c18[APP destroy=0] destroy_from=0 snapshots=0x3fcd49f0
+[INFO] [Activity] Anim cleanup end
+I (233266) Board: ui heartbeat: 45400 ticks, DRAM free=12959
+I (233274) Board: ui heartbeat: 45600 ticks, DRAM free=12959
+I (233956) Board: ui heartbeat: 45800 ticks, DRAM free=12959
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+[INFO] [MemReport] internal: free=12959B largest=7168B | psram: free=7470776B largest=7208960B | dma: free=5427B largest=100B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (235001) Board: ui heartbeat: 46000 ticks, DRAM free=12959
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+I (235956) Board: ui heartbeat: 46200 ticks, DRAM free=12915
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+I (236956) Board: ui heartbeat: 46400 ticks, DRAM free=12915
+[INFO] [PowerManager] Timer paused
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf6fc0 ptr=0x3fce0c50 type=LV_EVENT(32) idx=15 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[INFO] [PowerManager] Timer resumed
+I (237956) Board: ui heartbeat: 46600 ticks, DRAM free=12563
+[INFO] [PowerManager] Timer paused
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[INFO] [PowerManager] Timer resumed
+[INFO] [PowerManager] Timer paused
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[INFO] [PowerManager] Timer resumed
+I (238975) Board: ui heartbeat: 46800 ticks, DRAM free=12419
+[INFO] [PowerManager] Timer paused
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[INFO] [PowerManager] Timer resumed
+[INFO] [MemReport] internal: free=12663B largest=7168B | psram: free=7470180B largest=7208960B | dma: free=5131B largest=100B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (239968) Board: ui heartbeat: 47000 ticks, DRAM free=12663
+[INFO] [PowerManager] Timer paused
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[INFO] [PowerManager] Timer resumed
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[INFO] [PowerManager] Timer paused
+I (240956) Board: ui heartbeat: 47200 ticks, DRAM free=12763
+[INFO] [PowerManager] Timer resumed
+[INFO] [PowerManager] Timer paused
+I (241957) Board: ui heartbeat: 47400 ticks, DRAM free=12763
+[DEBUG] [Activity] Indev gesture: dir=2
+[DEBUG] [Activity] Indev swipe-back: firing back, current=0x3fcc8c18
+[INFO] [Activity] Activity back request: current=0x3fcc8c18[APP] visible=0x3fcc8c18[APP] root=0x3fcf0380[WATCHFACE] transition=0 stack_size=2
+[INFO] [Stack] Pop data[0x3fcc8c18]
+[INFO] [Activity] Activity back will destroy current after switch: current=0x3fcc8c18[APP] prev=0x3fcc7810[APP_LIST]
+[INFO] [Activity] Activity switch request: next=0x3fcc7810[APP_LIST] returning=1 current=0x3fcc8c18[APP] visible=0x3fcc8c18[APP] transition=0
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity transition start: from=0x3fcc8c18[APP destroy=1] to=0x3fcc7810[APP_LIST destroy=0] anim_cb=0x42089dc4 list_anim=0
+--- 0x42089dc4: _app_list_close_app_anim_cb at /home/erashaperavm/下载/ElenixOS-fork/src/framework/app/eos_app_list.c:1464
+[DEBUG] [AppHeader] New title: (null)
+[INFO] [PowerManager] Timer resumed
+I (243856) Board: ui heartbeat: 47600 ticks, DRAM free=12467
+[INFO] [Activity] Anim completed PRE-SET: visible=0x3fcc8c18[APP] current=0x3fcc7810[APP_LIST] to=0x3fcc7810[APP_LIST] from=0x3fcc8c18[APP] trans=1
+[INFO] [Activity] Anim completed gate open: visible=0x3fcc7810[APP_LIST] trans=false
+[INFO] [Activity] Anim cleanup begin: anim_ctx=0x3c597518 from=0x3fcc8c18 to=0x3fcc7810[APP_LIST destroy=0] destroy_from=1 snapshots=0x3c5ae810
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity destroy begin: activity=0x3fcc8c18 type=APP destroy_on_exit=1 started=1 view=0x3fcc8c58 valid=1 snapshot_ref=0 header_visible=0 header_time_only=0 user_data=0x3fcca170
+[INFO] [SPM] Terminating program 0x3fcca2b0 type=1 state=2
+[INFO] [SNI-Context] SWEEP-JS: ctx=0x3fcf6fc0 releasing JS callback references
+[INFO] [ScriptEngine] Stop script (sync) state=1
+[INFO] [ScriptEngine] Script stop cleanup: state=1 prog=0x3fcca2b0
+[DEBUG] [ScriptEngine] RELEASE_TRACKED: freeing 1 modules
+[INFO] [ScriptEngine] Script terminated
+[DEBUG] [SPM] Destroying program 0x3fcca2b0 type=1 state=0 sni_ctx=0x3fcf6fc0
+[INFO] [SNI-Context] SWEEP: ctx=0x3fcf6fc0
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fcf6fc0 resource counts:
+[INFO] [SNI-Context]   [ 0] LV_TIMER                  : 2
+[INFO] [SNI-Context]   [ 8] EOS_ACTIVITY              : 1
+[INFO] [SNI-Context]   [15] LV_EVENT                  : 1
+[INFO] [SNI-Context]   [17] LV_EVENT_DSC              : 6
+[INFO] [SNI-Context]   TOTAL: 10
+[INFO] [SNI-Context] SWEEP-JS: ctx=0x3fcf6fc0 releasing JS callback references
+[INFO] [SNI-Context] SWEEP: freed 2 nodes of type [0] LV_TIMER
+[INFO] [SNI-Context] SWEEP: freed 1 nodes of type [8] EOS_ACTIVITY
+[INFO] [SNI-Context] SWEEP: freed 1 nodes of type [15] LV_EVENT
+[INFO] [SNI-Context] SWEEP: freed 6 nodes of type [17] LV_EVENT_DSC
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fcf6fc0 resource counts:
+[INFO] [SNI-Context]   (all zero)
+[INFO] [SNI-Context] SWEEP: complete for ctx=0x3fcf6fc0
+[DEBUG] [SNI-Context] DESTROY context=0x3fcf6fc0
+[INFO] [SNI-Context] [COUNTER] ctx=0x3fcf6fc0 resource counts:
+[INFO] [SNI-Context]   (all zero)
+[DEBUG] [SNI-Context] DESTROY complete: context freed
+[INFO] [SPM] Program terminated
+[INFO] [Activity] Activity destroy end
+[INFO] [Activity] Anim cleanup end
+I (244716) Board: ui heartbeat: 47800 ticks, DRAM free=21659
+[INFO] [MemReport] internal: free=21659B largest=7168B | psram: free=7481512B largest=7208960B | dma: free=14127B largest=3072B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (245011) Board: ui heartbeat: 48000 ticks, DRAM free=21659
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]302
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]29
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]108
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]45
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]19040
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]29
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [AppList] view_size: 240, 240
+[INFO] [Activity] Activity enter request: activity=0x3fccb3c8[APP] current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[INFO] [Stack] Push data[0x3fccb3c8]
+[INFO] [Activity] Activity enter pushed to stack: activity=0x3fccb3c8[APP] stack_size=2
+[INFO] [Activity] Activity switch request: next=0x3fccb3c8[APP] returning=0 current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]29
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]108
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]19040
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]45
+[DEBUG] [SNI-Context] CREATE context=0x3fcf77f0 (size=260)
+[INFO] [SPM] Starting program 0x3fcca2e8 type=1 id=com.elenix.stopwatch
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]29
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]108
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]19040
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]45
+[DEBUG] [ScriptEngine] ENGINE_RUN: entered fatal_code=0
+[DEBUG] [ScriptEngine] ENGINE_RUN: normal flow start
+[DEBUG] [ScriptEngine] _realm_create: created realm=0x3c4fd913
+[DEBUG] [ScriptEngine] _realm_save_and_switch: old_realm=0x3c4f92db, new_realm=0x3c4fd913
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3fccb3c8 type=EOS_ACTIVITY(25) idx=8 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3fcf7000 type=LV_EVENT_DSC(34) idx=17 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3fcd41e8 type=LV_EVENT_DSC(34) idx=17 (count=2)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3fcd3ed0 type=LV_EVENT_DSC(34) idx=17 (count=3)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]22
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]105
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]105
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]105
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]105
+[ERROR] [MemAuto] Free: foreign pointer 0x3c596458 magic=0x6400 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3c5976f8 type=LV_TIMER(17) idx=0 (count=1)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3c597770 type=LV_ANIM(19) idx=2 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]23
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]105
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]105
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]22
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]105
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]105
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]105
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]54
+[INFO] [com.elenix.stopwatch] dial xywh=0,0,239,239 r=0 bgOpa=255 hid=false
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]50
+[INFO] [com.elenix.stopwatch]   #0 xywh=0,0,7,7 r=4 bgOpa=255 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5976c8 magic=0x3f3f - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]57
+[INFO] [com.elenix.stopwatch]   #1<READY> xywh=0,0,79,33 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c597f88 magic=0x7f00 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]63
+[INFO] [com.elenix.stopwatch]   #2<00:00:00> xywh=32,60,141,33 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5acda8 magic=0xcd00 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]57
+[INFO] [com.elenix.stopwatch]   #3<.0> xywh=176,60,31,33 r=0 bgOpa=0 hid=false
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]56
+[INFO] [com.elenix.stopwatch]   #4 xywh=36,180,47,27 r=999 bgOpa=36 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5ae4c0 magic=0xe4a8 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]62
+[INFO] [com.elenix.stopwatch]     #0<START> xywh=36,180,47,27 r=0 bgOpa=0 hid=false
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]56
+[INFO] [com.elenix.stopwatch]   #5 xywh=96,180,47,27 r=999 bgOpa=16 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c597300 magic=0x7200 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]60
+[INFO] [com.elenix.stopwatch]     #0<LAP> xywh=96,180,47,27 r=0 bgOpa=0 hid=false
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]57
+[INFO] [com.elenix.stopwatch]   #6 xywh=156,180,47,27 r=999 bgOpa=16 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5acac8 magic=0xca00 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]63
+[INFO] [com.elenix.stopwatch]     #0<RESET> xywh=156,180,47,27 r=0 bgOpa=0 hid=false
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]55
+[INFO] [com.elenix.stopwatch]   #7 xywh=30,96,179,79 r=12 bgOpa=12 hid=false
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]54
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]73
+[INFO] [com.elenix.stopwatch]     #0<— No Laps —> xywh=34,133,179,13 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a89f0 magic=0x8900 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]58
+[INFO] [com.elenix.stopwatch]     #1<> xywh=34,104,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c595c28 magic=0x5c00 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]58
+[INFO] [com.elenix.stopwatch]     #2<> xywh=34,117,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5ad980 magic=0xd900 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]58
+[INFO] [com.elenix.stopwatch]     #3<> xywh=34,130,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c598a50 magic=0x8a00 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]58
+[INFO] [com.elenix.stopwatch]     #4<> xywh=34,143,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5964d0 magic=0x6400 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]58
+[INFO] [com.elenix.stopwatch]     #5<> xywh=34,156,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c599340 magic=0x9300 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]58
+[INFO] [com.elenix.stopwatch]     #6<> xywh=34,169,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c599090 magic=0x9000 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]58
+[INFO] [com.elenix.stopwatch]     #7<> xywh=34,182,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8788 magic=0x8700 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]58
+[INFO] [com.elenix.stopwatch]     #8<> xywh=34,195,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5979d8 magic=0x7900 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]58
+[INFO] [com.elenix.stopwatch]     #9<> xywh=34,208,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c597498 magic=0x7400 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #10<> xywh=34,221,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5958e8 magic=0x3f3f - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #11<> xywh=34,234,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8038 magic=0x8000 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #12<> xywh=34,247,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5ade38 magic=0x0000 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #13<> xywh=34,260,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c597658 magic=0x7600 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #14<> xywh=34,273,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5af098 magic=0xf000 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #15<> xywh=34,286,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5ac8c8 magic=0xc800 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #16<> xywh=34,299,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c596158 magic=0x6100 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #17<> xywh=34,312,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c597d50 magic=0x0029 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #18<> xywh=34,325,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a84a0 magic=0x3133 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #19<> xywh=34,338,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8480 magic=0x3033 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #20<> xywh=34,351,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8460 magic=0x3932 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #21<> xywh=34,364,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8d60 magic=0x3133 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #22<> xywh=34,377,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8d40 magic=0x3033 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #23<> xywh=34,390,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8d20 magic=0x3932 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #24<> xywh=34,403,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8d00 magic=0x3832 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #25<> xywh=34,416,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8ce0 magic=0x3732 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #26<> xywh=34,429,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8cc0 magic=0x3632 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #27<> xywh=34,442,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8ca0 magic=0x3532 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #28<> xywh=34,455,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8c80 magic=0x3432 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #29<> xywh=34,468,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8c60 magic=0x3332 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #30<> xywh=34,481,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8c40 magic=0x3232 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #31<> xywh=34,494,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8c20 magic=0x3132 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #32<> xywh=34,507,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8c00 magic=0x3032 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #33<> xywh=34,520,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8be0 magic=0x3931 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #34<> xywh=34,533,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8bc0 magic=0x3831 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #35<> xywh=34,546,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8ba0 magic=0x3731 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #36<> xywh=34,559,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a89c0 magic=0x3531 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #37<> xywh=34,572,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a89a0 magic=0x3431 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #38<> xywh=34,585,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8980 magic=0x3331 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #39<> xywh=34,598,179,12 r=0 bgOpa=0 hid=false
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a8960 magic=0x3231 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]59
+[INFO] [com.elenix.stopwatch]     #40<> xywh=34,611,179,12 r=0 bgOpa=0 hid=false
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]38
+[INFO] [com.elenix.stopwatch] [timer] 秒表动效版完成
+[DEBUG] [ScriptEngine] _realm_assign_to_program: prog=0x3fcca2e8, realm=0x3c4fd913 (ref copied)
+[DEBUG] [ScriptEngine] _realm_restore_and_cleanup: restoring old_realm=0x3c4f92db, freed current=0x3c4fd913
+[DEBUG] [ScriptEngine] _realm_release_program: freeing realm=0x3c4fd913 for prog=0x3fcca2e8
+[DEBUG] [ScriptEngine] ENGINE_RUN: returning result=0
+[INFO] [SPM] Program 0x3fcca2e8 started successfully realm=72 sni_ctx=0x3fcf77f0
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity transition start: from=0x3fcc7810[APP_LIST destroy=0] to=0x3fccb3c8[APP destroy=0] anim_cb=0x42089dd8 list_anim=0
+--- 0x42089dd8: _app_list_open_app_anim_cb at /home/erashaperavm/下载/ElenixOS-fork/src/framework/app/eos_app_list.c:1459
+[DEBUG] [AppHeader] New title: Stopwatch
+I (248433) Board: ui heartbeat: 48200 ticks, DRAM free=11351
+[INFO] [Activity] Anim completed PRE-SET: visible=0x3fcc7810[APP_LIST] current=0x3fccb3c8[APP] to=0x3fccb3c8[APP] from=0x3fcc7810[APP_LIST] trans=1
+[INFO] [Activity] Anim completed gate open: visible=0x3fccb3c8[APP] trans=false
+[INFO] [Activity] Anim cleanup begin: anim_ctx=0x3c596ad8 from=0x3fcc7810 to=0x3fccb3c8[APP destroy=0] destroy_from=0 snapshots=0x3fcd4870
+[INFO] [Activity] Anim cleanup end
+I (250127) Board: ui heartbeat: 48400 ticks, DRAM free=12007
+I (250135) Board: ui heartbeat: 48600 ticks, DRAM free=12007
+I (250142) Board: ui heartbeat: 48800 ticks, DRAM free=12007
+[INFO] [MemReport] internal: free=12007B largest=7168B | psram: free=7428124B largest=7208960B | dma: free=4475B largest=96B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (250199) Board: ui heartbeat: 49000 ticks, DRAM free=12007
+[INFO] [PowerManager] Timer paused
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3fce0c50 type=LV_EVENT(32) idx=15 (count=1)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3c5adbb0 type=LV_ANIM(19) idx=2 (count=2)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3c5adc48 type=LV_ANIM(19) idx=2 (count=3)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3c597060 type=LV_ANIM(19) idx=2 (count=4)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]23
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]105
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]104
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]22
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]104
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]103
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]115
+I (251258) Board: ui heartbeat: 49200 ticks, DRAM free=11695
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[INFO] [PowerManager] Timer resumed
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+I (251956) Board: ui heartbeat: 49400 ticks, DRAM free=11767
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[INFO] [PowerManager] Timer paused
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3c5abb98 type=LV_ANIM(19) idx=2 (count=5)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3c5abc30 type=LV_ANIM(19) idx=2 (count=6)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]23
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]115
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]116
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]22
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]119
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]120
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]108
+[INFO] [PowerManager] Timer resumed
+I (252956) Board: ui heartbeat: 49600 ticks, DRAM free=11675
+[INFO] [PowerManager] Timer paused
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3c5ab238 type=LV_ANIM(19) idx=2 (count=7)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[ERROR] [MemAuto] Free: foreign pointer 0x3c596cb0 magic=0x6c00 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]23
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3c5ab2d0 type=LV_ANIM(19) idx=2 (count=8)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3c5ab368 type=LV_ANIM(19) idx=2 (count=9)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3c5ab418 type=LV_TIMER(17) idx=0 (count=2)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]23
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]108
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]108
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]22
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]108
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]108
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]15
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]108
+[INFO] [PowerManager] Timer resumed
+I (254013) Board: ui heartbeat: 49800 ticks, DRAM free=11683
+[INFO] [MemReport] internal: free=11703B largest=7168B | psram: free=7422956B largest=7208960B | dma: free=4171B largest=36B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (255006) Board: ui heartbeat: 50000 ticks, DRAM free=11735
+[INFO] [PowerManager] Timer paused
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3c5ab7b8 type=LV_ANIM(19) idx=2 (count=10)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3c5aed40 type=LV_ANIM(19) idx=2 (count=11)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]9
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3c599ce0 type=LV_ANIM(19) idx=2 (count=12)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3fcf77f0 ptr=0x3c5ad2f0 type=LV_ANIM(19) idx=2 (count=13)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]23
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]112
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]112
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]22
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]109
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]109
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]19
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]109
+[INFO] [PowerManager] Timer resumed
+I (255956) Board: ui heartbeat: 50200 ticks, DRAM free=11811
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+I (257038) Board: ui heartbeat: 50400 ticks, DRAM free=11699
+I (257956) Board: ui heartbeat: 50600 ticks, DRAM free=11815
+[INFO] [PowerManager] Timer paused
+[DEBUG] [Activity] Indev gesture: dir=2
+[DEBUG] [Activity] Indev swipe-back: firing back, current=0x3fccb3c8
+[INFO] [Activity] Activity back request: current=0x3fccb3c8[APP] visible=0x3fccb3c8[APP] root=0x3fcf0380[WATCHFACE] transition=0 stack_size=2
+[INFO] [Stack] Pop data[0x3fccb3c8]
+[INFO] [Activity] Activity moving to background (keep-alive): activity=0x3fccb3c8[APP]
+[INFO] [SPM] Program 0x3fcca2e8 suspended
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]105
+[INFO] [AppList] EOS-DBG app_on_pause: com.elenix.stopwatch background-flag=0
+[INFO] [Activity] Activity back will destroy current after switch: current=0x3fccb3c8[APP] prev=0x3fcc7810[APP_LIST]
+[INFO] [Activity] Activity switch request: next=0x3fcc7810[APP_LIST] returning=1 current=0x3fccb3c8[APP] visible=0x3fccb3c8[APP] transition=0
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity transition start: from=0x3fccb3c8[APP destroy=0] to=0x3fcc7810[APP_LIST destroy=0] anim_cb=0x42089dc4 list_anim=0
+--- 0x42089dc4: _app_list_close_app_anim_cb at /home/erashaperavm/下载/ElenixOS-fork/src/framework/app/eos_app_list.c:1464
+[DEBUG] [AppHeader] New title: (null)
+[INFO] [PowerManager] Timer resumed
+I (259828) Board: ui heartbeat: 50800 ticks, DRAM free=11543
+[INFO] [Activity] Anim completed PRE-SET: visible=0x3fccb3c8[APP] current=0x3fcc7810[APP_LIST] to=0x3fcc7810[APP_LIST] from=0x3fccb3c8[APP] trans=1
+[INFO] [Activity] Anim completed gate open: visible=0x3fcc7810[APP_LIST] trans=false
+[INFO] [Activity] Anim cleanup begin: anim_ctx=0x3c5ad3c0 from=0x3fccb3c8 to=0x3fcc7810[APP_LIST destroy=0] destroy_from=0 snapshots=0x3c5a73d0
+[INFO] [Activity] Anim cleanup end
+[INFO] [MemReport] internal: free=11791B largest=7168B | psram: free=7421332B largest=7208960B | dma: free=4259B largest=92B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (260909) Board: ui heartbeat: 51000 ticks, DRAM free=11759
+I (260956) Board: ui heartbeat: 51200 ticks, DRAM free=11759
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+[ERROR] [SlideWidget] NULL pointer at /home/erashaperavm/下载/ElenixOS-fork/src/ui/widgets/slide_widget/eos_slide_widget.c:424, at function: eos_slide_widget_set_target_obj
+[ERROR] [SlideWidget] NULL pointer at /home/erashaperavm/下载/ElenixOS-fork/src/ui/widgets/slide_widget/eos_slide_widget.c:442, at function: eos_slide_widget_set_range
+[ERROR] [SlideWidget] NULL pointer at /home/erashaperavm/下载/ElenixOS-fork/src/ui/widgets/slide_widget/eos_slide_widget.c:463, at function: eos_slide_widget_set_threshold
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.texthub/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.texthub/icon.bin
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.texthub/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.texthub/icon.bin
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.timer/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.timer/icon.bin
+[INFO] [LVGL_FS] open path: /.sys/app/apps/com.elenix.timer/icon.bin, mode: 2
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]20
+[INFO] [LVGL_FS] successfully opened: /.sys/app/apps/com.elenix.timer/icon.bin
+I (261956) Board: ui heartbeat: 51400 ticks, DRAM free=11727
+[INFO] [PowerManager] Timer paused
+I (262957) Board: ui heartbeat: 51600 ticks, DRAM free=11727
+[INFO] [PowerManager] Timer resumed
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]324
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]138
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]41
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]19030
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [AppList] view_size: 240, 240
+[INFO] [Activity] Activity enter request: activity=0x3c5ab150[APP] current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[INFO] [Stack] Push data[0x3c5ab150]
+[INFO] [Activity] Activity enter pushed to stack: activity=0x3c5ab150[APP] stack_size=2
+[INFO] [Activity] Activity switch request: next=0x3c5ab150[APP] returning=0 current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]138
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]19030
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]41
+[DEBUG] [SNI-Context] CREATE context=0x3c5aaf38 (size=260)
+[INFO] [SPM] Starting program 0x3c5a56a0 type=1 id=com.elenix.timer
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]138
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]19030
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]41
+[DEBUG] [ScriptEngine] ENGINE_RUN: entered fatal_code=0
+[DEBUG] [ScriptEngine] ENGINE_RUN: normal flow start
+[DEBUG] [ScriptEngine] _realm_create: created realm=0x3c51f2fb
+[DEBUG] [ScriptEngine] _realm_save_and_switch: old_realm=0x3c4f92db, new_realm=0x3c51f2fb
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3c5ab150 type=EOS_ACTIVITY(25) idx=8 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3c5ad670 type=LV_TIMER(17) idx=0 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5ab730 magic=0xb700 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3c5b83c0 type=LV_EVENT_DSC(34) idx=17 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3c5a7328 type=LV_EVENT_DSC(34) idx=17 (count=2)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]13
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3c5b8db8 type=LV_EVENT_DSC(34) idx=17 (count=3)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3c5a6950 type=LV_EVENT_DSC(34) idx=17 (count=4)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3c5a6960 type=LV_EVENT_DSC(34) idx=17 (count=5)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3c5b8830 type=LV_EVENT_DSC(34) idx=17 (count=6)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3c5b88a0 type=LV_EVENT_DSC(34) idx=17 (count=7)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3c5ba0a0 type=LV_EVENT_DSC(34) idx=17 (count=8)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3c5ba110 type=LV_EVENT_DSC(34) idx=17 (count=9)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]15
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3c5ba610 type=LV_EVENT_DSC(34) idx=17 (count=10)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3c5b6470 type=LV_EVENT_DSC(34) idx=17 (count=11)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]44
+[INFO] [com.elenix.timer] [timer] multi-countdown v0.2 loaded
+[DEBUG] [ScriptEngine] _realm_assign_to_program: prog=0x3c5a56a0, realm=0x3c51f2fb (ref copied)
+[DEBUG] [ScriptEngine] _realm_restore_and_cleanup: restoring old_realm=0x3c4f92db, freed current=0x3c51f2fb
+[DEBUG] [ScriptEngine] _realm_release_program: freeing realm=0x3c51f2fb for prog=0x3c5a56a0
+[DEBUG] [ScriptEngine] ENGINE_RUN: returning result=0
+[INFO] [SPM] Program 0x3c5a56a0 started successfully realm=72 sni_ctx=0x3c5aaf38
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity transition start: from=0x3fcc7810[APP_LIST destroy=0] to=0x3c5ab150[APP destroy=0] anim_cb=0x42089dd8 list_anim=0
+--- 0x42089dd8: _app_list_open_app_anim_cb at /home/erashaperavm/下载/ElenixOS-fork/src/framework/app/eos_app_list.c:1459
+[DEBUG] [AppHeader] New title: Timer
+I (266015) Board: ui heartbeat: 51800 ticks, DRAM free=10079
+[INFO] [Activity] Anim completed PRE-SET: visible=0x3fcc7810[APP_LIST] current=0x3c5ab150[APP] to=0x3c5ab150[APP] from=0x3fcc7810[APP_LIST] trans=1
+[INFO] [Activity] Anim completed gate open: visible=0x3c5ab150[APP] trans=false
+[INFO] [Activity] Anim cleanup begin: anim_ctx=0x3c5b6540 from=0x3fcc7810 to=0x3c5ab150[APP destroy=0] destroy_from=0 snapshots=0x3c5b7b30
+[INFO] [Activity] Anim cleanup end
+[INFO] [MemReport] internal: free=10203B largest=7168B | psram: free=7343316B largest=7208960B | dma: free=2671B largest=36B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+I (266903) Board: ui heartbeat: 52000 ticks, DRAM free=10251
+I (266912) Board: ui heartbeat: 52200 ticks, DRAM free=10251
+I (266956) Board: ui heartbeat: 52400 ticks, DRAM free=10251
+I (267956) Board: ui heartbeat: 52600 ticks, DRAM free=10251
+[INFO] [PowerManager] Timer paused
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3fce0c50 type=LV_EVENT(32) idx=15 (count=1)
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3fce05d0 type=LV_EVENT(32) idx=15 (count=2)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[INFO] [PowerManager] Timer resumed
+I (268956) Board: ui heartbeat: 52800 ticks, DRAM free=10291
+[INFO] [PowerManager] Timer paused
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]66
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3c5b6c30 type=LV_EVENT_DSC(34) idx=17 (count=12)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3c5b7348 type=LV_EVENT_DSC(34) idx=17 (count=13)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3c5b64c8 type=LV_EVENT_DSC(34) idx=17 (count=14)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5aaf38 ptr=0x3c5b7680 type=LV_EVENT_DSC(34) idx=17 (count=15)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]25
+[INFO] [PowerManager] Timer resumed
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[INFO] [MemReport] internal: free=10079B largest=7168B | psram: free=7339788B largest=7208960B | dma: free=2547B largest=28B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]94
+I (270004) Board: ui heartbeat: 53000 ticks, DRAM free=10079
+[INFO] [PowerManager] Timer paused
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]73
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]94
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+[INFO] [PowerManager] Timer resumed
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]73
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]101
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+I (270956) Board: ui heartbeat: 53200 ticks, DRAM free=10079
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]17
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+I (271971) Board: ui heartbeat: 53400 ticks, DRAM free=10079
+[INFO] [PowerManager] Timer paused
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]18
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]11
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]101
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+I (272956) Board: ui heartbeat: 53600 ticks, DRAM free=10319
+[INFO] [PowerManager] Timer paused
+[DEBUG] [Activity] Indev gesture: dir=2
+[DEBUG] [Activity] Indev swipe-back: firing back, current=0x3c5ab150
+[INFO] [Activity] Activity back request: current=0x3c5ab150[APP] visible=0x3c5ab150[APP] root=0x3fcf0380[WATCHFACE] transition=0 stack_size=2
+[INFO] [Stack] Pop data[0x3c5ab150]
+[INFO] [Activity] Activity moving to background (keep-alive): activity=0x3c5ab150[APP]
+[INFO] [SPM] Program 0x3c5a56a0 suspended
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+[INFO] [AppList] EOS-DBG app_on_pause: com.elenix.timer background-flag=0
+[INFO] [Activity] Activity back will destroy current after switch: current=0x3c5ab150[APP] prev=0x3fcc7810[APP_LIST]
+[INFO] [Activity] Activity switch request: next=0x3fcc7810[APP_LIST] returning=1 current=0x3c5ab150[APP] visible=0x3c5ab150[APP] transition=0
+[DEBUG] [AppHeader] Hide app header
+[INFO] [Activity] Activity transition start: from=0x3c5ab150[APP destroy=0] to=0x3fcc7810[APP_LIST destroy=0] anim_cb=0x42089dc4 list_anim=0
+--- 0x42089dc4: _app_list_close_app_anim_cb at /home/erashaperavm/下载/ElenixOS-fork/src/framework/app/eos_app_list.c:1464
+[DEBUG] [AppHeader] New title: (null)
+[INFO] [PowerManager] Timer resumed
+I (274622) Board: ui heartbeat: 53800 ticks, DRAM free=10103
+[INFO] [Activity] Anim completed PRE-SET: visible=0x3c5ab150[APP] current=0x3fcc7810[APP_LIST] to=0x3fcc7810[APP_LIST] from=0x3c5ab150[APP] trans=1
+[INFO] [Activity] Anim completed gate open: visible=0x3fcc7810[APP_LIST] trans=false
+[INFO] [Activity] Anim cleanup begin: anim_ctx=0x3c5b6df8 from=0x3c5ab150 to=0x3fcc7810[APP_LIST destroy=0] destroy_from=0 snapshots=0x3c5b7090
+[INFO] [Activity] Anim cleanup end
+[INFO] [MemReport] internal: free=10319B largest=7168B | psram: free=7341692B largest=7208960B | dma: free=2787B largest=36B
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]202
+I (275943) Board: ui heartbeat: 54000 ticks, DRAM free=10319
+I (275956) Board: ui heartbeat: 54200 ticks, DRAM free=10319
+[INFO] [PowerManager] Timer paused
+[INFO] [PowerManager] Timer resumed
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]267
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]76
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]43
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]9382
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+[DEBUG] [AppList] view_size: 240, 240
+[INFO] [Activity] Activity enter request: activity=0x3c5b7068[APP] current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[INFO] [Stack] Push data[0x3c5b7068]
+[INFO] [Activity] Activity enter pushed to stack: activity=0x3c5b7068[APP] stack_size=2
+[INFO] [Activity] Activity switch request: next=0x3c5b7068[APP] returning=0 current=0x3fcc7810[APP_LIST] visible=0x3fcc7810[APP_LIST] transition=0
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]76
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]9382
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]43
+[DEBUG] [SNI-Context] CREATE context=0x3c5c3ab8 (size=260)
+[INFO] [SPM] Starting program 0x3c5a8d90 type=1 id=com.elenix.texthub
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]27
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]14
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]21
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]76
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_LARGE]9382
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]43
+[DEBUG] [ScriptEngine] ENGINE_RUN: entered fatal_code=0
+[DEBUG] [ScriptEngine] ENGINE_RUN: normal flow start
+[DEBUG] [ScriptEngine] _realm_create: created realm=0x3c51dcab
+[DEBUG] [ScriptEngine] _realm_save_and_switch: old_realm=0x3c4f92db, new_realm=0x3c51dcab
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5c3ab8 ptr=0x3c5b7068 type=EOS_ACTIVITY(25) idx=8 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]16
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5c3ab8 ptr=0x3c5a9808 type=LV_EVENT_DSC(34) idx=17 (count=1)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]10
+[DEBUG] [SNI-Context] ADD_RESOURCE: ctx=0x3c5c3ab8 ptr=0x3c5a9ba0 type=LV_EVENT_DSC(34) idx=17 (count=2)
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]12
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]24
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5aa4e8 magic=0x0000 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5aa538 magic=0x0034 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]98
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5aa2c8 magic=0x0034 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5aa134 magic=0x004b - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5b7430 magic=0x7400 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5aa2f4 magic=0xa200 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5a9928 magic=0x000a - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[DEBUG] [MemAuto] Auto memory alloc: [EOS_MEM_POOL_FAST]98
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5aa260 magic=0xa248 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5b7a94 magic=0x0019 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5b6d18 magic=0x0029 - ignored(leak) caller=0x4208d0fd
+--- 0x4208d0fd: eos_free at /home/erashaperavm/下载/ElenixOS-fork/src/kernel/memory/eos_mem.c:160
+[ERROR] [MemAuto] Free: foreign pointer 0x3c5aa28c magic=0xa200 - ignored(leak) caller=0x4208d0fd

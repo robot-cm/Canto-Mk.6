@@ -13,6 +13,7 @@
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
+#include "esp_heap_caps.h" /* [DIAG] heap_caps_get_free_size */
 #include "lvgl.h"
 #include "eos_image.h"
 #include "eos_msg_list.h"
@@ -27,6 +28,7 @@
 #include "eos_service_config.h"
 #include "eos_service_lock.h"
 #include "services/alarm/eos_service_alarm.h"
+#include "services/countdown/eos_service_countdown.h"
 #include "eos_app.h"
 #include "script_engine_core.h"
 #include "spm.h"
@@ -36,7 +38,7 @@
 #ifdef EOS_USE_CUSTOM_LAUNCHER
 #include "ui/launcher/eos_launcher.h"
 #endif
-#ifdef EOS_SIMULATOR
+#if EOS_SIMULATOR
 #include "eos_sim_hw_mock.h"
 #endif
 #include "eos_theme.h"
@@ -83,6 +85,46 @@
 /* Variables --------------------------------------------------*/
 static bool _is_inited = false;
 static bool _pending_root_start = false;
+
+/* Periodic memory report (real hardware only; disabled on simulator) */
+#if !EOS_SIMULATOR
+static lv_timer_t *_mem_report_timer = NULL;
+static uint32_t _mem_report_interval_sec = 0;
+#define EOS_MEM_REPORT_DEFAULT_SEC 5
+
+static void _mem_report_tick_cb(lv_timer_t *timer)
+{
+    (void)timer;
+    EOS_LOG_I("[MemReport] internal: free=%uB largest=%uB | psram: free=%uB largest=%uB | dma: free=%uB largest=%uB",
+              (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+              (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM),
+              (unsigned)heap_caps_get_free_size(MALLOC_CAP_DMA),
+              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
+}
+
+void eos_mem_report_set_interval(uint32_t sec)
+{
+    _mem_report_interval_sec = sec;
+    if (_mem_report_timer == NULL)
+        return;
+    if (sec == 0)
+    {
+        lv_timer_pause(_mem_report_timer);
+    }
+    else
+    {
+        lv_timer_set_period(_mem_report_timer, sec * 1000u);
+        lv_timer_resume(_mem_report_timer);
+    }
+}
+
+uint32_t eos_mem_report_get_interval(void)
+{
+    return _mem_report_interval_sec;
+}
+#endif /* !EOS_SIMULATOR */
 
 /* Function Implementations -----------------------------------*/
 
@@ -203,7 +245,13 @@ void eos_init(void)
     eos_service_haptic_init();
     eos_crown_init();
     script_engine_init();
+    EOS_LOG_I("[DIAG] after script_engine: DMA free=%u largest=%u",
+              (unsigned)heap_caps_get_free_size(MALLOC_CAP_DMA),
+              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
     spm_init();
+    EOS_LOG_I("[DIAG] after spm: DMA free=%u largest=%u",
+              (unsigned)heap_caps_get_free_size(MALLOC_CAP_DMA),
+              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
     eos_service_config_init();
     eos_service_state_init();
     eos_service_permission_init();
@@ -237,9 +285,20 @@ void eos_init(void)
     eos_service_lock_init();
     /* Persistent alarm trigger (Core): checks Alarm app config every 1s. */
     eos_service_alarm_init();
+    /* Persistent countdown trigger (Core): relaunches Timer app when a RUN
+     * task reaches its end timestamp (checks its config every 1s). */
+    eos_service_countdown_init();
 
     /* Low-level shell (Core). Must init even if SD/apps are unavailable. */
     eos_shell_init();
+
+#if !EOS_SIMULATOR
+    /* Periodic memory report (default every 5s, visible in `idf.py monitor`).
+     * Real-hardware only; the desktop simulator has no heap_caps. */
+    _mem_report_timer = lv_timer_create(_mem_report_tick_cb,
+                                        EOS_MEM_REPORT_DEFAULT_SEC * 1000u, NULL);
+    _mem_report_interval_sec = EOS_MEM_REPORT_DEFAULT_SEC;
+#endif
 
     /* SOCKS5 client (Core system service). Loads proxy.* config. */
     eos_net_proxy_init();
