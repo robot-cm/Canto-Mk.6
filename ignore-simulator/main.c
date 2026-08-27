@@ -1266,7 +1266,7 @@ static int sim_run_album_probe(void)
 
     /* P0.5 隐患实测: FM 写相册 app 私有 config.json，与 JS eos.config 同路径。
      * 探针 script id 是 sys.album-probe，故 C 侧模拟 FM 写本探针自己的私有
-     * config（等价于 FM 写 com.elenix.album 的场景），验证跨层同路径互通。 */
+     * config（等价于 FM 写 com.cantomk6.album 的场景），验证跨层同路径互通。 */
     {
         char cfg_dir[EOS_FS_PATH_MAX];
         char cfg_path[EOS_FS_PATH_MAX];
@@ -1307,7 +1307,7 @@ static int sim_run_album_probe(void)
 
 /* ----------------------------------------------------------------------------
  * Album app real-launch probe (--album-launch)
- * Launches the INSTALLED com.elenix.album eapk app through the real
+ * Launches the INSTALLED com.cantomk6.album eapk app through the real
  * activity/appHeader path (same as the user tapping it in the launcher),
  * pumps 5s of ticks, then dumps every label text in the tree so we can see
  * what the user means by "显示err" (crash? wrong text? missing UI?).
@@ -1370,7 +1370,7 @@ static int sim_run_album_launch(void)
 {
     printf("=== Album app launch probe (headless) ===\n");
     lv_tick_set_cb(NULL);   /* SDL driver overrides tick; restore default so lv_tick_inc works */
-    eos_result_t la = eos_app_launch_immediately("com.elenix.album");
+    eos_result_t la = eos_app_launch_immediately("com.cantomk6.album");
     printf("[probe] launch ret=%d\n", (int)la);
     for (int k = 0; k < 250; k++)
     {
@@ -1429,9 +1429,9 @@ static int sim_run_album_launch(void)
         {
             char cfg_dir[EOS_FS_PATH_MAX];
             char cfg_path[EOS_FS_PATH_MAX];
-            snprintf(cfg_dir, sizeof(cfg_dir), EOS_APP_DATA_DIR "com.elenix.album");
+            snprintf(cfg_dir, sizeof(cfg_dir), EOS_APP_DATA_DIR "com.cantomk6.album");
             eos_storage_mkdir_if_not_exist(cfg_dir);
-            snprintf(cfg_path, sizeof(cfg_path), EOS_APP_DATA_DIR "com.elenix.album/config.json");
+            snprintf(cfg_path, sizeof(cfg_path), EOS_APP_DATA_DIR "com.cantomk6.album/config.json");
             cJSON *cfg_root = eos_storage_json_load(cfg_path);
             if (!cfg_root) cfg_root = cJSON_CreateObject();
             if (cfg_root)

@@ -25,6 +25,7 @@
 #include "eos_dev_display.h"
 
 #include <string.h>
+#include <stddef.h>   /* offsetof(flush_containing) */
 #include "esp_log.h"
 #include "esp_heap_caps.h"
 #include "driver/spi_master.h"
@@ -60,15 +61,28 @@
                                                        此前 48000 使 spi_master 占用 2×48KB 内部
                                                        DMA 缓冲,加剧内部 RAM 碎片化导致 SD 写失败) */
 
-/* 背光 LEDC(ElenixOS-main 参数:5kHz, 10bit) */
-#define BL_LEDC_TIMER     LEDC_TIMER_1
+/* 背光 LEDC(5kHz, 10bit)
+ * 对齐 espp/seeed-studio-round-display 的官方验证配置:
+ *   - TIMER_0(espp 用 TIMER_0;避免任何隐藏的 timer 占用)
+ *   - LEDC_USE_APB_CLK 显式锁定 80MHz 时钟:ESP-IDF v5.3 +
+ *     CONFIG_PM_ENABLE 下 LEDC_AUTO_CLK 会选 RC_FAST_CLK(20MHz),
+ *     受 esp_pm 锁管理,配置/运行易失败(现象:背光常亮、亮度调节无效)
+ *   - 显式 flags.output_invert = 0(高电平点亮,与 espp backlight_value=true 一致) */
+#define BL_LEDC_TIMER     LEDC_TIMER_0
 #define BL_LEDC_CHANNEL   LEDC_CHANNEL_0
 #define BL_LEDC_RES       LEDC_TIMER_10_BIT
 #define BL_LEDC_FREQ_HZ   5000
+#define BL_LEDC_CLK       LEDC_USE_APB_CLK
 
 static spi_device_handle_t s_spi;
 static bool s_init_done = false;
 static bool s_bl_gpio_hold = false;   /* bltest 诊断:BL 引脚被 GPIO 直驱(绕过 LEDC) */
+static uint8_t s_last_brightness = 100; /* 最近一次用户设置的亮度;power_on 据此恢复 */
+
+/* SPI 设备级回调(见 flush_pre_cb)与 flush 同步回调 */
+static void flush_pre_cb(spi_transaction_t *t);
+static void display_flush_wait_cb(lv_display_t *disp);
+static void display_flush_tx_init(void);
 
 /* ════════════════════════════════════════════════════════════════
  *  基本传输(ElenixOS-main 原样)
@@ -142,13 +156,18 @@ static void display_init(void)
         return;
     }
 
-    /* SPI 设备 — Mode 0, 26MHz(ElenixOS-main 稳定参数),硬件 CS */
+    /* SPI 设备 — Mode 0, 26MHz(ElenixOS-main 稳定参数),硬件 CS。
+     * queue_size=16:每帧 6 个事务(2 窗口命令 + RAMWR + 像素等),双 slot
+     * 峰值约 12 个在途,留余量。
+     * pre_cb 是设备级(每个事务都触发,ISR 上下文):按 flush_trans_t 描述符
+     * 的 dc_level 切换 DC 引脚。不配 post_cb——flush 完成同步由 LVGL 的
+     * flush_wait_cb(任务上下文)用 get_trans_result 取回,见 display_flush_wait_cb。 */
     spi_device_interface_config_t dev_conf = {
         .clock_speed_hz = DISPLAY_SPI_CLK_HZ,
         .mode           = DISPLAY_SPI_MODE,
         .spics_io_num   = DISPLAY_PIN_CS,
-        .queue_size     = 10,
-        .pre_cb         = NULL,
+        .queue_size     = 16,
+        .pre_cb         = flush_pre_cb,
     };
 
     /* DC 引脚 */
@@ -169,6 +188,9 @@ static void display_init(void)
              (int)DISPLAY_HOST, DISPLAY_PIN_SCLK, DISPLAY_PIN_MOSI,
              DISPLAY_PIN_CS, DISPLAY_PIN_DC, DISPLAY_SPI_CLK_HZ / 1000000,
              DISPLAY_SPI_MODE);
+
+    /* 初始化异步 flush 事务组(命令缓冲/DC pre_cb/长度) */
+    display_flush_tx_init();
 
     /* ── 完整 GC9A01 初始化序列(ElenixOS-main 原样) ── */
     display_send_cmd(0xEF);
@@ -341,12 +363,16 @@ static void display_backlight_init(void)
         .duty_resolution = BL_LEDC_RES,
         .timer_num       = BL_LEDC_TIMER,
         .freq_hz         = BL_LEDC_FREQ_HZ,
-        .clk_cfg         = LEDC_AUTO_CLK,
+        .clk_cfg         = BL_LEDC_CLK,
     };
     esp_err_t ret = ledc_timer_config(&timer_conf);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "LEDC timer config failed: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "LEDC timer config failed: %s (backlight will stay uncontrolled)", esp_err_to_name(ret));
+        return;
     }
+    uint32_t act_freq = ledc_get_freq(LEDC_LOW_SPEED_MODE, BL_LEDC_TIMER);
+    ESP_LOGI(TAG, "LEDC timer %d OK: %luHz (requested %dHz)",
+             BL_LEDC_TIMER, (unsigned long)act_freq, BL_LEDC_FREQ_HZ);
 
     ledc_channel_config_t chan_conf = {
         .gpio_num   = DISPLAY_PIN_BL,
@@ -355,18 +381,20 @@ static void display_backlight_init(void)
         .timer_sel  = BL_LEDC_TIMER,
         .duty       = 0,
         .hpoint     = 0,
+        .flags      = { .output_invert = 0 }, /* 高电平点亮(espp backlight_value=true) */
     };
     ret = ledc_channel_config(&chan_conf);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "LEDC channel config failed: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "LEDC channel config failed: %s (backlight will stay uncontrolled)", esp_err_to_name(ret));
+        return;
     }
-
     ESP_LOGI(TAG, "Backlight initialized on GPIO %d (LEDC CH%d TIMER%d %dHz)",
              DISPLAY_PIN_BL, BL_LEDC_CHANNEL, BL_LEDC_TIMER, BL_LEDC_FREQ_HZ);
 }
 
 static void display_set_brightness(uint8_t brightness)
 {
+    s_last_brightness = brightness; /* 记录用户亮度,power_on 恢复用 */
     if (s_bl_gpio_hold)
     {
         /* bltest(GPIO 直驱)之后首次设亮度:把 BL 引脚重新绑回 LEDC,恢复 PWM */
@@ -377,6 +405,7 @@ static void display_set_brightness(uint8_t brightness)
             .timer_sel  = BL_LEDC_TIMER,
             .duty       = 0,
             .hpoint     = 0,
+            .flags      = { .output_invert = 0 },
         };
         if (ledc_channel_config(&rebind) == ESP_OK)
         {
@@ -397,8 +426,9 @@ static void display_set_brightness(uint8_t brightness)
                  brightness, (unsigned long)duty,
                  esp_err_to_name(r1), esp_err_to_name(r2));
     } else {
-        ESP_LOGD(TAG, "set_brightness(%u -> duty %lu) ok",
-                 brightness, (unsigned long)duty);
+        uint32_t rduty = ledc_get_duty(LEDC_LOW_SPEED_MODE, BL_LEDC_CHANNEL);
+        ESP_LOGI(TAG, "set_brightness(%u -> duty %lu, readback %lu)",
+                 brightness, (unsigned long)duty, (unsigned long)rduty);
     }
 }
 
@@ -418,12 +448,22 @@ static void display_bltest(bool high)
 
 static void display_power_on(void)
 {
-    display_set_brightness(100);
+    /* 恢复用户最近设置的亮度(而非固定 100%):否则每次熄屏再亮
+     * 背光都跳回全亮,表现为"亮度没记住/调节不明显"。 */
+    display_set_brightness(s_last_brightness);
 }
 
 static void display_power_off(void)
 {
-    display_set_brightness(0);
+    /* 只灭背光,不覆盖 s_last_brightness:直接写 duty=0,下次 power_on
+     * 才能恢复用户亮度,而不是停在 0。 */
+    if (s_bl_gpio_hold)
+    {
+        gpio_set_level(DISPLAY_PIN_BL, 0); /* bltest 直驱状态下直接拉低 */
+        return;
+    }
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, BL_LEDC_CHANNEL, 0);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, BL_LEDC_CHANNEL);
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -437,55 +477,220 @@ static const eos_dev_display_ops_t s_display_ops = {
 };
 
 /* ════════════════════════════════════════════════════════════════
- *  LVGL flush 回调
+ *  LVGL flush 回调(异步 DMA 版本,参考 Seeed lvgl_workshop Phase 4/5)
  *
  *  GC9A01 期望大端 RGB565(SPI 先发高字节)。LVGL 渲染 buffer 始终是
- *  小端标准 RGB565(lv_color_to_u16/实心填充均不 swap),因此这里在
- *  拷贝到 internal DMA 缓冲后统一做字节交换再发送——不依赖
- *  LV_COLOR_16_SWAP 宏(该宏在 lv_refr.c 的生效路径不可控),保证
- *  纯色/图片/文字所有渲染路径字节序一致。
+ *  小端标准 RGB565,因此这里在拷贝到 internal DMA 缓冲后统一做字节
+ *  交换再发送——不依赖 LV_COLOR_16_SWAP 宏,保证纯色/图片/文字所有
+ *  渲染路径字节序一致(该宏在 lv_refr.c 的生效路径不可控,曾造成双重
+ *  交换纯色错乱)。
  *
- *  关键:SPI DMA 不认 PSRAM 地址。LVGL 渲染缓冲可能位于 PSRAM,
- *  直接作为 tx_buffer 会让 SPI master 驱动内部临时 malloc(internal
- *  DMA buffer)去 copy——internal 紧张时分配失败(ESP_ERR_NO_MEM)。
- *  因此这里先 memcpy 到 static internal DMA 缓冲再传输,稳定且零分配。
+ *  性能要点:
+ *  1. 异步 queue_trans:DMA 在后台传输,LVGL 双缓冲下可立即渲染另一
+ *     buffer,渲染与 SPI 传输并行(spi_device_transmit 同步版会让 CPU
+ *     在 flush 期间空转,双缓冲形同虚设)。
+ *  2. 双 slot 轮换:LVGL 双缓冲最多 2 个 flush 在途,2 块 internal
+ *     DMA 缓冲恰好匹配;post_cb 在 SPI 驱动任务上下文触发
+ *     lv_display_flush_ready(线程安全,不占 ISR)。
+ *  3. SWAR 32-bit 字节交换:一次交换两个像素,8 路展开,比逐 16-bit
+ *     循环快数倍(ESP32-S3 Xtensa 无 SIMD,用 SWAR 即可接近极限)。
+ *
+ *  SPI DMA 不认 PSRAM 地址:LVGL 渲染缓冲位于 PSRAM,直接作为
+ *  tx_buffer 会让 SPI master 驱动内部临时 malloc(internal DMA buffer)
+ *  去 copy——internal 紧张时分配失败(ESP_ERR_NO_MEM)。故先 memcpy
+ *  到 static internal DMA 缓冲,稳定且零分配。
  * ════════════════════════════════════════════════════════════════ */
 #define FLUSH_BUF_BYTES (BOARD_GC9A01_WIDTH * (BOARD_GC9A01_HEIGHT / 6) * 2)  /* 240*40*2 = 19200B */
-DRAM_ATTR static uint8_t s_spi_flush_buf[FLUSH_BUF_BYTES];
+#define FLUSH_BUF_SLOTS 2
+DRAM_ATTR static uint8_t s_spi_flush_buf[FLUSH_BUF_SLOTS][FLUSH_BUF_BYTES]
+    __attribute__((aligned(4)));
 
-/* 调试:开机后前若干次 flush 打印区域首像素的原始/交换后值,便于对照
- * 动画各阶段期望色(eos_boot_anim flash[] 日志)确认字节序修正生效 */
-static int s_flush_dbg_cnt;
+/* 异步 flush 事务组:每个 slot 一组"窗口命令 + 像素数据"事务,全部 queue_trans
+ * 排队,SPI 驱动按 FIFO 依次执行(命令必在像素前)。
+ *
+ * 关键(参照 IDF esp_lcd_panel_io_spi 的 lcd_spi_trans_descriptor_t 设计):
+ * - IDF v5.x 的 spi_transaction_t 没有事务级回调字段,pre_cb/post_cb 是设备级
+ *   (每个事务都触发,且运行在 ISR 上下文)。区分事务靠"私有描述符":把
+ *   spi_transaction_t 作为描述符第一个成员,pre_cb 里用 container_of 还原
+ *   描述符,读 dc_level 位决定 DC 电平。
+ * - DC 引脚在 pre_cb 里按事务标记切换(ISR 上下文,异步安全,无队列竞态)。
+ * - flush 完成同步走 LVGL 的 flush_wait_cb(在 LVGL 任务上下文调用,不是
+ *   ISR):用 spi_device_get_trans_result 把在途事务取回,避开 ISR 调
+ *   lv_display_flush_ready 的 timer resume 断言风险;LVGL 等待后自动清
+ *   disp->flushing,渲染下一帧与上一帧 DMA 传输并行。
+ * - 不能对命令用 spi_device_transmit 同步发送——它内部 get_trans_result
+ *   会取回队列中第一个完成的事务(可能是异步像素事务),与传入指针不符,
+ *   触发 assert(ret_trans == trans_desc) 崩溃(真机已踩)。 */
+typedef struct {
+    spi_transaction_t base;        /* 必须是第一个成员 */
+    uint8_t           dc_level;    /* 0=命令(DC低) 1=数据(DC高) */
+} flush_trans_t;
+
+/* 在途事务计数(LVGL 任务上下文单线程访问,无需原子):
+ * flush_cb queue 时累加,flush_wait_cb get_trans_result 取回时递减 */
+static volatile int s_pending_tx;
+
+typedef struct {
+    flush_trans_t col_cmd;   /* 0x2A 命令 */
+    flush_trans_t col_data;  /* 0x2A 参数(4B) */
+    flush_trans_t row_cmd;   /* 0x2B 命令 */
+    flush_trans_t row_data;  /* 0x2B 参数(4B) */
+    flush_trans_t ramwr;     /* 0x2C 命令 */
+    flush_trans_t pixel;     /* 像素数据 */
+    uint8_t       col_buf[5]; /* 0x2A + x0h x0l x1h x1l */
+    uint8_t       row_buf[5]; /* 0x2B + y0h y0l y1h y1l */
+    uint8_t       ramwr_byte; /* 0x2C */
+} flush_slot_t;
+
+static flush_slot_t s_flush_slot[FLUSH_BUF_SLOTS];
+static int s_flush_slot_idx;
+
+#define flush_containing(trans) \
+    ((flush_trans_t *)((uint8_t *)(trans) - offsetof(flush_trans_t, base)))
+
+/* 小端标准 RGB565 -> 大端发送序(GC9A01)。
+ * 32-bit SWAR:一次交换两个像素((v&0xFF00FF00)>>8)|((v&0x00FF00FF)<<8),
+ * 8 路展开。len 为字节数(恒为偶数)。 */
+static inline void _swap16_swar(uint8_t *buf, size_t len)
+{
+    uint32_t *p32 = (uint32_t *)(uintptr_t)buf;
+    size_t n32 = len / 4;
+    size_t i = 0;
+    for (; i + 8 <= n32; i += 8)
+    {
+        p32[i + 0] = ((p32[i + 0] & 0xFF00FF00u) >> 8) | ((p32[i + 0] & 0x00FF00FFu) << 8);
+        p32[i + 1] = ((p32[i + 1] & 0xFF00FF00u) >> 8) | ((p32[i + 1] & 0x00FF00FFu) << 8);
+        p32[i + 2] = ((p32[i + 2] & 0xFF00FF00u) >> 8) | ((p32[i + 2] & 0x00FF00FFu) << 8);
+        p32[i + 3] = ((p32[i + 3] & 0xFF00FF00u) >> 8) | ((p32[i + 3] & 0x00FF00FFu) << 8);
+        p32[i + 4] = ((p32[i + 4] & 0xFF00FF00u) >> 8) | ((p32[i + 4] & 0x00FF00FFu) << 8);
+        p32[i + 5] = ((p32[i + 5] & 0xFF00FF00u) >> 8) | ((p32[i + 5] & 0x00FF00FFu) << 8);
+        p32[i + 6] = ((p32[i + 6] & 0xFF00FF00u) >> 8) | ((p32[i + 6] & 0x00FF00FFu) << 8);
+        p32[i + 7] = ((p32[i + 7] & 0xFF00FF00u) >> 8) | ((p32[i + 7] & 0x00FF00FFu) << 8);
+    }
+    for (; i < n32; i++)
+    {
+        p32[i] = ((p32[i] & 0xFF00FF00u) >> 8) | ((p32[i] & 0x00FF00FFu) << 8);
+    }
+    if (len & 2)   /* 剩余 1 个像素 */
+    {
+        uint16_t *p16 = (uint16_t *)(buf + n32 * 4);
+        *p16 = (uint16_t)((*p16 >> 8) | (*p16 << 8));
+    }
+}
+
+/* 设备级 pre_cb:每个事务传输前按描述符标记切换 DC(ISR 上下文,异步安全)。
+ * 命令(0x2A/0x2B/0x2C)DC=0,参数/像素 DC=1。 */
+static void flush_pre_cb(spi_transaction_t *t)
+{
+    flush_trans_t *ft = flush_containing(t);
+    gpio_set_level(DISPLAY_PIN_DC, ft->dc_level);
+}
+
+/* flush 同步回调(LVGL 任务上下文,不是 ISR):在渲染下一帧前取回在途
+ * 事务,确保上一帧 DMA 传输完毕再复用缓冲。LVGL 调用后自动清
+ * disp->flushing,渲染下一帧与上一帧传输并行(见 draw_buf_flush 的
+ * wait_for_flushing)。 */
+static void display_flush_wait_cb(lv_display_t *disp)
+{
+    (void)disp;
+    while (s_pending_tx > 0)
+    {
+        spi_transaction_t *t;
+        if (spi_device_get_trans_result(s_spi, &t, portMAX_DELAY) != ESP_OK)
+            break;   /* 极端:避免死循环,交给 LVGL 继续 */
+        s_pending_tx--;
+    }
+}
+
+/* 初始化各 slot 事务组(每帧仅重写 col_buf/row_buf/ramwr_byte 内容) */
+static void display_flush_tx_init(void)
+{
+    for (int i = 0; i < FLUSH_BUF_SLOTS; i++)
+    {
+        flush_slot_t *fs = &s_flush_slot[i];
+        memset(fs, 0, sizeof(*fs));
+        fs->col_cmd.base.length     = 8;                /* 1 字节命令 */
+        fs->col_cmd.base.tx_buffer  = fs->col_buf;
+        fs->col_cmd.dc_level        = 0;
+        fs->col_data.base.length    = 32;               /* 4 字节参数 */
+        fs->col_data.base.tx_buffer = &fs->col_buf[1];
+        fs->col_data.dc_level       = 1;
+        fs->row_cmd.base.length     = 8;
+        fs->row_cmd.base.tx_buffer  = fs->row_buf;
+        fs->row_cmd.dc_level        = 0;
+        fs->row_data.base.length    = 32;
+        fs->row_data.base.tx_buffer = &fs->row_buf[1];
+        fs->row_data.dc_level       = 1;
+        fs->ramwr.base.length       = 8;
+        fs->ramwr.base.tx_buffer    = &fs->ramwr_byte;
+        fs->ramwr.dc_level          = 0;
+        /* pixel:每帧动态设 length/tx_buffer */
+        fs->pixel.dc_level = 1;
+    }
+    s_flush_slot_idx = 0;
+    s_pending_tx     = 0;
+}
 
 static void display_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
 {
     uint16_t w = area->x2 - area->x1 + 1;
     uint16_t h = area->y2 - area->y1 + 1;
     size_t len = (size_t)w * h * 2;
-    if (len > sizeof(s_spi_flush_buf)) len = sizeof(s_spi_flush_buf);
-    display_set_window(area->x1, area->y1, area->x2, area->y2);
-    memcpy(s_spi_flush_buf, px_map, len);
+    if (len > FLUSH_BUF_BYTES) len = FLUSH_BUF_BYTES;
 
-    /* 小端标准 RGB565 -> 大端发送序(GC9A01) */
-    uint16_t *p = (uint16_t *)s_spi_flush_buf;
-    for (size_t i = 0; i < len / 2; i++)
-        p[i] = (uint16_t)((p[i] >> 8) | (p[i] << 8));
+    int slot = s_flush_slot_idx;
+    s_flush_slot_idx = 1 - s_flush_slot_idx;
+    flush_slot_t *fs = &s_flush_slot[slot];
 
-    /* 前 80 次 flush 打印首像素(覆盖主界面初始化 + 4s 开机动画 flash
-     * 阶段)。flash[] 期望:天蓝 0x055F / 红 0xF96A / 黄 0xFEE0 / 绿 0x072E
-     * (标准小端 u16)。px0 应为这些标准值,经 -> 交换后大端发送。 */
-    if (s_flush_dbg_cnt < 80)
+    /* 拷贝 + 字节交换到内部 DMA 缓冲 */
+    memcpy(s_spi_flush_buf[slot], px_map, len);
+    _swap16_swar(s_spi_flush_buf[slot], len);
+
+    /* 重写窗口命令内容(0x2A 列 / 0x2B 行 / 0x2C RAMWR) */
+    fs->col_buf[0] = 0x2A;
+    fs->col_buf[1] = (uint8_t)(area->x1 >> 8); fs->col_buf[2] = (uint8_t)(area->x1 & 0xFF);
+    fs->col_buf[3] = (uint8_t)(area->x2 >> 8); fs->col_buf[4] = (uint8_t)(area->x2 & 0xFF);
+    fs->row_buf[0] = 0x2B;
+    fs->row_buf[1] = (uint8_t)(area->y1 >> 8); fs->row_buf[2] = (uint8_t)(area->y1 & 0xFF);
+    fs->row_buf[3] = (uint8_t)(area->y2 >> 8); fs->row_buf[4] = (uint8_t)(area->y2 & 0xFF);
+    fs->ramwr_byte = 0x2C;
+
+    /* 像素事务:每帧整体重置描述符。
+     * 必须清零 rxlength!全双工下 check_trans_valid 会把 rxlength==0 自动
+     * 改写为 length(esp_driver_spi spi_master.c: "default rxlength to be
+     * the same as length")——若不清零,上一帧的大 length 残留为 rxlength,
+     * 本帧 partial 区域变小时 rxlength > length,check_trans_valid 拒绝
+     * 该事务(真机每帧 5/6 queued + "rx length > tx length" 即此)。 */
+    memset(&fs->pixel, 0, sizeof(fs->pixel));
+    fs->pixel.dc_level        = 1;
+    fs->pixel.base.length     = len * 8;
+    fs->pixel.base.tx_buffer  = s_spi_flush_buf[slot];
+
+    /* 全部 queue_trans 排队(命令必在像素前,SPI 驱动 FIFO 保证),
+     * 并累计在途计数(flush_wait_cb 取回)。 */
+    spi_transaction_t *txs[] = {
+        &fs->col_cmd.base, &fs->col_data.base,
+        &fs->row_cmd.base, &fs->row_data.base,
+        &fs->ramwr.base,   &fs->pixel.base,
+    };
+    int queued = 0;
+    for (int i = 0; i < 6; i++)
     {
-        uint16_t raw;
-        memcpy(&raw, px_map, 2);
-        ESP_LOGI(TAG, "flush[%d] area=(%d,%d)-(%d,%d) px0=0x%04X -> 0x%04X",
-                 s_flush_dbg_cnt, area->x1, area->y1, area->x2, area->y2,
-                 (unsigned)raw, (unsigned)p[0]);
-        s_flush_dbg_cnt++;
+        if (spi_device_queue_trans(s_spi, txs[i], portMAX_DELAY) == ESP_OK)
+            queued++;
+        else
+            break;
     }
+    s_pending_tx += queued;
 
-    display_send_data(s_spi_flush_buf, len);
-    lv_display_flush_ready(disp);
+    if (queued < 6)
+    {
+        /* 极端失败(如队列溢出):同步 polling 兜底发送像素(polling 不走
+         * 结果队列,无断言风险),保证画面不丢;已入队命令仍会被
+         * flush_wait_cb 取回。 */
+        ESP_LOGE(TAG, "flush queue failed (%d/6 queued), sync polling fallback", queued);
+        spi_device_polling_transmit(s_spi, &fs->pixel.base);
+    }
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -590,6 +795,10 @@ esp_err_t eos_dev_display_gc9a01_lvgl_init(void)
 
     lv_display_set_buffers(disp, buf1, buf2, buf_pixels, LV_DISPLAY_RENDER_MODE_PARTIAL);
     lv_display_set_flush_cb(disp, display_flush_cb);
+    /* 异步 flush:flush_cb 只排队(不调 flush_ready);完成同步由
+     * flush_wait_cb 在 LVGL 任务上下文用 get_trans_result 取回在途事务。
+     * 相比 ISR 里调 lv_display_flush_ready,避开 ISR 调 LVGL timer 的风险。 */
+    lv_display_set_flush_wait_cb(disp, display_flush_wait_cb);
     lv_display_set_default(disp);
 
     ESP_LOGI(TAG, "LVGL display registered (%dx%d, partial %u px)",

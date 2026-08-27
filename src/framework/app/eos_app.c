@@ -191,6 +191,15 @@ static eos_result_t _eos_app_order_remove(const char *app_id)
         }
     }
 
+    // Native C apps cannot be removed
+    for (int ni = 0; ni < EOS_NATIVE_APP_LAST; ni++)
+    {
+        if (eos_native_app_id_list[ni] && strcmp(app_id, eos_native_app_id_list[ni]) == 0)
+        {
+            return EOS_OK;
+        }
+    }
+
     // Find application position in array
     int index = 0;
     cJSON *item = NULL;
@@ -497,6 +506,16 @@ eos_result_t _eos_app_list_refresh()
         }
     }
 
+    // Add native C apps (compiled into firmware) to app_list
+    for (int i = 0; i < EOS_NATIVE_APP_LAST; i++)
+    {
+        const char *native_id = eos_native_app_id_list[i];
+        if (!eos_app_list_contains(native_id))
+        {
+            _eos_app_list_add(&app_list, native_id);
+        }
+    }
+
     return EOS_OK;
 }
 
@@ -567,6 +586,16 @@ eos_result_t eos_app_install(const char *eapk_path)
 eos_result_t eos_app_uninstall(const char *app_id)
 {
     EOS_LOG_D("Uninstall: %s", app_id);
+
+    // Native C apps (compiled into firmware) cannot be uninstalled
+    for (int ni = 0; ni < EOS_NATIVE_APP_LAST; ni++)
+    {
+        if (strcmp(app_id, eos_native_app_id_list[ni]) == 0)
+        {
+            EOS_LOG_W("Native app cannot be uninstalled: %s", app_id);
+            return EOS_FAILED;
+        }
+    }
 
     char path[EOS_FS_PATH_MAX];
     snprintf(path, sizeof(path), EOS_APP_INSTALLED_DIR "%s", app_id);

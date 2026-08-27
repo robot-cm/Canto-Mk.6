@@ -26,6 +26,8 @@
 #include "eos_lang.h"
 #include "eos_settings.h"
 #include "eos_flash_light.h"
+#include "eos_album.h"
+#include "eos_texthub.h"
 #include "eos_service_storage.h"
 #include "eos_app_header.h"
 #include "eos_mem.h"
@@ -83,6 +85,23 @@ const eos_sys_app_entry_t eos_sys_app_entry_list[EOS_SYS_APP_LAST] = {eos_settin
 #if EOS_ENABLE_TEST_APP
                                                                       eos_test_start
 #endif
+};
+
+/* Native C apps: registered with a real app id (like plugins), shown in the
+ * App page, launched via a C entry function. */
+const char *eos_native_app_id_list[EOS_NATIVE_APP_LAST] = {
+    "com.cantomk6.album",
+    "com.cantomk6.texthub",
+};
+
+const char *eos_native_app_icon_list[EOS_NATIVE_APP_LAST] = {
+    EOS_IMG_ALBUM,
+    EOS_IMG_TEXTHUB,
+};
+
+const eos_sys_app_entry_t eos_native_app_entry_list[EOS_NATIVE_APP_LAST] = {
+    eos_album_enter,
+    eos_texthub_enter,
 };
 
 static void _app_list_on_resueme(eos_activity_t *a);
@@ -332,6 +351,46 @@ static int32_t _app_list_find_sys_app(const char *app_id)
     return -1;
 }
 
+static int32_t _app_list_find_native_app(const char *app_id)
+{
+    if (!app_id)
+    {
+        return -1;
+    }
+
+    for (int32_t i = 0; i < EOS_NATIVE_APP_LAST; i++)
+    {
+        if (strcmp(app_id, eos_native_app_id_list[i]) == 0)
+        {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+/* Resolve an app icon: prefer the installed app's own icon.bin, then the
+ * native C app icon (if present), then the generic app icon. */
+static const char *_app_list_resolve_icon(const char *app_id, char *icon_path, size_t icon_path_size)
+{
+    snprintf(icon_path, icon_path_size, EOS_APP_INSTALLED_DIR "%s/" EOS_APP_ICON_FILE_NAME, app_id);
+    if (eos_storage_is_file(icon_path))
+    {
+        return icon_path;
+    }
+
+    int32_t native_index = _app_list_find_native_app(app_id);
+    if (native_index >= 0 && eos_native_app_icon_list[native_index] &&
+        eos_storage_is_file(eos_native_app_icon_list[native_index]))
+    {
+        snprintf(icon_path, icon_path_size, "%s", eos_native_app_icon_list[native_index]);
+        return icon_path;
+    }
+
+    snprintf(icon_path, icon_path_size, "%s", EOS_IMG_APP);
+    return icon_path;
+}
+
 static eos_result_t _app_list_build_script_pkg(const char *app_id, script_pkg_t *pkg)
 {
     if (!(app_id && pkg))
@@ -501,6 +560,17 @@ eos_result_t eos_app_launch_immediately(const char *app_id)
         if (eos_sys_app_entry_list[sys_app_index])
         {
             eos_sys_app_entry_list[sys_app_index]();
+            return EOS_OK;
+        }
+        return EOS_FAILED;
+    }
+
+    int32_t native_app_index = _app_list_find_native_app(app_id);
+    if (native_app_index >= 0)
+    {
+        if (eos_native_app_entry_list[native_app_index])
+        {
+            eos_native_app_entry_list[native_app_index]();
             return EOS_OK;
         }
         return EOS_FAILED;
@@ -1402,12 +1472,8 @@ static void _app_list_refresh(lv_obj_t *bubble_grid)
             }
 
             char icon_path[EOS_FS_PATH_MAX];
-            snprintf(icon_path, sizeof(icon_path), EOS_APP_INSTALLED_DIR "%s/" EOS_APP_ICON_FILE_NAME, app_id);
-            if (!eos_storage_is_file(icon_path))
-            {
-                snprintf(icon_path, sizeof(icon_path), "%s", EOS_IMG_APP);
-            }
-            _app_list_append_icon(cp, &cur_page, &icon_index, icon_path, app_id);
+            const char *resolved_icon = _app_list_resolve_icon(app_id, icon_path, sizeof(icon_path));
+            _app_list_append_icon(cp, &cur_page, &icon_index, resolved_icon, app_id);
         }
         cJSON_Delete(app_order);
     }
@@ -1440,12 +1506,8 @@ static void _app_list_refresh(lv_obj_t *bubble_grid)
 
             // Non-system app
             char icon_path[EOS_FS_PATH_MAX];
-            snprintf(icon_path, sizeof(icon_path), EOS_APP_INSTALLED_DIR "%s/" EOS_APP_ICON_FILE_NAME, app_id);
-            if (!eos_storage_is_file(icon_path))
-            {
-                snprintf(icon_path, sizeof(icon_path), "%s", EOS_IMG_APP);
-            }
-            _app_list_append_icon(cp, &cur_page, &icon_index, icon_path, app_id);
+            const char *resolved_icon = _app_list_resolve_icon(app_id, icon_path, sizeof(icon_path));
+            _app_list_append_icon(cp, &cur_page, &icon_index, resolved_icon, app_id);
         }
     }
 

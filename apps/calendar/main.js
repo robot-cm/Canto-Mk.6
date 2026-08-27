@@ -219,6 +219,7 @@ function navBtn(x, txt) {
     l.setText(txt);
     l.align(lv.ALIGN_CENTER, 0, 0);
     l.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+    l.removeFlag(lv.OBJ_FLAG_CLICKABLE);   // label 默认 CLICKABLE 会吃掉父按钮点击
     return b;
 }
 var navPrev = navBtn(20, "<");
@@ -227,8 +228,8 @@ navPrev.addEventCb(function () { pressFx(navPrev); goPrev(); }, lv.EVENT_PRESSED
 navNext.addEventCb(function () { pressFx(navNext); goNext(); }, lv.EVENT_PRESSED, null);
 
 var navLbl = new lv.label(R.root);
-navLbl.setSize(240, 16);
-navLbl.setPos(0, 28);
+navLbl.setSize(90, 16);   // 原 240 宽覆盖整行，挡住 < > 与 T 按钮；改窄为标题区 x62..152
+navLbl.setPos(62, 28);
 navLbl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
 navLbl.setFontSize(15);
 navLbl.setStyleTextColor(WHITE, 0);
@@ -256,6 +257,7 @@ todayLbl.setStyleTextOpa(250, 0);
 todayLbl.setText("T");
 todayLbl.align(lv.ALIGN_CENTER, 0, 0);
 todayLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+todayLbl.removeFlag(lv.OBJ_FLAG_CLICKABLE);   // 吃掉父按钮点击的根因
 todayBtn.addEventCb(function () {
     pressFx(todayBtn);
     Y = now.year; M = now.month;
@@ -292,11 +294,12 @@ for (var r = 0; r < 6; r++) {
         var l = new lv.label(b);
         l.setSize(COL_W, ROW_H);
         l.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-        l.setFontSize(10);
+        l.setFontSize(13);      // 日期数字 10→13px(格子 29x22 可容纳)
         l.setStyleTextColor(WHITE, 0);
         l.setStyleTextOpa(240, 0);
         l.align(lv.ALIGN_CENTER, 0, 0);
         l.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+        l.removeFlag(lv.OBJ_FLAG_CLICKABLE);   // 吃掉日期按钮点击的根因(日期 1-30 无法点击)
         var dot = new lv.obj(b);
         dot.setSize(4, 4);
         dot.setPos(COL_W - 9, 2);
@@ -326,11 +329,12 @@ festBox.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 var festLbl = new lv.label(festBox);
 festLbl.setSize(204, 38);
 festLbl.setPos(6, 1);
-festLbl.setFontSize(8);
+festLbl.setFontSize(13);   // 原 8px: 中文 fallback 到 16px 偏大;13px 档中文走新 han_sans_13
 festLbl.setStyleTextColor(WHITE, 0);
 festLbl.setStyleTextOpa(235, 0);
 festLbl.setStyleTextAlign(lv.TEXT_ALIGN_LEFT, 0);
 festLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+festLbl.removeFlag(lv.OBJ_FLAG_CLICKABLE);
 festLbl.setLongMode(lv.LABEL_LONG_CLIP);
 festLbl.setText("Tap a day\u2026");
 var festMarq = null;   // 节日文本自实现 marquee timer(见 showInfo)
@@ -376,6 +380,7 @@ function pickerBtn(x, y, txt) {
     l.setText(txt);
     l.align(lv.ALIGN_CENTER, 0, 0);
     l.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+    l.removeFlag(lv.OBJ_FLAG_CLICKABLE);   // 吃掉 picker 按钮点击的根因
     return b;
 }
 var pickerMinus = pickerBtn(10, 5, "-");
@@ -420,6 +425,7 @@ for (var pm = 0; pm < 12; pm++) {
         l.setText(MONTHS[m0]);
         l.align(lv.ALIGN_CENTER, 0, 0);
         l.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+        l.removeFlag(lv.OBJ_FLAG_CLICKABLE);   // 吃掉月份按钮点击的根因
         pickerCells.push(b);
         b.addEventCb(function () {
             pressFx(b);
@@ -494,6 +500,12 @@ function select(idx) {
     showInfo(idx);
 }
 
+function estW(str) {   // 13px 档文本估算宽:中文/全角 13px,ASCII ≈7px
+    var w = 0;
+    for (var i = 0; i < str.length; i++) w += str.charCodeAt(i) > 127 ? 13 : 7;
+    return w;
+}
+
 function showInfo(idx) {
     if (!cells[idx] || cells[idx].day < 1 || cells[idx].day > dim) return;
     var d = cells[idx].day;
@@ -503,23 +515,21 @@ function showInfo(idx) {
     if (names.length) s = names.join(" | ");
     else if (lun) s = "Lunar " + lun.m + "/" + lun.d;
     if (idx === todayIdx) s = s ? "Today \u00b7 " + s : "Today";
-    // 无论节日字数长短都滚动:拼接文本强制超宽 + 自实现 marquee
-    // (SCROLL_CIRCULAR 曾在真机 fatal,用 texthub 同款 ping-pong 方案)
+    // 节日文字:无论长短一律像素级无缝 marquee。
+    // 1px/40ms≈25px/s,替换原 90ms 整字符跳变(中文≈144px/s 过快且帧率低)。
+    // 3 段拼接 + 按段宽回绕,label 整体平移而非改文本,滚动顺滑。
     if (festMarq) { try { festMarq.delete(); } catch (e) {} festMarq = null; }
     var sep = "     ";
-    var t = s + sep + s;
-    while (t.length * 12 + 8 <= 204) t += sep + s;   // 短文本也拼到超宽
-    festLbl.setText(t);
-    festLbl.setPos(6, 1);
-    var maxW = t.length * 12 + 8 - 204;
-    if (maxW < 4) maxW = 4;
-    var x = 0, dir = 1, wait = 24;
+    var segW = estW(s) + estW(sep);
+    if (segW < 16) segW = 16;   // 极短文本兜底
+    festLbl.setWidth(3 * segW);
+    festLbl.setText(s + sep + s + sep + s);
+    var x = 6;
+    festLbl.setPos(x, 1);
     festMarq = new lv.timer(function () {
-        if (wait > 0) { wait--; return; }
-        x += dir;
-        if (x >= maxW) { dir = -1; wait = 24; }
-        else if (x <= 0) { dir = 1; wait = 24; }
-        festLbl.setPos(6 - x, 1);
+        x -= 1;
+        if (x <= 6 - segW) x += segW;   // 滚完一段回绕,视觉无缝
+        festLbl.setPos(x, 1);
     }, 40, null);
     festMarq.setRepeatCount(-1);
 }

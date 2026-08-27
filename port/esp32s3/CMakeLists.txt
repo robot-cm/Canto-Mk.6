@@ -15,11 +15,16 @@
 # 路径:port/esp32s3/../../third_party/lvgl → ElenixOS-fork/third_party/lvgl
 set(EXTRA_COMPONENT_DIRS
     "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/lvgl"
-    # microlink(Tailscale/WireGuard 客户端组件, 由 Settings VPN 页驱动)
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../microlink/components"
-    # wireguard_lwip 是 microlink 的内嵌子组件(PRIV_REQUIRES), 需显式加入
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../microlink/components/microlink/components"
 )
+# microlink(Tailscale/WireGuard 客户端组件, 由 Settings VPN 页驱动)
+# 目录存在时才引入(仓库中已移除,保留此判断以便恢复目录后自动启用)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../microlink/components")
+    list(APPEND EXTRA_COMPONENT_DIRS
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../microlink/components"
+        # wireguard_lwip 是 microlink 的内嵌子组件(PRIV_REQUIRES), 需显式加入
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../microlink/components/microlink/components"
+    )
+endif()
 
 cmake_minimum_required(VERSION 3.16)
 

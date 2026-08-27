@@ -168,22 +168,31 @@ static void ui_task(void *arg)
     }
     ESP_LOGI(TAG, "ui_task started (LVGL %dx%d)", BOARD_GC9A01_WIDTH, BOARD_GC9A01_HEIGHT);
     const TickType_t period = pdMS_TO_TICKS(BOARD_LVGL_TIMER_PERIOD_MS);
-    TickType_t last = xTaskGetTickCount();
+    TickType_t last_wake = xTaskGetTickCount();
+    TickType_t last_tick = last_wake;
     uint32_t ticks = 0;
     for (;;) {
         /* 注意:lv_timer_handler() 内部自带 lv_lock/lv_unlock(递归锁),
          * 这里不再外层加锁,避免锁嵌套混乱 */
-        lv_tick_inc(BOARD_LVGL_TICK_MS);
+        /* tick 必须前进真实经过的时间:用 FreeRTOS tick 差分,而非固定增量。
+         * 历史 bug:每 5ms 循环只 lv_tick_inc(1) → 所有 LVGL timer 慢 5 倍
+         * (JS lv.timer 1000ms 倒计时实际 5s,Breach 失准)。
+         * 差分法不受单轮循环耗时波动影响(渲染/flush 拖长某轮也不会漂移),
+         * 计时永远与真实时间同步。FREERTOS_HZ=1000 → portTICK_PERIOD_MS=1,
+         * (now - last_tick) 即真实毫秒。 */
+        TickType_t now = xTaskGetTickCount();
+        lv_tick_inc((uint32_t)(now - last_tick) * portTICK_PERIOD_MS);
+        last_tick = now;
         /* 统一走 eos_main_loop():dispatch_tick + lv_timer_handler,并在开机动画
          * 完成后于此初始化 activity controller(主界面延迟显示的关键入口)。 */
         eos_main_loop();
         if ((++ticks % 200) == 0) {
-            /* 心跳诊断:证明 ui_task 循环活着(200×5ms=1s 一次) */
+            /* 心跳诊断:证明 ui_task 循环活着(约 1s 一次) */
             ESP_LOGI(TAG, "ui heartbeat: %u ticks, DRAM free=%u",
                      (unsigned)ticks,
                      (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
         }
-        vTaskDelayUntil(&last, period);
+        vTaskDelayUntil(&last_wake, period);
     }
 }
 

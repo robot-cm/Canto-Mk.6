@@ -55,6 +55,10 @@ extern const lv_image_dsc_t eos_icon_setting;
 #define _LIST_SCALE_THRESHOLD_Y ((float)EOS_DISPLAY_HEIGHT * 0.8)
 /* Variables --------------------------------------------------*/
 static eos_control_center_t *control_center_instance = NULL;
+/* 亮度 slider 的全屏遮罩页(overlay layer 最顶层)。
+ * CC 关闭时若仍残留(用户拖完直接下拉,未点空白处),会拦截触摸且 config
+ * 不保存——必须随 CC hide 一起删除,并在删除时同步置 NULL 防悬垂。 */
+static lv_obj_t *_brightness_slider_page = NULL;
 static void _control_center_overlay_pull_back(void);
 static void _control_center_overlay_hide(void);
 static void _control_center_overlay_on_focus(void);
@@ -194,7 +198,15 @@ static void _control_center_slider_page_clicked_cb(lv_event_t *e)
 
 static lv_obj_t *_control_center_slider_create(const char *symbol)
 {
+    /* 重复点亮度按钮:先清理上一次可能残留的遮罩页(含 slider 等子对象) */
+    if (_brightness_slider_page != NULL)
+    {
+        lv_obj_delete(_brightness_slider_page);
+        _brightness_slider_page = NULL;
+    }
+
     lv_obj_t *slider_page = lv_obj_create(eos_overlay_get_overlay_layer());
+    _brightness_slider_page = slider_page;
     lv_obj_remove_style_all(slider_page);
     lv_obj_set_size(slider_page, lv_pct(100), lv_pct(100));
     lv_obj_move_foreground(slider_page);
@@ -394,10 +406,19 @@ static void _control_center_brightness_value_changed_cb(lv_event_t *e)
     }
 }
 
+static void _control_center_brightness_slider_released_cb(lv_event_t *e)
+{
+    lv_obj_t *slider = lv_event_get_target(e);
+    /* 松手即持久化:不依赖 slider 被删除(用户可能拖完直接下拉关 CC,
+     * 遮罩页由 overlay_hide 清理时才触发 DELETE,那会丢配置)。 */
+    eos_config_set_number(EOS_CONFIG_KEY_DISPLAY_BRIGHTNESS_NUMBER, lv_slider_get_value(slider));
+}
+
 static void _control_center_brightness_slider_delete_cb(lv_event_t *e)
 {
     lv_obj_t *slider = lv_event_get_target(e);
     eos_config_set_number(EOS_CONFIG_KEY_DISPLAY_BRIGHTNESS_NUMBER, lv_slider_get_value(slider));
+    _brightness_slider_page = NULL;
 }
 
 static void _control_center_brightness_btn_clicked_cb(lv_event_t *e)
@@ -406,6 +427,7 @@ static void _control_center_brightness_btn_clicked_cb(lv_event_t *e)
     lv_slider_set_range(slider, EOS_DISPLAY_BRIGHTNESS_MIN, EOS_DISPLAY_BRIGHTNESS_MAX);
     lv_slider_set_value(slider, eos_config_get_number(EOS_CONFIG_KEY_DISPLAY_BRIGHTNESS_NUMBER, 50), LV_ANIM_ON);
     lv_obj_add_event_cb(slider, _control_center_brightness_value_changed_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(slider, _control_center_brightness_slider_released_cb, LV_EVENT_RELEASED, NULL);
     lv_obj_add_event_cb(slider, _control_center_brightness_slider_delete_cb, LV_EVENT_DELETE, NULL);
 }
 
@@ -535,6 +557,14 @@ static void _control_center_overlay_pull_back(void)
 
 static void _control_center_overlay_hide(void)
 {
+    /* CC 收起时清理可能残留的亮度 slider 遮罩页:用户未点空白处就
+     * 下拉关闭/切走时,遮罩页会残留在 overlay 最顶层拦截触摸。
+     * 删除触发 slider 的 DELETE 回调,亮度配置一并持久化。 */
+    if (_brightness_slider_page != NULL)
+    {
+        lv_obj_delete(_brightness_slider_page);
+        _brightness_slider_page = NULL;
+    }
     eos_control_center_hide();
 }
 

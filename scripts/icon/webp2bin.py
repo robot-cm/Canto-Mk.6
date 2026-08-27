@@ -128,6 +128,8 @@ DRAW_BUILTIN = {
 SYSTEM_ICONS = {
     "settings": ("setting", 48),      # settings.bin
     "flash_light": ("torch", 48),     # flash_light.bin
+    "album": ("album", 48),           # album.bin (Launcher native Album app)
+    "texthub": ("texthub", 48),       # texthub.bin (Launcher native Texthub app)
     "app": (None, 48),                # app.bin (builtin)
     "watchface": (None, 48),          # watchface.bin (builtin)
     "logo": (None, 96),               # logo.bin (builtin, boot splash)

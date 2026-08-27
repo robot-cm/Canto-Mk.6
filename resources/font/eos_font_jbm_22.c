@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 22 px
  * Bpp: 4
- * Opts: --bpp 4 --size 22 --format lvgl --no-compress --font JetBrainsMono-Medium.ttf -r 0x20-0x7e,0xa0-0xff,0x2013-0x2026,0x2190-0x2193 --lv-fallback source_han_sans_22 --lv-font-name eos_font_jbm_22 -o ../eos_font_jbm_22.c
+ * Opts: --bpp 4 --size 22 --format lvgl --no-compress --font /home/erashaperavm/下载/ElenixOS-fork/resources/font/ttf-dir/JetBrainsMono-Medium.ttf -r 0x20-0x7e,0xa0-0xff,0x2013-0x2026,0x2190-0x2193 --lv-fallback eos_font_han_sans_16 --lv-font-name eos_font_jbm_22 -o /home/erashaperavm/下载/ElenixOS-fork/resources/font/eos_font_jbm_22.c
  ******************************************************************************/
 
 #ifdef LV_LVGL_H_INCLUDE_SIMPLE
@@ -15,9 +15,6 @@
 #endif
 
 #if EOS_FONT_JBM_22
-
-/* 中文 fallback:GB2312 全量子集字体(约 1MB,见 eos_font_han_sans_22.c) */
-LV_FONT_DECLARE(eos_font_han_sans_22);
 
 /*-----------------
  *    BITMAPS
@@ -2881,7 +2878,7 @@ static lv_font_fmt_txt_dsc_t font_dsc = {
 #endif
 };
 
-extern const lv_font_t source_han_sans_22;
+extern const lv_font_t eos_font_han_sans_16;
 
 
 /*-----------------
@@ -2907,8 +2904,7 @@ lv_font_t eos_font_jbm_22 = {
 #endif
     .dsc = &font_dsc,          /*The custom font data. Will be accessed by `get_glyph_bitmap/dsc` */
 #if LV_VERSION_CHECK(8, 2, 0) || LVGL_VERSION_MAJOR >= 9
-    /* 中文 fallback:GB2312 子集字体(约 1MB,替代原 5.8MB 的 source_han_sans_22) */
-    .fallback = &eos_font_han_sans_22,
+    .fallback = &eos_font_han_sans_16,
 #endif
     .user_data = NULL,
 };

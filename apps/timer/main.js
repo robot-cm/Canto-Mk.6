@@ -104,7 +104,7 @@ function smallBtn(parent, x, y, w, h, label, opa, color, cb) {
     var l = new lv.label(b);
     l.setText(label);
     l.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-    l.setFontSize(10);
+    l.setFontSize(11);
     l.setStyleTextColor(hex(WHITE), 0);
     l.setStyleTextOpa(230, 0);
     l.align(lv.ALIGN_CENTER, 0, 0);
@@ -166,36 +166,38 @@ var emptyTtl, emptySub, prevBtn, pageLbl, nextBtn, addBtn;
 
 function buildHome() {
     emptyTtl = new lv.label(homeC);
-    emptyTtl.setSize(240, 20); emptyTtl.setPos(0, 80);
+    emptyTtl.setSize(240, 26); emptyTtl.setPos(0, 76);
     emptyTtl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
     emptyTtl.setText("No timers");
-    emptyTtl.setFontSize(16);
+    emptyTtl.setFontSize(20);
     emptyTtl.setStyleTextColor(hex(WHITE), 0);
     emptyTtl.setStyleTextOpa(220, 0);
     emptyTtl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
     emptySub = new lv.label(homeC);
-    emptySub.setSize(240, 16); emptySub.setPos(0, 106);
+    emptySub.setSize(240, 18); emptySub.setPos(0, 110);
     emptySub.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
     emptySub.setText("Tap + NEW to add");
-    emptySub.setFontSize(11);
+    emptySub.setFontSize(13);
     emptySub.setStyleTextColor(hex(GREY), 0);
     emptySub.setStyleTextOpa(150, 0);
     emptySub.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
-    prevBtn = smallBtn(homeC, 56, 168, 24, 24, "<", 40, WHITE,
+    // 按钮组屏坐标 y190..214(圆内 x46.6..193.4);激进内移:组 x48..184 居中于圆心 x120
+    prevBtn = smallBtn(homeC, 48, 160, 22, 22, "<", 40, WHITE,
         function () { if (page > 0) { page--; paintHome(); } });
     pageLbl = new lv.label(homeC);
-    pageLbl.setSize(32, 20); pageLbl.setPos(84, 170);
+    pageLbl.setSize(28, 20); pageLbl.setPos(72, 162);
     pageLbl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-    pageLbl.setFontSize(11);
+    pageLbl.setFontSize(12);
     pageLbl.setStyleTextColor(hex(WHITE), 0);
     pageLbl.setStyleTextOpa(170, 0);
     pageLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-    nextBtn = smallBtn(homeC, 120, 168, 24, 24, ">", 40, WHITE,
+    nextBtn = smallBtn(homeC, 102, 160, 22, 22, ">", 40, WHITE,
         function () { page++; paintHome(); });
-    addBtn = smallBtn(homeC, 146, 168, 36, 24, "+NEW", 255, BLUE,
-        function () { openNew(); });   // 原 y180 宽 98 完全出圆，内收
+    addBtn = smallBtn(homeC, 128, 156, 56, 30, "+NEW", 255, BLUE,
+        function () { openNew(); });   // 原 y180 宽 98 完全出圆；x146..182 → 激进内移 x128..184
+    addBtn.lbl.setFontSize(14);
 }
 
 function paintHome() {
@@ -224,9 +226,9 @@ function paintHome() {
         if (idx >= n) break;
         var t = tasks[idx];
         (function (t, i) {
-            var y = 4 + i * 55;
+            var y = 2 + i * 52;                        // 行1/2/3: y2/54/106, 底156(屏186) 与按钮组 y160 留 4px
             var row = new lv.obj(homeC);
-            row.setSize(166, 50); row.setPos(37, y);   // 收窄上移：行1/行3 均进圆内
+            row.setSize(160, 50); row.setPos(40, y);   // x40..200：行1 顶部 y32 圆界 38.4..201.6，四角留 ≥1px
             row.setStyleBgOpa(10, 0);
             row.setStyleBgColor(hex(WHITE), 0);
             row.setStyleRadius(12, 0);
@@ -236,23 +238,23 @@ function paintHome() {
             row.addEventCb(function () { tapTask(t); }, lv.EVENT_PRESSED, null);
 
             var numLbl = new lv.label(row);
-            numLbl.setSize(30, 12); numLbl.setPos(10, 4);
+            numLbl.setSize(30, 14); numLbl.setPos(10, 4);
             numLbl.setText("#" + t.id);
-            numLbl.setFontSize(11);
+            numLbl.setFontSize(13);
             numLbl.setStyleTextColor(hex(BLUE), 0);
             numLbl.setStyleTextOpa(240, 0);
             numLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
             var timeLbl = new lv.label(row);
-            timeLbl.setSize(150, 24); timeLbl.setPos(10, 16);
-            timeLbl.setFontSize(18);
+            timeLbl.setSize(150, 30); timeLbl.setPos(10, 16);
+            timeLbl.setFontSize(22);
             timeLbl.setStyleTextColor(hex(WHITE), 0);
             timeLbl.setStyleTextOpa(255, 0);
             timeLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
             var stateLbl = new lv.label(row);
-            stateLbl.setSize(90, 12); stateLbl.setPos(76, 4);
-            stateLbl.setFontSize(9);
+            stateLbl.setSize(90, 14); stateLbl.setPos(76, 4);
+            stateLbl.setFontSize(11);
             stateLbl.setStyleTextColor(hex(GREY), 0);
             stateLbl.setStyleTextOpa(220, 0);
             stateLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
@@ -270,7 +272,7 @@ function paintHome() {
             var dl = new lv.label(delBtn);
             dl.setText("x");
             dl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-            dl.setFontSize(11);
+            dl.setFontSize(13);
             dl.setStyleTextColor(hex(RED), 0);
             dl.align(lv.ALIGN_CENTER, 0, 0);
             dl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
@@ -329,7 +331,7 @@ var wheels = [];
 function makeWheel(x, count) {
     var ITEM_H = 32, VIEW_H = 120, CENTER = 60, PAD = 44;
     var box = new lv.obj(editC);
-    box.setSize(58, VIEW_H); box.setPos(x, 14);   // 宽 66→58：三列收进圆内
+    box.setSize(58, VIEW_H); box.setPos(x, 22);   // y22：屏 y52..172，圆边界 y52 处 x21..219，滚轮 x27..213 两侧各留 6px
     box.setStyleBgOpa(0, 0);
     box.setStyleRadius(12, 0);
     box.setStylePadAll(0, 0);
@@ -353,7 +355,7 @@ function makeWheel(x, count) {
         var l = new lv.label(box);
         l.setSize(58, ITEM_H);
         l.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-        l.setFontSize(12);
+        l.setFontSize(13);
         l.setStyleTextColor(hex(WHITE), 0);
         l.setStyleTextOpa(120, 0);
         l.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
@@ -382,7 +384,7 @@ function makeWheel(x, count) {
                 lastN[i] = n;
                 l.setText(pad2(n));
                 var cen = (i === 3);
-                l.setFontSize(cen ? 20 : 12);
+                l.setFontSize(cen ? 24 : 13);
                 l.setStyleTextOpa(cen ? 255 : 120, 0);
             }
         }
@@ -409,20 +411,20 @@ function makeWheel(x, count) {
 
 function buildEdit() {
     var cols = [["HR", 24], ["MIN", 24], ["SEC", 24]];
-    var wx = [28, 92, 156];   // 三列整体内移，第三列右缘 214 进圆内（y44 处右界≈213）
+    var wx = [27, 91, 155];   // 整体居中于 x=120（总宽186），右缘 213 < 圆右界
     for (var i = 0; i < 3; i++) {
         var tl = new lv.label(editC);
         tl.setSize(58, 12); tl.setPos(wx[i], 0);
         tl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
         tl.setText(cols[i][0]);
-        tl.setFontSize(9);
+        tl.setFontSize(10);
         tl.setStyleTextColor(hex(GREY), 0);
         tl.setStyleTextOpa(170, 0);
         tl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
         /* center highlight bar (under the wheel) */
         var bar = new lv.obj(editC);
-        bar.setSize(58, 32); bar.setPos(wx[i], 58);   // 随 VIEW_H 120 中心对齐（box.y+CENTER-ITEM_H/2）
+        bar.setSize(58, 32); bar.setPos(wx[i], 66);   // 随 VIEW_H 120 中心对齐（box.y22+CENTER60-ITEM_H/2）
         bar.setStyleBgOpa(22, 0);
         bar.setStyleBgColor(hex(WHITE), 0);
         bar.setStyleRadius(12, 0);
@@ -433,9 +435,10 @@ function buildEdit() {
     wheels.push(makeWheel(wx[1], 60));     /* minutes */
     wheels.push(makeWheel(wx[2], 60));     /* seconds */
 
-    smallBtn(editC, 36, 142, 68, 26, "CANCEL", 20, WHITE,
+    // 按钮屏 y174..200（滚轮底 172 下 2px）；OK 右缘 204 < 圆 y200 处右界 209，留空隙
+    smallBtn(editC, 36, 144, 68, 26, "CANCEL", 20, WHITE,
         function () { paintHome(); showHome(); });
-    smallBtn(editC, 138, 142, 68, 26, "OK", 255, BLUE,
+    smallBtn(editC, 136, 144, 68, 26, "OK", 255, BLUE,
         function () { okNew(); });
 }
 

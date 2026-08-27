@@ -29,8 +29,12 @@ typedef enum
 {
     EOS_FONT_SIZE_LARGE = EOS_FONT_CFG_LARGE_SIZE,
     EOS_FONT_SIZE_MEDIUM = EOS_FONT_CFG_MEDIUM_SIZE,
+    EOS_FONT_SIZE_LARGE_MINUS = EOS_FONT_CFG_LARGE_MINUS_SIZE,   /**< 22px 档:22..25px 请求 */
     EOS_FONT_SIZE_SMALL = EOS_FONT_CFG_SMALL_SIZE,
-    EOS_FONT_SIZE_EXTRA_SMALL = 16, /**< 16px 档:闹钟行小字号(setFontSize(16))等 */
+    EOS_FONT_SIZE_TALL = EOS_FONT_CFG_TALL_SIZE,                 /**< 18px 档:17..19px 请求 */
+    EOS_FONT_SIZE_EXTRA_SMALL = 16,   /**< 16px 档:16px 请求 */
+    EOS_FONT_SIZE_MICRO = EOS_FONT_CFG_MICRO_SIZE,   /**< 13px 档:12..15px 请求 */
+    EOS_FONT_SIZE_TINY = EOS_FONT_CFG_TINY_SIZE,     /**< 10px 档:<=11px 请求 */
 } eos_font_size_t;
 
 /* Public function prototypes --------------------------------*/

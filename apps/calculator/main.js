@@ -54,9 +54,9 @@ modeLbl.align(lv.ALIGN_CENTER, 0, 0);
 modeLbl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
 var exprLabel = new lv.label(R.root);
-exprLabel.setSize(220, 14);
-exprLabel.setPos(12, 54);
-exprLabel.setFontSize(10);
+exprLabel.setSize(192, 16);   // 右缘 216 ≤ 圆 y52 处右界 219（透明背景，右对齐）
+exprLabel.setPos(24, 52);
+exprLabel.setFontSize(12);   // 12px 请求落 jbm_13（系统新小字号档）
 exprLabel.setStyleTextColor(GREY, 0);
 exprLabel.setStyleTextOpa(170, 0);
 exprLabel.setStyleTextAlign(lv.TEXT_ALIGN_RIGHT, 0);
@@ -64,8 +64,8 @@ exprLabel.removeFlag(lv.OBJ_FLAG_CLICKABLE);
 exprLabel.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
 var resLabel = new lv.label(R.root);
-resLabel.setSize(220, 30);
-resLabel.setPos(12, 70);
+resLabel.setSize(196, 30);   // 右缘 218 ≤ 圆 y70 处右界 229
+resLabel.setPos(22, 70);
 resLabel.setFontSize(18);
 resLabel.setStyleTextColor(WHITE, 0);
 resLabel.setStyleTextOpa(250, 0);

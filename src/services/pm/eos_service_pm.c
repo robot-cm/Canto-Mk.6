@@ -19,7 +19,9 @@
 #include "eos_dispatcher.h"
 #include "eos_dfw.h"
 /* Macros and Definitions -------------------------------------*/
-#define DEBUG_DISABLE_TIMER 1 /**< [Debug] Whether to disable the timer */
+/* 睡眠定时器:超时后自动熄屏(进 AOD/SLEEP)。
+ * 曾为调试置 1 禁用以保持屏幕常亮,现在已不需要——正式启用。 */
+#define DEBUG_DISABLE_TIMER 0 /**< [Debug] Whether to disable the timer */
 #define _DEFAULT_TIMEOUT_SEC 15
 
 /* ---- 触摸手势:手掌覆盖(长按静止)熄屏 / 双击亮屏 ----
@@ -131,6 +133,9 @@ static void _pm_set_state(eos_pm_state_t state)
             eos_dfw_sync();
 #endif /* EOS_DFW_ENABLE */
             dev->ops->set_power(DEV_POWER_STATE_SLEEP);
+            /* 模拟器无背光概念,黑屏 mask 提供熄屏视觉;真机背光已灭,
+             * 静态黑屏渲染无额外开销。 */
+            _ds_mask_create();
             break;
         case EOS_PM_DISPLAY_AOD:
             if (t)

@@ -1,9 +1,28 @@
 cd /home/erashaperavm/下载/ElenixOS-fork/port/esp32s3 && idf.py -p /dev/ttyACM0 build flash monitor
 
++ texthub
++ album
++ anim
+- 性能监视器
++ ui 优化
+
+
 
 > memlog          → 查看当前状态
 > memlog 10       → 改成每 10 秒报一次
 > memlog off      → 关闭周期报告
+
+
+请你根据网址资源完善电源管理（位于 control center 的 power save 功能（这个是深度省电），目前比较简陋，仅在用户打开时开启）：
+
+· 《系统低功耗模式介绍》：乐鑫官方 ESP-IDF 文档，介绍 DFS（动态频率调整）、Light-sleep 和 Deep-sleep 等模式的原理与配置。
+  · 中文版：https://docs.espressif.com/projects/esp-idf/zh_CN/v6.0/esp32s3/api-guides/low-power-mode/low-power-mode-soc.html 
+  · 英文版：https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/low-power-mode/low-power-mode-soc.html 
+· 《睡眠模式》：ESP-IDF 睡眠模式 API 参考文档。
+  · https://docs.espressif.com/projects/esp-idf/zh_CN/v6.0/esp32s3/api-reference/system/sleep_modes.html 
+· 《电源管理 API》：ESP-IDF 电源管理算法 API 参考。
+  · https://docs.espressif.com/projects/esp-idf/zh_CN/v6.0/esp32s3/api-reference/system/power_management.html 
+· 《XIAO ESP32-S3 系列入门指南 - 电池使用》：Seeed Studio 官方 Wiki，介绍 XIAO 系列的电池连接、充电及指示灯状态。
 
 
 
@@ -25,99 +44,12 @@ wifi 扫描失败（日志如上）
 
 
 
-+ 为 Alarm JS App 增加以下功能，UI 控件间隔疏松、易于阅读使用，优先轻量流畅清晰，再考虑精致动画。界面全英文，适配 1.28 英寸 240×240 圆形屏幕，允许并推荐使用英文缩写以节省空间。
-- 多闹钟设定
-- 重复设置：创建闹钟时可填写重复次数，默认无限（-1 表示）
-- 创建闹钟时可选响铃星期（1–7 自由多选）
-- 无蜂鸣器，使用白色屏幕闪烁提醒（0.8s、0.9s、0.6s、0.4s 成组间隔闪烁）；白色屏幕上放置黑色按钮用于关闭闹钟，紫色按钮用于贪睡（5min 后再次提醒），这两个按钮不要太大了
-- 确保退出 app 后仍能触发，可设计高效触发方式
-设计不明确可继续提问。只在本 app 内修改，尽量不改底层；若需修改 app 外文件，请在回复总结中明确指出修改了哪些 app 外文件及原因。
-
-
-
-+ 为 Album JS App 加入以下功能：要求 UI 控件间隔疏松、易读易用，以轻量流畅清晰优先，之后再考虑精致动画；界面文案全英文；目标屏幕为圆形 1.28 英寸 240×240 显示屏；允许并推荐使用英文词语缩写以节省空间。
-- 根据名称排序读取 /sdcard/album/ 下的图片（支持递归遍历文件夹并找到所有图片文件）。打开 app 时默认展示第一张图片。图片为矩形、屏幕为圆形，因此四周留空：顶部显示文件名（过长时滚动显示），左右两侧提供箭头用于切换上一张/下一张图片，底部提供垃圾桶图标用于删除当前图片。
-- 复用当前已有的解码逻辑，严格控制内存管理，避免 OOM 崩溃。
-设计上如有不清楚的地方可以继续询问。只在本 app 内修改，尽量不修改底层；如果必须在 app 外修改，请在回复总结中明确列出修改了哪些 app 外文件以及修改原因。
-
-
-
-+ 为 Breach JS App 加入等级系统，注意不要大幅修改现有 UI，界面保持全英文，适配圆形 1.28 英寸 240×240 屏幕，优先使用英文缩写以节省空间。
-当前 5×5 矩阵、5 个缓冲槽、3 条目标序列、60 秒倒计时均为固定值。请新建 4 个等级：
-A. 3×3 矩阵
-B. 4×4 矩阵
-C. 5×5 矩阵
-D. 6×6 矩阵
-在界面中找一个空余且清晰的位置添加等级选择控件。各等级对应的缓冲槽数量、目标序列数量和倒计时时间请参考项目 /home/erashaperavm/下载/ElenixOS-fork/cyberpunk2077-breach-protocol 中的设定。
-如果存在设计问题或不确定之处，可以向我提问。
-仅在本 app 内修改，尽量不改动底层代码。如有必须在 app 外修改的文件，请在回复总结中明确指出修改了哪些 app 外文件以及修改原因。
-
-
-
-+ 为 Globaltime JS App 加入以下功能，尽量保持现有 UI 不变，界面全英文，适配 240x240 圆形 1.28 英寸屏幕，推荐使用英文缩写以节省空间：
-1. 将 5 个城市改为 HK, Beijing, Stockholm, NewYork, LA（使用英文缩写显示）。注意不仅仅是换时区和名称，还要注意那个地球动画地理区域变化。
-2. 如果内存不足，可能需要简化或减少动画效果。
-3. 仅在本 app 内修改，尽量不动底层代码。若必须修改 app 外文件，请在回复总结中明确列出修改了哪些文件及原因。
-4. 如遇设计问题不清楚，可先向我确认。
-
-
-
-+ 为 Timer JS App 加入以下功能，注意不要大幅修改现有 UI，全英文，圆形1.28英寸240*240屏幕，允许并推荐使用英文词语缩写以减小空间占用。
-- 确保是否支持正计时和倒计时，没有请增加模式（如果UI紧凑，划分 APP：正计时：Timer, 倒计时：Stopwatch）
-对于设计问题不清楚，可以问我。
-只在本 app 内修改，尽量不改底层，对于在 app 外需要修改，请明确在回复总结中指出修改了那些app外文件，为什么要修改。
-
-
-
-+ 为 Notes JS App 改名为 Texthub 并加入以下功能，注意 UI 控件间隔疏松易于阅读和使用，以轻量流畅清晰优先，后考虑精致的动画，全英文，圆形1.28英寸240*240屏幕，允许并推荐使用英文词语缩写以减小空间占用。
-- 删除这里的键盘（我已经在之前 wifi ap 密码输入那里做了个更好的）
-- 不允许修改文件
-- 只能从 /sdcard/texthub/ 下读取 .txt, .md 格式文件（允许递归文件夹，找到所有的文件）并展示，允许上下滑动以展示文本
-- 屏幕状态栏下方一点设计一个 App 的状态栏：显示文件名（太长的使用滚动显示），并左右提供箭头以点按上一篇或下一篇
-对于设计问题不清楚，可以问我。
-只在本 app 内修改，尽量不改底层，对于在 app 外需要修改，请明确在回复总结中指出修改了那些app外文件，为什么要修改。
-
-
-
-+ 为 Settings C App 加入以下功能，注意不要大幅修改现有 UI，全英文，圆形1.28英寸240*240屏幕，允许并推荐使用英文词语缩写以减小空间占用。
-- 蓝牙模仿 wifi 设计，扫描附近蓝牙设备并展示列表
-- 允许用户点击扫描列表中的设备进行配对（目前留个 mock,返回ok）
-- wifi 和 蓝牙应有记住设备的功能，记忆分别保存到 /sdcard/history/wifi 和 /sdcard/history/bt
-- socks5 改为 microlink 提供的 wireguard,从 /home/erashaperavm/下载/ElenixOS-fork/microlink 中集成
-- 删除抬腕唤醒功能，如果唤醒时长是类似熄屏时间的功能，提供选项时间(5s, 15s, 30s, 45s, 60s, 300s)，如果不是，删除这个功能并加入熄屏时间功能
-- 删除其他声音、振动相关功能
-- 删除语言选择功能，一律英文
-对于设计问题不清楚，可以问我。
-只在本 app 内修改，对于在 app 外需要修改，请明确在回复总结中指出修改了那些app外文件，为什么要修改。
-
-
-
-+ 实现 Calculator JS APP，注意 UI 控件间隔疏松易于阅读和使用，以轻量流畅清晰优先，后考虑精致的动画，全英文，圆形1.28英寸240*240屏幕，允许并推荐使用英文词语缩写以减小空间占用。
-- 标准模式：先实现简单的加减乘除
-- 高级模式：标准模式基础上再实现幂运算、模运算、次方根、三角函数
-- 使用开关切换标准/高级模式
-对于设计问题不清楚，可以问我。尽量不改底层。
-
-
-
-+ 实现一个 Calendar JS App，适用于圆形 1.28 英寸 240×240 屏幕，全英文界面（json 节日名称用中文），优先保证轻量流畅、清晰易读，UI 控件间距疏松，允许并推荐使用英文缩写以节省空间。
-- 顶部横轴显示星期缩写：Sun, Mon, Tue, Wed, Thu, Fri, Sat
-- 顶部同时显示当前月份：MM/YY
-- 主体显示当月日期 1-28/29/30/31，布局类似常见月历
-- 点击某个日期后，在底部“Festivals”容器中显示该日期对应的节日信息
-- 节日数据从 /sdcard/calendar/festival.json 读取，设计合理的 JSON 格式
-- 在项目根目录 examples/calendar/eg_festival.json 中提供示例文件，包含常见国际节日与中国大陆节日
-- 尽量不改动底层逻辑；如设计上有不明确之处可先询问
-
-
 
 python3.11 /home/erashaperavm/下载/ElenixOS-fork/scripts/album_optimize.py -i <输入目录> -o <输出目录>
 
 python3.11 scripts/icon/sync_app_icons.py
 
 python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/alarm /home/erashaperavm/下载/ElenixOS-fork/eapk-target/alarm.eapk --type app 
-
-python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/album /home/erashaperavm/下载/ElenixOS-fork/eapk-target/album.eapk --type app 
 
 python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/breach /home/erashaperavm/下载/ElenixOS-fork/eapk-target/breach.eapk --type app 
 
@@ -129,8 +61,6 @@ python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/ap
 
 python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/stopwatch /home/erashaperavm/下载/ElenixOS-fork/eapk-target/stopwatch.eapk --type app 
 
-python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/texthub /home/erashaperavm/下载/ElenixOS-fork/eapk-target/texthub.eapk --type app 
-
 python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/timer /home/erashaperavm/下载/ElenixOS-fork/eapk-target/timer.eapk --type app 
 
 
@@ -141,3 +71,4 @@ python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/ap
 /sdcard/texthub/
 /sdcard/history/bt
 /sdcard/history/wifi
+/sdcard/theme/icon/album.bin, texthub.bin

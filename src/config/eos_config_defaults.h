@@ -139,6 +139,25 @@
 #define EOS_FONT_CFG_SMALL_SIZE (EOS_FONT_CFG_MEDIUM_SIZE - 6) /* 20px:整体小两号,见 eos_font_jbm_20 */
 #endif
 
+/* 20px 与 26px 之间的中档字号(22..25px 请求用 22px 字体),见 eos_font_jbm_22 */
+#ifndef EOS_FONT_CFG_LARGE_MINUS_SIZE
+#define EOS_FONT_CFG_LARGE_MINUS_SIZE 22
+#endif
+
+/* 16px 与 20px 之间的中档字号(17..19px 请求用 18px 字体),见 eos_font_jbm_18 */
+#ifndef EOS_FONT_CFG_TALL_SIZE
+#define EOS_FONT_CFG_TALL_SIZE 18
+#endif
+
+/* 小字号档(12..15px 用 13px 字体;<=11px 用 10px 字体),由 eos_font_c_multi.c 按区间选择 */
+#ifndef EOS_FONT_CFG_MICRO_SIZE
+#define EOS_FONT_CFG_MICRO_SIZE 13
+#endif
+
+#ifndef EOS_FONT_CFG_TINY_SIZE
+#define EOS_FONT_CFG_TINY_SIZE 10
+#endif
+
 #if EOS_FONT_TYPE == EOS_FONT_C_MULTI
 
 #ifndef EOS_ENABLE_CHINESE_FONT
@@ -149,13 +168,21 @@
 /* JetBrainsMono-Medium (拉丁/数字/符号, 清晰等宽) + 内置 fallback=source_han_sans_*(中文) */
 #define EOS_FONT_LARGE_NAME eos_font_jbm_30
 #define EOS_FONT_MEDIUM_NAME eos_font_jbm_26
+#define EOS_FONT_LARGE_MINUS_NAME eos_font_jbm_22
 #define EOS_FONT_SMALL_NAME eos_font_jbm_20
+#define EOS_FONT_TALL_NAME eos_font_jbm_18
 #define EOS_FONT_EXTRA_SMALL_NAME eos_font_jbm_16
+#define EOS_FONT_MICRO_NAME eos_font_jbm_13
+#define EOS_FONT_TINY_NAME eos_font_jbm_10
 #else
 #define EOS_FONT_LARGE_NAME lv_font_montserrat_30
 #define EOS_FONT_MEDIUM_NAME lv_font_montserrat_30
+#define EOS_FONT_LARGE_MINUS_NAME lv_font_montserrat_30
 #define EOS_FONT_SMALL_NAME lv_font_montserrat_30
+#define EOS_FONT_TALL_NAME eos_font_jbm_18
 #define EOS_FONT_EXTRA_SMALL_NAME eos_font_jbm_16
+#define EOS_FONT_MICRO_NAME eos_font_jbm_13
+#define EOS_FONT_TINY_NAME eos_font_jbm_10
 #endif
 
 #elif EOS_FONT_TYPE == EOS_FONT_TTF

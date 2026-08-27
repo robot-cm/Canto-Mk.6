@@ -208,16 +208,16 @@ add_custom_command(
 add_custom_target(alarm_eapk DEPENDS "${ALARM_EAPK}")
 add_dependencies(elenixos_sim alarm_eapk)
 
-# Build apps/album (相册 P1 探针, id=com.elenix.album 与 FM 回传写死 id 一致) into an .eapk.
+# Build apps/album (相册 P1 探针, id=com.cantomk6.album 与 FM 回传写死 id 一致) into an .eapk.
 set(ALBUM_SRC       "${PROJECT_ROOT}/apps/album")
-set(ALBUM_EAPK      "${SIM_FS}/.sys/app/com.elenix.album.eapk")
+set(ALBUM_EAPK      "${SIM_FS}/.sys/app/com.cantomk6.album.eapk")
 add_custom_command(
     OUTPUT "${ALBUM_EAPK}"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${SIM_FS}/.sys/app"
     COMMAND ${Python3_EXECUTABLE} "${EOS_PKG_BUILDER}"
             "${ALBUM_SRC}" "${ALBUM_EAPK}" --type app
     DEPENDS "${ALBUM_SRC}/manifest.json" "${ALBUM_SRC}/main.js" "${ALBUM_SRC}/icon.bin" "${EOS_PKG_BUILDER}"
-    COMMENT "Building seed plugin package com.elenix.album.eapk"
+    COMMENT "Building seed plugin package com.cantomk6.album.eapk"
 )
 add_custom_target(album_eapk DEPENDS "${ALBUM_EAPK}")
 add_dependencies(elenixos_sim album_eapk)
@@ -306,8 +306,8 @@ add_custom_command(TARGET alarm_eapk POST_BUILD
 add_custom_command(TARGET album_eapk POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "${SIM_FS}/sdcard/apps"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${ALBUM_EAPK}" "${SIM_FS}/sdcard/apps/com.elenix.album.eapk"
-    COMMENT "Staging com.elenix.album.eapk onto simulated SD card"
+        "${ALBUM_EAPK}" "${SIM_FS}/sdcard/apps/com.cantomk6.album.eapk"
+    COMMENT "Staging com.cantomk6.album.eapk onto simulated SD card"
 )
 add_custom_command(TARGET notes_eapk POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "${SIM_FS}/sdcard/apps"

@@ -143,6 +143,45 @@ function isSubsequence(buf, seq) {
     }
     return false;
 }
+// 参考仓库 Sequence.tsx 的连续匹配算法:
+// 从 seqIdx=0 起遍历玩家点击 buffer;匹配成功则 seqIdx++(picked 置位),匹配到末尾=solved;
+// 失配则重置 seqIdx/picked,并从当前点击位置(i)重新对齐(若当前码==序列首码则 seqIdx=1),
+// offset=序列在 buffer 中的对齐起点(首格缩进单位),随点击窗口滑动。
+function evalSeq(seq, buf) {
+    var seqIdx = 0, picked = [], offset = 0, i;
+    for (i = 0; i < buf.length; i++) {
+        var code = buf[i];
+        if (code === seq[seqIdx]) {
+            picked[seqIdx] = true;
+            seqIdx++;
+            if (seqIdx === seq.length)
+                return { solved: true, offset: offset, picked: picked, seqIdx: seqIdx };
+        } else {
+            seqIdx = 0;
+            picked = [];
+            var offsetIdx = i + 1;
+            if (code === seq[0]) { seqIdx = 1; picked[0] = true; offsetIdx = i; }
+            offset = Math.min(offsetIdx, cfg.bufferSize - seq.length);
+        }
+    }
+    return { solved: false, offset: offset, picked: picked, seqIdx: seqIdx };
+}
+// 逐序列状态更新:IN_PROGRESS → SOLVED / FAILED(参考:剩余未匹配码数 > buffer 剩余槽位 → 不可能完成)
+function updateSeqStatus() {
+    for (var s = 0; s < state.seqs.length; s++) {
+        if (state.seqs[s].status !== "IN_PROGRESS") continue;
+        var ev = evalSeq(state.seqs[s].codes, state.buffer);
+        if (ev.solved) { state.seqs[s].status = "SOLVED"; continue; }
+        if (state.seqs[s].codes.length - ev.seqIdx > cfg.bufferSize - state.buffer.length)
+            state.seqs[s].status = "FAILED";
+    }
+}
+function countInProgress() {
+    var n = 0;
+    for (var s = 0; s < state.seqs.length; s++)
+        if (state.seqs[s].status === "IN_PROGRESS") n++;
+    return n;
+}
 function isSelectable(sel, code) {
     return (sel.direction === "ROW") ? (sel.value === code.row) : (sel.value === code.col);
 }
@@ -283,14 +322,21 @@ var MX_X0 = 39, MX_Y0 = 70;
 var COL_STEP = CELL_W + CELL_GAP;   // 33
 var ROW_STEP = CELL_H + 2;          // 22（纵向 gap2 → 5 行 y70/92/114/136/158，底 178）
 
-// 按等级动态布局：5x5（C）及以下沿用原布局；6x6（D）格子 27x16、行距 18，6 行底 176 ≤ 目标区 178
+// 按等级动态布局：5x5（C）及以下 cell30x18 行距19；6x6（D）cell27x16 行距17。
+// 矩阵垂直居中于缓冲槽底(60)与目标序列顶(164)之间（中心 y112）；矩阵与圆边空隙：5x5 底159、6x6 底162。
 function layoutFor(c) {
     var n = c.matrixCols;
-    if (n <= 5) return { cellW: 30, cellH: 20, colStep: 33, rowStep: 22, x0: 39, y0: 70 };
-    var cellW = 27, cellH = 16, gap = 3;
-    var total = n * cellW + (n - 1) * gap;
-    return { cellW: cellW, cellH: cellH, colStep: cellW + gap, rowStep: 18,
-             x0: Math.floor((240 - total) / 2), y0: 70 };
+    var cellW, cellH, colStep, rowStep, x0;
+    if (n <= 5) {
+        cellW = 30; cellH = 18; colStep = 33; rowStep = 19; x0 = 39;
+    } else {
+        cellW = 27; cellH = 16; colStep = 30; rowStep = 17;
+        var total = n * cellW + (n - 1) * (colStep - cellW);
+        x0 = Math.floor((240 - total) / 2);
+    }
+    var h = n * cellH + (n - 1) * (rowStep - cellH);
+    var y0 = 60 + Math.floor((104 - h) / 2);
+    return { cellW: cellW, cellH: cellH, colStep: colStep, rowStep: rowStep, x0: x0, y0: y0 };
 }
 // 应用当前等级的矩阵/缓冲槽/目标序列布局（对象池显隐 + 定位）
 function applyLayout() {
@@ -301,7 +347,7 @@ function applyLayout() {
             cell.obj.setPos(L.x0 + c * L.colStep, L.y0 + r * L.rowStep);
             cell.obj.setSize(L.cellW, L.cellH);
             cell.lab.setSize(L.cellW, L.cellH);
-            cell.lab.setFontSize(10);
+            cell.lab.setFontSize(10);   // jbm_10（系统新小字号档）
             cell.obj.removeFlag(lv.OBJ_FLAG_HIDDEN);
         } else {
             cell.obj.addFlag(lv.OBJ_FLAG_HIDDEN);
@@ -312,19 +358,17 @@ function applyLayout() {
     for (var i = 0; i < MAX_BUF; i++) {
         if (i < cfg.bufferSize) {
             bufSlots[i].obj.removeFlag(lv.OBJ_FLAG_HIDDEN);
-            bufSlots[i].obj.setPos(bx0 + i * (BUF_W + BUF_GAP), 50);
+            bufSlots[i].obj.setPos(bx0 + i * (BUF_W + BUF_GAP), 44);
         } else {
             bufSlots[i].obj.addFlag(lv.OBJ_FLAG_HIDDEN);
         }
     }
-    for (var t = 0; t < tgtLabels.length; t++) {
+    for (var t = 0; t < tgtBgs.length; t++) {
         if (t < cfg.numberOfSequences) {
-            tgtLabels[t].removeFlag(lv.OBJ_FLAG_HIDDEN);
             tgtBgs[t].removeFlag(lv.OBJ_FLAG_HIDDEN);
         } else {
-            tgtLabels[t].setText("");
-            tgtLabels[t].addFlag(lv.OBJ_FLAG_HIDDEN);
             tgtBgs[t].addFlag(lv.OBJ_FLAG_HIDDEN);
+            for (var tc = 0; tc < MAX_TGT_COL; tc++) tgtCells[t][tc].obj.addFlag(lv.OBJ_FLAG_HIDDEN);
         }
     }
 }
@@ -332,7 +376,7 @@ function applyLayout() {
 // --- HUD：仅右计时（状态栏已承载"入侵协议"；页内左标题删，避免重复+被状态栏裁）---
 var hackTimer = new lv.label(pageHack);
 hackTimer.setSize(30, 18);
-hackTimer.setPos(160, 30);         // 计时右缘 x190（黄）；顶栏 y30 不被状态栏裁
+hackTimer.setPos(160, 24);         // 计时 y24..42；缓冲槽 y44..60 不重叠
 hackTimer.setFontSize(18);
 hackTimer.setStyleTextColor(hex(YELLOW), 0);
 hackTimer.setStyleTextLetterSpace(2, 0);
@@ -342,7 +386,7 @@ hackTimer.setText("60");
 // 等级标签（左上；当前等级 LV X，font10 灰）
 var lvTag = new lv.label(pageHack);
 lvTag.setSize(50, 18);
-lvTag.setPos(10, 30);
+lvTag.setPos(10, 24);
 lvTag.setFontSize(10);
 lvTag.setStyleTextColor(hex(GRAY), 0);
 lvTag.setStyleTextLetterSpace(1, 0);
@@ -350,19 +394,19 @@ lvTag.setStyleTextAlign(lv.TEXT_ALIGN_LEFT, 0);
 lvTag.setText("LV C");
 
 // --- 缓冲槽（对象池 6，按等级显示 3..6）---
-var BUF_W = 26, BUF_H = 14, BUF_GAP = 4;
+var BUF_W = 26, BUF_H = 16, BUF_GAP = 4;
 var bufSlots = [];
 for (var bi = 0; bi < MAX_BUF; bi++) {
     var so = new lv.obj(pageHack);
     so.setSize(BUF_W, BUF_H);
-    so.setPos(0, 50);                    // 位置由 applyLayout 按等级设置
+    so.setPos(0, 44);                    // 位置由 applyLayout 按等级设置
     so.setStyleRadius(CELL_R, 0);
     so.setStyleBgColor(hex(0x26262E), 0);          // 空槽填充提亮（原 0x1A1A20 近 BG 不可见）
     so.setStyleBgOpa(255, 0);
     so.setStyleBorderWidth(1, 0);                   // 槽轮廓，空态也看出是槽
     so.setStyleBorderColor(hex(0x55585F), 0);
     so.setStyleBorderOpa(180, 0);
-    so.setStylePadAll(0, 0);   // 清默认 padding（对齐格子已验证模式），否则 26×14 槽内容区被挤压，label 不显示
+    so.setStylePadAll(0, 0);   // 清默认 padding（对齐格子已验证模式），否则 26×16 槽内容区被挤压，label 不显示
     so.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
     so.setScrollbarMode(0);
     so.addFlag(lv.OBJ_FLAG_HIDDEN);      // 池对象初始隐藏
@@ -370,7 +414,7 @@ for (var bi = 0; bi < MAX_BUF; bi++) {
     sl.setSize(BUF_W, BUF_H);
     sl.setPos(0, 0);
     sl.setLongMode(lv.LABEL_LONG_CLIP);             // 禁换行（对齐格子）
-    sl.setFontSize(12);
+    sl.setFontSize(12);   // jbm_13（12px 请求落 13px 档）
     sl.setStyleTextColor(hex(GRAY), 0);
     sl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
     sl.setStyleTextLetterSpace(1, 0);               // LS1 防双字符截断（对齐格子）
@@ -400,7 +444,7 @@ for (var r = 0; r < MAX_N; r++) {
             var l = new lv.label(o);
             l.setSize(CELL_W, CELL_H);
             l.setPos(0, 0);
-            l.setFontSize(10);
+            l.setFontSize(10);   // jbm_10（系统新小字号档）
             l.setStyleTextColor(hex(GRAY), 0);
             l.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
             l.setStyleTextLetterSpace(1, 0);   // LS1（防双字符截断）
@@ -427,16 +471,22 @@ scanLine.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 scanLine.setScrollbarMode(0);
 scanLine.addFlag(lv.OBJ_FLAG_HIDDEN);
 
-// --- 目标序列（3，三态；font9 / CLIP 禁换行 / 居中盒(25..215 中心120) / y175·194·213 步距19 行高16 → 底229；三行零重叠硬验收）---
-// 括号被删：纯序列 "BD 1C E9 1C" 才是换行元凶（长串 + 默认 WRAP 模式 → 换行叠字）。
-// CLIP 结构性禁换行（不包即裁，绝不换行叠字）；盒 190 宽居中，文本 CENTER 对齐即居中。
-var TGT_Y = [175, 194, 213];
-var tgtLabels = [];
+// --- 目标序列（3 行 × 5 列格子池,复刻仓库 Sequence 行:左对齐 + offset 缩进 + 逐序列锁定）---
+// 参考 Sequence.tsx:格子从容器左侧开始(offset=0 左对齐),offset=序列在玩家点击 buffer 中的对齐起点,
+// 首格 marginLeft=offset*(格宽+间距);solved 行全绿锁定(INSTALLED),failed 行全红锁定(FAILED)。
+// 圆屏:y206 行圆界 x36..204;序列左端右移 8px 避免贴边,胶囊条 160 宽 x44..204;
+// 格子右缘=44+offset*22+len*22 ≤ 44+(bufSize-len)*22+len*22 = 154。
+var TGT_Y = [164, 185, 206];
+var MAX_TGT_COL = 5;                 // 等级 D 最长 5 列
+var TGT_W = 20, TGT_H = 19, TGT_GAP = 2, TGT_STEP = TGT_W + TGT_GAP;   // 22
+var TGT_X0 = 44;                     // 序列行左对齐起点(圆界右移 8px)
 var tgtBgs = [];
+var tgtCells = [];
+var tgtSts = [];                     // 锁定状态 label(INSTALLED/FAILED,覆盖整行)
 for (var ti = 0; ti < 3; ti++) {
-    var tb = new lv.obj(pageHack);              // 序列深色胶囊背景条（先创建 → z 序在文字下方）
-    tb.setSize(190, 16);
-    tb.setPos(25, TGT_Y[ti]);
+    var tb = new lv.obj(pageHack);              // 序列深色胶囊背景条（先创建 → z 序在格子下方）
+    tb.setSize(160, 19);
+    tb.setPos(TGT_X0, TGT_Y[ti]);
     tb.setStyleRadius(2, 0);
     tb.setStyleBgColor(hex(0x15151B), 0);
     tb.setStyleBgOpa(255, 0);
@@ -446,16 +496,44 @@ for (var ti = 0; ti < 3; ti++) {
     tb.setScrollbarMode(0);
     tb.addFlag(lv.OBJ_FLAG_HIDDEN);
     tgtBgs.push(tb);
-    var tl = new lv.label(pageHack);
-    tl.setLongMode(lv.LABEL_LONG_CLIP);   // 结构性禁换行（CLIP，SNI 严格 1 参）
-    tl.setSize(190, 16);                      // 盒居中（25..215，中心120）
-    tl.setPos(25, TGT_Y[ti]);
-    tl.setFontSize(7);                        // 7px：再小两档；行高 16 容 7px 行高≈9 无截断
-    tl.setStyleTextColor(hex(GRAY), 0);
-    tl.setStyleTextLetterSpace(1, 0);
-    tl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-    tl.setText("-- -- --");                    // 纯序列占位（刷新时去括号，见 refreshTargets）
-    tgtLabels.push(tl);
+    tgtCells[ti] = [];
+    for (var tc = 0; tc < MAX_TGT_COL; tc++) {
+        (function (rr, cc) {
+            var g = new lv.obj(pageHack);       // 每码一格（同矩阵格风）
+            g.setSize(TGT_W, TGT_H);
+            g.setPos(0, 0);
+            g.setStyleRadius(2, 0);
+            g.setStyleBgColor(hex(0x0D0D12), 0);
+            g.setStyleBgOpa(255, 0);
+            g.setStyleBorderWidth(0, 0);
+            g.setStylePadAll(0, 0);
+            g.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+            g.setScrollbarMode(0);
+            g.addFlag(lv.OBJ_FLAG_HIDDEN);      // 池对象初始隐藏
+            var gl = new lv.label(g);
+            gl.setSize(TGT_W, TGT_H);
+            gl.setPos(0, 0);
+            gl.setLongMode(lv.LABEL_LONG_CLIP); // 禁换行
+            gl.setFontSize(7);                  // 7px 请求落 jbm_10 小字号档
+            gl.setStyleTextColor(hex(0xC8CCD4), 0);
+            gl.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+            gl.setStyleTextLetterSpace(1, 0);
+            gl.setText("");
+            tgtCells[rr][cc] = { obj: g, lab: gl };
+        })(ti, tc);
+    }
+    // 锁定状态文本:必须最后创建且挂 pageHack(在格子上层),锁定后盖整行显示 INSTALLED/FAILED
+    var ts = new lv.label(pageHack);
+    ts.setSize(160, 19);
+    ts.setPos(TGT_X0, TGT_Y[ti]);
+    ts.setFontSize(11);
+    ts.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+    ts.setStyleTextLetterSpace(1, 0);
+    ts.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+    ts.removeFlag(lv.OBJ_FLAG_CLICKABLE);
+    ts.setText("");
+    ts.addFlag(lv.OBJ_FLAG_HIDDEN);
+    tgtSts.push(ts);
 }
 
 // --- 状态 ---
@@ -468,7 +546,7 @@ var gameTimer = safeTimer(function () {
     state.timeLeft--;
     if (state.timeLeft < 0) state.timeLeft = 0;
     hackTimer.setText(String(state.timeLeft));
-    if (state.timeLeft <= 0) endGame(false);
+    if (state.timeLeft <= 0) endGame(true);   // 超时:status=TIMED OUT,部分 solved 算成功
 }, 1000, null);
 gameTimer.setRepeatCount(-1);
 gameTimer.setAutoDelete(false);
@@ -505,6 +583,12 @@ function newGame() {
 
 function doSelect(r, c) {
     if (!state.active) return;
+    // 点击落点不在高亮行/列时，自动投影到当前高亮线（保留另一维坐标，换掉当前维度坐标）。
+    // 仅为了方便点到，不改变玩法规则（isSelectable / afterSelect / picked 语义均不变）。
+    if (!isSelectable(state.sel, { row: r, col: c })) {
+        if (state.sel.direction === "ROW") { r = state.sel.value; }   // 强制行=高亮行，保留所点列
+        else { c = state.sel.value; }                                  // 强制列=高亮列，保留所点行
+    }
     var idx = r * cfg.matrixCols + c;
     if (state.picked[idx]) return;
     if (!isSelectable(state.sel, { row: r, col: c })) return;
@@ -515,9 +599,9 @@ function doSelect(r, c) {
     if (!state.countdownStarted) state.countdownStarted = true;   // 第一个号码按下 → 开始倒计时
     refreshAll();
     flashCell(cells[r][c]);
-    var allSolved = true;
-    for (var s = 0; s < state.seqs.length; s++) if (!isSubsequence(state.buffer, state.seqs[s].codes)) { allSolved = false; break; }
-    if (allSolved) { endGame(true); return; }
+    // 逐序列判定(参考):全非 in-progress(全部 solved/failed)或缓冲满 → 终局
+    updateSeqStatus();
+    if (countInProgress() === 0) { endGame(false); return; }
     if (state.buffer.length >= cfg.bufferSize) { endGame(false); return; }
 }
 
@@ -539,18 +623,6 @@ function solvedCellSet() {
         }
     }
     return set;
-}
-
-function seqState(buf, seq) {
-    if (isSubsequence(buf, seq)) return 2;
-    var L = buf.length;
-    for (var k = 1; k < seq.length; k++) {
-        if (L < k) break;
-        var tail = buf.slice(L - k), pre = seq.slice(0, k), same = true;
-        for (var i = 0; i < k; i++) if (tail[i] !== pre[i]) { same = false; break; }
-        if (same) return 1;
-    }
-    return 0;
 }
 
 function refreshCells() {
@@ -593,18 +665,54 @@ function refreshBuffer() {
     }
 }
 function refreshTargets() {
-    for (var s = 0; s < tgtLabels.length; s++) {
-        var tl = tgtLabels[s];
-        if (s < cfg.numberOfSequences && s < state.seqs.length) {
-            var seq = state.seqs[s].codes;
-            var st = seqState(state.buffer, seq);
-            tl.setText(seq.join(" "));   // 纯序列（去括号，CLIP 禁换行，避免叠字）
-            tl.setStyleTextColor(hex(st === 2 ? GREEN : (st === 1 ? YELLOW : 0xC8CCD4)), 0);   // 未命中亮灰提亮（原 0x8A8F98）
-            tl.removeFlag(lv.OBJ_FLAG_HIDDEN);   // 注：本 fork SNI 未注册 clearFlag，用 removeFlag
-        } else {
-            // 防御：序列数 < 3 时清空多余标签（避免占位符 "-- -- --" 横线残留）—— generateSequences 已修，此为双保险
-            tl.setText("");
-            tl.addFlag(lv.OBJ_FLAG_HIDDEN);
+    for (var s = 0; s < tgtCells.length; s++) {
+        var rowCells = tgtCells[s];
+        var show = (s < cfg.numberOfSequences && s < state.seqs.length);
+        if (!show) {
+            for (var tc = 0; tc < MAX_TGT_COL; tc++) rowCells[tc].obj.addFlag(lv.OBJ_FLAG_HIDDEN);
+            tgtBgs[s].addFlag(lv.OBJ_FLAG_HIDDEN);
+            tgtSts[s].addFlag(lv.OBJ_FLAG_HIDDEN);
+            continue;
+        }
+        tgtBgs[s].removeFlag(lv.OBJ_FLAG_HIDDEN);
+        var seq = state.seqs[s].codes;
+        var status = state.seqs[s].status;
+        var y = TGT_Y[s];
+        // 锁定:SOLVED 全绿(INSTALLED) / FAILED 全红(FAILED),格子不再变化
+        if (status === "SOLVED" || status === "FAILED") {
+            var isOk = (status === "SOLVED");
+            for (var t2 = 0; t2 < MAX_TGT_COL; t2++) {
+                var c2 = rowCells[t2];
+                if (t2 < seq.length) {
+                    c2.lab.setText(seq[t2]);
+                    c2.lab.setStyleTextColor(hex(isOk ? GREEN : RED), 0);
+                    c2.obj.setStyleBgColor(hex(isOk ? 0x0A2A12 : 0x2A0A0F), 0);
+                    c2.obj.removeFlag(lv.OBJ_FLAG_HIDDEN);
+                    c2.obj.setPos(TGT_X0 + t2 * TGT_STEP, y);
+                } else {
+                    c2.obj.addFlag(lv.OBJ_FLAG_HIDDEN);
+                }
+            }
+            tgtSts[s].setText(isOk ? "INSTALLED" : "FAILED");
+            tgtSts[s].setStyleTextColor(hex(isOk ? GREEN : RED), 0);
+            tgtSts[s].removeFlag(lv.OBJ_FLAG_HIDDEN);
+            continue;
+        }
+        tgtSts[s].addFlag(lv.OBJ_FLAG_HIDDEN);
+        // in-progress:左对齐 + offset 缩进(序列在点击 buffer 中的对齐起点),已匹配码黄,其余灰
+        var ev = evalSeq(seq, state.buffer);
+        var x0 = TGT_X0 + ev.offset * TGT_STEP;
+        for (var t3 = 0; t3 < MAX_TGT_COL; t3++) {
+            var c3 = rowCells[t3];
+            if (t3 < seq.length) {
+                c3.lab.setText(seq[t3]);
+                c3.lab.setStyleTextColor(hex(ev.picked[t3] ? YELLOW : 0xC8CCD4), 0);
+                c3.obj.setStyleBgColor(hex(0x0D0D12), 0);
+                c3.obj.removeFlag(lv.OBJ_FLAG_HIDDEN);
+                c3.obj.setPos(x0 + t3 * TGT_STEP, y);
+            } else {
+                c3.obj.addFlag(lv.OBJ_FLAG_HIDDEN);
+            }
         }
     }
 }
@@ -621,75 +729,178 @@ function refreshScan() {
 }
 function refreshAll() { refreshCells(); refreshBuffer(); refreshTargets(); refreshScan(); }
 
-function endGame(win) {
-    if (!state.active) return;
-    state.active = false;
-    state.win = win;
-    var solved = 0;
-    for (var s = 0; s < state.seqs.length; s++) if (isSubsequence(state.buffer, state.seqs[s].codes)) solved++;
-    resStatus.setText(win ? "BREACH SUCCESS" : "BREACH FAILED");
-    resStatus.setStyleTextColor(hex(win ? GREEN : RED), 0);
-    resProgress.setText("SOLVED " + solved + " / " + state.seqs.length);
-    hackTimer.addFlag(lv.OBJ_FLAG_HIDDEN);   // Fix1：失败/胜利页不留残亮倒计时（overlay Opa230 仍透出"0"）
-    fadeTo(pageResult);   // overlay over Hack（不隐藏 Hack，作暗化底）
+// 终局判定(参考 selectBreachFinishDetails):逐序列统计 solved/done
+// all solved → ALL DAEMONS UPLOADED;无 in-progress 且部分 solved → "x/y DAEMONS UPLOADED"(成功);
+// buffer 满/全灭 → BUFFER FULL(失败);超时 → solved>0 算成功
+function computeFinish(timeout) {
+    var total = state.seqs.length, solved = 0, done = 0;
+    for (var s = 0; s < total; s++) {
+        if (state.seqs[s].status !== "IN_PROGRESS") {
+            done++;
+            if (state.seqs[s].status === "SOLVED") solved++;
+        }
+    }
+    if (solved >= total)
+        return { isSuccess: true, solved: solved, total: total, status: "ALL DAEMONS UPLOADED" };
+    if (done === total && solved > 0)
+        return { isSuccess: true, solved: solved, total: total, status: solved + "/" + total + " DAEMONS UPLOADED" };
+    if (timeout)
+        return { isSuccess: solved > 0, solved: solved, total: total, status: "TIMED OUT" };
+    return { isSuccess: false, solved: solved, total: total, status: "BUFFER FULL" };
 }
 
-// ===================== P3 Result 内容（overlay Opa230 + success/fail + n/3 + RETRY + Glitch） =====================
+function endGame(timeout) {
+    if (!state.active) return;
+    state.active = false;
+    var fin = computeFinish(timeout);
+    state.win = fin.isSuccess;
+    resStatus.setText(fin.isSuccess ? "BREACH SUCCESS" : "BREACH FAILED");
+    resStatus.setStyleTextColor(hex(fin.isSuccess ? GREEN : RED), 0);
+    hackTimer.addFlag(lv.OBJ_FLAG_HIDDEN);   // Fix1：失败/胜利页不留残亮倒计时（overlay Opa230 仍透出"0"）
+    fadeTo(pageResult);   // overlay over Hack（不隐藏 Hack，作暗化底）
+    startTerminal(fin);   // 结束动画:终端逐序列混合打印(绿=成功/红=失败)
+}
+
+// --- 结束动画:终端打字机(逐序列混合打印,复刻仓库 MatrixFinish 语义)---
+// 每条序列一行独立 label:成功行绿色 "//DAEMON_x INSTALLED"、失败行红色 "//DAEMON_x FAILED",
+// 逐行逐字符打字;全部行完成后状态行出现(ALL DAEMONS UPLOADED / "x/y DAEMONS UPLOADED" / BUFFER FULL / TIMED OUT)。
+// LVGL label 单色限制 → 每行一个 label,不追求参考 Code.tsx 的整块 SUCCESS/FAILURE_CODE 二选一。
+var CARET_CHARS = "|<>/[]{}* #";
+var typeTimer = null;
+
+function startTerminal(fin) {
+    var rows = [];
+    for (var s = 0; s < state.seqs.length; s++) {
+        var ok = (state.seqs[s].status === "SOLVED");
+        rows.push({ text: (ok ? "//DAEMON_" + (s + 1) + " INSTALLED" : "//DAEMON_" + (s + 1) + " FAILED"), ok: ok });
+    }
+    var anyOk = fin.solved > 0;
+    termBox.setStyleBorderColor(hex(anyOk ? GREEN : RED), 0);
+    termBox.setStyleBgColor(hex(anyOk ? 0x07140B : 0x140708), 0);
+    resProgress.setStyleTextColor(hex(anyOk ? GREEN : RED), 0);
+    resProgress.setText(fin.status);
+    resProgress.addFlag(lv.OBJ_FLAG_HIDDEN);   // 打字机结束才出现
+    for (var i = 0; i < termLbls.length; i++) {
+        termLbls[i].setText("");
+        if (i < rows.length) termLbls[i].setStyleTextColor(hex(rows[i].ok ? GREEN : RED), 0);
+    }
+    if (typeTimer) { try { typeTimer.delete(); } catch (e2) {} typeTimer = null; }
+    var ri = 0, ci = 0;
+    typeTimer = safeTimer(function () {
+        if (ri >= rows.length) {
+            typeTimer.delete();
+            typeTimer = null;
+            // 状态行出现 + 闪烁 4 次
+            resProgress.removeFlag(lv.OBJ_FLAG_HIDDEN);
+            var flick = 0;
+            var ft = safeTimer(function () {
+                flick++;
+                if (flick % 2 === 1) resProgress.addFlag(lv.OBJ_FLAG_HIDDEN);
+                else resProgress.removeFlag(lv.OBJ_FLAG_HIDDEN);
+                if (flick >= 8) { try { ft.delete(); } catch (e3) {} }
+            }, 100, null);
+            ft.setRepeatCount(-1);
+            ft.setAutoDelete(true);
+            return;
+        }
+        var row = rows[ri];
+        ci += 3;   // 每帧 3 字符
+        if (ci >= row.text.length) {
+            termLbls[ri].setText(row.text);
+            ri++;
+            ci = 0;
+        } else {
+            var caret = CARET_CHARS.charAt(Math.floor(Math.random() * CARET_CHARS.length));
+            termLbls[ri].setText(row.text.substring(0, ci) + caret);
+        }
+    }, 30, null);
+    typeTimer.setRepeatCount(-1);
+    typeTimer.setAutoDelete(true);
+}
+
+// ===================== P3 Result 内容（overlay Opa230 + 标题 + 终端打字机 + INSTALLED/FAILED + RETRY + Glitch） =====================
+// 复刻仓库 MatrixFinish：结束（无论成败）在终端窗口内逐字符打字输出代码块（小字号 font7 适配 240 屏）。
 var resStatus = new lv.label(pageResult);
-resStatus.setSize(220, 30);
-resStatus.setPos(10, 72);
-resStatus.setFontSize(20);
+resStatus.setSize(220, 18);
+resStatus.setPos(10, 28);
+resStatus.setFontSize(12);
 resStatus.setStyleTextColor(hex(GREEN), 0);
 resStatus.setStyleTextLetterSpace(2, 0);
 resStatus.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
 resStatus.setText("BREACH SUCCESS");
 
-var resProgress = new lv.label(pageResult);
-resProgress.setSize(220, 20);
-resProgress.setPos(10, 112);
-resProgress.setFontSize(16);
-resProgress.setStyleTextColor(hex(YELLOW), 0);
-resProgress.setStyleTextLetterSpace(2, 0);
-resProgress.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-resProgress.setText("SOLVED 0 / 3");
-
-// RETRY 按钮（点击重开；池化对象，EVENT_PRESSED）
-var resRetry = new lv.obj(pageResult);
-resRetry.setSize(120, 34);
-resRetry.setPos(60, 152);
-resRetry.setStyleRadius(2, 0);
-resRetry.setStyleBgColor(hex(0x1A1A20), 0);
-resRetry.setStyleBgOpa(255, 0);
-resRetry.setStyleBorderWidth(1, 0);
-resRetry.setStyleBorderColor(hex(YELLOW), 0);
-resRetry.setStyleBorderOpa(255, 0);
-resRetry.setStylePadAll(0, 0);
-resRetry.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
-resRetry.setScrollbarMode(0);
-resRetry.addFlag(lv.OBJ_FLAG_CLICKABLE);
-var resRetryLab = new lv.label(resRetry);
-resRetryLab.setSize(120, 34);
-resRetryLab.setPos(0, 0);
-resRetryLab.setFontSize(14);
-resRetryLab.setStyleTextColor(hex(YELLOW), 0);
-resRetryLab.setStyleTextLetterSpace(2, 0);
-resRetryLab.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-resRetryLab.setText("RETRY");
-resRetry.addEventCb(function () {
+// 终端窗口（打字机容器；圆屏约束：(30,50)-(214,182) 四角距圆心 ≥117 留空隙；点击终端=重开，替代独立 RETRY 按钮）
+var termBox = new lv.obj(pageResult);
+termBox.setSize(184, 132);
+termBox.setPos(30, 50);
+termBox.setStyleRadius(2, 0);
+termBox.setStyleBgColor(hex(0x0A0A0F), 0);
+termBox.setStyleBgOpa(255, 0);
+termBox.setStyleBorderWidth(1, 0);
+termBox.setStyleBorderColor(hex(GREEN), 0);
+termBox.setStyleBorderOpa(255, 0);
+termBox.setStylePadAll(0, 0);
+termBox.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+termBox.setScrollbarMode(0);
+termBox.addFlag(lv.OBJ_FLAG_CLICKABLE);
+termBox.addEventCb(function () {
     try { retry(); }
     catch (e) { R.jerryErrors++; LOG("[breach-err] retry: " + (e && e.message ? e.message : String(e))); }
 }, lv.EVENT_PRESSED, null);
+// 终端行 label(最多 3 行,对应 3 条序列;每行独立颜色:绿=INSTALLED 红=FAILED)
+// 字号 jbm_10(11px 档);"//DAEMON_1 INSTALLED" 20 字符 ≈120px ≤ 172 宽
+var termLbls = [];
+for (var tli = 0; tli < 3; tli++) {
+    (function (i) {
+        var tl = new lv.label(termBox);
+        tl.setSize(172, 15);
+        tl.setPos(6, 6 + i * 17);   // 行 y6/23/40,底 55;状态行 y102 不重叠
+        tl.setLongMode(lv.LABEL_LONG_CLIP);
+        tl.setFontSize(11);
+        tl.setStyleTextColor(hex(GREEN), 0);
+        tl.setStyleTextLetterSpace(0, 0);
+        tl.setStyleTextAlign(lv.TEXT_ALIGN_LEFT, 0);
+        tl.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
+        tl.setText("");
+        termLbls.push(tl);
+    })(tli);
+}
+
+// 状态行（终端窗口内,打字机结束后出现）：INSTALLED / FAILED / 终局统计
+// 13px+字距1 下 "ALL DAEMONS UPLOADED" ≈170px ≤184,setLongMode(CLIP) 禁止换行,否则第二行被 19px 高裁掉
+var resProgress = new lv.label(termBox);
+resProgress.setSize(184, 19);
+resProgress.setPos(0, 96);
+resProgress.setFontSize(13);   // jbm_13
+resProgress.setStyleTextColor(hex(GREEN), 0);
+resProgress.setStyleTextLetterSpace(1, 0);
+resProgress.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+resProgress.setLongMode(lv.LABEL_LONG_CLIP);
+resProgress.setText("INSTALLED");
+resProgress.addFlag(lv.OBJ_FLAG_HIDDEN);
+
+// TAP TO RETRY 提示（终端内底部,常显灰字）
+var tapHint = new lv.label(termBox);
+tapHint.setSize(184, 15);
+tapHint.setPos(0, 116);
+tapHint.setFontSize(13);   // jbm_13（行高 16，y123..139 超出终端 132，裁 1px 可忽略）
+tapHint.setStyleTextColor(hex(0x9AA0A6), 0);
+tapHint.setStyleTextLetterSpace(1, 0);
+tapHint.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
+tapHint.setText("TAP TO RETRY");
+tapHint.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 
 // --- 等级选择（DIFF，y196；点击即切换难度并立即重开；英文缩写 3x3/4x4/5x5/6x6）---
 var lvBtns = [];
-var lvBtnW = 48, lvBtnH = 24, lvBtnGap = 6;
-var lvTotal = LEVELS.length * lvBtnW + (LEVELS.length - 1) * lvBtnGap;   // 210
-var lvX0 = (240 - lvTotal) / 2;                                          // 15
+// 34x20 gap3 → 总宽 145，居中 x47..192；y188..208 圆界 x38..202，四周留 ≥9px 空隙（原 48x24 y196 右端出圆 25px）
+var lvBtnW = 34, lvBtnH = 20, lvBtnGap = 3;
+var lvTotal = LEVELS.length * lvBtnW + (LEVELS.length - 1) * lvBtnGap;   // 145
+var lvX0 = (240 - lvTotal) / 2;                                          // 47.5
 for (var li = 0; li < LEVELS.length; li++) {
     (function (i) {
         var lb = new lv.obj(pageResult);
         lb.setSize(lvBtnW, lvBtnH);
-        lb.setPos(lvX0 + i * (lvBtnW + lvBtnGap), 196);
+        lb.setPos(Math.floor(lvX0 + i * (lvBtnW + lvBtnGap)), 188);
         lb.setStyleRadius(2, 0);
         lb.setStyleBgColor(hex(0x1A1A20), 0);
         lb.setStyleBgOpa(255, 0);
@@ -703,7 +914,7 @@ for (var li = 0; li < LEVELS.length; li++) {
         var ll = new lv.label(lb);
         ll.setSize(lvBtnW, lvBtnH);
         ll.setPos(0, 0);
-        ll.setFontSize(10);
+        ll.setFontSize(14);   // 14px 请求落 jbm_13（"6X6" 23.4px ≤ 34 宽，行高16 ≤ 20）
         ll.setStyleTextColor(hex(GRAY), 0);
         ll.setStyleTextLetterSpace(1, 0);
         ll.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
@@ -739,7 +950,7 @@ function startGlitch() {
         try {
             if (pageResult.hasFlag(lv.OBJ_FLAG_HIDDEN)) { stopGlitch(); return; }
             var jx = (Math.floor(Math.random() * 7) - 3);   // -3..3 水平抖动
-            resStatus.setPos(10 + jx, 72);
+            resStatus.setPos(10 + jx, 28);
             // 偶发错位色（RGB 撕裂感）：失败时闪青、成功时闪黄。Glitch 占空比≈20% ≤30%，基色恒读红/绿
             if (Math.random() < 0.20) resStatus.setStyleTextColor(hex(state.win ? YELLOW : 0x00FFFF), 0);
             else resStatus.setStyleTextColor(hex(state.win ? GREEN : RED), 0);
@@ -750,7 +961,7 @@ function startGlitch() {
 }
 function stopGlitch() {
     if (glitchTimer) { glitchTimer.delete(); glitchTimer = null; }
-    resStatus.setPos(10, 72);
+    resStatus.setPos(10, 28);
     resStatus.setStyleTextColor(hex(state.win ? GREEN : RED), 0);
 }
 
@@ -766,7 +977,7 @@ function audit() {
         + " pageBoot.desc=" + countDesc(pageBoot)
         + " pageHack.desc=" + countDesc(pageHack)
         + " pageResult.desc=" + countDesc(pageResult)
-        + " cells=" + (MAX_N * MAX_N) + " buf=" + MAX_BUF + " tgt=" + tgtLabels.length
+        + " cells=" + (MAX_N * MAX_N) + " buf=" + MAX_BUF + " tgtRows=" + tgtCells.length
         + " lv=" + LEVELS.length);
 }
 
@@ -797,17 +1008,35 @@ function intersect(b1, b2) {
 function auditLayout() {
     var ok = true, why = "";
     var tb = [];
-    // 目标文本原样打印（诊断 t2 横线：占位符 "-- -- --" vs 真实 hex）
-    for (var ti = 0; ti < tgtLabels.length; ti++) {
-        var tx = "?";
-        try { tx = tgtLabels[ti].getText(); } catch (e2) {}
-        LOG("[breach-target-text] t" + ti + "=\"" + tx + "\"");
+    // 目标序列格子审计：每行格子须 ⊆ 各自胶囊条（行内不重叠、不越界）
+    for (var ti = 0; ti < tgtCells.length; ti++) {
+        for (var tc = 0; tc < MAX_TGT_COL; tc++) {
+            var tx = "?";
+            try { tx = tgtCells[ti][tc].lab.getText(); } catch (e2) {}
+            LOG("[breach-target-text] t" + ti + "c" + tc + "=\"" + tx + "\"");
+        }
     }
     for (var i = 0; i < cfg.numberOfSequences; i++) {
-        var b = boxOf(tgtLabels[i]);
-        tb.push(b);
-        LOG("[breach-overlap] t" + i + "=(" + b.x1 + "," + b.y1 + ")-(" + b.x2 + "," + b.y2 + ") w" + b.w + " h" + b.h);
-        if (b.h > 16) { ok = false; why += " t" + i + ".h=" + b.h + ">16"; }
+        var gb = boxOf(tgtBgs[i]);
+        tb.push(gb);
+        LOG("[breach-overlap] t" + i + "=(" + gb.x1 + "," + gb.y1 + ")-(" + gb.x2 + "," + gb.y2 + ") w" + gb.w + " h" + gb.h);
+        if (gb.h > 19) { ok = false; why += " t" + i + ".h=" + gb.h + ">19"; }
+        var gx0 = 999, gx2 = -1, gy0 = 999, gy2 = -1;
+        for (var tc2 = 0; tc2 < MAX_TGT_COL; tc2++) {
+            var cc2 = tgtCells[i][tc2];
+            if (cc2.obj.hasFlag(lv.OBJ_FLAG_HIDDEN)) continue;
+            var cb2 = boxOf(cc2.obj);
+            if (cb2.x1 < gx0) gx0 = cb2.x1;
+            if (cb2.x2 > gx2) gx2 = cb2.x2;
+            if (cb2.y1 < gy0) gy0 = cb2.y1;
+            if (cb2.y2 > gy2) gy2 = cb2.y2;
+            if (!(cb2.x1 >= gb.x1 && cb2.y1 >= gb.y1 && cb2.x2 <= gb.x2 && cb2.y2 <= gb.y2)) {
+                ok = false; why += " tgtcell" + i + "," + tc2 + " overflow";
+            }
+        }
+        if (gx0 !== 999) {
+            LOG("[breach-overlap] t" + i + "cells span (" + gx0 + "," + gy0 + ")-(" + gx2 + "," + gy2 + ")");
+        }
     }
     for (var a = 0; a < tb.length; a++)
         for (var c = a + 1; c < tb.length; c++)
@@ -835,13 +1064,12 @@ R.startHack = function () { newGame(); fadeTo(pageHack); };
 R.startResult = function (win) {
     if (typeof win === "boolean") {
         state.win = win;
-        var solved = 0;
-        for (var s = 0; s < state.seqs.length; s++) if (isSubsequence(state.buffer, state.seqs[s].codes)) solved++;
+        state.active = false;
         resStatus.setText(win ? "BREACH SUCCESS" : "BREACH FAILED");
         resStatus.setStyleTextColor(hex(win ? GREEN : RED), 0);
-        resProgress.setText("SOLVED " + solved + " / " + state.seqs.length);
     }
     fadeTo(pageResult);
+    if (typeof win === "boolean") startTerminal({ solved: win ? 1 : 0, total: 1, status: win ? "SUCCESS" : "FAILED" });
 };
 
 // Result → Retry（第三转场点，统一走 fadeTo）
@@ -895,8 +1123,8 @@ R.autotest = function (n) {
                 }
                 if (!state.win) res.loses++; else res.wins++;
             } else {
-                // 超时路径：直接 endGame(false)（模拟 60s 耗尽）
-                endGame(false);
+                // 超时路径：endGame(true)（模拟 60s 耗尽）
+                endGame(true);
                 res.timeouts++;
             }
             // 第三转场：Result → Retry

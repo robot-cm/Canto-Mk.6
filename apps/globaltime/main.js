@@ -31,9 +31,10 @@ var CITIES = {
 };
 var CITY_NAMES = ["香港", "东京", "北京", "斯德哥尔摩", "纽约", "洛杉矶"];
 
-// ===================== 城市按钮行（5 单字高胶囊 y190） =====================
-var BTN_W = 24, BTN_H = 20, BTN_GAP = 2;
-var BTN_XS = [43, 69, 95, 121, 147, 173];   // 6 键总宽 6*24+5*2=154，居中 x0=43
+// ===================== 城市按钮（两行 3+3 放大，胶囊 y170/198） =====================
+var BTN_W = 34, BTN_H = 26;
+var BTN_XS = [61, 103, 145];   // 每行 3 键：3*34+2*8=118，居中 x0=61
+var BTN_YS = [170, 198];       // 行 y：170..196 / 198..224（圆内 y224 界 x≤179.9）
 var BTN_SHORT = ["HK", "TYO", "BJS", "STO", "NYC", "LAX"];
 var btns = [];
 var focusCity = "香港";
@@ -56,7 +57,7 @@ function pressFx(b) {
 function makeBtn(idx, name) {
     var b = new lv.button(root);
     b.setSize(BTN_W, BTN_H);
-    b.setPos(BTN_XS[idx], 190);
+    b.setPos(BTN_XS[idx % 3], BTN_YS[Math.floor(idx / 3)]);
     b.setStyleRadius(999, 0);
     b.setStyleBgOpa(22, 0);
     b.setStyleBgColor(0xFFFFFF, 0);
@@ -65,7 +66,7 @@ function makeBtn(idx, name) {
     var l = new lv.label(b);
     l.setSize(BTN_W, BTN_H);
     l.setStyleTextAlign(lv.TEXT_ALIGN_CENTER, 0);
-    l.setFontSize(10);
+    l.setFontSize(12);
     l.setStyleTextColor(0xFFFFFF, 0);
     l.setStyleTextOpa(200, 0);
     l.setText(BTN_SHORT[idx]);

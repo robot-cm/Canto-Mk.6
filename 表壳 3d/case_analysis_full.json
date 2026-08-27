@@ -1,0 +1,127 @@
+{
+  "file_info": {
+    "readable": true,
+    "format": ".stl",
+    "triangles": 64972,
+    "vertices": 32484
+  },
+  "mesh_integrity": {
+    "is_watertight": false,
+    "boundary_edges": 0,
+    "non_manifold_edges": 0,
+    "degenerate_faces": 0,
+    "has_open_boundary": false
+  },
+  "bounding_box": {
+    "min": {
+      "x": 41.0,
+      "y": -24.000070571899414,
+      "z": -18.100000381469727
+    },
+    "max": {
+      "x": 89.0,
+      "y": 24.0,
+      "z": -0.6000000238418579
+    },
+    "size": {
+      "x": 48.0,
+      "y": 48.000070571899414,
+      "z": 17.50000035762787
+    }
+  },
+  "geometry_estimates": {
+    "max_diameter_xy": 48.000070571899414,
+    "min_diameter_xy": 48.0,
+    "height_z": 17.50000035762787,
+    "is_axis_aligned_z": true,
+    "principal_axis": "Z",
+    "highest_point_z": -0.6000000238418579,
+    "lowest_point_z": -18.100000381469727
+  },
+  "volume_surface": {
+    "valid": false,
+    "reason": "网格不是封闭实体，无法可靠计算体积"
+  },
+  "section_analysis": [
+    {
+      "z": -18.100000381469727,
+      "percentage": 0,
+      "has_section": true,
+      "area": 0.0,
+      "equivalent_diameter": 0.0
+    },
+    {
+      "z": -16.35000034570694,
+      "percentage": 10,
+      "has_section": true,
+      "area": 0.0,
+      "equivalent_diameter": 0.0
+    },
+    {
+      "z": -14.600000309944154,
+      "percentage": 20,
+      "has_section": true,
+      "area": 0.0,
+      "equivalent_diameter": 0.0
+    },
+    {
+      "z": -12.850000274181365,
+      "percentage": 30,
+      "has_section": true,
+      "area": 0.0,
+      "equivalent_diameter": 0.0
+    },
+    {
+      "z": -11.100000238418579,
+      "percentage": 40,
+      "has_section": true,
+      "area": 0.0,
+      "equivalent_diameter": 0.0
+    },
+    {
+      "z": -9.350000202655792,
+      "percentage": 50,
+      "has_section": true,
+      "area": 0.0,
+      "equivalent_diameter": 0.0
+    },
+    {
+      "z": -7.600000166893004,
+      "percentage": 60,
+      "has_section": true,
+      "area": 0.0,
+      "equivalent_diameter": 0.0
+    },
+    {
+      "z": -5.850000131130217,
+      "percentage": 70,
+      "has_section": true,
+      "area": 0.0,
+      "equivalent_diameter": 0.0
+    },
+    {
+      "z": -4.100000095367431,
+      "percentage": 80,
+      "has_section": true,
+      "area": 0.0,
+      "equivalent_diameter": 0.0
+    },
+    {
+      "z": -2.3500000596046444,
+      "percentage": 90,
+      "has_section": true,
+      "area": 0.0,
+      "equivalent_diameter": 0.0
+    },
+    {
+      "z": -0.6000000238418579,
+      "percentage": 100,
+      "has_section": false,
+      "area": 0,
+      "equivalent_diameter": 0
+    }
+  ],
+  "anomalies": [
+    "注意：STL 网格无法可靠判断传感器、触点、按键等电子功能区域，需实物或照片确认。"
+  ]
+}

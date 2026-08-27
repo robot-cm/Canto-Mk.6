@@ -22,6 +22,8 @@ extern "C" {
 #define EOS_IMG_FLASH_LIGHT EOS_SYS_RES_IMG_DIR "flash_light.bin"
 #define EOS_IMG_WATCHFACE EOS_SYS_RES_IMG_DIR "watchface.bin"
 #define EOS_IMG_LOGO EOS_SYS_RES_IMG_DIR "logo.bin"
+#define EOS_IMG_ALBUM "/sdcard/theme/icons/album.bin"
+#define EOS_IMG_TEXTHUB "/sdcard/theme/icons/texthub.bin"
 
 #ifdef __cplusplus
 }

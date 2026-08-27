@@ -133,3 +133,554 @@ if (old_hdr->magic != EOS_MEM_HEADER_MAGIC ||
 - 统一项目内存 API：明确「eos 模块只用 `eos_malloc/free`，LVGL/cJSON/jerry 用自己的分配器」，并封装适配层，杜绝混用。
 - 给 LV_EVENT_DSC 等 LVGL 资源加 eos 包装，或显式用 `lv_..._remove_event_cb` 正确释放，而非交给 eos。
 - 桌面模拟器也实现 `heap_caps` 桩，使 periodic memory report 可对比真实设备。
+
+---
+
+# Agent 经验总结：Canto Mk.6 UI 字号 / 圆屏布局 / JS APP 开发
+
+> 来源于多轮 UI 调整（Alarm / Timer / Calendar / Breach 四款 JS APP + 系统键盘 C 组件）的真实开发。
+> 目标：沉淀「240×240 圆屏字号体系、marquee 滚动、z 序/圆界、字体接入」的可复用套路。
+
+---
+
+## 一、字号体系（必读，避免瞎设数字）
+
+### 1. 字号不是任意整数,必须落在 8 档区间
+`src/ui/font/eos_font.h` 定义枚举,`src/ui/font/backend/eos_font_c_multi.c` 的 `_select_font()` 按区间映射：
+```
+size ≥ 30 → jbm_30
+26..29   → jbm_26
+22..25   → jbm_22
+20..21   → jbm_20
+18..19   → jbm_18
+16..17   → jbm_16
+13..15   → jbm_13
+ ≤ 12    → jbm_10
+```
+**结论**：JS APP 里 `setFontSize(17)` 与 `setFontSize(16)` 渲染完全一样（都落 jbm_16）。想明显放大,必须跨档（如 16→18）。
+
+### 2. 中文走 fallback 链,不是每个 jbm 都含汉字
+- `jbm_10/13/16/18/20/22/26/30` 只含 ASCII；中文 fallback：
+  - jbm_13 → `han_sans_13`（GB2312 一级 3755 字,RLE ~0.54MB flash）
+  - jbm_16 → `han_sans_16`（177 常用字,小）
+  - jbm_18/20/22 → `han_sans_22`（1MB 全量 GB2312）
+  - jbm_26/30 → `eos_font_icon`（只有图标,无汉字！）
+- **结论**：纯数字/拉丁文本（时间 `12:34`、序列 `1C 55`、终端 `ALL DAEMONS`）可用任意 jbm 档；含中文的 UI 文本别用 26/30 档,会不显示汉字。
+- 字体源全部在 `resources/font/`,已显式接入 `port/esp32s3/main/CMakeLists.txt`（jbm_10/13/16/18/20/22/26/30 + han_sans_13/16/22 + icon）。
+
+### 3. 用户口语「字再大/再小」的实际含义
+- 「大一点」通常指**跨一档**（如 18→22）,不是 18→19（19 还是 jbm_18,看不出变化）。
+- 反复出现的模式：Alarm 时间 22→26、Timer 时间 18→22、Calendar 日期 10→13、键盘 26→20、16。`setFontSize` 一律给 **档位边界值**（10/13/16/18/20/22/26）最稳。
+
+---
+
+## 二、圆屏布局红线（240×240,圆心 120,120,半径 120）
+
+### 1. 任意 (x,y) 须验证在圆内
+距离圆心 `d = sqrt((x-120)² + (y-120)²)`,且对象右/下边界也要满足 `d ≤ 120`。
+- 关键行：y=206（底部）时圆界仅 `x ∈ [36, 204]`,左右各只有 36px 余量。
+- 目标序列胶囊条 `x44..204`、宽 160 是贴底安全上限。
+- **经验**：对象放在 y≥185 时,x 必须收缩到圆界内（如 36~44 起、右缘 ≤204）。
+
+### 2. LVGL 默认裁剪溢出子对象
+父对象（如终端窗口 `termBox`、节日条 `festBox`）默认 `OVERFLOW` 裁剪,子对象超出会被切掉。
+- 滚动 label 直接挂 `pageHack`（full-screen,无裁剪）才不会被父容器裁。
+- 注意父对象内的「底部提示」（如 `TAP TO RETRY`）y 坐标别超出父对象高,否则被裁。
+
+### 3. 圆角边缘的视觉贴边
+即使理论上在圆内（d<120）,贴边 0~10px 时电容屏显示会被圆边啃掉。目标序列最初 `TGT_X0=36` 用户反馈「最左序列出屏」,右移 8px 到 `44` 后解决。**结论**：圆屏元素左右各留 ≥8px 安全距。
+
+---
+
+## 三、z 序（覆盖关系）坑
+
+### 1. LVGL 绘制顺序 = 父先于子,同父兄弟按创建顺序
+后创建的对象盖在先创建的上面。
+- **坑**：想让「状态文本 INSTALLED/FAILED」盖在「序列格子」上,但文本若作为胶囊条 `tb` 的子对象（tb 创建早于格子）,会被后创建的格子盖住。
+- **修法**：状态文本改为 `pageHack` 直接子对象,且在格子循环**之后**创建（确保它在 last 兄弟之上）。
+
+### 2. label 默认 CLICKABLE 吃掉父按钮点击
+- 按钮内放 label,label 默认 `OBJ_FLAG_CLICKABLE` 会截获触摸事件,父按钮 `EVENT_PRESSED` 不触发。
+- **修法**：`label.removeFlag(lv.OBJ_FLAG_CLICKABLE)`（本项目 `EVENT_CLICKED` 损坏,统一用 `EVENT_PRESSED`）。
+
+---
+
+## 四、Marquee 滚动（节日/长文本）
+
+### 1. 错误方案：整字符窗口 + 重设文本
+```js
+pos++; festLbl.setText(full.substring(pos, pos+win));   // 90ms/tick
+```
+- 中文 13px → 144px/s 太快,且每 tick 重设文本只有 ~11fps 跳变,观感卡顿。
+
+### 2. 正确方案：像素级整体平移 + 多段回绕
+```js
+var sep = "     ";
+var segW = estW(s) + estW(sep);            // 13px 档:中文/全角 13px,ASCII 7px
+festLbl.setWidth(3 * segW);
+festLbl.setText(s + sep + s + sep + s);    // 3 段拼接,回绕后窗口仍有内容
+var x = 6;
+festMarq = new lv.timer(function () {
+    x -= 1;                                // 1px/40ms ≈ 25px/s,顺滑
+    if (x <= 6 - segW) x += segW;          // 滚完一段回绕,视觉无缝
+    festLbl.setPos(x, 1);
+}, 40, null);
+```
+- **要求**：`festLbl` 挂 `pageHack`（无裁剪）,且 `setLongMode(LABEL_LONG_CLIP)` 防换行。
+- **用户偏好**：无论长短都滚（不要加「短文本静态」分支,实测会被判「又不滚了」）。
+
+### 3. 终端窗口/状态行换行坑（重要）
+- LVGL label 默认 `long_mode = WRAP`,文本超宽会换行,第二行被 label 高度裁掉。
+- 现象：`resProgress` 显示 `ALL DAEMONS UPLOADED`,13px+字距2 ≈188px 超 184px → 换行,只看到 `ALL DAEMONS`,`UPLOADED` 被裁。
+- **修法**：`setLongMode(LABEL_LONG_CLIP)` + 减小字距 + 必要时上移 y 坐标。
+
+---
+
+## 五、系统键盘字号（C 组件）
+
+`src/ui/widgets/keyboard/eos_round_keyboard.c`：
+- 字母/数字/符号：`EOS_FONT_SIZE_LARGE_MINUS`(22) → `EOS_FONT_SIZE_SMALL`(20)
+- 中文候选 / 模式键：`EOS_FONT_SIZE_TALL`(18) → `EOS_FONT_SIZE_EXTRA_SMALL`(16)
+- 改 C 组件后需重新编译固件（不是 JS,不能热更）。
+
+---
+
+## 六、验证清单（每次 UI 改动后）
+
+1. `node --check apps/<app>/main.js`（JS 语法）。
+2. `read_lints` 看 JS/C 报错。
+3. 圆屏元素：手算 `(x-120)²+(y-120)² ≤ 120²` 且边界也满足。
+4. 字号值是否落在 8 档区间;含中文则避开 jbm_26/30。
+5. 覆盖文本是否创建在正确 z 序（挂在无裁剪父对象、晚于被盖对象创建）。
+6. 长文本 label 是否 `setLongMode(CLIP)`（防换行裁切）。
+7. C 改动（系统组件）需走 ESP-IDF 完整编译,桌面模拟器无 heap_caps 后端,内存日志不可比。
+
+---
+
+## 七、用户反馈模式（沟通经验）
+
+- 用户会反复微调字号（「再大一点」「不够大」）→ 默认给**跨档**值,而非微调边界内数字。
+- 圆屏贴边 / 被裁 / 不滚 → 多数根因是：圆界超界、父对象裁剪、label 默认 WRAP、z 序错。先查这四类,不要急着重排布局。
+- 参考外部仓库（如 `third_party/cyberpunk2077-breach-protocol-for-view` 的 `MatrixFinish/consts.ts`、`Sequence.tsx`）时,要**照抄其状态机语义**（左对齐+offset 缩进、逐序列锁定、混合终端颜色）,而不是简化成「一律成功/失败」。
+
+---
+
+# Agent 经验总结：JS APP（`.eapk`）编写 / 打包 / 注册 / 加载 / 挂载 / 图标展示
+
+> 来源于对 `scripts/eos_pkg_builder.py`、`src/services/plugin/eos_plugin_manager.c`、`src/framework/app/eos_app.c`、`src/ui/launcher/eos_launcher_v1.c`、`src/framework/app/eos_app.h` 的源码梳理。
+> 目标：沉淀「一个 JS APP 从源码到出现在 Launcher 并能点击运行」的完整链路,避免每次改 APP 都重新摸索。
+
+---
+
+## 一、APP 源码三件套（如何编写）
+
+每个 APP 是一个**目录**,固定三件套（宏见 `src/framework/app/eos_app.h`）：
+
+```
+apps/<name>/
+├── manifest.json   # 必填: id / name / version / minApiLevel / targetApiLevel
+├── main.js         # 固定入口 EOS_APP_SCRIPT_ENTRY_FILE_NAME
+└── icon.bin        # 48×48 RGBA PNG 图标 EOS_APP_ICON_FILE_NAME
+```
+
+- `manifest.json`：`id` 用域名式（`com.cantomk6.alarm`）；`minApiLevel`/`targetApiLevel` 当前样例都填 `0`；打包器 `read_manifest()` 校验这 5 个字段缺一则报错。无 `entry` 字段概念,入口恒为 `main.js`。
+- 逻辑用 **JerryScript**（JS 引擎）执行,不支持 `entry` 自定义。
+- 示例 manifest 见 `apps/alarm/manifest.json`。
+
+## 二、打包（如何生成 `.eapk`）
+
+`scripts/eos_pkg_builder.py` 把目录打成带 `EAPK` magic 的二进制包：header(name/id/version/apiLevel) + 文件表 + 文件体。
+
+```bash
+python3.11 scripts/eos_pkg_builder.py apps/alarm eapk-target/alarm.eapk --type app
+```
+
+- `--type app` → `EAPK`;`watchface` → `EWPK`。
+- **模拟器**：CMake 为每个 app 定义 `<id>_eapk` 目标,POST_BUILD 自动把 `.eapk` 复制到模拟 SD 卡 `sdcard/apps/`,只改 JS 无需重编 C：
+  ```bash
+  cmake --build simulator/build --target alarm_eapk -j 8
+  ```
+- **真机 ESP32-S3**：需手动把 `.eapk` 复制到 SD 卡根目录 `apps/` 文件夹,开机或 `plugin scan` 自动安装。
+
+## 三、路径常量（关键,来自 `eos_storage_paths.h`）
+
+| 环节 | 路径 |
+|---|---|
+| SD 安装源（模拟器自动 / 真机手动） | `/sdcard/apps/*.eapk` |
+| 安装解包目录（运行实例实际读取） | `/.sys/app/apps/<pkg_id>/`（含 manifest+main.js+icon.bin） |
+| APP 数据目录 | `/.sys/app/app_data/<pkg_id>/` |
+| Launcher 图标 | `<安装目录>/icon.bin`（48×48 RGBA PNG） |
+
+> 运行实例读的是**解包目录**,不是 SD 上的 `.eapk`。改了 JS 重打包后若运行没变：删除该 app 的安装子目录再启动（boot 重装）,或 `plugin scan --force`（BUILD.md §5）。
+
+## 四、注册（Plugin Manager 扫描）
+
+`src/services/plugin/eos_plugin_manager.c`：boot 时 `eos_core.c` → `eos_plugin_manager_init()` → `scan(false)`：
+
+1. 打开 `EOS_SD_APPS_DIR`,筛 `.eapk`/`.ewpk`;**SD 缺失不算错误**（Shell 仍可用,这是 Core 救援入口原则）。
+2. 读包头 `eos_pkg_read_header()` 取 `pkg_id` 去重：`eos_app_list_contains(id)` 且安装目录内 `manifest.json` 存在 → skip（幂等）。
+3. 否则 `eos_app_install(full)` → `eos_pkg_mgr_unpack()` 解包到 `/.sys/app/apps/<pkg_id>/`。
+
+Shell 手动触发：
+```
+plugin scan            # 只装新包
+plugin scan --force    # 强制重装(用于更新后的包)
+app list / app start <id> / app stop <id> / app disable <id>
+```
+
+## 五、加载与运行（`eos_app.c`）
+
+`eos_app_install()`：
+
+- 校验 `pkg_id` 合法（`eos_storage_is_valid_filename`）、`min_api_level ≤ ELENIX_OS_API_LEVEL`,否则返回 `EOS_ERR_SDK_VERSION`（`eos_app.c:537`）。
+- 解包到 `EOS_APP_INSTALLED_DIR/<pkg_id>`,创建 `app_data/<pkg_id>`,加入 order 列表后 `_eos_app_list_refresh()`（同时并入系统内置 app `EOS_SYS_APP_*` 与原生 C app `EOS_NATIVE_APP_*`）。
+- 发 `EOS_EVENT_APP_INSTALLED` 事件 → Launcher 收到后重建。
+- 运行时：Launcher 经 `eos_app_launch_immediately(id)` → script engine 从 `<安装目录>/main.js` 用 JerryScript 执行。
+
+## 六、挂到 APP 页 & 展示图标（Launcher）
+
+`src/ui/launcher/eos_launcher_v1.c`（默认 v2 走 `eos_launcher_build_home`,逻辑相同）：
+
+- 收集：`eos_app_get_installed()` + `eos_app_list_get_id(i)` 遍历,加入 `s_apps[]`（`kind = LAUNCHER_APP_KIND_PLUGIN`,带 `app_id`）；系统 Gallery/Album/Files 为本地 native。
+- 图标：对每个 plugin 拼 `EOS_APP_INSTALLED_DIR "<id>/" EOS_APP_ICON_FILE_NAME`,`eos_storage_is_file` 存在则作为该格图标,否则 `NULL`（占位白格）。
+- 渲染：`eos_framework_home_create(parent, profile, names, icons)` 生成网格;卡片点击 → `eos_app_launch_immediately(id)`。
+- 实时重建：安装/卸载事件触发 `eos_launcher_rebuild()`。
+
+**图标生成**：`scripts/icon/sync_app_icons.py` 把 `resources/images/icon/*.webp`(512px 透明) 缩到 **48×48 RGBA PNG** 写入各 app `icon.bin`,并同步到模拟器运行 FS。
+> 重要：LVGL fork 只能解 PNG（lodepng）,**不能解 webp**。图标必须是 `icon.bin`(PNG),不是 webp。
+
+## 七、验证清单（每次改 APP 后）
+
+1. `node --check apps/<app>/main.js`（JS 语法）。
+2. 重新打包：`python3.11 scripts/eos_pkg_builder.py apps/<app> eapk-target/<app>.eapk --type app`。
+3. 模拟器走 `<id>_eapk` 目标（自动复制到 SD 卡）；真机手动拷 `.eapk` 到 SD `apps/`。
+4. 运行实例读的是解包目录 `/.sys/app/apps/<id>/`,改包后务必 `plugin scan --force` 或删安装目录重启,否则旧包仍生效。
+5. 图标不显示：确认 `icon.bin` 是 48×48 RGBA **PNG**（非 webp）,且路径在 `<安装目录>/icon.bin`、`eos_storage_is_file` 为真。
+6. 启动失败：查 `minApiLevel` 是否 ≤ `ELENIX_OS_API_LEVEL`;manifest 5 字段是否齐全。
+
+## 八、一句话总结
+
+`eos_pkg_builder.py` 打包 JS 目录为 `.eapk` → 放到 SD 卡 `apps/`（模拟器自动、真机手动）→ 开机或 `plugin scan` 自动解包安装到 `/.sys/app/apps/<pkg_id>/` → Launcher 列出并点击运行 `main.js` → 图标从同目录 `icon.bin`(48×48 PNG) 读取。
+
+## 九、原生 C APP 重写经验（Texthub，2026-08）
+
+### 9.1 为什么 texthub JS app 会 OOM 崩溃
+
+旧版 `apps/texthub`（JS/JerryScript）启动即遍历 `/sdcard/texthub/` 下**几万个文件**，
+同步建数组塞进固定 **512KB JerryScript heap**，日志先是大量 `[MemAuto]` 分配，随后
+`JERRY_FATAL_OUT_OF_MEMORY`。教训：**JS runtime 的堆是固定大小的，禁止在 JS 里做大目录全量枚举**；
+数据量大、需要低延迟 IO 的 APP 直接用 C 重写（参考 album：JS → C 的成功先例）。
+
+### 9.2 原生 C APP 注册方式（三处，缺一不可）
+
+1. `src/framework/app/eos_app_list.h`：枚举加 `EOS_NATIVE_APP_TEXTHUB`（`EOS_NATIVE_APP_LAST` 自动 +1）。
+2. `src/framework/app/eos_app_list.c`：三数组同步加
+   `eos_native_app_id_list[] = {..., "com.cantomk6.texthub"}`、
+   `eos_native_app_icon_list[] = {..., EOS_IMG_TEXTHUB}`、
+   `eos_native_app_entry_list[] = {..., eos_texthub_enter}`（数组大小 = `EOS_NATIVE_APP_LAST`）。
+3. `src/ui/widgets/image/eos_image_resuorces.h`（注意拼写 resuorces）：
+   `#define EOS_IMG_TEXTHUB "/sdcard/theme/icons/texthub.bin"` —— **图标从 SD 卡读**，不是 Flash。
+
+**编译**：`EOS_CORE_SRCS` 是 `GLOB_RECURSE src/**/*.c`，新 C app 丢进 `src/apps/<name>/` 自动编译，**不用改 CMake**。
+
+### 9.3 图标生成
+
+`scripts/icon/webp2bin.py` 的 `SYSTEM_ICONS` 加 `"texthub": ("texthub", 48)` →
+`python3 scripts/icon/webp2bin.py texthub --force` 生成 `resources/images/icon/bin/texthub.bin`
+（LVGL 二进制格式：12B 头 + ARGB8888）。**烧录时需手动把该 .bin 拷到 SD 卡 `/sdcard/theme/icons/`**。
+
+### 9.4 关键 API 确认（均已编译验证）
+
+- 存储：`eos_storage_file_open_read/close/seek(fp,uint32_t)/read(fp,buf,size)→ssize_t/size(fp,&u32)`、
+  `eos_storage_dir_open/read(dir,buf,size)/close`、`eos_storage_is_dir/is_file`、
+  `eos_storage_mkdir_recursive`、`eos_storage_read_file/write_file`、`EOS_FILE_INVALID`（eos_fs_port.h）。
+- 内存：`eos_malloc/eos_malloc_zeroed/eos_strdup/eos_realloc/eos_free`（eos_mem.h）。
+- 常量：`EOS_FS_PATH_MAX=256`、`EOS_FS_NAME_MAX=256`（eos_config_defaults.h）。
+- 圆屏：`eos_round_clip(lv_obj_t*)`。
+- 字体：**直接 `&eos_font_jbm_13` 会编译错**（jbm 字体在 eos_font_c_multi.c 才 `LV_FONT_DECLARE`），
+  一律用 `eos_label_set_font_size(lbl, EOS_FONT_SIZE_MICRO/TINY)`（13px=MICRO 档 jbm_13、10px=TINY 档 jbm_10，自带 han_sans 中文 fallback）。
+- 图标字体：`EOS_FONT_ICON` 是 `lv_font_t` 结构体，**必须 `&EOS_FONT_ICON`** 传给 `lv_obj_set_style_text_font`。
+
+### 9.5 踩坑记录
+
+- `lv_obj_scroll_to_bottom()` **不存在**（LVGL9），滚到底用 `lv_obj_scroll_to_y(obj, LV_COORD_MAX, LV_ANIM_OFF)`（内部 clamp）。
+- `lv_obj_add_event_cb` 的 user_data 是 `void*`，回调签名参数不要写 `const void*`。
+- Xtensa 上 `uint32_t` = `long unsigned int`，snprintf 用 `%u` 要 cast `(unsigned)`。
+- LVGL9 事件冒泡：子对象默认无 `LV_OBJ_FLAG_EVENT_BUBBLE`，弹层 panel 点击不会冒泡到下方 mask，无需手动拦事件。
+- label 要可点击响应父级时：`lv_obj_remove_flag(lbl, LV_OBJ_FLAG_CLICKABLE)`，否则子 label 截走父按钮的点击。
+
+### 9.6 Texthub C 版设计（懒加载 + 分块）
+
+- **FM 弹层**：树节点按需加载，只对展开的目录 `eos_storage_dir_open`；收起/关闭时 `eos_free` 子树。
+  根目录固定在 `/sdcard/texthub/`，可递归展开任意子目录（深度上限 6、单目录 300 条上限防爆）。
+- **大文件分块**：≤128KB 一次读入；更大按 16KB 段（行对齐）随滚动加载，
+  `LV_EVENT_SCROLL_END` 检测 `scroll_y >= scroll_bottom-6` 翻段、顶部 `<=0` 回段。
+- **历史**：打开文件即写 `/sdcard/history/texthub/latest.txt`，启动先读并校验 `以 /sdcard/texthub/ 开头 && 是文件`，否则打开 FM。
+- UI 全英文、控件疏松（行高 36）；文件名超长用 `LV_LABEL_LONG_MODE_SCROLL_CIRCULAR` 跑马灯；
+  目录行右侧箭头用 `RI_ARROW_RIGHT_S_LINE/DOWN_S_LINE`，关闭用 `RI_CLOSE_FILL`（均在 eos_font_icon.c 子集，**不要在 C 里用子集外码点**，会显示空白）。
+
+## 十、LVGL 显示性能优化（参考 Seeed lvgl_workshop，2026-08）
+
+参考:wiki.seeedstudio.com/round_display_animation_workshop(7-9FPS→30FPS) + 本地
+third_party/lvgl_workshop-for-view(仅参考,不改)。Canto Mk.6 已实施的项:
+
+### 10.1 已实施(全部编译验证)
+
+1. **CPU 240MHz**:sdkconfig `CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=240`
+   (原 160MHz,渲染是 CPU 密集型)。CPU 频率改 sdkconfig 即可,IDF 自动重编。
+2. **编译优化 -Og→PERF(-O2)**:`CONFIG_COMPILER_OPTIMIZATION_PERF=y`。
+   **副作用**:-O2 开启 `-Werror=format-truncation` 等优化类警告,原项目大量
+   snprintf 截断(UI 场景可接受)会编译失败——在 `port/esp32s3/main/CMakeLists.txt`
+   的警告抑制列表追加 `-Wno-error=format-truncation/-Wno-error=array-bounds/
+   -Wno-error=stringop-overflow/-Wno-error=maybe-uninitialized`(遵循该项目
+   "不改原代码、用编译选项抑制"的既有约定)。
+3. **异步 DMA flush**(最大收益):`spi_device_queue_trans` + `post_cb`。
+   - 同步 `spi_device_transmit` 让 CPU 在 flush 期间空转,双缓冲形同虚设;
+     异步后渲染 buffer B 与 buffer A 的 DMA 传输并行。
+   - `spi_transaction_t` 必须用**静态数组**(按 slot 索引),不能是栈上局部
+     (queue_trans 异步,事务结构在传输完成前必须有效)。
+   - `post_cb`(设备级,SPI 驱动任务上下文,非 ISR)里调
+     `lv_display_flush_ready((lv_display_t*)t->user)`(t->user 存 disp)。
+   - 双 slot 轮换:LVGL 双缓冲最多 2 个 flush 在途,2 块 internal DMA 缓冲恰好匹配。
+   - 失败回退:queue 失败时同步 transmit + flush_ready,保证画面不丢。
+4. **SWAR 字节交换**:GC9A01 需大端 RGB565,flush 前交换。32-bit 一次换 2 像素:
+   `((v & 0xFF00FF00) >> 8) | ((v & 0x00FF00FF) << 8)`,8 路展开,比逐 16-bit 快数倍
+   (Xtensa 无 SIMD 指令集扩展)。
+5. **内部 DMA 缓冲双 slot**:`s_spi_flush_buf[2][19200]`(DRAM_ATTR, aligned(4)),
+   共 38.4KB internal DRAM(原 19.2KB,净增 19.2KB)——因 SPI DMA 不认 PSRAM 地址,
+   LVGL PSRAM buffer 必须 memcpy 到 internal 缓冲(直接当 tx_buffer 会让驱动内部
+   临时 malloc 失败 ESP_ERR_NO_MEM)。
+
+### 10.2 明确不做/放弃的
+
+- **LTO:IDF v5.3 已移除官方 LTO 支持**(无 Kconfig、无文档),sdkconfig 手写
+  `CONFIG_COMPILER_OPTIMIZATION_LTO=y` 会被 reconfigure 静默清除。手动 -flto
+  是实验性的,与 IDF 链接系统(--wrap=malloc 等)兼容性风险高,放弃。
+- **SPI 频率 26→40/80MHz**:教程 Phase 2 推荐 80MHz,但本项目 LCD 与 SD 卡
+  共用 SPI3 总线,提频影响 SD 时序稳定性,属硬件时序改动,需真机验证后才可动。
+- **LV_COLOR_16_SWAP**:曾造成双重交换纯色错乱,维持 flush_cb 手动交换(现在
+  是 SWAR 版本,开销已很低)。
+- **ESP32-S3 SIMD 补丁(lvgl_s3_simd_patch)**:教程配套,需第三方 patch,
+  本地 third_party 无此补丁,不引入。
+
+### 10.3 验证结果
+
+- 固件 5.47MB(< 7.44MB 工厂分区),LTO/-O2 后体积略减。
+- 编译产物确认:`build/config/sdkconfig.h` 有 CPU 240 + PERF;
+  elf 的 `s_spi_flush_buf` 0x9600(双 slot)在 internal DRAM。
+- 预期:渲染与传输并行 + CPU 提速 1.5x,动画帧率显著提升(真机 FPS 待验证)。
+
+### 10.4 真机踩坑:异步 flush 与同步命令混用崩溃(2026-08-27 修复)
+
+**症状**:烧录后 `assert failed: spi_device_transmit spi_master.c:1266
+(ret_trans == trans_desc)`,崩溃栈在 flush_cb → display_set_window →
+display_send_cmd → spi_device_transmit。
+
+**根因**(IDF esp_driver_spi v5.x):
+- `spi_device_transmit`(同步)内部是"queue 一份栈上拷贝 + get_trans_result
+  取回第一个完成的事务 + 断言取回的就是自己"。它**隐含假设队列里没有
+  其他 pending 事务**。
+- 异步 flush(queue_trans 的像素事务还挂在队列/正在传输)时,flush_cb 再调
+  同步 transmit 发窗口命令 → get_trans_result 先取回异步像素事务 → 断言失败。
+
+**教训/方案**(照 IDF esp_lcd_panel_io_spi 的 lcd_spi_trans_descriptor_t 重写):
+1. **所有事务(含窗口命令)都用 queue_trans 排队**,FIFO 保证命令在像素前;
+   绝不在有在途事务时用同步 spi_device_transmit。
+2. **事务级区分**:IDF v5.x 的 spi_transaction_t 没有事务级 pre_cb/post_cb,
+   只有设备级(spi_device_interface_config_t,每事务都触发,ISR 上下文)。
+   做法:自定义描述符,spi_transaction_t 作为第一个成员,pre_cb 里
+   container_of 还原描述符,读 dc_level 位切换 DC 引脚(异步安全,无队列竞态)。
+3. **flush 完成同步不用 ISR 里的 lv_display_flush_ready**——LVGL 的
+   wait_for_flushing 支持 flush_wait_cb(lv_display_set_flush_wait_cb):
+   在 LVGL 任务上下文用 `spi_device_get_trans_result` 循环取回在途事务
+   (pending 计数),LVGL 随后自动清 disp->flushing。避开 ISR 调 LVGL
+   timer resume 的断言/竞态风险,且渲染下一帧与上一帧 DMA 并行(收益保留)。
+4. 在途事务计数(volatile int)仅 LVGL 任务单线程访问,无需原子。
+
+**性能验证**:LVGL 9 双缓冲 partial 模式,每次 draw_buf_flush 前都调
+wait_for_flushing → flush_wait_cb;渲染 B 与 A 的 DMA 并行,wait 只在
+渲染完成后检查(若 A 已完则零等待),总帧时 ≈ max(render, xfer) + xfer。
+
+### 10.5 真机踩坑:check_trans_valid 会改写描述符的 rxlength(2026-08-27 修复)
+
+**症状**:稳定复现 `spi_master: check_trans_valid(1039): rx length > tx length
+in full duplex mode` + `GC9A01: flush queue failed (5/6 queued)`。6 个事务中
+只有最后 1 个(像素,length 每帧变化)被拒,命令事务(length 固定)正常。
+
+**根因**(esp_driver_spi/src/gpspi/spi_master.c check_trans_valid,~line 1063):
+```c
+//In Full duplex mode, default rxlength to be the same as length, if not filled in.
+if (trans_desc->rxlength == 0 && !is_half_duplex) {
+    trans_desc->rxlength = trans_desc->length;   // 直接改写传入的描述符!
+}
+```
+全双工下驱动把 rxlength==0 自动改写为 length(MISO 相位需等长)。若复用
+描述符且每次只重写 length:上一帧的大 length 残留在 rxlength 里,本帧 partial
+区域变小时 `rxlength > length` → 1039 行拒绝。
+
+**修复**:每帧整体 memset 描述符(清零 rxlength),再重设 length/tx_buffer/
+dc_level。注意 check_trans_valid 在 queue 时与 ISR 执行时都会改描述符,
+对复用描述符这是确定性副作用,不是偶然内存破坏。
+
+**通用教训**:复用 spi_transaction_t 时,任何被驱动读取/改写的字段都要每帧
+重建;不要只改自己关心的字段。queue 前描述符的 length/rxlength/flags
+必须是干净的"新建"状态。
+
+## 十一、Texthub 文件树看不到文件的 Bug（2026-08-27 修复）
+
+### 11.1 症状
+
+进入 Texthub（原生 C app,`src/apps/texthub/eos_texthub.c`）后,FM 文件树弹层能显示
+目录层级(`texthub/` → `Global Text Archive...` → `03_FINISHED...` → `Art/`),
+但**目录里的 `.txt`/`.md` 文件永远不出现在列表里**,看起来"看不到文件"。
+
+### 11.2 排查过程（与 SPI 显示问题无关）
+
+- 一开始怀疑 SD 挂载/读取问题,但日志 `[LVGL_FS] open path: /sdcard/theme/icons/album.bin`
+  成功,说明 SD 挂载与 `eos_storage_*` 读取链路正常。
+- `EOS_FS_NAME_MAX=256`、`EOS_FS_PATH_MAX=256`(eos_config_defaults.h),
+  长目录名/长路径不会截断;目录树最深 4 层,未超 `TH_FM_DEPTH_MAX=6`,路径长度也未超 256。
+- 排除显示层:同一时间点没有 `flush queue failed` 日志,UI 标题渲染正常 → 与第 10.4/10.5
+  的 SPI 问题是两个独立维度(一个是驱动丢帧,一个是应用数据层内容缺失)。
+
+### 11.3 根因（一个被忽略的过滤条件）
+
+`_fm_build_items()` 把**所有非目录节点**直接从可见列表排除:
+
+```c
+static void _fm_build_items(th_node_t *n, int depth, int *cnt)
+{
+    if (*cnt >= TH_FM_MAX_VISIBLE) return;
+    if (!n || !n->is_dir) return;          // ← bug:文件节点直接 return,进不了 s_fm_items
+    ...
+}
+```
+
+而 `_fm_rebuild()` 的渲染循环里其实已经写好了文件行分支(白色文件名、点击 `_open_path`),
+但文件永远不被加入 `s_fm_items`,那个分支成了死代码。
+`_fm_node_load()` 的 pass1/pass2 分别 `eos_storage_dir_open/close`,目录枚举本身正确
+(子目录和 `.txt/.md` 都保留,其余文件按 `_is_text_ext` 过滤),问题仅出在"可见列表构建"这一层。
+
+**修复**:让文件节点也进入可见列表,只有目录才递归展开子节点:
+
+```c
+static void _fm_build_items(th_node_t *n, int depth, int *cnt)
+{
+    if (*cnt >= TH_FM_MAX_VISIBLE) *cnt >= TH_FM_MAX_VISIBLE) return;
+    if (!n) return;
+    s_fm_items[*cnt].node = n;
+    s_fm_items[*cnt].depth = depth;
+    (*cnt)++;
+
+    /* only directories recurse (files are leaves: click opens them) */
+    if (n->is_dir && n->expanded && n->children) {
+        for (int i = 0; i < n->child_count && *cnt < TH_FM_MAX_VISIBLE; i++) {
+            _fm_build_items(&n->children[i], depth + 1, cnt);
+        }
+    }
+}
+```
+
+### 11.4 通用教训
+
+1. **"渲染循环有、收集循环没有"是典型死代码陷阱**:先确认数据是否进了被遍历的数组,
+   再调渲染细节。两层逻辑(`build_items` 收集 / `rebuild` 渲染)不一致时,优先查收集层。
+2. **懒加载树的设计语义**:本文件树是一次展开一层(`expanded` 才递归),不是一次性全量
+   扫描。这与第 9.1 的教训一致——JS 全量枚举几万文件会 OOM,所以改成 C + 懒加载。
+   用户说"不会递归目录吗"时,要区分"设计上不递归(每次只读一层)"与"递归了但文件没显示"。
+3. **目录过滤 vs 显示过滤要分开**:枚举时(`_fm_node_load`)按 `_is_text_ext` 过滤非文本文件是合理的;
+   但"显示在树上"的过滤(`_fm_build_items`)不应再加一道 `!is_dir` 的硬排除——否则叶子节点消失。
+4. **逐层展开交互**:修复后需用户手动点击目录展开;若需要"进来直接平铺所有 txt",应另加
+   扁平浏览模式,而不是把懒加载改成全量(会回到 OOM 老路)。
+
+### 11.5 验证清单（树/列表类 UI）
+
+- 渲染前有 `items` 计数是否 > 0:用 `EOS_LOG_I("fm items=%d", s_fm_item_count)` 打点,
+  确认收集层真的产出了条目(而非渲染层没画出来)。
+- 区分两类"看不到":空数据(收集返回 0) vs 空渲染(数据有但没画)。先打印数据量再查绘制。
+- 混合"容器展开 + 叶子操作"的树,展开回调只改 `expanded` 标记然后 `_fm_rebuild()`,
+  不要在展开回调里直接手动增删行,,统一走重建路径最稳。
+
+---
+
+## 十二、Album 大图解码失败（TJpgDec scale 语义，2026-08-27 修复）
+
+### 12.1 症状
+
+打开一张 1920×1080 JPEG（如 Cyberpunk 游戏截图）时,Album 提示「解码失败」,
+退出回 Launcher。日志:
+
+```text
+Album: decode /sdcard/album//_1920x1080Corporate_Pl_q70_1920x1080.jpg
+Album: jpeg 1920x1079 scale=4 -> 480x269
+Album: jd_decomp FAIL rc=5 w=1920 h=1079 scale=4
+```
+
+而 ≤1024 宽的小图（scale≤2）能正常显示。
+
+### 12.2 排查过程
+
+1. `jd_prepare` 成功、`MemAuto` 内存分配成功(258248 字节,PSRAM 充足)、`eos_storage` I/O 正常
+   → 不是内存、不是 IO、不是文件格式问题。
+2. **rc=5 = JDR_PAR(参数错误)**,失败点在 `jd_decomp` 入口,而非解码过程。
+3. 查 `tjpgd.c` 的 `jd_decomp` 第一行:
+   ```c
+   if(scale > (JD_USE_SCALE ? 3 : 0)) return JDR_PAR;
+   ```
+   TJpgDec 的 `scale` 参数是**右移位数 0~3**:`0=原图 / 1=1/2 / 2=1/4 / 3=1/8`,**最大 3**。
+4. 原 Album 的 `_decode_jpeg` 把 scale 当成 "缩小倍数" 从 1 左移(1→2→4→8):
+   ```c
+   uint8_t scale = 1;
+   while (scale < 8 && (w / scale > ALBUM_DECODE_MAX || h / scale > ALBUM_DECODE_MAX)) {
+       scale <<= 1;
+   }
+   ```
+   1920×1079 → scale=4 → 超出 3 → `JDR_PAR`。**所有 1025~4096 宽的图都必然失败。**
+
+### 12.3 根因
+
+**API 语义混淆**:把 TJpgDec 的 `scale`(右移位数 0~3)误当成"缩小分母倍"(1/2/4/8)。
+这是第三方库(TJpgDec)的约定,不是 Album 自己定义的缩放逻辑,必须先读库源码确认参数语义。
+
+**附带发现**:`_jd_out` 的边界块行距 `src += bw*2` 其实是**对的**——
+`tjpgd.c` 的 `jd_mcu_output` 在边界裁剪时已经把输出块"压缩"成紧凑行(每行 rx 像素),
+所以不必按整块宽前进。这个怀疑点排除,无需改动。
+
+另外 `_jd_in` 每次解码文件末尾都会读不足 `JD_SZBUF`,原来会打印 `short read`,
+这是 EOF 正常行为,非错误,已移除该噪音日志。
+
+### 12.4 修复(`src/apps/album/eos_album.c`)
+
+改为右移位数 0~3:
+
+```c
+/* TJpgDec scale = right shift count: 0=full, 1=1/2, 2=1/4, 3=1/8 (max) */
+uint8_t scale = 0;
+uint16_t ow = w, oh = h;
+while (scale < 3 && (ow > ALBUM_DECODE_MAX || oh > ALBUM_DECODE_MAX)) {
+    scale++;
+    ow >>= 1;
+    oh >>= 1;
+}
+```
+
+1920×1079 → scale=2(1/4) → 480×269 ≤ 512(`ALBUM_DECODE_MAX`) → `jd_decomp` 参数合法。
+
+### 12.5 通用教训
+
+1. **第三方库的"scale / level / mode"类参数,先读库源码确认语义和单位**。库的 scale 常是
+   右移位数或枚举,不是自由倍数;本项目自创的 `1/2/4/8` 与库约定不符,属于"想当然"型 bug。
+2. **解码失败先打印 `jd_prepare` 与 `jd_decomp` 的返回码**,用 `JRESULT` 枚举反查失败阶段
+   (准备 vs 解码 vs 参数),比看像素数据更高效。日志里一句 `rc=5` 直接锁定入口检查。
+3. **大图必然走多档 downscale**,scale 上限要受库限制。1/8 仍超 `ALBUM_DECODE_MAX` 的图
+   (原始 > 4096px)只能判 "too large",这是设计上限,在日志里明示 "even at 1/8"。
+4. **解码末尾的 `short read` 是 EOF 常态**,不应作为 ERROR/WARN 刷屏;只有 `jd_in` 返回 0
+   (真实读不出)才需要关注——而 TJpgDec 对 0 已返回 0 触发 `JDR_INP`,会按错误处理。
+
+### 12.6 验证清单(图像解码类)
+
+- 准备/解码分离:分别打印 `jd_prepare` 与 `jd_decomp` 的 `JRESULT`,定位失败阶段。
+- `rc` 对照 `JRESULT` 枚举:`JDR_PAR` 多半是 scale 参数、尺寸参数超范围;`JDR_FMT` 是数据格式;
+  `JDR_MEM` 是 workbuf 不足;`JDR_INP` 是输入流断开。
+- 缩略缩放统一用库的语义(本项目 TJpgDec 右移位数),不要自创比例体系。
+- 边界块、最后一行错位通常是解码器已处理(紧凑输出),优先确认库行为再改应用层拷贝逻辑。

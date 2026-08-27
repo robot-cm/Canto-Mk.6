@@ -8,6 +8,25 @@
 
 set(EOS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
 
+# microlink(Tailscale/WireGuard 客户端组件)目录存在时才作为依赖引入
+set(MICROLINK_COMPONENT_DIR "${EOS_ROOT}/microlink/components")
+set(MAIN_REQUIRES
+    bt
+    driver
+    lvgl
+    spiffs
+    esp_wifi
+    esp_netif
+    nvs_flash
+    esp_event
+    fatfs
+    esp_driver_sdspi
+    sdmmc
+)
+if(EXISTS "${MICROLINK_COMPONENT_DIR}")
+    list(APPEND MAIN_REQUIRES microlink)
+endif()
+
 idf_component_register(
     SRCS
         "main.c"
@@ -21,18 +40,7 @@ idf_component_register(
         "."
         "${EOS_ROOT}/third_party/cJSON"
     REQUIRES
-        bt
-        driver
-        lvgl
-        spiffs
-        esp_wifi
-        esp_netif
-        nvs_flash
-        esp_event
-        microlink
-        fatfs
-        esp_driver_sdspi
-        sdmmc
+        ${MAIN_REQUIRES}
 )
 
 # ── ElenixOS Core 全部源文件(仅排除模拟器专属) ──────────
@@ -76,10 +84,20 @@ target_sources(${COMPONENT_LIB} PRIVATE
     ${JERRY_EXT_SRCS}
     ${JERRY_PORT_SRCS}
     # 内置 C 字体(EOS_FONT_C_MULTI 必需)
+    # 小字号:jbm_10(≤10px)/jbm_13(11..13px),fallback han_sans_16(常用字子集)
+    # 中档:jbm_16(16..17px)/jbm_18(18..19px)/jbm_20(20..21px)/jbm_22(22..25px)/jbm_26(26..29px)/jbm_30(≥30px)
+    "${EOS_ROOT}/resources/font/eos_font_jbm_10.c"
+    "${EOS_ROOT}/resources/font/eos_font_jbm_13.c"
     "${EOS_ROOT}/resources/font/eos_font_jbm_16.c"
+    "${EOS_ROOT}/resources/font/eos_font_jbm_18.c"
     "${EOS_ROOT}/resources/font/eos_font_jbm_20.c"
+    "${EOS_ROOT}/resources/font/eos_font_jbm_22.c"
     "${EOS_ROOT}/resources/font/eos_font_jbm_26.c"
     "${EOS_ROOT}/resources/font/eos_font_jbm_30.c"
+    # 10px 中文子集字体(jbm_10 的 fallback,GB2312 一级 3755 字,约 0.32MB flash)
+    "${EOS_ROOT}/resources/font/eos_font_han_sans_10.c"
+    # 13px 中文子集字体(jbm_13 的 fallback,GB2312 一级 3755 字,约 0.54MB flash)
+    "${EOS_ROOT}/resources/font/eos_font_han_sans_13.c"
     # 中文子集字体(eos_font_jbm_22 的 fallback,GB2312 全量,约 1MB)
     "${EOS_ROOT}/resources/font/eos_font_han_sans_22.c"
     # 16px 中文子集字体(表盘 hint 轮播,177 字符,fallback han_sans_22 兜底)
@@ -168,9 +186,11 @@ target_compile_definitions(${COMPONENT_LIB} PUBLIC
     JERRY_SYSTEM_ALLOCATOR=0
     JERRY_EXTERNAL_CONTEXT=1
     JERRY_CPOINTER_32_BIT=1
-    # microlink 已接入 → eos_net_vpn.c 编译真机驱动路径
-    EOS_HAVE_MICROLINK=1
 )
+# microlink 已接入 → eos_net_vpn.c 编译真机驱动路径(目录存在时才启用)
+if(EXISTS "${MICROLINK_COMPONENT_DIR}")
+    target_compile_definitions(${COMPONENT_LIB} PUBLIC EOS_HAVE_MICROLINK=1)
+endif()
 
 # ── 链接:--wrap 重定向 malloc/free/realloc/calloc 到 8 字节对齐实现 ──
 #   ESP-IDF malloc 仅 4 字节对齐;JerryScript JERRY_CPOINTER_32_BIT 要求
@@ -189,6 +209,10 @@ target_link_options(${COMPONENT_LIB} INTERFACE
 # ── 警告抑制(原项目源码在 xtensa GCC 下,不改原代码) ──────
 target_compile_options(${COMPONENT_LIB} PRIVATE
     -Wno-error=format
+    -Wno-error=format-truncation
+    -Wno-error=array-bounds
+    -Wno-error=stringop-overflow
+    -Wno-error=maybe-uninitialized
     -Wno-error=unused-variable
     -Wno-error=unused-but-set-variable
     -Wno-error=enum-conversion

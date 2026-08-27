@@ -9,8 +9,9 @@
  * pager; the same code path serves all four required screen shapes.
  *
  * App launching goes through the real Plugin Manager for everything except
- * the two native media apps (Gallery / Files). Disabled apps are filtered out,
- * and the Home rebuilds live when apps are installed/uninstalled.
+ * the three native media apps (Gallery / Album / Files). Disabled apps and
+ * system apps (sys.* — surfaced in the Control Center) are filtered out, and
+ * the Home rebuilds live when apps are installed/uninstalled.
  */
 #include "ui/launcher/eos_launcher.h"
 
@@ -21,7 +22,9 @@
 #include "eos_app.h"
 #include "eos_app_list.h"   /* eos_app_launch_immediately() */
 #include "eos_service_storage.h" /* eos_storage_is_file() for icon.bin */
+#include "eos_image_resuorces.h" /* EOS_IMG_ALBUM (system icon on SD) */
 #include "apps/gallery/eos_gallery.h" /* eos_gallery_enter() */
+#include "apps/album/eos_album.h"     /* eos_album_enter() */
 #include "apps/files/eos_files.h"     /* eos_files_enter() */
 #include "ui/system/eos_round_clip.h" /* eos_round_clip() */
 #include "eos_event.h"                 /* EOS_EVENT_APP_INSTALLED / UNINSTALLED */
@@ -42,6 +45,7 @@
 typedef enum
 {
     LAUNCHER_APP_KIND_GALLERY,
+    LAUNCHER_APP_KIND_ALBUM,
     LAUNCHER_APP_KIND_FILES,
     LAUNCHER_APP_KIND_PLUGIN
 } launcher_app_kind_t;
@@ -102,6 +106,9 @@ static void _open_app(const launcher_app_def_t *app)
             case LAUNCHER_APP_KIND_GALLERY:
                 eos_gallery_enter();
                 break;
+            case LAUNCHER_APP_KIND_ALBUM:
+                eos_album_enter();
+                break;
             case LAUNCHER_APP_KIND_FILES:
                 eos_files_enter();
                 break;
@@ -150,6 +157,16 @@ static void _build_app_defs(void)
     }
     if (s_app_count < LAUNCHER_APP_MAX)
     {
+        s_apps[s_app_count].name   = "Album";
+        s_apps[s_app_count].app_id = NULL;
+        s_apps[s_app_count].color  = 0x9B59B6;
+        s_apps[s_app_count].mono   = 'A';
+        s_apps[s_app_count].local  = true;
+        s_apps[s_app_count].kind   = LAUNCHER_APP_KIND_ALBUM;
+        s_app_count++;
+    }
+    if (s_app_count < LAUNCHER_APP_MAX)
+    {
         s_apps[s_app_count].name   = "Files";
         s_apps[s_app_count].app_id = NULL;
         s_apps[s_app_count].color  = 0x00B8D4;
@@ -159,8 +176,9 @@ static void _build_app_defs(void)
         s_app_count++;
     }
 
-    /* Everything the Plugin Manager knows about: installed script apps
-     * followed by built-in system apps (sys.settings, sys.flash_light, ...). */
+    /* Everything the Plugin Manager knows about: installed script apps.
+     * Built-in system apps (sys.settings, sys.flash_light, ...) are filtered
+     * out below — they live in the Control Center, not in the App grid. */
     uint32_t installed = eos_app_get_installed();
     for (uint32_t i = 0; i < installed && (uint32_t)s_app_count < LAUNCHER_APP_MAX; i++)
     {
@@ -172,31 +190,28 @@ static void _build_app_defs(void)
         if (eos_app_is_disabled(id))
             continue;
 
+        /* System apps (sys.settings, sys.flash_light, ...) are surfaced in
+         * the Control Center only — never show them in the App grid. */
+        bool is_sys = false;
+        for (int s = 0; s < EOS_SYS_APP_LAST; s++)
+        {
+            if (strcmp(id, eos_sys_app_id_list[s]) == 0)
+            {
+                is_sys = true;
+                break;
+            }
+        }
+        if (is_sys)
+            continue;
+
         launcher_app_def_t *a = &s_apps[s_app_count];
 
-        if (strcmp(id, "sys.settings") == 0)
-        {
-            a->name = "Settings"; a->color = 0xF2994A; a->mono = 'S';
-        }
-        else if (strcmp(id, "sys.flash_light") == 0)
-        {
-            a->name = "Flash Light"; a->color = 0x9B59B6; a->mono = 'F';
-        }
-#if EOS_ENABLE_TEST_APP
-        else if (strcmp(id, "sys.test") == 0)
-        {
-            a->name = "Test"; a->color = 0xE67E22; a->mono = 'T';
-        }
-#endif
-        else
-        {
-            const char *nm = eos_app_get_name(id);
-            if (!nm || nm[0] == '\0')
-                nm = id;
-            a->name = nm;
-            a->color = s_plugin_palette[s_app_count % PLUGIN_PALETTE_N];
-            a->mono = (nm[0] ? nm[0] : (id[0] ? id[0] : '?'));
-        }
+        const char *nm = eos_app_get_name(id);
+        if (!nm || nm[0] == '\0')
+            nm = id;
+        a->name = nm;
+        a->color = s_plugin_palette[s_app_count % PLUGIN_PALETTE_N];
+        a->mono = (nm[0] ? nm[0] : (id[0] ? id[0] : '?'));
         a->app_id = id;
         a->local = false;
         a->kind = LAUNCHER_APP_KIND_PLUGIN;
@@ -225,6 +240,11 @@ int eos_launcher_build_home(lv_obj_t *parent, const eos_display_profile_t *p,
                      EOS_APP_INSTALLED_DIR "%s/" EOS_APP_ICON_FILE_NAME, s_apps[i].app_id);
             if (eos_storage_is_file(s_app_icon_paths[i]))
                 icons[i] = s_app_icon_paths[i];
+        }
+        else if (s_apps[i].kind == LAUNCHER_APP_KIND_ALBUM &&
+                 eos_storage_is_file(EOS_IMG_ALBUM))
+        {
+            icons[i] = EOS_IMG_ALBUM;   /* reuse the album.webp system icon */
         }
     }
 

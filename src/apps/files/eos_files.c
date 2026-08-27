@@ -18,8 +18,6 @@
 
 #include "eos_log.h"
 #include "eos_config.h"
-#include "eos_service_config.h"   /* P0.5 相册: album_pick 回传 */
-#include "cJSON.h"                /* P0.5 相册: 写 app 私有 config.json */
 #include "eos_activity.h"
 #include "eos_mem.h"
 #include "eos_service_storage.h"
@@ -246,57 +244,7 @@ static void _files_row_cb(lv_event_t *e)
         return;
     }
 
-    /* ---- P0.5 相册: 仅拦截图片扩展名（.png/.jpg/.jpeg 不区分大小写）。
-     * 命中 -> 写相册 app 私有 config.json 的 album_pick 供相册回读定位，
-     * 然后 back 回相册。其余文件行为一字不改（走原文本查看器路径）。
-     * NOTE: 必须写相册 app 私有 config（EOS_APP_DATA_DIR/<app_id>/config.json），
-     * 与 JS 侧 eos.config.getStr 同路径；写系统 cfg.json 会跨层读不到（探针已证）。 ---- */
-    {
-        const char *dot = strrchr(fp, '.');
-        if (dot && dot[1] != '\0')
-        {
-            char ext[8];
-            size_t el = strlen(dot + 1);
-            if (el >= sizeof(ext))
-                el = sizeof(ext) - 1;
-            for (size_t i = 0; i < el; i++)
-            {
-                char c = dot[1 + i];
-                ext[i] = (c >= 'A' && c <= 'Z') ? (char)(c - 'A' + 'a') : c;
-            }
-            ext[el] = '\0';
-            if (strcmp(ext, "png") == 0 || strcmp(ext, "jpg") == 0 || strcmp(ext, "jpeg") == 0)
-            {
-                const char *album_app_id = "com.elenix.album";
-                char cfg_dir[EOS_FS_PATH_MAX];
-                char cfg_path[EOS_FS_PATH_MAX];
-                cJSON *cfg_root = NULL;
-
-                snprintf(cfg_dir, sizeof(cfg_dir), EOS_APP_DATA_DIR "%s", album_app_id);
-                eos_storage_mkdir_if_not_exist(cfg_dir);
-                snprintf(cfg_path, sizeof(cfg_path), EOS_APP_DATA_DIR "%s/config.json", album_app_id);
-
-                cfg_root = eos_storage_json_load(cfg_path);
-                if (!cfg_root)
-                {
-                    cfg_root = cJSON_CreateObject();
-                }
-                if (cfg_root)
-                {
-                    cJSON *item = cJSON_GetObjectItem(cfg_root, "album_pick");
-                    if (item)
-                        cJSON_SetValuestring(item, fp);
-                    else
-                        cJSON_AddStringToObject(cfg_root, "album_pick", fp);
-                    eos_storage_json_save(cfg_path, cfg_root);
-                    cJSON_Delete(cfg_root);
-                }
-                eos_activity_back();
-                return;
-            }
-        }
-    }
-
+    /* ---- 图片文件直接走原文本查看器路径(Album 为原生 C app,不再有 JS 联动) ---- */
     _files_open_viewer(fp);
 }
 

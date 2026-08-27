@@ -120,9 +120,14 @@ static lv_obj_t *_rkb_make_key_at(lv_obj_t *area, int x, int y, int w, int h,
     lv_obj_center(label);
     if (cjk)
     {
-        /* 中文字体(22px)会超出 18px 键高, 用圆角裁剪收边 */
-        eos_label_set_font_size(label, EOS_FONT_SIZE_SMALL);
+        /* 中文候选: 20→18→16px 再收小 2, 仍用圆角裁剪收边 */
+        eos_label_set_font_size(label, EOS_FONT_SIZE_EXTRA_SMALL);
         lv_obj_set_style_clip_corner(btn, true, 0);
+    }
+    else
+    {
+        /* 字母/数字/符号: 默认 26px → 22px → 20px 再收小 2 */
+        eos_label_set_font_size(label, EOS_FONT_SIZE_SMALL);
     }
     return btn;
 }
@@ -412,7 +417,7 @@ lv_obj_t *eos_round_keyboard_create(lv_obj_t *parent)
     lv_obj_add_event_cb(ctx->mode_btn, _rkb_mode_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_t *m_label = lv_label_create(ctx->mode_btn);
     lv_label_set_text(m_label, "A");
-    eos_label_set_font_size(m_label, EOS_FONT_SIZE_SMALL);
+    eos_label_set_font_size(m_label, EOS_FONT_SIZE_EXTRA_SMALL);
     lv_obj_center(m_label);
 
     _rkb_update_arrows(ctx);

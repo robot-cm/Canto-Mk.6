@@ -34,8 +34,19 @@ enum
     EOS_SYS_APP_LAST
 };
 
+/* Native C apps (compiled into firmware, shown in the App page like plugins) */
+enum
+{
+    EOS_NATIVE_APP_ALBUM = 0,
+    EOS_NATIVE_APP_TEXTHUB,
+/* New native C apps can be added here */
+    EOS_NATIVE_APP_LAST
+};
+
 extern const char *eos_sys_app_id_list[EOS_SYS_APP_LAST];
 extern const char *eos_sys_app_icon_list[EOS_SYS_APP_LAST];
+extern const char *eos_native_app_id_list[EOS_NATIVE_APP_LAST];
+extern const char *eos_native_app_icon_list[EOS_NATIVE_APP_LAST];
 
 /* Public function prototypes --------------------------------*/
 
