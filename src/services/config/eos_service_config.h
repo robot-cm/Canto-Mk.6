@@ -42,7 +42,6 @@ extern "C" {
 #define EOS_CONFIG_KEY_LAUNCHER_MODE "launcher_mode"
 #define EOS_CONFIG_KEY_PASSWORD_HASH_STR "password_hash"
 #define EOS_CONFIG_KEY_PASSWORD_ENABLED_BOOL "password_enabled"
-#define EOS_CONFIG_KEY_PASSWORD_SIMPLE_BOOL "password_simple"
 #define EOS_CONFIG_KEY_SOCKS5_ENABLED_BOOL "socks5_enabled"
 #define EOS_CONFIG_KEY_SOCKS5_SERVER_STR "socks5_server"
 #define EOS_CONFIG_KEY_SOCKS5_PORT_NUMBER "socks5_port"
@@ -53,6 +52,7 @@ extern "C" {
 #define EOS_CONFIG_KEY_VPN_AUTH_KEY_STR "vpn_auth_key"
 #define EOS_CONFIG_KEY_VPN_DEVICE_NAME_STR "vpn_device_name"
 #define EOS_CONFIG_KEY_TIMEZONE_OFFSET_MIN_NUMBER "timezone_offset_min"
+#define EOS_CONFIG_KEY_NTP_SERVER_STR "ntp_server"
 /************************** Default values **************************/
 #define EOS_CONFIG_DEFAULT_DEVICE_NAME "Canto Mk.6"
 /* Default language string is determined by EOS_CONFIG_DEFAULT_LANGUAGE in eos_config.h */

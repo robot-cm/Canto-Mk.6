@@ -22,6 +22,7 @@
 #include "eos_net_wifi.h"
 #include "eos_net_bt.h"
 #include "eos_service_power_save.h"
+#include "eos_service_beast_mode.h"
 #include "eos_anim.h"
 #include "eos_lang.h"
 #include "eos_service_display.h"
@@ -39,15 +40,16 @@ extern const lv_image_dsc_t eos_icon_bluetooth;
 extern const lv_image_dsc_t eos_icon_wifi;
 extern const lv_image_dsc_t eos_icon_torch;
 extern const lv_image_dsc_t eos_icon_powersave;
+extern const lv_image_dsc_t eos_icon_beastmode;
 extern const lv_image_dsc_t eos_icon_setting;
 
 /* Macros and Definitions -------------------------------------*/
 #define _BTN_DEFAULT_COLOR EOS_THEME_SECONDARY_COLOR
-/* 侧栏按钮尺寸:纯图标(无文字标签),58x52 紧凑尺寸使 2x3 六按钮一屏放下
- * 2 列:58*2 + 列距24 + 左右pad 36*2 = 212 ≤ 240,圆屏边缘留安全边距
- * 3 行:52*3 + 行距6*2 + 上下pad 18*2 = 204 ≤ 88%屏高(211),无需滚动 */
-#define _CC_BTN_W 58
-#define _CC_BTN_H 52
+/* 侧栏按钮尺寸:纯图标(无文字标签),52x40 紧凑尺寸使 2x4 八槽位一屏放下
+ * 2 列:52*2 + 列距24 + 左右pad 28*2 = 184 ≤ 240,圆屏边缘留安全边距
+ * 4 行:40*4 + 行距6*3 + 上下pad 14*2 = 206 ≤ 88%屏高(211),无需滚动 */
+#define _CC_BTN_W 52
+#define _CC_BTN_H 40
 #define _CC_BTN_RADIUS 16
 #define _SLIDER_DEFAULT_WIDTH 150
 #define _SLIDER_DEFAULT_HEIGHT 360
@@ -509,6 +511,13 @@ static void _control_center_power_save_btn_cb(lv_event_t *e)
     if (lv_obj_has_state(btn, LV_STATE_CHECKED))
     {
         EOS_LOG_I("Power save switch ON");
+        /* 互斥:若性能模式已开启,eos_power_save_enter 会自动退出;
+         * 此处同步清除其开关状态,避免 UI 显示两个都开 */
+        if (eos_beast_mode_is_active() && control_center_instance &&
+            control_center_instance->beast_mode_btn)
+        {
+            lv_obj_clear_state(control_center_instance->beast_mode_btn, LV_STATE_CHECKED);
+        }
         eos_power_save_enter();
         /* 省电模式只能停留在主界面:收起控制中心 */
         eos_control_center_hide();
@@ -517,6 +526,29 @@ static void _control_center_power_save_btn_cb(lv_event_t *e)
     {
         EOS_LOG_I("Power save switch OFF");
         eos_power_save_exit();
+    }
+}
+
+static void _control_center_beast_mode_btn_cb(lv_event_t *e)
+{
+    lv_obj_t *btn = lv_event_get_target(e);
+
+    if (lv_obj_has_state(btn, LV_STATE_CHECKED))
+    {
+        EOS_LOG_I("Beast mode switch ON");
+        /* 互斥:若省电模式已开启,eos_beast_mode_enter 会自动退出;
+         * 此处同步清除其开关状态,避免 UI 显示两个都开 */
+        if (eos_power_save_is_active() && control_center_instance &&
+            control_center_instance->power_save_btn)
+        {
+            lv_obj_clear_state(control_center_instance->power_save_btn, LV_STATE_CHECKED);
+        }
+        eos_beast_mode_enter();
+    }
+    else
+    {
+        EOS_LOG_I("Beast mode switch OFF");
+        eos_beast_mode_exit();
     }
 }
 
@@ -646,11 +678,11 @@ eos_control_center_t *eos_control_center_create(lv_obj_t *parent)
     lv_obj_set_size(container, LV_PCT(100), LV_PCT(88));
     lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(container, 0, 0);
-    /* 2x3 六按钮一屏放下:左右 pad 36(圆屏边距),上下 pad 18(3 行不超出 88% 高度) */
-    lv_obj_set_style_pad_left(container, 36, 0);
-    lv_obj_set_style_pad_right(container, 36, 0);
-    lv_obj_set_style_pad_top(container, 18, 0);
-    lv_obj_set_style_pad_bottom(container, 18, 0);
+    /* 2x4 八槽位一屏放下:左右 pad 28(圆屏边距),上下 pad 14(4 行不超出 88% 高度) */
+    lv_obj_set_style_pad_left(container, 28, 0);
+    lv_obj_set_style_pad_right(container, 28, 0);
+    lv_obj_set_style_pad_top(container, 14, 0);
+    lv_obj_set_style_pad_bottom(container, 14, 0);
     lv_obj_align(container, LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_set_scroll_dir(container, LV_DIR_NONE);
     lv_obj_set_style_pad_column(container, 24, 0); // Column spacing
@@ -661,7 +693,7 @@ eos_control_center_t *eos_control_center_create(lv_obj_t *parent)
         LV_FLEX_ALIGN_CENTER, // Main axis (horizontal direction) starts from the beginning (left-aligned)
         LV_FLEX_ALIGN_CENTER, // Cross axis (vertical direction) centered
         LV_FLEX_ALIGN_START);
-    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE); // 禁止滚动:六按钮固定一屏
+    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE); // 禁止滚动:七按钮固定一屏
     lv_obj_set_scrollbar_mode(container, LV_SCROLLBAR_MODE_OFF);
     lv_obj_add_event_cb(container, _list_scroll_cb, LV_EVENT_SCROLL, container);
     eos_slide_widget_add_event_cb_moving(swipe_panel->sw, _list_scroll_cb, container);
@@ -669,7 +701,7 @@ eos_control_center_t *eos_control_center_create(lv_obj_t *parent)
     eos_slide_widget_add_event_cb_reached_threshold(swipe_panel->sw, _slide_widget_reached_threshold_cb, container);
     cc->container = container;
     lv_obj_t *btn;
-    /* 侧栏功能集(2x3 六图标):Flash / 亮度 / 省电 / WiFi / 蓝牙 / 设置。
+    /* 侧栏功能集(2x4 七图标):Flash / 亮度 / 省电 / 性能 / WiFi / 蓝牙 / 设置。
      * 仅图标辨认(label_text=NULL),无英文/文字标注 */
     /************************** Flashlight **************************/
     btn = _control_center_create_img_btn(container, &eos_icon_torch, NULL);
@@ -691,6 +723,18 @@ eos_control_center_t *eos_control_center_create(lv_obj_t *parent)
         lv_obj_remove_state(btn, LV_STATE_CHECKED);
     }
     cc->power_save_btn = btn;
+    /************************** Beast mode (性能模式,与省电互斥) **************************/
+    btn = _control_center_create_img_switch_btn(container, &eos_icon_beastmode, NULL, EOS_COLOR_ORANGE);
+    lv_obj_add_event_cb(btn, _control_center_beast_mode_btn_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    if (eos_beast_mode_is_active())
+    {
+        lv_obj_add_state(btn, LV_STATE_CHECKED);
+    }
+    else
+    {
+        lv_obj_remove_state(btn, LV_STATE_CHECKED);
+    }
+    cc->beast_mode_btn = btn;
     /************************** WiFi switch **************************/
     btn = _control_center_create_img_switch_btn(container, &eos_icon_wifi, NULL, EOS_COLOR_BLUE);
     lv_obj_add_event_cb(btn, _control_center_wifi_switch_btn_cb, LV_EVENT_VALUE_CHANGED, NULL);

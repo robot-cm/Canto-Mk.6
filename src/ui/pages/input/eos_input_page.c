@@ -60,6 +60,15 @@ typedef struct
     _input_page_ctx_t *ctx;
 } _callback_param_t;
 
+/* Data structure for deferred (transition-waiting) enter */
+typedef struct
+{
+    eos_activity_t *activity;
+    _input_page_ctx_t *ctx;
+    eos_activity_type_t from_type;
+    uint32_t retry;
+} _input_enter_param_t;
+
 /* Function Implementations -----------------------------------*/
 
 static void _input_page_set_translate_y(lv_obj_t *obj, int32_t value)
@@ -243,6 +252,69 @@ static void _async_execute_callback_and_close(void *param)
     }
 
     eos_activity_back();
+}
+
+/* Enter the activity once the previous activity transition has finished.
+ * eos_activity_enter() is silently dropped while a transition is running,
+ * so opening the input page right after a close callback (e.g. the second
+ * step of passcode setup) would never show the page/keyboard.
+ *
+ * Implemented with a low-frequency periodic lv_timer instead of chained
+ * lv_async_call() retries: lv_async_call() creates period=0 timers and
+ * lv_timer_handler() restarts its walk whenever a timer is created/deleted,
+ * so rescheduling from inside the callback re-executes it in the SAME frame
+ * in an endless loop (ui task watchdog). A 50ms periodic timer only fires
+ * on later frames, so it is safe here. */
+#define INPUT_PAGE_ENTER_DEFER_PERIOD_MS 50u
+#define INPUT_PAGE_ENTER_DEFER_MAX_RETRY 100u /* 50ms * 100 = 5s 兜底 */
+
+static void _input_page_enter_deferred(lv_timer_t *timer)
+{
+    _input_enter_param_t *p = (_input_enter_param_t *)lv_timer_get_user_data(timer);
+    if (!p)
+    {
+        lv_timer_delete(timer);
+        return;
+    }
+
+    if (eos_activity_is_transition_in_progress() && (p->retry < INPUT_PAGE_ENTER_DEFER_MAX_RETRY))
+    {
+        /* still transitioning: keep waiting (the periodic timer re-fires) */
+        p->retry++;
+        return;
+    }
+
+    lv_timer_delete(timer);
+
+    eos_activity_t *activity = p->activity;
+    _input_page_ctx_t *ctx = p->ctx;
+    eos_activity_type_t from_type = p->from_type;
+    eos_free(p);
+
+    if (!activity)
+    {
+        return;
+    }
+
+    /* sanity: the activity must still be alive and own this context */
+    if (eos_activity_get_user_data(activity) != (void *)ctx)
+    {
+        return;
+    }
+
+    _input_page_register_transition_anim_route();
+    eos_activity_enter(activity);
+
+    if (from_type != EOS_ACTIVITY_TYPE_APP)
+    {
+        eos_app_header_slide_visible_animated(activity, false, 220);
+        if (ctx && ctx->root && lv_obj_is_valid(ctx->root))
+        {
+            lv_async_call(_input_page_enter_anim, ctx);
+        }
+    }
+
+    EOS_LOG_I("Input page opened");
 }
 
 static void _on_cancel_btn_clicked(lv_event_t *e)
@@ -527,6 +599,54 @@ eos_result_t eos_input_page_open_with_callback(lv_obj_t *label,
 
     /* Enter Activity */
     _input_page_register_transition_anim_route();
+
+    if (eos_activity_is_transition_in_progress())
+    {
+        /* A switch animation (e.g. slide-out of the previous input page) is
+         * still running: eos_activity_enter() would be silently dropped and
+         * this page would never appear (no keyboard). Defer the enter until
+         * the transition completes and keep the view hidden meanwhile. */
+        if (ctx->root && lv_obj_is_valid(ctx->root))
+        {
+            lv_obj_add_flag(ctx->root, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        _input_enter_param_t *p = (_input_enter_param_t *)eos_malloc(sizeof(_input_enter_param_t));
+        if (p)
+        {
+            p->activity = activity;
+            p->ctx = ctx;
+            p->from_type = current_type;
+            p->retry = 0;
+
+            lv_timer_t *timer =
+                lv_timer_create(_input_page_enter_deferred, INPUT_PAGE_ENTER_DEFER_PERIOD_MS, p);
+            if (!timer)
+            {
+                /* fallback: try a direct enter anyway */
+                eos_free(p);
+                eos_activity_enter(activity);
+                if (current_type != EOS_ACTIVITY_TYPE_APP)
+                {
+                    eos_app_header_slide_visible_animated(activity, false, 220);
+                    lv_async_call(_input_page_enter_anim, ctx);
+                }
+            }
+        }
+        else
+        {
+            /* fallback: try a direct enter anyway */
+            eos_activity_enter(activity);
+            if (current_type != EOS_ACTIVITY_TYPE_APP)
+            {
+                eos_app_header_slide_visible_animated(activity, false, 220);
+                lv_async_call(_input_page_enter_anim, ctx);
+            }
+        }
+
+        return EOS_OK;
+    }
+
     eos_activity_enter(activity);
 
     if (current_type != EOS_ACTIVITY_TYPE_APP)

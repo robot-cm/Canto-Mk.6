@@ -28,6 +28,7 @@
 #include "eos_dev_time.h"
 #include "eos_core.h"
 #include "eos_service_config.h"
+#include "eos_net_wifi.h"
 
 #if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
 #include <sys/time.h>
@@ -41,8 +42,10 @@
 #define _RTC_MIN_YEAR_OFFSET 2
 
 /* SNTP 校时参数 */
-#define _NTP_SERVER              "pool.ntp.org"
+#define _NTP_DEFAULT_SERVER      "ntp.aliyun.com"   /* 默认 NTP 服务器(可经 config ntp_server 覆盖) */
 #define _NTP_MIN_INTERVAL_MS     (5u * 60u * 1000u) /* 两次校时间隔下限(WiFi 重连防抖) */
+#define _NTP_RESYNC_INTERVAL_MS  (24u * 3600u * 1000u) /* 每日重校:抵消 RTC 晶振漂移累积 */
+#define _NTP_POLL_PERIOD_MS      (60u * 1000u)      /* 周期检查间隔 */
 #define _NTP_PLAUSIBLE_UNIX      1600000000u        /* 2020-09 之后才可信 */
 
 #define _BACKUP_KEY_YEAR  "time.backup.year"
@@ -57,6 +60,8 @@
 
 static eos_datetime_t _last_valid;              /* 最后有效时间(读失败回退) */
 static eos_time_source_t _source = EOS_TIME_SOURCE_NONE;
+
+static void _ntp_poll_timer_create(void); /* 前向声明(init 先于定义调用) */
 
 /* 内部工具:无时区依赖的儒略日换算(proleptic Gregorian) ---------- */
 
@@ -299,6 +304,7 @@ eos_result_t eos_service_time_init(void)
     EOS_LOG_I("System time: %04d-%02d-%02d %02d:%02d:%02d (source=%d)",
               chosen.year, chosen.month, chosen.day,
               chosen.hour, chosen.min, chosen.sec, (int)_source);
+    _ntp_poll_timer_create();
     return EOS_OK;
 }
 
@@ -431,12 +437,69 @@ void eos_time_ntp_sync_start(void)
     if (esp_sntp_enabled()) {
         return; /* 已在同步中 */
     }
+    /* NTP 服务器可经 config(ntp_server)覆盖;static 缓冲保证指针在 esp_sntp 生命周期内有效 */
+    static char _ntp_server[64];
+    const char *s = eos_config_get_string(EOS_CONFIG_KEY_NTP_SERVER_STR, _NTP_DEFAULT_SERVER);
+    snprintf(_ntp_server, sizeof(_ntp_server), "%s", (s && s[0]) ? s : _NTP_DEFAULT_SERVER);
     esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    esp_sntp_setservername(0, _NTP_SERVER);
+    esp_sntp_setservername(0, _ntp_server);
     esp_sntp_set_time_sync_notification_cb(_ntp_sync_cb);
     esp_sntp_init();
-    EOS_LOG_I("NTP sync started (%s)", _NTP_SERVER);
+    EOS_LOG_I("NTP sync started (%s)", _ntp_server);
 #else
     EOS_LOG_D("NTP sync skipped (simulator)");
+#endif
+}
+
+void eos_time_ntp_force_sync(void)
+{
+#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+    if (eos_net_wifi_state() != EOS_WIFI_CONNECTED) {
+        EOS_LOG_W("NTP force sync skipped: WiFi not connected");
+        return;
+    }
+    _ntp_synced = false; /* 绕过 5 分钟防抖,立即重新发起校时 */
+    eos_time_ntp_sync_start();
+#else
+    EOS_LOG_D("NTP force sync skipped (simulator)");
+#endif
+}
+
+void eos_time_ntp_poll(void)
+{
+#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+    if (!_ntp_synced) {
+        return; /* 从未成功同步:由 WiFi 连接事件负责首次校时 */
+    }
+    if (eos_net_wifi_state() != EOS_WIFI_CONNECTED) {
+        return;
+    }
+    if ((uint32_t)(eos_tick_get() - _ntp_synced_tick) < _NTP_RESYNC_INTERVAL_MS) {
+        return;
+    }
+    /* 距离上次成功校时已超 24h:重新 SNTP,抵消 RTC 走时漂移累积 */
+    EOS_LOG_I("NTP daily re-sync (RTC drift compensation)");
+    _ntp_synced = false;
+    eos_time_ntp_sync_start();
+#endif
+}
+
+#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+static void _ntp_poll_timer_cb(lv_timer_t *timer)
+{
+    (void)timer;
+    eos_time_ntp_poll();
+}
+#endif
+
+static void _ntp_poll_timer_create(void)
+{
+#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+    lv_timer_t *t = lv_timer_create(_ntp_poll_timer_cb, _NTP_POLL_PERIOD_MS, NULL);
+    if (t == NULL) {
+        EOS_LOG_W("NTP poll timer create failed");
+    }
+#else
+    (void)0;
 #endif
 }

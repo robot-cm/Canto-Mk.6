@@ -78,6 +78,12 @@ void eos_bluetooth_disable(void);
  */
 eos_result_t eos_net_bt_backend_set_enabled(bool enabled, const char *name);
 /**
+ * @brief Fully deinitialize the BLE controller for a long-lived power-save
+ * mode. Unlike disabling advertising, this releases the PM locks held by the
+ * active controller. The next enable performs a clean lazy initialization.
+ */
+eos_result_t eos_net_bt_backend_power_down(void);
+/**
  * @brief Locate phone
  *
  * Make phone ring via Bluetooth or other methods to locate phone.

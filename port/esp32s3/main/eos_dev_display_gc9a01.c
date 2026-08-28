@@ -26,9 +26,14 @@
 
 #include <string.h>
 #include <stddef.h>   /* offsetof(flush_containing) */
+#include <stdio.h>    /* printf:bltest 诊断直出(绕过日志过滤) */
 #include "esp_log.h"
 #include "esp_heap_caps.h"
+#include "esp_rom_sys.h"
+#include "esp_rom_gpio.h"
 #include "driver/spi_master.h"
+#include "soc/gpio_struct.h"   /* GPIO 外设寄存器直读(诊断) */
+#include "soc/gpio_sig_map.h"  /* SIG_GPIO_OUT_IDX */
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 #include "freertos/FreeRTOS.h"
@@ -426,6 +431,9 @@ static void display_set_brightness(uint8_t brightness)
                  brightness, (unsigned long)duty,
                  esp_err_to_name(r1), esp_err_to_name(r2));
     } else {
+        /* duty 要到下一个 PWM 周期才生效(5kHz 周期 200µs):
+         * 延时 300µs 再读,readback 才是真实硬件值,避免误判。 */
+        esp_rom_delay_us(300);
         uint32_t rduty = ledc_get_duty(LEDC_LOW_SPEED_MODE, BL_LEDC_CHANNEL);
         ESP_LOGI(TAG, "set_brightness(%u -> duty %lu, readback %lu)",
                  brightness, (unsigned long)duty, (unsigned long)rduty);
@@ -435,15 +443,38 @@ static void display_set_brightness(uint8_t brightness)
 /* bltest 诊断:绕过 PWM,把背光引脚直接拉高/拉低。
  * 目的:不依赖任何仪表,验证 GPIO43(BL) 到背光的物理通路——
  *   引脚 HIGH 而屏幕不亮 => 通路断开/背光板异常;
- *   引脚 HIGH 屏幕亮、PWM 亮度不变 => 亮度调节入口问题(如 KE 开关)。 */
+ *   引脚 HIGH 屏幕亮、PWM 亮度不变 => 亮度调节入口问题(如 KE 开关)。
+ *
+ * 关键修复(2026-08-28):gpio_set_direction(GPIO_MODE_OUTPUT) 只打开
+ * 输出使能(enable),不会把信号源 func_out_sel 从 LEDC 切回 GPIO.out 寄存器!
+ * 此前 GPIO43 信号源一直是 LEDC_CH0(ledc_channel_config 绑定),ledc_stop
+ * 后 pad 呈高阻,直驱 HIGH/LOW 电平根本没输出 => 屏幕无变化。
+ * 必须显式 esp_rom_gpio_connect_out_signal(SIG_GPIO_OUT_IDX) 切信号源。
+ * 另:gpio_get_level 在 OUTPUT 模式读输入寄存器(input 被 disable 恒 0),
+ * 无诊断价值;改为直读 GPIO 外设寄存器确认输出链路。 */
 static void display_bltest(bool high)
 {
-    ledc_stop(LEDC_LOW_SPEED_MODE, BL_LEDC_CHANNEL, 0);
-    gpio_set_direction(DISPLAY_PIN_BL, GPIO_MODE_OUTPUT);
-    gpio_set_level(DISPLAY_PIN_BL, high ? 1 : 0);
+    esp_err_t e1 = ledc_stop(LEDC_LOW_SPEED_MODE, BL_LEDC_CHANNEL, 0);
+    esp_rom_gpio_pad_select_gpio(DISPLAY_PIN_BL);
+    esp_rom_gpio_connect_out_signal(DISPLAY_PIN_BL, SIG_GPIO_OUT_IDX, 0, 0);
+    esp_err_t e2 = gpio_set_direction(DISPLAY_PIN_BL, GPIO_MODE_OUTPUT);
+    esp_err_t e3 = gpio_set_level(DISPLAY_PIN_BL, high ? 1 : 0);
+    /* 注意:GPIO43 >= 32,使能/输出位在 enable1/out1 寄存器(bit = pin-32),
+     * enable/out 只覆盖 GPIO0-31(上一版诊断读错寄存器,en/out 恒为 0 假象)。 */
+    uint32_t en   = (GPIO.enable1.val >> (DISPLAY_PIN_BL - 32)) & 1u;
+    uint32_t out  = (GPIO.out1.val >> (DISPLAY_PIN_BL - 32)) & 1u;
+    uint32_t func = GPIO.func_out_sel_cfg[DISPLAY_PIN_BL].func_sel;
+    uint32_t freq = ledc_get_freq(LEDC_LOW_SPEED_MODE, BL_LEDC_TIMER);
+    uint32_t duty = ledc_get_duty(LEDC_LOW_SPEED_MODE, BL_LEDC_CHANNEL);
     s_bl_gpio_hold = true;
-    ESP_LOGI(TAG, "bltest: BL(GPIO%d) -> %s direct drive, PWM stopped",
-             DISPLAY_PIN_BL, high ? "HIGH" : "LOW");
+    /* printf 直出(诊断命令专用,绕过 ESP_LOG 过滤,shell 终端必显示) */
+    printf("\n### BLTEST GPIO%d %s: stop=%s dir=%s lvl=%s\n"
+           "###   en=%u out=%u func_sel=%u (SIG_GPIO_OUT=%u, 直驱时 func_sel 应等于此值)\n"
+           "###   LEDC: timer=%luHz ch_duty=%lu (PWM 已 stop)\n",
+           DISPLAY_PIN_BL, high ? "HIGH" : "LOW",
+           esp_err_to_name(e1), esp_err_to_name(e2), esp_err_to_name(e3),
+           en, out, (unsigned)func, (unsigned)SIG_GPIO_OUT_IDX,
+           (unsigned long)freq, (unsigned long)duty);
 }
 
 static void display_power_on(void)
@@ -455,15 +486,25 @@ static void display_power_on(void)
 
 static void display_power_off(void)
 {
-    /* 只灭背光,不覆盖 s_last_brightness:直接写 duty=0,下次 power_on
-     * 才能恢复用户亮度,而不是停在 0。 */
+    /* 只灭背光,不覆盖 s_last_brightness:下次 power_on 恢复用户亮度。
+     * 用 ledc_stop(而非 duty=0):立即停止 PWM 并输出 idle 低电平,
+     * 不依赖下一个 PWM 周期,背光熄灭更彻底、可诊断。 */
     if (s_bl_gpio_hold)
     {
         gpio_set_level(DISPLAY_PIN_BL, 0); /* bltest 直驱状态下直接拉低 */
+        ESP_LOGI(TAG, "power_off: BL direct LOW (bltest hold)");
         return;
     }
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, BL_LEDC_CHANNEL, 0);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, BL_LEDC_CHANNEL);
+    esp_err_t r1 = ledc_stop(LEDC_LOW_SPEED_MODE, BL_LEDC_CHANNEL, 0);
+    if (r1 != ESP_OK)
+    {
+        ESP_LOGE(TAG, "power_off: ledc_stop FAILED: %s", esp_err_to_name(r1));
+    }
+    else
+    {
+        esp_rom_delay_us(300);
+        ESP_LOGI(TAG, "power_off: backlight OFF (ledc stopped, idle LOW)");
+    }
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -723,6 +764,70 @@ void eos_dev_display_gc9a01_register(void)
 {
     eos_dev_display_register(&s_display_ops);
     ESP_LOGI(TAG, "Registered to device HAL (set_brightness/power_on/power_off)");
+}
+
+/* 排空在途异步 flush 事务(LVGL 任务上下文单线程,逻辑同 display_flush_wait_cb):
+ * display_send_cmd/display_send_data 用 spi_device_transmit 同步发送,其内部
+ * get_trans_result 取回"结果队列中第一个完成的事务"。若上一条 UI 交互帧
+ * (异步队列;flush_wait_cb 只在渲染下一帧前取回)尚未取回,同步发送会错拿
+ * 该像素事务,触发 assert(ret_trans == trans_desc) 崩溃(真机已踩:关机流程
+ * 点按钮反馈帧在途时,display_off 的 0x28 同步发送崩)。排空后无在途事务,
+ * 同步发送安全。 */
+static void display_drain_pending_tx(void)
+{
+    while (s_pending_tx > 0)
+    {
+        spi_transaction_t *t;
+        if (spi_device_get_trans_result(s_spi, &t, portMAX_DELAY) != ESP_OK)
+            break;   /* 极端:避免死循环 */
+        s_pending_tx--;
+    }
+}
+
+/* 清屏纯黑(关机深睡前置调用):
+ * GC9A01 无硬件 RST(纯软件复位),深睡/唤醒后面板 GRAM 保留深睡前最后一帧
+ * (关机页面残影)。深睡前把整屏刷成纯黑后,即使背光被任何意外路径点亮
+ * (如非轮询唤醒的短暂状态),显示内容也是黑帧,肉眼不可见。
+ * 实现:同步 spi_device_transmit 发送(先排空在途异步事务,驱动内部等待 bus
+ * 空闲,无 DMA 竞争)。 */
+void eos_dev_display_gc9a01_fill_black(void)
+{
+    if (!s_init_done) return;
+
+    display_drain_pending_tx();   /* 排空在途异步 flush,防同步发送断言崩溃 */
+
+    display_set_window(0, 0, BOARD_GC9A01_WIDTH - 1, BOARD_GC9A01_HEIGHT - 1);
+    uint8_t black_chunk[256];
+    memset(black_chunk, 0, sizeof(black_chunk));
+    uint32_t total_pixels = BOARD_GC9A01_WIDTH * BOARD_GC9A01_HEIGHT;
+    uint32_t sent = 0;
+    while (sent < total_pixels) {
+        uint32_t chunk_px = (total_pixels - sent > 128) ? 128 : (total_pixels - sent);
+        display_send_data(black_chunk, chunk_px * 2);
+        sent += chunk_px;
+    }
+    ESP_LOGI(TAG, "fill_black done (%u px)", (unsigned)total_pixels);
+}
+
+/* 面板显示关闭(0x28 DISPOFF):仅关面板显示,背光与 GRAM 均保持。
+ * 关机深睡轮询的每次唤醒 boot 窗口(ROM→bootloader_init,约 200ms)里
+ * GPIO43 复位成 UART0 TXD 高,背光反亮且软件无法提前压黑(flash cache
+ * 未初始化);面板 OFF 后即使背光亮,显示也是黑帧,彻底消除闪烁。
+ * 面板常供电且无硬件 RST(纯软件复位),该寄存器状态跨深睡保持;
+ * 正常开机 init 序列(0x11/0x29)会重新打开显示。
+ * 比 fill_black 轻量(单条命令),避免深睡前大量 SPI 活动引发
+ * esp_deep_sleep_start 失败(此前 fill_black 已实测触发该问题)。 */
+void eos_dev_display_gc9a01_display_off(void)
+{
+    if (!s_init_done) return;
+
+    /* 先排空在途异步 flush:关机按钮按下反馈帧的事务可能仍在队列(flush_wait_cb
+     * 只在渲染下一帧前取回,而事件处理链路同步直达此处),同步发送 0x28 会错拿
+     * 该像素事务,触发 assert(ret_trans == trans_desc) 崩溃(真机已踩)。 */
+    display_drain_pending_tx();
+
+    display_send_cmd(0x28);   /* Display OFF */
+    ESP_LOGI(TAG, "display OFF (0x28)");
 }
 
 /* LVGL 显示初始化:lv_display_create + 双缓冲(PARTIAL) + flush_cb */

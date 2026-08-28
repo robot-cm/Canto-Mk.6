@@ -58,6 +58,7 @@
 #include "eos_service_state.h"
 #include "eos_service_battery.h"
 #include "eos_service_pm.h"
+#include "eos_service_power_save.h"
 #include "eos_dfw.h"
 #include "eos_app_header.h"
 #include "eos_shell.h"
@@ -264,6 +265,16 @@ void eos_init(void)
     eos_sim_hw_mock_init();
 #endif
     eos_service_battery_init();
+    /* Load radio preferences before Power Save snapshots them. This is also
+     * necessary when a persisted power-save state must later restore Wi-Fi or
+     * BLE to the user's pre-save choice. */
+    eos_net_wifi_init();
+    eos_net_bt_init();
+    /* Must run before the control-center widget is created, otherwise a
+     * persisted power-save state is not reflected by its switch at boot. */
+    eos_service_power_save_init();
+    /* Beast mode (性能模式, 与省电互斥):同样需在 control-center 创建前恢复状态 */
+    eos_service_beast_mode_init();
     /* 内置 C 字体:编译进 Flash(XIP),不会失败,无需兜底卡死 */
     lv_font_t *default_font = eos_font_init();
     eos_theme_set(lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED), default_font);

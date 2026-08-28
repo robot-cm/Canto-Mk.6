@@ -26,6 +26,7 @@ typedef struct
     lv_obj_t *flash_light_btn;
     lv_obj_t *brightness_btn;
     lv_obj_t *power_save_btn;
+    lv_obj_t *beast_mode_btn;
     lv_obj_t *wifi_btn;
     lv_obj_t *bl_btn;
     lv_obj_t *settings_btn;

@@ -5,7 +5,7 @@
  * 启用:
  *   1. 状态持久化(config key "power_save",重启后仍保持省电)
  *   2. 低亮度 (eos_display_set_brightness 20%)
- *   3. 降低 CPU 频率 (ESP32-S3: 240MHz -> 80MHz)
+ *   3. DFS(80-160MHz) + 自动 Light-sleep（保持触摸唤醒与运行上下文）
  *   4. 返回主界面 (eos_activity_back_to_watchface)
  *   5. 广播 EOS_EVENT_POWER_SAVE_CHANGED,watchface 据此显示/隐藏退出按钮
  * 禁用:
@@ -27,6 +27,8 @@
 #include "eos_activity.h"
 #include "eos_net_wifi.h"
 #include "eos_net_bt.h"
+#include "eos_service_beast_mode.h"
+#include "eos_port.h"
 
 #if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
 /* ESP-IDF v5.3:esp_cpu.h 无运行时调频 API(esp_cpu_update_freq 为 v5.4+),
@@ -39,6 +41,8 @@
 #define _POWER_SAVE_CONFIG_KEY  "power_save"
 #define _POWER_SAVE_BRIGHTNESS  20     /* 省电低亮度 20% */
 #define _BRIGHTNESS_TRANS_MS    300
+#define _POWER_SAVE_CPU_MIN_MHZ 80
+#define _POWER_SAVE_CPU_MAX_MHZ 160
 
 /* Variables --------------------------------------------------*/
 
@@ -48,26 +52,21 @@ static eos_event_code_t _power_save_event_id = EOS_EVENT_LAST;
 static bool _wifi_was_enabled = false;
 static bool _bt_was_enabled = false;
 
-/* Function Implementations -----------------------------------*/
+#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+static esp_pm_config_t _pm_normal_config;
+static bool _pm_normal_config_valid = false;
+#endif
 
-eos_result_t eos_service_power_save_init(void)
+static void _radios_power_down(void)
 {
-    _power_save_event_id = eos_event_register_id();
-    _active = eos_config_get_bool(_POWER_SAVE_CONFIG_KEY, false);
-
-    if (_active)
-    {
-        /* 重启后仍保持省电:直接应用低亮度(CPU 频率由 boot 默认,不强制降频) */
-        eos_display_set_brightness(_POWER_SAVE_BRIGHTNESS, _BRIGHTNESS_TRANS_MS, true);
-        /* 同步关闭无线(懒初始化安全;config init 可能已按配置恢复开机,这里强制关) */
-        _wifi_was_enabled = eos_net_wifi_is_enabled();
-        _bt_was_enabled = eos_config_get_bool(EOS_CONFIG_KEY_BLUETOOTH_BOOL, false);
-        eos_net_wifi_set_enabled(false);
-        eos_net_bt_set_enabled(false);
-    }
-    EOS_LOG_I("Power save init: %s", _active ? "ACTIVE" : "inactive");
-    return EOS_OK;
+    eos_net_wifi_set_enabled(false);
+    eos_net_bt_set_enabled(false);
+    eos_result_t bt_result = eos_net_bt_backend_power_down();
+    if (bt_result != EOS_OK)
+        EOS_LOG_W("BLE controller power-down failed: %d", (int)bt_result);
 }
+
+/* Function Implementations -----------------------------------*/
 
 bool eos_power_save_is_active(void)
 {
@@ -79,28 +78,64 @@ eos_event_code_t eos_power_save_get_event_id(void)
     return _power_save_event_id;
 }
 
-static void _cpu_freq_set(bool low)
+static void _power_profile_apply(bool enabled)
 {
 #if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
-    /* ESP32-S3 合法频率档:80 / 160 / 240 MHz。max=min=目标频率 → 强制锁频。
-     * 恢复时用编译默认频率 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ(160)。best-effort。 */
-    esp_pm_config_t cfg = {
-        .max_freq_mhz = low ? 80 : CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ,
-        .min_freq_mhz = low ? 80 : CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ,
+    if (!_pm_normal_config_valid)
+    {
+        esp_err_t get_err = esp_pm_get_configuration(&_pm_normal_config);
+        if (get_err != ESP_OK)
+        {
+            EOS_LOG_W("PM configuration read failed: %d", (int)get_err);
+            return;
+        }
+        _pm_normal_config_valid = true;
+    }
+
+    /* 省电模式:仅做 DFS 降频(80-160MHz),【不】在此开启自动 Light-sleep。
+     * 原因(实测):light_sleep_enable=true 会让系统在 UI 活跃期也进 Light-sleep,
+     * USB-Serial-JTAG 控制台在 sleep 中失活 -> shell 写超时/冻结;低主频下
+     * LVGL 刷新节拍与 sleep 进/出互相打架 -> 背光明灭闪烁。
+     * 真正的 Light-sleep 留给"无交互闲置"子状态单独触发(见 _idle 逻辑),
+     * 由触摸/输入唤醒后先关 light_sleep 再恢复,避免与活跃 UI 冲突。
+     * Deep-sleep 不在此使用:GPIO44 触摸无法唤醒 ESP32-S3,且 GPIO43 背光
+     * 会被板上拉在深睡后反亮。 */
+    esp_pm_config_t cfg = enabled ? (esp_pm_config_t) {
+        .max_freq_mhz = _POWER_SAVE_CPU_MAX_MHZ,
+        .min_freq_mhz = _POWER_SAVE_CPU_MIN_MHZ,
         .light_sleep_enable = false,
-    };
+    } : _pm_normal_config;
     esp_err_t err = esp_pm_configure(&cfg);
     if (err != ESP_OK)
     {
-        EOS_LOG_W("CPU freq set(%s) failed: %d", low ? "low" : "high", (int)err);
+        EOS_LOG_W("PM profile %s failed: %d", enabled ? "power-save" : "normal", (int)err);
     }
     else
     {
-        EOS_LOG_I("CPU freq set to %dMHz", cfg.max_freq_mhz);
+        EOS_LOG_I("PM profile %s: CPU %d-%dMHz, auto light-sleep=%d",
+                  enabled ? "power-save" : "normal", cfg.min_freq_mhz,
+                  cfg.max_freq_mhz, (int)cfg.light_sleep_enable);
     }
 #else
-    (void)low;
+    (void)enabled;
 #endif
+}
+
+eos_result_t eos_service_power_save_init(void)
+{
+    _power_save_event_id = eos_event_register_id();
+    _active = eos_config_get_bool(_POWER_SAVE_CONFIG_KEY, false);
+
+    if (_active)
+    {
+        eos_display_set_brightness(_POWER_SAVE_BRIGHTNESS, _BRIGHTNESS_TRANS_MS, true);
+        _wifi_was_enabled = eos_net_wifi_is_enabled();
+        _bt_was_enabled = eos_net_bt_is_enabled();
+        _radios_power_down();
+        _power_profile_apply(true);
+    }
+    EOS_LOG_I("Power save init: %s", _active ? "ACTIVE" : "inactive");
+    return EOS_OK;
 }
 
 eos_result_t eos_power_save_enter(void)
@@ -109,18 +144,25 @@ eos_result_t eos_power_save_enter(void)
     {
         return EOS_OK;
     }
+
+    /* 互斥:开启省电模式前先退出性能模式 */
+    if (eos_beast_mode_is_active())
+    {
+        EOS_LOG_I("Power save: exiting beast mode first");
+        eos_beast_mode_exit();
+    }
+
     _active = true;
     eos_config_set_bool(_POWER_SAVE_CONFIG_KEY, true);
 
     /* 记录省电前的无线状态,然后同时关闭 WiFi + 蓝牙 */
     _wifi_was_enabled = eos_net_wifi_is_enabled();
-    _bt_was_enabled = eos_config_get_bool(EOS_CONFIG_KEY_BLUETOOTH_BOOL, false);
-    eos_net_wifi_set_enabled(false);
-    eos_net_bt_set_enabled(false);
+    _bt_was_enabled = eos_net_bt_is_enabled();
+    _radios_power_down();
     EOS_LOG_I("Power save: WiFi/BT disabled (was %d/%d)", (int)_wifi_was_enabled, (int)_bt_was_enabled);
 
     eos_display_set_brightness(_POWER_SAVE_BRIGHTNESS, _BRIGHTNESS_TRANS_MS, true);
-    _cpu_freq_set(true);
+    _power_profile_apply(true);
 
     /* 回到主界面(省电模式下只能停留在此) */
     eos_activity_back_to_watchface();
@@ -143,7 +185,7 @@ eos_result_t eos_power_save_exit(void)
     eos_config_set_bool(_POWER_SAVE_CONFIG_KEY, false);
 
     eos_display_restore(EOS_DISPLAY_DURATION_MEDIUM);
-    _cpu_freq_set(false);
+    _power_profile_apply(false);
 
     /* 恢复省电前的无线状态 */
     eos_net_wifi_set_enabled(_wifi_was_enabled);

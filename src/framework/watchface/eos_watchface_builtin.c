@@ -22,6 +22,7 @@
 #include "eos_activity.h"
 #include "eos_app_list.h"   /* eos_app_list_enter(): open the app list page */
 #include "eos_app_header.h" /* eos_app_header_set_back_btn_visible() */
+#include "eos_power_off_page.h" /* up-swipe: power-off page (hardware deep sleep) */
 
 /* 16px 中文子集字体(仅含轮播文案 177 字符,fallback 到全字库 han_sans_22) */
 LV_FONT_DECLARE(eos_font_han_sans_16);
@@ -116,7 +117,7 @@ static const builtin_hint_frag_t _builtin_hint_playlist[] = {
 
 #define BUILTIN_HINT_FRAG_COUNT (sizeof(_builtin_hint_playlist) / sizeof(_builtin_hint_playlist[0]))
 #define BUILTIN_HINT_FRAG_MS 1300 /* 每个片段展示 1.3s */
-#define BUILTIN_HINT_GAP_MS 2000  /* 每句话之间停顿 2s */
+#define BUILTIN_HINT_GAP_MS 1500  /* 每句话之间停顿 1.5s */
 
 static lv_timer_t *_builtin_hint_timer = NULL;
 static int _hint_frag_index = 0;
@@ -422,12 +423,17 @@ static void _builtin_swipe_navigate(lv_coord_t dx, lv_coord_t dy)
          * - down-swipe opens the notifications drop-down (the same swipe
          *   panel the top-edge strip uses), so the gesture works both on
          *   the edge strip and in the central area.
-         * - up-swipe is intentionally disabled (no action). */
+         * - up-swipe opens the power-off page (tap the power icon to
+         *   enter hardware deep sleep; 5 taps on screen power it on). */
         if (dy > 0)
         {
             eos_msg_list_t *ml = eos_msg_list_get_instance();
             if (ml && ml->swipe_panel)
                 eos_swipe_panel_slide_down(ml->swipe_panel);
+        }
+        else if (dy < 0)
+        {
+            eos_power_off_page_open();
         }
     }
 }

@@ -100,7 +100,7 @@ void wos_statusbar_init(void)
     /* 顶部居中单 label;对齐 TOP_MID 稍下移,避开圆屏最顶部被裁切的几行像素 */
     s_label = lv_label_create(layer);
     lv_obj_set_width(s_label, lv_pct(100));
-    wos_style_text_primary(s_label, 12);   /* 10→12 加大 2 档(落 jbm_13);8 字符 ~62px,圆内 y17 界 124px 安全 */
+    wos_style_text_primary(s_label, 14);   /* 12→14 再加大 2 档(仍落 jbm_13 12..15 带);8 字符 ~104px,圆内 y17 界 124px 安全 */
     lv_obj_set_style_text_align(s_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_bg_opa(s_label, LV_OPA_TRANSP, 0);
     lv_obj_align(s_label, LV_ALIGN_TOP_MID, 0, 6);

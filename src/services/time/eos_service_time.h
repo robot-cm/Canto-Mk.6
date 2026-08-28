@@ -58,6 +58,21 @@ eos_result_t eos_service_time_init(void);
 void eos_time_ntp_sync_start(void);
 
 /**
+ * @brief Force an SNTP re-sync right now (bypasses the 5-minute debounce)
+ *
+ * 用于 shell `time ntp` 手动校时或用户主动触发。Wi-Fi 未连接时仅告警。
+ */
+void eos_time_ntp_force_sync(void);
+
+/**
+ * @brief Periodic housekeeping for time keeping
+ *
+ * 只要 Wi-Fi 保持连接,每 24h 自动重校一次 SNTP,抵消 RTC 走时漂移
+ * (BM8563 晶振漂移会随时间累积)。由时间服务内部的 lv_timer 周期调用。
+ */
+void eos_time_ntp_poll(void);
+
+/**
  * @brief Get system time
  * @return Current datetime with millisecond precision
  */

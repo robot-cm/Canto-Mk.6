@@ -30,6 +30,10 @@ typedef enum
 typedef struct
 {
     int (*set_power)(dev_power_state_t state);
+    /* 深睡前设置关机模式(timed=1: 定时唤醒自动开机,触摸无效;
+     * timed=0: 触摸模式,如累计 5 下点击开机)。真机板级实现;
+     * 模拟器可留空(NULL),PM 服务会判空跳过。 */
+    int (*set_poweroff_params)(bool timed, uint32_t wake_after_s);
 } eos_dev_power_ops_t;
 
 typedef struct

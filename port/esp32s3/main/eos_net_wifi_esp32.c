@@ -15,6 +15,8 @@
 
 #include "eos_net_wifi_esp32.h"
 
+#include <string.h>
+
 /* ESP-IDF */
 #include "esp_log.h"
 #include "esp_wifi.h"
@@ -37,6 +39,7 @@
 /*  static state                                                       */
 /* ------------------------------------------------------------------ */
 static bool            s_wifi_inited = false;
+static bool            s_wifi_started = false;
 static esp_netif_t    *s_sta_netif   = NULL;
 static EventGroupHandle_t s_conn_evt = NULL;
 static char            s_got_ip[16]  = "";
@@ -79,7 +82,18 @@ static void _ip_event_handler(void *arg, esp_event_base_t base,
 esp_err_t eos_net_wifi_esp32_init(void)
 {
     if (s_wifi_inited) {
-        return ESP_OK;
+        if (s_wifi_started) {
+            return ESP_OK;
+        }
+        esp_err_t restart_ret = esp_wifi_start();
+        if (restart_ret == ESP_OK) {
+            s_wifi_started = true;
+            ESP_LOGI(TAG, "Wi-Fi driver restarted");
+            return ESP_OK;
+        }
+        ESP_LOGE(TAG, "esp_wifi_start (restart) failed: %s",
+                 esp_err_to_name(restart_ret));
+        return restart_ret;
     }
 
     ESP_LOGI(TAG, "init: step1 nvs_flash_init (task=%s prio=%d)",
@@ -94,7 +108,6 @@ esp_err_t eos_net_wifi_esp32_init(void)
         ESP_LOGE(TAG, "nvs_flash_init failed: %s", esp_err_to_name(ret));
         return ret;
     }
-
     /* 2. default event loop (ignore "already created") */
     ret = esp_event_loop_create_default();
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
@@ -123,16 +136,21 @@ esp_err_t eos_net_wifi_esp32_init(void)
      * 连续 internal RAM(静态 buffer 无法放 PSRAM),系统运行一段时间后
      * 碎片化即 esp_wifi_init 返回 ESP_ERR_NO_MEM。
      * 这里把静态 buffer 压到最小、关闭 AMPDU/AMSDU,动态 buffer 经
-     * CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP 自动落到 8MB PSRAM。 */
+     * CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP 自动落到 8MB PSRAM。
+     *
+     * internal DMA 需求实测:static_rx 1.6KB/个 + rx_mgmt 1.6KB/个 +
+     * mgmt_sbuf 0.3KB/个。2+2+4 ≈ 7.6KB,恰好 ≤ eos_init() 之后 internal
+     * largest(≈7KB)的预算,使 early init(BT 之后 largest≈15KB)或
+     * 碎片化后的懒初始化都有较大概率成功。再低会明显影响吞吐/扫面稳定性。 */
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    cfg.static_rx_buf_num   = 4;
+    cfg.static_rx_buf_num   = 2;
     cfg.static_tx_buf_num   = 0;
     cfg.tx_buf_type         = 1; /* dynamic TX(PSRAM) */
     cfg.dynamic_rx_buf_num  = 16;
     cfg.dynamic_tx_buf_num  = 8;
     cfg.cache_tx_buf_num    = 0;
-    cfg.rx_mgmt_buf_num     = 5;
-    cfg.mgmt_sbuf_num       = 16;
+    cfg.rx_mgmt_buf_num     = 2;
+    cfg.mgmt_sbuf_num       = 4;
     cfg.ampdu_rx_enable     = 0;
     cfg.ampdu_tx_enable     = 0;
     cfg.amsdu_tx_enable     = 0;
@@ -142,8 +160,10 @@ esp_err_t eos_net_wifi_esp32_init(void)
     ret = esp_wifi_init(&cfg);
     ESP_LOGI(TAG, "init: step5 esp_wifi_init -> %s", esp_err_to_name(ret));
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "esp_wifi_init failed: %s (internal RAM 不足,已回滚,下次可重试)",
-                 esp_err_to_name(ret));
+        ESP_LOGE(TAG, "esp_wifi_init failed: %s (internal 不足: free=%u largest=%u, 已回滚,下次可重试)",
+                 esp_err_to_name(ret),
+                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                 (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
         goto err_after_wifi;
     }
     ret = esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
@@ -172,6 +192,7 @@ esp_err_t eos_net_wifi_esp32_init(void)
         ESP_LOGE(TAG, "esp_wifi_start failed: %s", esp_err_to_name(ret));
         goto err_after_wifi;
     }
+    s_wifi_started = true;
 
     s_conn_evt = xEventGroupCreate();
     if (!s_conn_evt) {
@@ -190,9 +211,33 @@ err_after_wifi:
     esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, _wifi_event_handler);
     esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, _ip_event_handler);
     esp_wifi_deinit();
+    s_wifi_started = false;
     if (s_sta_netif) {
         esp_netif_destroy(s_sta_netif);
         s_sta_netif = NULL;
+    }
+    return ret;
+}
+
+esp_err_t eos_net_wifi_esp32_stop(void)
+{
+    if (!s_wifi_inited || !s_wifi_started) {
+        return ESP_OK;
+    }
+
+    /* disconnect may return ESP_ERR_WIFI_NOT_CONNECT when already idle; it is
+     * still correct to stop the driver and release its PM/radio resources. */
+    esp_err_t disconnect_ret = esp_wifi_disconnect();
+    if (disconnect_ret != ESP_OK && disconnect_ret != ESP_ERR_WIFI_NOT_CONNECT) {
+        ESP_LOGW(TAG, "esp_wifi_disconnect before stop: %s",
+                 esp_err_to_name(disconnect_ret));
+    }
+    esp_err_t ret = esp_wifi_stop();
+    if (ret == ESP_OK) {
+        s_wifi_started = false;
+        ESP_LOGI(TAG, "Wi-Fi driver stopped for power save");
+    } else {
+        ESP_LOGE(TAG, "esp_wifi_stop failed: %s", esp_err_to_name(ret));
     }
     return ret;
 }
@@ -207,10 +252,16 @@ err_after_wifi:
  * ESP_ERR_NO_MEM。
  *
  * 内存门控:internal largest 低于阈值即跳过、保持懒初始化,绝不挤占
- * eos_init()/LVGL UI 加载所需的 internal 空间。蓝牙 early init 已占用
- * ~25-30KB,Wi-Fi 再占 ~20-30KB 可能超出预算——宁可不预初始化也不压垮 UI。
+ * eos_init()/LVGL UI 加载所需的 internal 空间。
+ *
+ * 预算分析(与 eos_net_wifi_esp32_init 内注释一致):
+ *   - esp_wifi_init 压缩后 internal 需求 ≈7.6KB
+ *   - BT early init 后 largest ≈15KB,eos_init() 后 ≈7KB
+ * 门控取 12KB:BT 之后 largest≥12KB 时 early init 尝试成功,且成功后
+ * 剩余 ≈7KB 与"仅 BT"现状持平,eos_init()/UI 不受影响;不足 12KB 则
+ * 跳过保持懒初始化(需求 7.6KB,碎片化时成功率也更高)。
  * 失败/跳过均不致命:s_wifi_inited 保持 false,scan/connect 时仍会重试。 */
-#define EOS_NET_WIFI_EARLY_MIN_LARGEST (40 * 1024)
+#define EOS_NET_WIFI_EARLY_MIN_LARGEST (12 * 1024)
 
 esp_err_t eos_net_wifi_esp32_early_init(void)
 {

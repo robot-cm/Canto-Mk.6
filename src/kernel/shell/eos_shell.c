@@ -30,6 +30,8 @@
 #include "eos_service_config.h"
 #include "eos_service_time.h"
 #include "eos_service_pm.h"
+#include "eos_service_power_save.h"
+#include "eos_service_beast_mode.h"
 #include "ui/wos/eos_wos.h"
 #include "ui/launcher/eos_launcher.h"
 #include "services/plugin/eos_plugin_manager.h"
@@ -38,7 +40,12 @@
 #include "eos_service_display.h"
 #include "lvgl.h"
 #ifdef EOS_PLATFORM_ESP32
-#include "esp_spiffs.h"   /* cmd_sd: SPIFFS 兜底时的容量统计 */
+#include "esp_spiffs.h"    /* cmd_sd: SPIFFS 兜底时的容量统计 */
+#include "esp_pm.h"        /* power status: DFS / Light-sleep 诊断 */
+#include "esp_heap_caps.h" /* cmd_prof: heap_caps 内存池统计 */
+#include "esp_timer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h" /* cmd_prof: uxTaskGetSystemState 采样 */
 #endif
 
 #define EOS_LOG_TAG "Shell"
@@ -79,6 +86,7 @@ static void cmd_ime(eos_shell_output_cb_t out, void *user, int argc, char **argv
 static void cmd_launcher(eos_shell_output_cb_t out, void *user, int argc, char **argv);
 static void cmd_power(eos_shell_output_cb_t out, void *user, int argc, char **argv);
 static void cmd_wos(eos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_prof(eos_shell_output_cb_t out, void *user, int argc, char **argv);
 
 static void shell_log_cb(const char *line, void *user);
 
@@ -119,7 +127,7 @@ static const eos_shell_cmd_t s_cmds[] =
     {"flash",   "show flash layout",                       cmd_flash},
     {"sd",      "show SD / storage status",                cmd_sd},
     {"rtc",     "show RTC device + system time status",    cmd_rtc},
-    {"time",    "time | time set <YYYY-MM-DD HH:MM:SS> | time unix <sec>", cmd_time},
+    {"time",    "time | time set <YYYY-MM-DD HH:MM:SS> | time unix <sec> | time ntp", cmd_time},
     {"display", "display [brightness <0-100> | bltest <0|1>]  (info / A/B test)", cmd_display},
     {"touch",   "show input devices",                      cmd_touch},
     {"wifi",    "wifi <status|enable|disable|scan|connect|disconnect|set>", cmd_wifi},
@@ -134,6 +142,7 @@ static const eos_shell_cmd_t s_cmds[] =
     {"launcher","launcher mode <v1|v2>  (switch launcher impl)", cmd_launcher},
     {"power",   "power <status|deep-sleep [sec]|wake>  (PM control)", cmd_power},
     {"wos",     "wos <list|open <id>|close|status|notify>  (WOS UI framework)", cmd_wos},
+    {"prof",    "prof - show resource utilization (SRAM/PSRAM/DMA/CPU)", cmd_prof},
 };
 
 static void cmd_launcher(eos_shell_output_cb_t out, void *user, int argc, char **argv)
@@ -199,6 +208,128 @@ static void cmd_psram(eos_shell_output_cb_t out, void *user, int argc, char **ar
     sh_out(out, user, "[psram] N/A on simulator (PSRAM is an ESP32-S3 resource)");
     sh_out(out, user, "  On real hardware PSRAM holds LVGL buffers, image/animation caches,");
     sh_out(out, user, "  page data and plugin runtime objects.");
+}
+
+/* prof - simple performance monitor: SRAM / PSRAM / DMA utilization and
+ * dual-core CPU usage sampled from FreeRTOS run-time stats over 100ms. */
+static void cmd_prof(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+#ifdef EOS_PLATFORM_ESP32
+    /* ---- memory pools ---- */
+    static const struct
+    {
+        const char *name;
+        uint32_t caps;
+    } pools[] = {
+        {"SRAM", MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT},
+        {"PSRAM", MALLOC_CAP_SPIRAM},
+        {"DMA", MALLOC_CAP_DMA},
+    };
+    size_t i;
+    for (i = 0; i < sizeof(pools) / sizeof(pools[0]); i++)
+    {
+        size_t total = heap_caps_get_total_size(pools[i].caps);
+        size_t free_b = heap_caps_get_free_size(pools[i].caps);
+        size_t used = total - free_b;
+        unsigned pct = total ? (unsigned)((used * 1000u) / total) : 0u;
+        sh_out(out, user, "  %-5s: used=%uKB (%u.%u%%)  free=%uKB  largest=%uKB",
+               pools[i].name,
+               (unsigned)(used / 1024u), pct / 10u, pct % 10u,
+               (unsigned)(free_b / 1024u),
+               (unsigned)(heap_caps_get_largest_free_block(pools[i].caps) / 1024u));
+    }
+    size_t min_int = heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    size_t min_psr = heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM);
+    sh_out(out, user, "  min-free (all-time low): SRAM=%uKB PSRAM=%uKB",
+           (unsigned)(min_int / 1024u), (unsigned)(min_psr / 1024u));
+
+    /* ---- CPU: FreeRTOS run-time stats over a 100ms window ---- */
+    UBaseType_t n = uxTaskGetNumberOfTasks();
+    if (n == 0)
+    {
+        return;
+    }
+    TaskStatus_t *arr = (TaskStatus_t *)eos_malloc(n * sizeof(TaskStatus_t));
+    if (!arr)
+    {
+        sh_out(out, user, "  CPU: sample failed (no memory)");
+        return;
+    }
+    uint32_t *run_a = (uint32_t *)eos_malloc(n * sizeof(uint32_t));
+    if (!run_a)
+    {
+        eos_free(arr);
+        sh_out(out, user, "  CPU: sample failed (no memory)");
+        return;
+    }
+
+    uint32_t total_a = 0, total_b = 0;
+    n = uxTaskGetSystemState(arr, n, &total_a);
+    for (UBaseType_t k = 0; k < n; k++)
+    {
+        run_a[k] = arr[k].ulRunTimeCounter;
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    n = uxTaskGetSystemState(arr, n, &total_b);
+    uint32_t dt = total_b - total_a;
+    if (dt == 0)
+    {
+        sh_out(out, user, "  CPU: run-time counter not ticking");
+        eos_free(run_a);
+        eos_free(arr);
+        return;
+    }
+
+    /* total busy = 100% - combined idle (one IDLE task per core) */
+    uint32_t idle_run = 0;
+    for (UBaseType_t k = 0; k < n; k++)
+    {
+        if (strncmp(arr[k].pcTaskName, "IDLE", 4) == 0)
+        {
+            idle_run += arr[k].ulRunTimeCounter - run_a[k];
+        }
+    }
+    uint32_t busy = 1000u - (uint32_t)((idle_run * 1000u) / dt);
+
+    sh_out(out, user, "  CPU  : %u.%u%% busy  (dual-core, %u tasks, 100ms window)",
+           busy / 10u, busy % 10u, (unsigned)n);
+
+    sh_out(out, user, "  top tasks:");
+    UBaseType_t shown = 0;
+    while (shown < n && shown < 8)
+    {
+        UBaseType_t best = 0;
+        uint32_t best_dr = 0;
+        for (UBaseType_t k = 0; k < n; k++)
+        {
+            uint32_t dr = arr[k].ulRunTimeCounter - run_a[k];
+            if (dr > best_dr)
+            {
+                best_dr = dr;
+                best = k;
+            }
+        }
+        if (best_dr == 0)
+        {
+            break;
+        }
+        uint32_t pct = (uint32_t)((best_dr * 1000u) / dt);
+        sh_out(out, user, "    %-12s %u.%u%%", arr[best].pcTaskName, pct / 10u, pct % 10u);
+        run_a[best] = arr[best].ulRunTimeCounter; /* exclude from next pick */
+        shown++;
+    }
+
+    eos_free(run_a);
+    eos_free(arr);
+#else
+    sh_out(out, user, "[prof] performance monitor: N/A on simulator toolchain");
+    sh_out(out, user, "  On real ESP32-S3 this reports SRAM / PSRAM / DMA usage and");
+    sh_out(out, user, "  dual-core CPU utilization (100ms run-time-stats sample).");
+#endif
 }
 
 static void cmd_memlog(eos_shell_output_cb_t out, void *user, int argc, char **argv)
@@ -312,7 +443,11 @@ static void cmd_time(eos_shell_output_cb_t out, void *user, int argc, char **arg
 {
     if (argc < 2)
     {
-        sh_out(out, user, "usage: time | time set <YYYY-MM-DD HH:MM:SS> | time unix <sec>");
+        eos_datetime_t now = eos_time_get();
+        sh_out(out, user, "%04d-%02d-%02d %02d:%02d:%02d (system, source=%s)",
+               now.year, now.month, now.day, now.hour, now.min, now.sec,
+               _time_source_name(eos_time_get_source()));
+        sh_out(out, user, "usage: time | time set <YYYY-MM-DD HH:MM:SS> | time unix <sec> | time ntp");
         return;
     }
 
@@ -368,7 +503,18 @@ static void cmd_time(eos_shell_output_cb_t out, void *user, int argc, char **arg
         return;
     }
 
-    sh_out(out, user, "usage: time | time set <YYYY-MM-DD HH:MM:SS> | time unix <sec>");
+    if (strcmp(argv[1], "ntp") == 0)
+    {
+#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+        eos_time_ntp_force_sync();
+        sh_out(out, user, "time: NTP re-sync triggered (watch serial log)");
+#else
+        sh_out(out, user, "time: NTP not available on simulator");
+#endif
+        return;
+    }
+
+    sh_out(out, user, "usage: time | time set <YYYY-MM-DD HH:MM:SS> | time unix <sec> | time ntp");
 }
 
 static void cmd_power(eos_shell_output_cb_t out, void *user, int argc, char **argv)
@@ -390,6 +536,35 @@ static void cmd_power(eos_shell_output_cb_t out, void *user, int argc, char **ar
         default: break;
         }
         sh_out(out, user, "[power] state : %s", s);
+        /* 省电模式(可触摸唤醒的深度省电:DFS + 自动 Light-sleep) */
+        sh_out(out, user, "[power] power-save : %s",
+               eos_power_save_is_active() ? "ACTIVE" : "inactive");
+        /* 性能模式(锁 240MHz 全速,与省电互斥;两者都关 = 智能模式) */
+        sh_out(out, user, "[power] beast-mode : %s",
+               eos_beast_mode_is_active() ? "ACTIVE" : "inactive");
+        sh_out(out, user, "[power] wifi : %s | bt : %s",
+               eos_net_wifi_is_enabled() ? "on" : "off",
+               eos_net_bt_is_enabled() ? "on" : "off");
+#ifdef EOS_PLATFORM_ESP32
+        /* DFS / 自动 Light-sleep 实际配置(esp_pm_configure 的真实结果) */
+        esp_pm_config_t cfg;
+        memset(&cfg, 0, sizeof(cfg));
+        esp_err_t perr = esp_pm_get_configuration(&cfg);
+        if (perr == ESP_OK)
+        {
+            sh_out(out, user, "[power] pm : CPU %d-%dMHz, auto-light-sleep=%d",
+                   (int)cfg.min_freq_mhz, (int)cfg.max_freq_mhz,
+                   (int)cfg.light_sleep_enable);
+        }
+        else
+        {
+            sh_out(out, user, "[power] pm config read failed: %s",
+                   esp_err_to_name(perr));
+        }
+        /* PM 锁列表:直接旁路输出到 stderr(esp_pm_dump_locks 只接受 FILE*) */
+        sh_out(out, user, "[power] pm locks (see serial):");
+        esp_pm_dump_locks(stderr);
+#endif
     }
     else if (strcmp(argv[1], "deep-sleep") == 0)
     {

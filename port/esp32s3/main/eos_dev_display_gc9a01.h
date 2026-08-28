@@ -44,6 +44,17 @@ void eos_dev_display_gc9a01_register(void);
  */
 esp_err_t eos_dev_display_gc9a01_lvgl_init(void);
 
+/* 清屏纯黑(关机深睡前置调用):
+ * GC9A01 无硬件 RST,面板 GRAM 保留最后一帧;深睡前刷黑,即使背光意外
+ * 点亮,残留帧也是黑帧,避免关机页面残影闪烁。 */
+void eos_dev_display_gc9a01_fill_black(void);
+
+/* 面板显示关闭(0x28 DISPOFF,关机深睡前调用):
+ * 仅关面板显示、保留 GRAM;深睡轮询每次唤醒的 boot 窗口背光反亮,
+ * 面板 OFF 后显示黑帧,消除"快速亮起"闪烁。轻量单命令,避免深睡前
+ * 大量 SPI 活动导致 esp_deep_sleep_start 失败。 */
+void eos_dev_display_gc9a01_display_off(void);
+
 #ifdef __cplusplus
 }
 #endif

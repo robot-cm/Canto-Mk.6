@@ -1,14 +1,19 @@
 /**
  * @file eos_album.c
- * @brief Album - native C photo viewer
+ * @brief Album - native C photo viewer with a lazy file manager
  *
- * Scans /sdcard/album/ recursively for images, sorted by name.
+ * - On enter: reads /sdcard/history/album/history.txt; if it holds a valid
+ *   image path, that image opens directly. Otherwise the file manager opens.
+ * - File manager (like TextHub FM): rooted at /sdcard/album/, lazy-loads the
+ *   directory tree on demand, lists only directories and images (.jpg/.jpeg/
+ *   .png), no thumbnails. Tap a folder to expand/collapse, tap an image to
+ *   open it. Wide rows (36px) for comfortable reading.
+ * - Viewer: prev/next arrows, tap to zoom, drag to pan, trash to delete,
+ *   counter bottom-left, FM button bottom-right. English only.
+ *
  * - JPEG: decoded to RGB565 with the bundled TJpgDec (streamed from SD,
  *         output capped at ALBUM_DECODE_MAX per side to stay OOM-safe).
  * - PNG: decoded by LVGL (LodePNG) from path, dimension pre-checked.
- *
- * UI (240x240 round): top scrolling file name, centered image, left/right
- * arrows, bottom trash (delete current), bottom-left counter. English only.
  */
 
 #include "eos_album.h"
@@ -38,11 +43,18 @@
 /* ------------------------------------------------------------------ */
 
 #define ALBUM_DIR          "/sdcard/album/"
-#define ALBUM_MAX          128           /* max images in the list          */
-#define ALBUM_MAX_DEPTH    4             /* max recursion depth             */
-#define ALBUM_IMG_MAX      150           /* fit box (px) for the image      */
-#define ALBUM_DECODE_MAX   1024          /* JPEG decode cap per side (px)   */
-#define ALBUM_PNG_MAX      1024          /* PNG side cap (LVGL decodes full) */
+#define ALBUM_HIST_DIR     "/sdcard/history/album/"
+#define ALBUM_HIST_FILE    "/sdcard/history/album/history.txt"
+#define ALBUM_MAX          128           /* max images in the viewer list     */
+#define ALBUM_IMG_MAX      150           /* fit box (px) for the image        */
+#define ALBUM_DECODE_MAX   1024          /* JPEG decode cap per side (px)     */
+#define ALBUM_PNG_MAX      1024          /* PNG side cap (LVGL decodes full)  */
+
+/* File manager (lazy tree) */
+#define FM_MAX_CHILD       256           /* max entries read per directory     */
+#define FM_MAX_VISIBLE     120           /* max rows rendered at once          */
+#define FM_ROW_H           36            /* row height (spacious)              */
+#define FM_DEPTH_MAX       6             /* max tree depth                     */
 
 /* Zoom levels (zoom=1.0 means fit-to-box). Used for the magnifier. */
 static const uint32_t ALBUM_ZOOM_LEVELS[] = {256, 384, 512, 768}; /* 1.0 / 1.5 / 2.0 / 3.0 (Q16) */
@@ -54,8 +66,10 @@ static const uint32_t ALBUM_ZOOM_LEVELS[] = {256, 384, 512, 768}; /* 1.0 / 1.5 /
 #define _UI_BG        0x12121A
 #define _UI_BTN_BG    0x1E1E2E
 #define _UI_BTN_TRASH 0xB03A2E
+#define _UI_PANEL     0x1A1A24
 #define _UI_TEXT      0xFFFFFF
 #define _UI_DIM       0x8A8AA0
+#define _UI_ACCENT    0x6FA8FF
 
 /* ------------------------------------------------------------------ */
 /* State                                                              */
@@ -69,19 +83,44 @@ typedef struct {
 
 static eos_activity_t *s_act;
 static lv_obj_t *s_root, *s_img, *s_name, *s_counter, *s_msg;
-static lv_obj_t *s_prev_btn, *s_next_btn, *s_trash_btn;
+static lv_obj_t *s_prev_btn, *s_next_btn, *s_trash_btn, *s_fm_btn;
 
 /* magnifier state (zoom > 1.0 lets the image overflow -> pan via joystick) */
 static int  s_zoom_idx = ALBUM_ZOOM_IDX_DEF;
 static int  s_pan_x = 0, s_pan_y = 0;   /* image offset from center, px */
 static int  s_img_w = 0, s_img_h = 0;   /* current image decoded size */
 
-static char (*s_paths)[EOS_FS_PATH_MAX]; /* list of full paths (PSRAM) */
+static char (*s_paths)[EOS_FS_PATH_MAX]; /* viewer list of full paths (PSRAM) */
 static int   s_count;
 static int   s_index;
 
 static uint8_t       *s_pixels;          /* current JPEG decode buffer */
 static lv_image_dsc_t s_dsc;
+
+/* File manager node (lazy-loaded tree, children are one array) */
+typedef struct _fm_node_t
+{
+    char name[EOS_FS_NAME_MAX];
+    char path[EOS_FS_PATH_MAX];
+    bool is_dir;
+    bool loaded;
+    bool expanded;
+    int  depth;
+    int  child_count;
+    struct _fm_node_t *children; /* malloc'd array, freed with subtree */
+} _fm_node_t;
+
+typedef struct
+{
+    _fm_node_t *node;
+    int         depth;
+} _fm_item_t;
+
+static bool s_fm_open;
+static lv_obj_t *s_fm_mask, *s_fm_panel, *s_fm_title, *s_fm_list;
+static _fm_node_t *s_fm_root;
+static _fm_item_t *s_fm_items;
+static int s_fm_item_count;
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                            */
@@ -130,6 +169,45 @@ static bool _png_dim(const char *path, uint32_t *w, uint32_t *h)
     *h = ((uint32_t)buf[20] << 24) | ((uint32_t)buf[21] << 16) |
          ((uint32_t)buf[22] << 8) | (uint32_t)buf[23];
     return (*w > 0 && *h > 0);
+}
+
+/* ------------------------------------------------------------------ */
+/* History (remember last opened image, like TextHub)                 */
+/* ------------------------------------------------------------------ */
+
+static void _write_history(const char *path)
+{
+    if (!path || !path[0]) return;
+    eos_storage_mkdir_recursive(ALBUM_HIST_DIR);
+    eos_storage_write_file(ALBUM_HIST_FILE, path, strlen(path));
+}
+
+static bool _read_history(char *out, size_t out_size)
+{
+    if (!out || out_size == 0) return false;
+    out[0] = '\0';
+
+    if (!eos_storage_is_file(ALBUM_HIST_FILE)) return false;
+
+    char *content = eos_storage_read_file(ALBUM_HIST_FILE);
+    if (!content) return false;
+
+    /* trim trailing whitespace / newline */
+    size_t len = strlen(content);
+    while (len > 0 && (content[len - 1] == '\n' || content[len - 1] == '\r' ||
+                       content[len - 1] == ' ')) {
+        content[--len] = '\0';
+    }
+
+    bool valid = (len > 0 && len < out_size &&
+                  strncmp(content, ALBUM_DIR, strlen(ALBUM_DIR)) == 0 &&
+                  eos_storage_is_file(content));
+    if (valid) {
+        strncpy(out, content, out_size - 1);
+        out[out_size - 1] = '\0';
+    }
+    eos_free(content);
+    return valid;
 }
 
 /* ------------------------------------------------------------------ */
@@ -258,15 +336,32 @@ static bool _decode_jpeg(const char *path, lv_image_dsc_t *dsc)
 }
 
 /* ------------------------------------------------------------------ */
-/* Scan + sort                                                        */
+/* Viewer list: flat scan of ONE directory (no recursion)             */
 /* ------------------------------------------------------------------ */
 
-static void _scan_dir(const char *dir, int depth)
+static int _cmp_path(const void *a, const void *b)
 {
-    if (depth > ALBUM_MAX_DEPTH || s_count >= ALBUM_MAX) return;
+    const char *pa = _base((const char *)a);
+    const char *pb = _base((const char *)b);
+    return strcasecmp(pa, pb);
+}
+
+static int _load_dir_pics(const char *dir)
+{
+    if (s_paths) {
+        eos_free(s_paths);
+        s_paths = NULL;
+    }
+    s_count = 0;
+    s_index = 0;
+
+    if (!eos_storage_is_dir(dir)) return 0;
+
+    s_paths = (char (*)[EOS_FS_PATH_MAX])eos_malloc(ALBUM_MAX * EOS_FS_PATH_MAX);
+    if (!s_paths) return 0;
 
     eos_dir_t d = eos_storage_dir_open(dir);
-    if (!d) return;
+    if (!d) return 0;
 
     char name[EOS_FS_NAME_MAX];
     while (s_count < ALBUM_MAX &&
@@ -278,41 +373,51 @@ static void _scan_dir(const char *dir, int depth)
         memcpy(full, dir, dl);
         full[dl] = '/';
         strcpy(full + dl + 1, name);
-        if (eos_storage_is_dir(full)) {
-            _scan_dir(full, depth + 1);
-        } else if (eos_storage_is_file(full) && _is_image_ext(name)) {
+        if (eos_storage_is_file(full) && _is_image_ext(name)) {
             strncpy(s_paths[s_count], full, EOS_FS_PATH_MAX - 1);
             s_paths[s_count][EOS_FS_PATH_MAX - 1] = '\0';
             s_count++;
         }
     }
     eos_storage_dir_close(d);
-}
 
-static int _cmp_path(const void *a, const void *b)
-{
-    const char *pa = _base((const char *)a);
-    const char *pb = _base((const char *)b);
-    return strcasecmp(pa, pb);
-}
-
-static int _reload(void)
-{
-    if (s_paths) {
-        eos_free(s_paths);
-        s_paths = NULL;
+    if (s_count > 1) {
+        qsort(s_paths, s_count, EOS_FS_PATH_MAX, _cmp_path);
     }
-    s_count = 0;
-    s_index = 0;
-
-    s_paths = (char (*)[EOS_FS_PATH_MAX])eos_malloc(ALBUM_MAX * EOS_FS_PATH_MAX);
-    if (!s_paths) return 0;
-
-    if (eos_storage_is_dir(ALBUM_DIR)) {
-        _scan_dir(ALBUM_DIR, 0);
-    }
-    qsort(s_paths, s_count, EOS_FS_PATH_MAX, _cmp_path);
     return s_count;
+}
+
+static void _show_current(void);
+
+/* Open a specific image: switch to its directory, locate it, show it. */
+static bool _open_image_path(const char *path)
+{
+    if (!path || !path[0]) return false;
+
+    /* derive directory from the path */
+    char dir[EOS_FS_PATH_MAX];
+    const char *slash = strrchr(path, '/');
+    if (!slash) return false;
+    size_t dl = (size_t)(slash - path);
+    if (dl == 0) return false;
+    if (dl >= sizeof(dir)) return false;
+    memcpy(dir, path, dl);
+    dir[dl] = '\0';
+
+    if (_load_dir_pics(dir) <= 0) {
+        return false;
+    }
+
+    /* locate index of the opened path */
+    s_index = 0;
+    for (int i = 0; i < s_count; i++) {
+        if (strcmp(s_paths[i], path) == 0) {
+            s_index = i;
+            break;
+        }
+    }
+    _show_current();
+    return true;
 }
 
 /* ------------------------------------------------------------------ */
@@ -386,7 +491,7 @@ static void _show_empty(void)
     lv_image_set_src(s_img, NULL);
     lv_label_set_text(s_name, "");
     lv_label_set_text(s_counter, "0/0");
-    _show_msg("NO IMAGES\nPut .jpg / .png\nunder /sdcard/album/");
+    _show_msg("NO IMAGES\nTap FM to browse");
 }
 
 static void _show_index(void)
@@ -465,6 +570,346 @@ static void _show_current(void)
     _apply_view();
     _show_name();
     _show_index();
+
+    /* remember last viewed image for next launch */
+    _write_history(s_paths[s_index]);
+}
+
+/* ------------------------------------------------------------------ */
+/* File manager (lazy tree, no thumbnails)                            */
+/* ------------------------------------------------------------------ */
+
+static void _fm_children_free(_fm_node_t *n)
+{
+    if (!n) return;
+    if (n->children) {
+        for (int i = 0; i < n->child_count; i++) {
+            _fm_children_free(&n->children[i]);
+        }
+        eos_free(n->children);
+        n->children = NULL;
+    }
+    n->child_count = 0;
+    n->loaded = false;
+    n->expanded = false;
+}
+
+static int _fm_cmp(const void *a, const void *b)
+{
+    const _fm_node_t *na = (const _fm_node_t *)a;
+    const _fm_node_t *nb = (const _fm_node_t *)b;
+    if (na->is_dir != nb->is_dir) return nb->is_dir - na->is_dir;
+    return strcasecmp(na->name, nb->name);
+}
+
+/* Lazy load: read one directory into an array of children nodes. */
+static bool _fm_node_load(_fm_node_t *n)
+{
+    if (n->loaded) return true;
+    if (n->depth >= FM_DEPTH_MAX) { n->loaded = true; return false; }
+
+    /* pass 1: count entries */
+    eos_dir_t d = eos_storage_dir_open(n->path);
+    if (!d) {
+        n->loaded = true;
+        EOS_LOG_W("Album: opendir FAIL %s", n->path);
+        return false;
+    }
+    int cnt = 0;
+    char name[EOS_FS_NAME_MAX];
+    while (eos_storage_dir_read(d, name, sizeof(name)) == EOS_OK) {
+        if (name[0] == '\0' || name[0] == '.') continue;
+        if (++cnt > FM_MAX_CHILD) { cnt = FM_MAX_CHILD; break; }
+    }
+    eos_storage_dir_close(d);
+    EOS_LOG_I("Album: dir %s raw=%d", n->path, cnt);
+
+    if (cnt == 0) { n->loaded = true; return false; }
+
+    _fm_node_t *arr = (_fm_node_t *)eos_malloc_zeroed((size_t)cnt * sizeof(_fm_node_t));
+    if (!arr) { n->loaded = true; return false; }
+
+    /* pass 2: fill, keeping only directories + images */
+    d = eos_storage_dir_open(n->path);
+    if (!d) { eos_free(arr); n->loaded = true; return false; }
+    int i = 0;
+    while (i < cnt && eos_storage_dir_read(d, name, sizeof(name)) == EOS_OK) {
+        if (name[0] == '\0' || name[0] == '.') continue;
+        char full[EOS_FS_PATH_MAX];
+        size_t dl = strlen(n->path), nl = strlen(name);
+        if (dl + 1 + nl + 1 > sizeof(full)) continue;
+        memcpy(full, n->path, dl);
+        full[dl] = '/';
+        strcpy(full + dl + 1, name);
+
+        bool is_dir = eos_storage_is_dir(full);
+        if (!is_dir && !_is_image_ext(name)) continue; /* only dirs + images */
+
+        _fm_node_t *c = &arr[i];
+        strncpy(c->name, name, sizeof(c->name) - 1);
+        c->name[sizeof(c->name) - 1] = '\0';
+        strncpy(c->path, full, sizeof(c->path) - 1);
+        c->path[sizeof(c->path) - 1] = '\0';
+        c->is_dir = is_dir;
+        c->depth  = n->depth + 1;
+        i++;
+        if (i >= FM_MAX_CHILD) break;
+    }
+    eos_storage_dir_close(d);
+
+    n->children = arr;
+    n->child_count = i;
+    n->loaded = true;
+    if (i > 1) {
+        qsort(arr, (size_t)i, sizeof(_fm_node_t), _fm_cmp);
+    }
+    EOS_LOG_I("Album: dir %s children=%d", n->path, i);
+    return i > 0;
+}
+
+static void _fm_build_items(_fm_node_t *n, int depth, int *cnt)
+{
+    if (*cnt >= FM_MAX_VISIBLE) return;
+    if (!n) return;
+    s_fm_items[*cnt].node = n;
+    s_fm_items[*cnt].depth = depth;
+    (*cnt)++;
+
+    /* only directories recurse (images are leaves: click opens them) */
+    if (n->is_dir && n->expanded && n->children) {
+        for (int i = 0; i < n->child_count && *cnt < FM_MAX_VISIBLE; i++) {
+            _fm_build_items(&n->children[i], depth + 1, cnt);
+        }
+    }
+}
+
+static void _fm_row_cb(lv_event_t *e); /* fwd decl */
+
+static void _fm_rebuild(void)
+{
+    if (!s_fm_open || !s_fm_list) {
+        EOS_LOG_W("Album: rebuild skip open=%d list=%p", s_fm_open, (void *)s_fm_list);
+        return;
+    }
+
+    /* clear old rows */
+    lv_obj_clean(s_fm_list);
+
+    if (!s_fm_root) {
+        EOS_LOG_E("Album: rebuild root NULL");
+        return;
+    }
+    if (!s_fm_root->loaded) _fm_node_load(s_fm_root);
+
+    if (!s_fm_items) {
+        s_fm_items = (_fm_item_t *)eos_malloc(FM_MAX_VISIBLE * sizeof(_fm_item_t));
+        if (!s_fm_items) {
+            EOS_LOG_E("Album: items alloc FAIL size=%u",
+                      (unsigned)(FM_MAX_VISIBLE * sizeof(_fm_item_t)));
+            return;
+        }
+    }
+    int cnt = 0;
+    _fm_build_items(s_fm_root, 0, &cnt);
+    s_fm_item_count = cnt;
+
+    int list_w = lv_obj_get_width(s_fm_list);
+    if (list_w <= 0) list_w = 196;
+    int name_w = list_w - 30 - 8; /* indent room + arrow */
+
+    for (int i = 0; i < cnt; i++) {
+        _fm_node_t *node = s_fm_items[i].node;
+        int depth = s_fm_items[i].depth;
+
+        lv_obj_t *row = lv_button_create(s_fm_list);
+        lv_obj_remove_style_all(row);
+        lv_obj_set_size(row, list_w, FM_ROW_H);
+        /* rows must not be scroll targets or they swallow the drag gesture */
+        lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_style_bg_color(row, lv_color_hex(_UI_TEXT), 0);
+        lv_obj_set_style_bg_opa(row, i % 2 ? 10 : 0, 0);   /* faint zebra */
+        lv_obj_set_style_radius(row, 8, 0);
+        lv_obj_set_style_border_width(row, 0, 0);
+        lv_obj_set_style_pad_all(row, 0, 0);
+        lv_obj_set_pos(row, 0, i * FM_ROW_H);
+
+        char rowbuf[EOS_FS_NAME_MAX + 4];
+        if (node->is_dir) {
+            snprintf(rowbuf, sizeof(rowbuf), "%s/", node->name);
+        } else {
+            snprintf(rowbuf, sizeof(rowbuf), "%s", node->name);
+        }
+
+        lv_obj_t *lbl = lv_label_create(row);
+        eos_label_set_font_size(lbl, EOS_FONT_SIZE_TINY);
+        lv_obj_set_style_text_color(lbl, node->is_dir ? lv_color_hex(_UI_ACCENT)
+                                                      : lv_color_hex(_UI_TEXT), 0);
+        lv_obj_set_style_text_opa(lbl, LV_OPA_COVER, 0);
+        lv_obj_set_width(lbl, name_w);
+        lv_obj_align(lbl, LV_ALIGN_LEFT_MID, 8 + depth * 12, 0);
+        lv_label_set_long_mode(lbl, LV_LABEL_LONG_MODE_CLIP);
+        lv_obj_set_style_text_align(lbl, LV_TEXT_ALIGN_LEFT, 0);
+        lv_label_set_text(lbl, rowbuf);
+        lv_obj_remove_flag(lbl, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_remove_flag(lbl, LV_OBJ_FLAG_SCROLLABLE);
+
+        if (node->is_dir) {
+            lv_obj_t *arr = lv_label_create(row);
+            lv_obj_set_style_text_font(arr, &EOS_FONT_ICON, 0);
+            lv_obj_set_style_text_color(arr, lv_color_hex(_UI_DIM), 0);
+            lv_label_set_text(arr, node->expanded ? RI_ARROW_DOWN_S_LINE
+                                                  : RI_ARROW_RIGHT_S_LINE);
+            lv_obj_align(arr, LV_ALIGN_RIGHT_MID, -8, 0);
+            lv_obj_remove_flag(arr, LV_OBJ_FLAG_CLICKABLE);
+        }
+
+        lv_obj_add_event_cb(row, _fm_row_cb, LV_EVENT_CLICKED, node);
+    }
+}
+
+static void _fm_close(void)
+{
+    if (!s_fm_open) return;
+    s_fm_open = false;
+
+    if (s_fm_items) { eos_free(s_fm_items); s_fm_items = NULL; }
+    s_fm_item_count = 0;
+    if (s_fm_root) {
+        _fm_children_free(s_fm_root);
+        eos_free(s_fm_root);   /* root itself is a single malloc'd node */
+        s_fm_root = NULL;
+    }
+
+    if (s_fm_mask) { lv_obj_delete(s_fm_mask); s_fm_mask = NULL; }
+    s_fm_panel = NULL;
+    s_fm_list  = NULL;
+    s_fm_title = NULL;
+}
+
+static void _fm_row_cb(lv_event_t *e)
+{
+    _fm_node_t *node = (_fm_node_t *)lv_event_get_user_data(e);
+    if (!node) return;
+    EOS_LOG_I("Album: click %s is_dir=%d expanded=%d", node->name,
+              node->is_dir, node->expanded);
+
+    if (node->is_dir) {
+        if (node->expanded) {
+            node->expanded = false;
+            _fm_children_free(node);
+        } else {
+            if (!node->loaded) _fm_node_load(node);
+            node->expanded = true;
+        }
+        _fm_rebuild();
+    } else {
+        char path[EOS_FS_PATH_MAX];
+        strncpy(path, node->path, sizeof(path) - 1);
+        path[sizeof(path) - 1] = '\0';
+        _fm_close();
+        _open_image_path(path);
+    }
+}
+
+static void _fm_close_cb(lv_event_t *e)
+{
+    (void)e;
+    _fm_close();
+}
+
+static void _fm_open(void);
+
+static void _fm_open_cb(lv_event_t *e)
+{
+    (void)e;
+    _fm_open();
+}
+
+static void _fm_open(void)
+{
+    if (s_fm_open) return;
+    s_fm_open = true;
+    EOS_LOG_I("Album: fm open");
+
+    /* mask: full-screen dim + tap-to-close */
+    s_fm_mask = lv_obj_create(s_root);
+    lv_obj_remove_style_all(s_fm_mask);
+    lv_obj_set_size(s_fm_mask, 240, 240);
+    lv_obj_set_pos(s_fm_mask, 0, 0);
+    lv_obj_set_style_bg_color(s_fm_mask, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_opa(s_fm_mask, 160, 0);
+    lv_obj_set_style_radius(s_fm_mask, 0, 0);
+    lv_obj_clear_flag(s_fm_mask, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_event_cb(s_fm_mask, _fm_close_cb, LV_EVENT_CLICKED, NULL);
+
+    /* panel */
+    s_fm_panel = lv_obj_create(s_fm_mask);
+    lv_obj_remove_style_all(s_fm_panel);
+    lv_obj_set_size(s_fm_panel, 212, 208);
+    lv_obj_set_pos(s_fm_panel, 14, 24);
+    lv_obj_set_style_bg_color(s_fm_panel, lv_color_hex(_UI_PANEL), 0);
+    lv_obj_set_style_bg_opa(s_fm_panel, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(s_fm_panel, 14, 0);
+    lv_obj_set_style_border_width(s_fm_panel, 0, 0);
+    lv_obj_clear_flag(s_fm_panel, LV_OBJ_FLAG_SCROLLABLE);
+    /* panel sits above the mask; no event bubbling to mask by default */
+
+    /* header: path + close */
+    s_fm_title = lv_label_create(s_fm_panel);
+    eos_label_set_font_size(s_fm_title, EOS_FONT_SIZE_MICRO);
+    lv_obj_set_style_text_color(s_fm_title, lv_color_hex(_UI_DIM), 0);
+    lv_obj_set_size(s_fm_title, 140, 18);
+    lv_obj_set_pos(s_fm_title, 14, 10);
+    lv_label_set_long_mode(s_fm_title, LV_LABEL_LONG_MODE_CLIP);
+    lv_label_set_text(s_fm_title, ALBUM_DIR);
+    lv_obj_remove_flag(s_fm_title, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(s_fm_title, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_t *close = lv_button_create(s_fm_panel);
+    lv_obj_remove_style_all(close);
+    lv_obj_set_size(close, 26, 22);
+    lv_obj_set_pos(close, 176, 8);
+    lv_obj_set_style_bg_color(close, lv_color_hex(_UI_TEXT), 0);
+    lv_obj_set_style_bg_opa(close, 18, 0);
+    lv_obj_set_style_radius(close, 8, 0);
+    lv_obj_add_event_cb(close, _fm_close_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *cl = lv_label_create(close);
+    lv_obj_set_style_text_font(cl, &EOS_FONT_ICON, 0);
+    lv_obj_set_style_text_color(cl, lv_color_hex(_UI_TEXT), 0);
+    lv_label_set_text(cl, RI_CLOSE_FILL);
+    lv_obj_center(cl);
+    lv_obj_remove_flag(cl, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(cl, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* list (5 rows of FM_ROW_H visible) */
+    s_fm_list = lv_obj_create(s_fm_panel);
+    lv_obj_remove_style_all(s_fm_list);
+    lv_obj_set_size(s_fm_list, 200, 172);
+    lv_obj_set_pos(s_fm_list, 6, 30);
+    lv_obj_set_style_radius(s_fm_list, 10, 0);
+    lv_obj_set_style_pad_all(s_fm_list, 0, 0);
+    lv_obj_set_style_border_width(s_fm_list, 0, 0);
+    lv_obj_add_flag(s_fm_list, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(s_fm_list, LV_SCROLLBAR_MODE_AUTO);
+    lv_obj_set_scroll_dir(s_fm_list, LV_DIR_VER);
+    lv_obj_set_scroll_snap_y(s_fm_list, LV_SCROLL_SNAP_NONE);
+    lv_obj_set_style_bg_color(s_fm_list, lv_color_hex(_UI_DIM), LV_PART_SCROLLBAR);
+    lv_obj_set_style_bg_opa(s_fm_list, LV_OPA_COVER, LV_PART_SCROLLBAR);
+    lv_obj_set_style_radius(s_fm_list, 4, LV_PART_SCROLLBAR);
+
+    /* root node */
+    s_fm_root = (_fm_node_t *)eos_malloc_zeroed(sizeof(_fm_node_t));
+    if (s_fm_root) {
+        strncpy(s_fm_root->name, "album", sizeof(s_fm_root->name) - 1);
+        strncpy(s_fm_root->path, ALBUM_DIR, sizeof(s_fm_root->path) - 1);
+        s_fm_root->is_dir = true;
+        s_fm_root->expanded = true;    /* show root level immediately */
+        _fm_node_load(s_fm_root);      /* load root lazily now */
+    } else {
+        EOS_LOG_E("Album: root alloc FAIL size=%u", (unsigned)sizeof(_fm_node_t));
+    }
+
+    _fm_rebuild();
 }
 
 /* ------------------------------------------------------------------ */
@@ -473,6 +918,7 @@ static void _show_current(void)
 
 static void _prev_cb(lv_event_t *e)
 {
+    (void)e;
     if (s_count <= 0) return;
     s_index = (s_index + s_count - 1) % s_count;
     _show_current();
@@ -480,6 +926,7 @@ static void _prev_cb(lv_event_t *e)
 
 static void _next_cb(lv_event_t *e)
 {
+    (void)e;
     if (s_count <= 0) return;
     s_index = (s_index + 1) % s_count;
     _show_current();
@@ -487,6 +934,7 @@ static void _next_cb(lv_event_t *e)
 
 static void _trash_cb(lv_event_t *e)
 {
+    (void)e;
     if (s_count <= 0) return;
 
     const char *path = s_paths[s_index];
@@ -618,6 +1066,10 @@ static void _build_ui(eos_activity_t *act)
     s_trash_btn = _make_btn(s_root, 48, 32, _UI_BTN_TRASH, LV_ALIGN_BOTTOM_MID, 0, -16,
                             _trash_cb, RI_DELETE_BIN_5_LINE);
 
+    /* file manager button (bottom-right) */
+    s_fm_btn = _make_btn(s_root, 48, 32, _UI_BTN_BG, LV_ALIGN_BOTTOM_RIGHT, -8, -16,
+                         _fm_open_cb, RI_FOLDER_3_LINE);
+
     /* counter */
     s_counter = lv_label_create(s_root);
     lv_obj_set_style_text_color(s_counter, lv_color_hex(_UI_DIM), 0);
@@ -651,16 +1103,24 @@ static void _on_enter(eos_activity_t *act)
     s_act = act;
     eos_activity_set_swipe_back_handler(act, _swipe_back_cb);
     _build_ui(act);
-    if (_reload() > 0) {
-        _show_current();
+
+    /* resume last viewed image; otherwise open the file manager */
+    char hist[EOS_FS_PATH_MAX];
+    if (_read_history(hist, sizeof(hist)) && _is_image_ext(_base(hist))) {
+        if (!_open_image_path(hist)) {
+            _show_empty();
+            _fm_open();
+        }
     } else {
         _show_empty();
+        _fm_open();
     }
 }
 
 static void _on_destroy(eos_activity_t *act)
 {
     (void)act;
+    if (s_fm_open) _fm_close();
     _free_pixels();
     if (s_paths) {
         eos_free(s_paths);

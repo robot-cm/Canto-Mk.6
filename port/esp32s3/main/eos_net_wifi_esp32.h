@@ -26,6 +26,15 @@ extern "C" {
 esp_err_t eos_net_wifi_esp32_init(void);
 
 /**
+ * @brief Stop the ESP-IDF Wi-Fi driver without deinitializing its allocation.
+ *
+ * This releases the radio and its ESP_PM_APB_FREQ_MAX lock while preserving
+ * the netif/event setup, so a later eos_net_wifi_esp32_init() can restart the
+ * station without the fragile reinitialization path.
+ */
+esp_err_t eos_net_wifi_esp32_stop(void);
+
+/**
  * @brief Early-init hook: called by app_main BEFORE eos_init(), while internal
  *        RAM is still contiguous (esp_wifi_init needs internal DMA buffers that
  *        fail with ESP_ERR_NO_MEM once the heap is fragmented at runtime).

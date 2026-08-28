@@ -19,6 +19,7 @@ set(MAIN_REQUIRES
     esp_netif
     nvs_flash
     esp_event
+    esp_pm
     fatfs
     esp_driver_sdspi
     sdmmc
@@ -112,6 +113,7 @@ target_sources(${COMPONENT_LIB} PRIVATE
     "${EOS_ROOT}/resources/images/icon/eos_icon_wifi.c"
     "${EOS_ROOT}/resources/images/icon/eos_icon_torch.c"
     "${EOS_ROOT}/resources/images/icon/eos_icon_powersave.c"
+    "${EOS_ROOT}/resources/images/icon/eos_icon_beastmode.c"
     "${EOS_ROOT}/resources/images/icon/eos_icon_setting.c"
     # Settings 页面图标(wireguard.webp 普通转换; pwd.webp 白色抠图生成)
     "${EOS_ROOT}/resources/images/icon/eos_icon_wireguard.c"

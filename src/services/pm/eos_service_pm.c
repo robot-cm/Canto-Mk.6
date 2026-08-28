@@ -221,6 +221,36 @@ void eos_pm_deep_sleep_request(uint32_t duration_sec)
     }
 }
 
+void eos_pm_power_off(void)
+{
+    EOS_LOG_I("Power off requested");
+    if (_ds_timer)
+    {
+        lv_timer_delete(_ds_timer);
+        _ds_timer = NULL;
+    }
+    _ds_mask_create();
+    _pm_set_state(EOS_PM_DEEP_SLEEP);
+    /* 真机(ESP32-S3): 板级 set_power(DEV_POWER_STATE_OFF) 进入硬件深睡
+     * (深睡 + RTC 定时器唤醒轮询 CHSC6X 触摸,累计 5 次触摸开机),
+     * esp_deep_sleep_start() 不返回,芯片重新启动后从 app_main 继续。
+     * 模拟器: 无电源硬件,黑屏 mask 已由 _ds_mask_create() 提供。 */
+    eos_dev_power_t *dev = eos_dev_power_get_instance();
+    if (dev->ops && dev->ops->set_power)
+        dev->ops->set_power(DEV_POWER_STATE_OFF);
+}
+
+/* 定时关机:先通知板级"定时模式"(触摸无效,到点自动开机),再走关机流程。
+ * 板级 set_poweroff_params 判空,模拟器/旧实现不受影响。 */
+void eos_pm_power_off_timed(uint32_t wake_after_s)
+{
+    EOS_LOG_I("Power off requested (timed, wake after %u s)", (unsigned)wake_after_s);
+    eos_dev_power_t *dev = eos_dev_power_get_instance();
+    if (dev->ops && dev->ops->set_poweroff_params)
+        dev->ops->set_poweroff_params(true, wake_after_s);
+    eos_pm_power_off();
+}
+
 void eos_pm_reset_timer(void)
 {
     EOS_LOG_I("Sleep timer reset");

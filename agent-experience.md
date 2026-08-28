@@ -603,12 +603,71 @@ static void _fm_build_items(th_node_t *n, int depth, int *cnt)
 
 ---
 
-## 十二、Album 大图解码失败（TJpgDec scale 语义，2026-08-27 修复）
+## 十二、Album C 重写：懒加载文件管理器 + 历史记录 + 字母键盘密码（2026-08）
 
-### 12.1 症状
+> 目标：把 Album 从「单目录平铺 + 无导航」改造成「仿 Texthub 文件管理器 + 历史恢复 + 单目录浏览」，
+> 同时把关屏密码（settings/pwd 与 lock page）从数字键盘升级为共享字母键盘（任意字符）。
+> 来源：真实改写 `src/apps/album/eos_album.c`、`src/apps/settings/eos_settings.c`、`src/ui/pages/lock/eos_lock_page.c`。
 
-打开一张 1920×1080 JPEG（如 Cyberpunk 游戏截图）时,Album 提示「解码失败」,
-退出回 Launcher。日志:
+### 12.1 总体改动范围（含一处 app 外修改）
+
+| 文件 | 归属 | 改动 |
+|---|---|---|
+| `src/apps/album/eos_album.c` | app 内 | 新增懒加载文件管理器、history、单目录扫描 |
+| `src/apps/settings/eos_settings.c` | app 内 | 密码输入改用 `eos_input_page` 共享键盘（任意字符） |
+| `src/ui/pages/lock/eos_lock_page.c` | **app 外** | 锁屏验证键盘换成同一个共享圆键盘（用户已确认） |
+
+**app 外修改原因**：密码改为字母键盘后，锁屏原 numpad 无法输入字母密码，必须同步替换，否则字母密码无法解锁。
+
+### 12.2 Album C 文件管理器设计（复用 Texthub FM 套路）
+
+- **复用而非复制**：Album 的 `_fm_*` 系列（`_fm_node_load` 懒加载、`_fm_build_items` 收集、`_fm_rebuild` 渲染、`_fm_children_free` 释放子树）直接移植自 Texthub，仅做三处定制：
+  1. 过滤规则：`_is_image_ext`（`.jpg/.jpeg/.png`），且 `_is_dir || image` 才入树（参考 11.4 教训：**叶子节点必须进可见列表**）。
+  2. 根目录固定 `/sdcard/album/`，只浏览相册目录（符合 Album 定位）。
+  3. 行高 36px（疏松），目录在前按名排序（`qsort` + `_fm_cmp`：目录优先、同类型 `strcasecmp`）。
+- **历史恢复**（仿 Texthub）：打开图片即写 `/sdcard/history/album/history.txt`；启动先读并校验「前缀 `/sdcard/album/` + `eos_storage_is_file`」，合法则直接打开，否则进 FM。删除图片后 history 指向已删文件 → 下次启动校验失败 → 自动进 FM。
+- **单目录浏览**：原 Album 是「递归扫描全部图片」，改为「打开某图 → 取其目录 → 扫描该目录图片 → 定位该图」。翻页列表只是当前目录的平铺数组（仍按名排序），不再是全文件系统递归（避免 JS 版 OOM 老路，见 9.1）。
+
+### 12.3 查看器缩放/平移手势（单点触摸硬件）
+
+- 硬件只有单点触摸（CHSC6X），**无 pinch**，所以用「tap 切换 zoom 档 / drag 平移」模拟：
+  - `_img_event_cb` 在 `PRESSED` 记录起点；`PRESSING` 超 8px 判为拖拽；`RELEASED` 若无拖拽则切 zoom。
+  - zoom 用 `ALBUM_ZOOM_LEVELS[] = {256,384,512,768}`（Q16 倍率），`lv_image_set_scale`；放大后图片溢出圆 clip，拖动改 `lv_obj_set_x/y` 实现 pan。`_apply_view` 里先按 `_fit_scale` 求基准倍率，再乘 zoom，并对 pan 做 clamp 防止露边。
+  - **放大时右滑 = 拖图看细节**，故 `_swipe_back_cb` 在 `s_zoom_idx>0` 时返回 `true`（吞掉系统退出手势）；未放大时仍允许右滑退出。
+
+### 12.4 密码改用共享字母键盘（settings + 锁屏）
+
+- `eos_input_page` 是 WiFi/Alarm 共用的输入框页面（圆键盘），API：
+  ```c
+  typedef enum { EOS_INPUT_TEXT, EOS_INPUT_PASSWORD } eos_input_mode_t;
+  lv_obj_t *eos_input_page_enter(const char *title, int max_len, eos_input_mode_t mode,
+                                eos_input_result_cb_t cb, const char *init);
+  ```
+  `@ok`/`@cancel` 键分别发 `LV_EVENT_READY` / LVGL 内置 cancel 事件（已实测）。
+- **settings/pwd**（`eos_settings.c`）：移除 Simple(4/6位) 开关；密码可为任意字符；流程 = 三步状态机（`EOS_PWD_STEP_NEW_1/NEW_2` 或 `CHANGE_OLD/NEW_1/NEW_2`）；旧密码错 3 次中止；空密码拒绝；用 `eos_malloc`+`memcpy` 存密码（不要用 `eos_strdup` 混入 libc 分配器，见第一节跨堆教训）。
+- **锁屏**（`eos_lock_page.c`）同步换键盘：移除 `eos_numpad` 依赖，改用 `eos_round_keyboard_create` + `lv_textarea`（password mode）；`@ok` 触发验证；错误时 shake（lv_anim）+ 红字 + 清空；布局按 240×240 下半屏定位（键盘 y=120~240，输入框 y<120）。
+
+### 12.5 验证 / 踩坑
+
+- **编译前必查的前向声明**：C 里「使用在定义之前」的函数要显式前向声明，否则 ESP-IDF（`-Werror` 隐含）报 implicit declaration。`_show_current` 被 `_open_image_path` 调用、`_fm_open` 被 `_fm_open_cb` 调用，二者定义均在调用点之后，必须加 `static void xxx(void);` 前向声明（lint 工具不一定报，但编译器会）。
+- **图标仅能用 eos_font_icon 子集**：`RI_*_LINE/FILL` 等码点来自 `src/ui/symbol/eos_icon.h`，C 里引用前必须 `search_content` 确认宏存在；用子集外码点会显示空白。本次用到：`RI_FOLDER_3_LINE`、`RI_ARROW_DOWN_S_LINE`、`RI_ARROW_RIGHT_S_LINE`、`RI_CLOSE_FILL`、`RI_DELETE_BIN_5_LINE`、`RI_KEYBOARD_BOX_FILL`。
+- **字体**：`lv_font_montserrat_12/14/16` 已在 `port/esp32s3/main/lv_conf.h` 启用（`LV_FONT_MONTSERRAT_12/14 = 1`），可直接 `&lv_font_montserrat_14`；但若不确定，优先用 `eos_label_set_font_size(lbl, EOS_FONT_SIZE_*)` 自动选档（见第二节）。
+- **LVGL9 API 确认**：`lv_image_decoder_get_info(path, &hdr)`、`lv_sqrt32`、`lv_obj_set_style_bg_opa(mask, 160, 0)`（0~255 合法）均可用；`lv_textarea_set_placeholder_text` 在 password mode 下显示正常。
+- **history 校验**：读文件后必须 `eos_free`（`eos_storage_read_file` 返回 malloc 内存）；路径结尾 `\n` 要 trim，否则前缀比较失败。
+- 编译命令：`cd port/esp32s3 && source ~/esp/esp-idf/export.sh && idf.py build`（整固件重编，不能热更）。唯一残留 warning 是无关的原 `_bt_paired_fill` snprintf 截断，非本次改动。
+
+### 12.6 字节级教训
+
+- 「复用既有实现」永远先做最小必要改造：本会话 Album 的 FM 直接复用 Texthub 的两层模型（collect vs render），只改过滤/根/行高，避开 11.4 记录的「叶子节点被硬排除」坑。
+- app 内改动与 app 外改动要分清并在总结里单列；底层（锁屏页）改动需用户明确同意，否则优先只改 app 内。
+
+---
+
+## 十三、Album 大图解码失败（TJpgDec scale 语义，2026-08-27 修复）
+
+### 13.1 症状
+
+打开一张 1920×1080 JPEG（如 Cyberpunk 游戏截图）时,Album 提示「解码失败」,退出回 Launcher。日志:
 
 ```text
 Album: decode /sdcard/album//_1920x1080Corporate_Pl_q70_1920x1080.jpg
@@ -618,7 +677,7 @@ Album: jd_decomp FAIL rc=5 w=1920 h=1079 scale=4
 
 而 ≤1024 宽的小图（scale≤2）能正常显示。
 
-### 12.2 排查过程
+### 13.2 排查过程
 
 1. `jd_prepare` 成功、`MemAuto` 内存分配成功(258248 字节,PSRAM 充足)、`eos_storage` I/O 正常
    → 不是内存、不是 IO、不是文件格式问题。
@@ -637,7 +696,7 @@ Album: jd_decomp FAIL rc=5 w=1920 h=1079 scale=4
    ```
    1920×1079 → scale=4 → 超出 3 → `JDR_PAR`。**所有 1025~4096 宽的图都必然失败。**
 
-### 12.3 根因
+### 13.3 根因
 
 **API 语义混淆**:把 TJpgDec 的 `scale`(右移位数 0~3)误当成"缩小分母倍"(1/2/4/8)。
 这是第三方库(TJpgDec)的约定,不是 Album 自己定义的缩放逻辑,必须先读库源码确认参数语义。
@@ -649,7 +708,7 @@ Album: jd_decomp FAIL rc=5 w=1920 h=1079 scale=4
 另外 `_jd_in` 每次解码文件末尾都会读不足 `JD_SZBUF`,原来会打印 `short read`,
 这是 EOF 正常行为,非错误,已移除该噪音日志。
 
-### 12.4 修复(`src/apps/album/eos_album.c`)
+### 13.4 修复(`src/apps/album/eos_album.c`)
 
 改为右移位数 0~3:
 
@@ -666,7 +725,7 @@ while (scale < 3 && (ow > ALBUM_DECODE_MAX || oh > ALBUM_DECODE_MAX)) {
 
 1920×1079 → scale=2(1/4) → 480×269 ≤ 512(`ALBUM_DECODE_MAX`) → `jd_decomp` 参数合法。
 
-### 12.5 通用教训
+### 13.5 通用教训
 
 1. **第三方库的"scale / level / mode"类参数,先读库源码确认语义和单位**。库的 scale 常是
    右移位数或枚举,不是自由倍数;本项目自创的 `1/2/4/8` 与库约定不符,属于"想当然"型 bug。
@@ -677,10 +736,88 @@ while (scale < 3 && (ow > ALBUM_DECODE_MAX || oh > ALBUM_DECODE_MAX)) {
 4. **解码末尾的 `short read` 是 EOF 常态**,不应作为 ERROR/WARN 刷屏;只有 `jd_in` 返回 0
    (真实读不出)才需要关注——而 TJpgDec 对 0 已返回 0 触发 `JDR_INP`,会按错误处理。
 
-### 12.6 验证清单(图像解码类)
+### 13.6 验证清单(图像解码类)
 
 - 准备/解码分离:分别打印 `jd_prepare` 与 `jd_decomp` 的 `JRESULT`,定位失败阶段。
 - `rc` 对照 `JRESULT` 枚举:`JDR_PAR` 多半是 scale 参数、尺寸参数超范围;`JDR_FMT` 是数据格式;
   `JDR_MEM` 是 workbuf 不足;`JDR_INP` 是输入流断开。
 - 缩略缩放统一用库的语义(本项目 TJpgDec 右移位数),不要自创比例体系。
 - 边界块、最后一行错位通常是解码器已处理(紧凑输出),优先确认库行为再改应用层拷贝逻辑。
+
+---
+
+## 十四、定时关机「设 2 分钟却 2 小时不醒」—— UI 字段单位陷阱
+
+> 来源：XIAO ESP32-S3 + Round Display 1.28″ 定时关机（TIMER 模式）实测。
+> 现象：UI 显示 `00:02:00`，用户以为 2 分钟，实际等 2 分钟根本不醒，深睡 + 唤醒机制本身完全正常。
+
+### 14.1 Bug 一句话结论
+
+**UI 字段布局与用户直觉反转**：关机页 TIMER 设置用的是 `DD:HH:MM`（天:时:分），而用户按
+`HH:MM:SS`（时:分:秒）去读。于是：
+- 显示 `00:02:00` → 用户以为 = 2 分钟 → 实际 = `0天2时0分` = **7200 秒（2 小时）**
+- 显示 `00:00:10` → 用户以为 = 10 秒 → 实际 = `0天0时10分` = **600 秒（10 分钟）**
+
+深睡 + RTC 定时器唤醒从头到尾都是好的，只是"定时太长"导致用户以为"根本不开机"。
+
+### 14.2 证据链（串口日志铁证）
+
+UI START 时打印实际换算值，一眼定位：
+```text
+Wake timer START: 00:02:00 -> 7200 s    ← 2分钟直觉 vs 7200秒实际
+Wake timer START: 00:00:10 -> 600 s     ← 10秒直觉 vs 600秒实际
+...
+I (54259) Board: Power off (timed): one-shot sleep 7200 s
+--- Error: device reports readiness to read but returned no data (device disconnected...) ---
+--- Waiting for the device to reconnect... -----------------------------------------
+```
+最后两行是 **深睡成功** 的特征（ESP32-S3 深睡时 USB 串口掉线，monitor 报 device disconnected 并等待重连），
+**不是崩溃**。唤醒后 USB 重新枚举，monitor 自动重连。
+
+### 14.3 根因代码（`src/apps/power_off/eos_power_off_page.c`）
+
+```c
+static lv_obj_t *s_fld[3] = {NULL, NULL, NULL};  /* DD / HH / MM */
+static int      s_val[3]  = {0, 1, 0};           /* 默认 1 小时 */
+static const int s_max[3] = {30, 23, 59};        /* 各字段上限 */
+...
+uint32_t total = (uint32_t)s_val[0] * 86400u   /* DD */
+              + (uint32_t)s_val[1] * 3600u      /* HH */
+              + (uint32_t)s_val[2] * 60u;       /* MM */
+if (total < 60u) total = 60u;   /* 最小 1 分钟 */
+```
+
+**三重叠加误导**：
+1. 无单位标签（屏幕上只有 `00:02:00`，没有 DD/HH/MM 标注）→ 用户按时钟习惯读成 时:分:秒。
+2. `s_max={30,23,59}` 暗示"天"位最多 30，进一步强化"这是天"的语义，但与用户直觉冲突。
+3. 最小兜底 `if (total<60) total=60` 把 <1 分钟的设定顶到 1 分钟，进一步掩盖短定时需求。
+
+### 14.4 修复
+
+布局改为 `HH:MM:SS`（时:分:秒），与用户直觉一致；上限 `{99,59,59}`，最小兜底 1 秒：
+```c
+static lv_obj_t *s_fld[3] = {NULL, NULL, NULL};  /* HH / MM / SS */
+static int      s_val[3]  = {0, 1, 0};           /* 默认 1 分钟 */
+static const int s_max[3] = {99, 59, 59};        /* 最大 99:59:59 */
+...
+uint32_t total = (uint32_t)s_val[0] * 3600u    /* HH */
+              + (uint32_t)s_val[1] * 60u       /* MM */
+              + (uint32_t)s_val[2];            /* SS */
+if (total == 0u) total = 1u;   /* 最小 1 秒 */
+```
+现在 `00:02:00` = 120 秒、`00:00:10` = 10 秒，符合直觉，10 秒快测即可验证。
+
+### 14.5 通用教训
+
+1. **带冒号的数值 UI 一定要显式标注单位**（`HH:MM:SS` 旁边配文字，或字段下方写 `H M S`）。
+   没有标注的多段数字，用户必然按最常见的时间格式（时:分:秒）去读，与代码语义（DD:HH:MM、
+   MM:SS、度:分:秒……）冲突时就是隐形 bug。
+2. **「以为不开机」先别怀疑底层驱动**。串口日志里只要出现 `esp_deep_sleep_start` 前后正确的
+   `one-shot sleep N s` 且之后 device disconnected —— 说明深睡已成功，问题在"N 是不是你以为的 N"。
+3. **换算 bug 用「直觉值 vs 实际值」并排打印即可秒定位**：在 START/确认入口 log 出
+   `显示字符串 -> 换算秒数`（如 `00:02:00 -> 7200 s`），无需动深睡/定时器一行代码就能锁定。
+4. **最小兜底要匹配新单位**：原 `if<60→60` 是为"分钟级最小 1 分钟"设计的，改成秒级后必须改 `if==0→1`，
+   否则会破坏短定时（10 秒被顶到废逻辑）。改动换算粒度时同步检查所有兜底。
+5. **深睡串口掉线是预期行为，不是死机**：ESP32-S3 深睡期间 USB UART 断连，monitor 报
+   `device disconnected / waiting to reconnect`，唤醒后自动恢复；区分"深睡掉线"与"panic 死机"
+   看掉线前最后一条日志是否定格在 `one-shot sleep … s`（正常）还是卡在断言/错误（异常）。

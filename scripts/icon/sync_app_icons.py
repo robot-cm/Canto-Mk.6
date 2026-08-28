@@ -15,7 +15,7 @@ canonical design sources. This script keeps the two in sync:
     if apps/<name>/ exists (a local script app):
         - regenerate apps/<name>/icon.bin  (48x48 RGBA PNG, downscaled)
         - overwrite the running FS copy at
-          simulator/build/fs/.sys/app/apps/com.elenix.<name>/icon.bin
+          simulator/build/fs/.sys/app/apps/com.cantomk6.<name>/icon.bin
           (so the change is visible without a full rebuild)
 
 System/plugin apps (sys.*) whose icons live outside apps/ are skipped
@@ -66,7 +66,7 @@ def main():
         print("write %-12s -> %s" % (name, src_bin))
 
         # Push to the running simulator FS so it shows immediately.
-        fs_bin = os.path.join(FS_DIR, "com.elenix." + name, "icon.bin")
+        fs_bin = os.path.join(FS_DIR, "com.cantomk6." + name, "icon.bin")
         if os.path.exists(os.path.dirname(fs_bin)):
             make_icon_bin(webp, fs_bin)
             print("  + sync running FS: %s" % fs_bin)

@@ -119,6 +119,21 @@ eos_result_t eos_net_wifi_set_enabled(bool enabled)
     if (!g_wifi.initialized)
         eos_net_wifi_init();
     EOS_LOG_D("wifi set_enabled: enabled=%d", enabled);
+
+#if !EOS_SIMULATOR
+    /* A service flag alone does not save power: esp_wifi_start() keeps the
+     * radio and an APB-frequency PM lock active. Start/stop the real driver
+     * here while keeping its netif allocation for a safe later restart. */
+    esp_err_t radio_ret = enabled ? eos_net_wifi_esp32_init()
+                                  : eos_net_wifi_esp32_stop();
+    if (radio_ret != ESP_OK)
+    {
+        EOS_LOG_E("wifi radio %s failed: %d", enabled ? "start" : "stop",
+                  (int)radio_ret);
+        return EOS_ERR_NET_SCAN;
+    }
+#endif
+
     g_wifi.enabled = enabled;
     g_wifi.state = enabled ? EOS_WIFI_IDLE : EOS_WIFI_DISABLED;
     if (!enabled)

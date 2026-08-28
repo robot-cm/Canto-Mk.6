@@ -1,10 +1,22 @@
 cd /home/erashaperavm/下载/ElenixOS-fork/port/esp32s3 && idf.py -p /dev/ttyACM0 build flash monitor
 
-+ texthub
-+ album
-+ anim
-- 性能监视器
-+ ui 优化
+cd /home/erashaperavm/下载/ElenixOS-fork/port/esp32s3 && idf.py -p /dev/ttyACM0 monitor
+
+
+
+[apps] installed: 12
+  0: com.cantomk6.alarm
+  1: com.cantomk6.breach
+  2: com.cantomk6.calculator
+  3: com.cantomk6.calendar
+  4: com.cantomk6.globaltime
+  5: com.cantomk6.stopwatch
+  6: com.cantomk6.timer
+  7: sys.settings
+  8: sys.flash_light
+  9: com.cantomk6.album
+  10: com.cantomk6.texthub
+  11: com.cantomk6.sleep
 
 
 
@@ -13,37 +25,13 @@ cd /home/erashaperavm/下载/ElenixOS-fork/port/esp32s3 && idf.py -p /dev/ttyACM
 > memlog off      → 关闭周期报告
 
 
-请你根据网址资源完善电源管理（位于 control center 的 power save 功能（这个是深度省电），目前比较简陋，仅在用户打开时开启）：
 
-· 《系统低功耗模式介绍》：乐鑫官方 ESP-IDF 文档，介绍 DFS（动态频率调整）、Light-sleep 和 Deep-sleep 等模式的原理与配置。
-  · 中文版：https://docs.espressif.com/projects/esp-idf/zh_CN/v6.0/esp32s3/api-guides/low-power-mode/low-power-mode-soc.html 
-  · 英文版：https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-guides/low-power-mode/low-power-mode-soc.html 
-· 《睡眠模式》：ESP-IDF 睡眠模式 API 参考文档。
-  · https://docs.espressif.com/projects/esp-idf/zh_CN/v6.0/esp32s3/api-reference/system/sleep_modes.html 
-· 《电源管理 API》：ESP-IDF 电源管理算法 API 参考。
-  · https://docs.espressif.com/projects/esp-idf/zh_CN/v6.0/esp32s3/api-reference/system/power_management.html 
-· 《XIAO ESP32-S3 系列入门指南 - 电池使用》：Seeed Studio 官方 Wiki，介绍 XIAO 系列的电池连接、充电及指示灯状态。
-
-
-
-[INFO] [PowerManager] Timer paused
-[DEBUG] [BasicWidgets] list_clicked: code=1, list=0x3c430db8, target=0x3c4330e0
-[DEBUG] [BasicWidgets] list_clicked: press point=(113,100)
-[DEBUG] [BasicWidgets] list_clicked: target class=lv_button
-[DEBUG] [BasicWidgets] resolve_button: found button at depth 0, obj=0x3c4330e0
-[DEBUG] [BasicWidgets] list_clicked: saving state list=0x3c430db8, button=0x3c4330e0, click_activity=0x3fccf16c
-[INFO] [PowerManager] Timer resumed
-[ERROR] [Image] Image src is NULL
-[DEBUG] [Toast] Toast will show for 2760 ms
-[DEBUG] [BasicWidgets] list_clicked: code=10, list=0x3c430db8, target=0x3c4330e0
-[DEBUG] [BasicWidgets] resolve_button: found button at depth 0, obj=0x3c4330e0
-[DEBUG] [BasicWidgets] list_clicked: saving state list=0x3c430db8, button=0x3c4330e0, click_activity=0x3fccf16c
-wifi 扫描失败（日志如上）
-蓝牙的扫描结果似乎是 mock 的
-而且 wifi 和蓝牙表示 ap 或者蓝牙设备信号强度的数字直接显示到了名称上面，考虑在扫描结果列表每一个 ap 或 蓝牙设备左侧 wifi 或 蓝牙的图标背景根据信号强度划分为：优秀（绿色）、中（黄色）、差（红色）（不明确设计问我）
-
-
-
+操作步骤
+1. 设备侧：启动进入系统，确保串口已到 shell 提示符（不是停在 UI 卡住、也不是在 boot 日志里）。
+2. Linux 终端侧：粘贴这三行回车即可。
+PORT=/dev/ttyACM0
+stty -F "$PORT" 115200 raw -echo -hupcl
+printf 'time set %s\r\n' "$(date '+%Y-%m-%d %H:%M:%S')" > "$PORT"
 
 python3.11 /home/erashaperavm/下载/ElenixOS-fork/scripts/album_optimize.py -i <输入目录> -o <输出目录>
 
@@ -71,4 +59,16 @@ python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/ap
 /sdcard/texthub/
 /sdcard/history/bt
 /sdcard/history/wifi
-/sdcard/theme/icon/album.bin, texthub.bin
+/sdcard/history/album
+/sdcard/history/texthub
+/sdcard/theme/icon/album.bin, texthub.bin, sleep.bin
+/.sys/app/app_data/com.cantomk6.alarm/config.json
+/.sys/app/app_data/com.cantomk6.breach/config.json
+/.sys/app/app_data/com.cantomk6.calculator/config.json
+/.sys/app/app_data/com.cantomk6.calendar/config.json
+/.sys/app/app_data/com.cantomk6.globaltime/config.json
+/.sys/app/app_data/com.cantomk6.stopwatch/config.json
+/.sys/app/app_data/com.cantomk6.timer/config.json
+/.sys/app/app_data/com.cantomk6.album/config.json
+/.sys/app/app_data/com.cantomk6.texthub/config.json
+/.sys/app/app_data/com.cantomk6.sleep/config.json

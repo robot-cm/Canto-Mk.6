@@ -145,7 +145,7 @@ static void sim_run_shell_test(void)
         "proxy connect example.com 80",
         "proxy disable",
         "apps",
-        "app info com.elenix.clock", "log", "reboot",
+        "app info com.cantomk6.clock", "log", "reboot",
         /* New Shell-framework / Plugin-Manager / IME commands */
         "plugin scan", "plugin scan --force", "plugin list",
         "ime ni", "ime zhongguo", "ime jianpan", NULL
@@ -171,7 +171,7 @@ static void sim_run_shell_test(void)
      * main.js -> back releases all resources. */
     {
         char eapk[EOS_FS_PATH_MAX];
-        snprintf(eapk, sizeof(eapk), "%s.sys/app/com.elenix.pmdemo.eapk", EOS_SYS_ROOT_DIR);
+        snprintf(eapk, sizeof(eapk), "%s.sys/app/com.cantomk6.pmdemo.eapk", EOS_SYS_ROOT_DIR);
         if (eos_storage_is_file(eapk))
         {
             char cmd[320];
@@ -263,12 +263,12 @@ static void sim_run_stress_test(void)
     for (int i = 0; i < rounds; i++)
     {
         /* Flashlight: full enter -> back (card pager + timer + exit button) */
-        eos_app_launch_immediately("com.elenix.timer");
+        eos_app_launch_immediately("com.cantomk6.timer");
         eos_activity_back();
 
         /* Clock plugin via Plugin Manager + SPM/JerryScript lifecycle */
-        eos_shell_exec("app start com.elenix.clock", sim_shell_out, NULL);
-        eos_shell_exec("app stop com.elenix.clock", sim_shell_out, NULL);
+        eos_shell_exec("app start com.cantomk6.clock", sim_shell_out, NULL);
+        eos_shell_exec("app stop com.cantomk6.clock", sim_shell_out, NULL);
 
         /* Native media apps */
         eos_gallery_enter();
@@ -325,10 +325,10 @@ static void sim_console_poll(void)
 static void _sim_seed_install_plugins(void)
 {
     static const char *const seeds[] = {
-        "com.elenix.clock",
-        "com.elenix.timer",
-        "com.elenix.pmdemo",
-        "com.elenix.alarm",
+        "com.cantomk6.clock",
+        "com.cantomk6.timer",
+        "com.cantomk6.pmdemo",
+        "com.cantomk6.alarm",
     };
     for (int i = 0; i < (int)(sizeof(seeds) / sizeof(seeds[0])); i++)
     {
@@ -868,16 +868,16 @@ static int sim_run_screen_snapshot(void)
             eos_control_center_show();
             eos_control_panel_slide_change();
         } else if (snap == 3) {
-            printf("[snap] -> launch com.elenix.clock (JS eapk app)\n"); fflush(stdout);
+            printf("[snap] -> launch com.cantomk6.clock (JS eapk app)\n"); fflush(stdout);
             eos_control_center_hide();
             eos_activity_back_to_watchface();
             for (int k = 0; k < 30; k++) { lv_tick_inc(20); lv_timer_handler(); }
-            eos_app_launch_immediately("com.elenix.clock");
+            eos_app_launch_immediately("com.cantomk6.clock");
         } else if (snap == 4) {
-            printf("[snap] -> launch com.elenix.timer (JS eapk app)\n"); fflush(stdout);
+            printf("[snap] -> launch com.cantomk6.timer (JS eapk app)\n"); fflush(stdout);
             eos_activity_back_to_watchface();
             for (int k = 0; k < 30; k++) { lv_tick_inc(20); lv_timer_handler(); }
-            eos_app_launch_immediately("com.elenix.timer");
+            eos_app_launch_immediately("com.cantomk6.timer");
         }
         /* Let animations settle */
         for (int k = 0; k < 80; k++) { lv_tick_inc(20); lv_timer_handler(); }
@@ -1544,7 +1544,7 @@ static int sim_run_notes_probe(void)
 
 /* ----------------------------------------------------------------------------
  * Notes app real-launch probe (--notes-launch)
- * Seeds a test note, launches com.elenix.notes, then drives: [列表] -> filter
+ * Seeds a test note, launches com.cantomk6.notes, then drives: [列表] -> filter
  * shows it, [打开] -> body shows content + back to edit mode, [新建] -> body
  * cleared, [编辑] -> ime.open pushes the input page (activity switch).
  * -------------------------------------------------------------------------- */
@@ -1675,8 +1675,8 @@ static int sim_run_notes_launch(void)
     /* Reset notes.draft to a clean empty state. The app persists the draft in
      * config.json across launches; without this the baseline would accumulate
      * run-over-run (every absolute assertion would then break). */
-    eos_fs_remove("/.sys/app/app_data/com.elenix.notes/config.json");
-    eos_result_t la = eos_app_launch_immediately("com.elenix.notes");
+    eos_fs_remove("/.sys/app/app_data/com.cantomk6.notes/config.json");
+    eos_result_t la = eos_app_launch_immediately("com.cantomk6.notes");
     printf("[probe] launch ret=%d\n", (int)la);
     for (int k = 0; k < 250; k++)
     {
@@ -1829,7 +1829,7 @@ static int sim_run_notes_launch(void)
         lv_obj_send_event(doneBtn2, LV_EVENT_PRESSED, NULL);   /* 存 101 字草稿到 config */
     eos_activity_back();   /* 退出到 app list，清理活动 */
     for (int k3 = 0; k3 < 60; k3++) { lv_tick_inc(20); lv_timer_handler(); eos_dispatch_tick(); }
-    eos_result_t la2 = eos_app_launch_immediately("com.elenix.notes");   /* 重新启动 */
+    eos_result_t la2 = eos_app_launch_immediately("com.cantomk6.notes");   /* 重新启动 */
     printf("[probe] relaunch ret=%d\n", (int)la2);
     for (int k4 = 0; k4 < 250; k4++) { lv_tick_inc(20); lv_timer_handler(); eos_dispatch_tick(); }
     lv_obj_t *view2 = eos_activity_get_view(eos_activity_get_current());
@@ -1896,10 +1896,10 @@ static int sim_run_breach_launch(void)
 {
     printf("=== Breach Protocol app probe (headless) ===\n");
     lv_tick_set_cb(NULL);   // 还原内部 tick 计数器，使 lv_tick_inc 生效（否则 SDL 实时钟忽略增量，计时器不触发）
-    eos_result_t la = eos_app_launch_immediately("com.elenix.breach");
+    eos_result_t la = eos_app_launch_immediately("com.cantomk6.breach");
     printf("[probe] launch ret=%d (EOS_OK=%d)\n", (int)la, (int)EOS_OK);
     int fail = 0;
-    if (la != EOS_OK) { printf("[FAIL] launch com.elenix.breach failed\n"); fail++; }
+    if (la != EOS_OK) { printf("[FAIL] launch com.cantomk6.breach failed\n"); fail++; }
 
     /* pump frames so JS timers (typewriter/progress/countdown) advance and
      * Boot->Hack transition (fadeTo) fires in the REAL engine.
@@ -1971,10 +1971,10 @@ static int sim_run_breach_result(void)
 {
     printf("=== Breach Protocol Result-page probe (headless) ===\n");
     lv_tick_set_cb(NULL);
-    eos_result_t la = eos_app_launch_immediately("com.elenix.breach");
+    eos_result_t la = eos_app_launch_immediately("com.cantomk6.breach");
     printf("[probe] launch ret=%d (EOS_OK=%d)\n", (int)la, (int)EOS_OK);
     int fail = 0;
-    if (la != EOS_OK) { printf("[FAIL] launch com.elenix.breach failed\n"); return 1; }
+    if (la != EOS_OK) { printf("[FAIL] launch com.cantomk6.breach failed\n"); return 1; }
 
     /* Boot ~5s + game 60s, with margin. 16ms/frame. */
     for (int f = 0; f < 6000; f++)
@@ -2012,7 +2012,7 @@ static int sim_run_draw_launch(void)
 {
     printf("=== Draw app UI layout + save probe (headless) ===\n");
     lv_tick_set_cb(NULL);
-    eos_result_t la = eos_app_launch_immediately("com.elenix.draw");
+    eos_result_t la = eos_app_launch_immediately("com.cantomk6.draw");
     printf("[probe] launch ret=%d (EOS_OK=%d)\n", (int)la, (int)EOS_OK);
     int fail = 0;
     if (la != EOS_OK)
@@ -2407,13 +2407,13 @@ static const eos_dev_time_ops_t _alarm_fake_ops = { .get_datetime = _alarm_fake_
  *   EOS_APP_DATA_DIR "<app_id>/config.json"
  * The C eos_config_set_number() writes the SYSTEM cfg.json instead, so the
  * alarm test must write/read the app-scoped file directly. */
-#define ALARM_APP_CFG "com.elenix.alarm/config.json"
+#define ALARM_APP_CFG "com.cantomk6.alarm/config.json"
 static void _alarm_write_app_config(int h, int m, int on)
 {
     char path[EOS_FS_PATH_MAX];
     char buf[96];
     snprintf(path, sizeof(path), EOS_APP_DATA_DIR ALARM_APP_CFG);
-    eos_storage_mkdir_if_not_exist(EOS_APP_DATA_DIR "com.elenix.alarm");
+    eos_storage_mkdir_if_not_exist(EOS_APP_DATA_DIR "com.cantomk6.alarm");
     snprintf(buf, sizeof(buf), "{\"alm_h\":%d,\"alm_m\":%d,\"alm_on\":%d}", h, m, on);
     eos_storage_write_file(path, buf, strlen(buf));
 }
@@ -2869,7 +2869,7 @@ int main(int argc, char *argv[])
         INDV_CHECK(wos_app_manager_get_state() == WOS_APP_STATE_IDLE,
                    "wos UP-swipe closes the app (deferred cleanup -> IDLE)");
 
-        /* Case I: REAL JerryScript eapk app (com.elenix.clock) launched via
+        /* Case I: REAL JerryScript eapk app (com.cantomk6.clock) launched via
          * the activity framework. UP-swipe anywhere on the page must back
          * out to the watchface. This exercises the _indev_swipe_back_cb path
          * (退出手势已改为上下滑)。Also verifies the view scroll_dir was
@@ -2878,8 +2878,8 @@ int main(int argc, char *argv[])
         INDV_CLOSE();
         eos_activity_back_to_watchface();
         for (int _k = 0; _k < 30; _k++) { lv_tick_inc(20); lv_timer_handler(); eos_dispatch_tick(); }
-        bool jsapp_ok = (eos_app_launch_immediately("com.elenix.clock") == EOS_OK);
-        INDV_CHECK(jsapp_ok, "launch 'com.elenix.clock' (eapk)");
+        bool jsapp_ok = (eos_app_launch_immediately("com.cantomk6.clock") == EOS_OK);
+        INDV_CHECK(jsapp_ok, "launch 'com.cantomk6.clock' (eapk)");
         if (jsapp_ok) {
             /* Let the activity enter + spm_app_run + JS main.js execute + layout. */
             for (int _k = 0; _k < 80; _k++) { lv_tick_inc(20); lv_timer_handler(); eos_dispatch_tick(); }
@@ -2904,7 +2904,7 @@ int main(int argc, char *argv[])
          * harness as the swipes above. */
         eos_activity_back_to_watchface();
         for (int _k = 0; _k < 30; _k++) { lv_tick_inc(20); lv_timer_handler(); eos_dispatch_tick(); }
-        eos_app_launch_immediately("com.elenix.clock");
+        eos_app_launch_immediately("com.cantomk6.clock");
         for (int _k = 0; _k < 80; _k++) { lv_tick_inc(20); lv_timer_handler(); eos_dispatch_tick(); }
         _hg_indev_steps = 0; _hg_indev_idx = 0;   /* 单帧 press + 立即 release（真窗口等价） */
         _hg_indev_start_x = 120; _hg_indev_end_x = 120; _hg_indev_y = 120;
@@ -3035,7 +3035,7 @@ int main(int argc, char *argv[])
         return (fail == 0) ? 0 : 1;
     }
 
-    /* Alarm app (JS eapk, com.elenix.alarm) headless state-machine test:
+    /* Alarm app (JS eapk, com.cantomk6.alarm) headless state-machine test:
      * launch the app, then drive the picker (+/-), set/cancel/toggle via the
      * real LVGL pointer indev (PRESSED, as the app binds), and assert the UI
      * (label texts) + persistence (eos.config) at every step. The ring
@@ -3086,7 +3086,7 @@ int main(int argc, char *argv[])
 #define ALM_RELAUNCH() do {                                             \
             eos_activity_back_to_watchface();                           \
             for (int _k = 0; _k < 30; _k++) { lv_tick_inc(20); lv_timer_handler(); eos_dispatch_tick(); } \
-            ALM_CHECK(eos_app_launch_immediately("com.elenix.alarm") == EOS_OK, "relaunch com.elenix.alarm"); \
+            ALM_CHECK(eos_app_launch_immediately("com.cantomk6.alarm") == EOS_OK, "relaunch com.cantomk6.alarm"); \
             for (int _k = 0; _k < 80; _k++) { lv_tick_inc(20); lv_timer_handler(); eos_dispatch_tick(); } \
             view = eos_activity_get_view(eos_activity_get_current());  \
             ALM_CHECK(view != NULL, "relaunched activity view present"); \
@@ -3096,7 +3096,7 @@ int main(int argc, char *argv[])
 
         /* [1] fresh state: 07:30 / off (app-scoped config — JS reads its own file) */
         _alarm_write_app_config(7, 30, 0);
-        ALM_CHECK(eos_app_launch_immediately("com.elenix.alarm") == EOS_OK, "launch com.elenix.alarm");
+        ALM_CHECK(eos_app_launch_immediately("com.cantomk6.alarm") == EOS_OK, "launch com.cantomk6.alarm");
         for (int _k = 0; _k < 80; _k++) { lv_tick_inc(20); lv_timer_handler(); eos_dispatch_tick(); }
 
         lv_obj_t *view = eos_activity_get_view(eos_activity_get_current());

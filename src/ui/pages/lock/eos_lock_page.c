@@ -23,7 +23,7 @@
 #include "eos_service_time.h"
 #include "eos_service_haptic.h"
 #include "eos_overlay_layer.h"
-#include "eos_numpad.h"
+#include "eos_round_keyboard.h"
 
 /* Macros and Definitions -------------------------------------*/
 #define LOCK_PAGE_MAGIC 0x4C4F434BU
@@ -35,7 +35,8 @@ typedef struct
     uint32_t magic;
     lv_obj_t *root;
     lv_obj_t *title_label;
-    eos_numpad_t *numpad;
+    lv_obj_t *textarea;
+    lv_obj_t *keyboard;
     uint8_t failed_attempts;
 } _lock_page_ctx_t;
 
@@ -49,10 +50,10 @@ static void _restore_title_async_cb(void *user_data);
 
 /* Function Implementations -----------------------------------*/
 
-static void _on_numpad_complete(const char *digits, void *user_data)
+/* 键盘"确定"键向绑定的 textarea 发送 LV_EVENT_READY → 触发验证 */
+static void _on_textarea_ready(lv_event_t *e)
 {
-    (void)digits;
-    _lock_page_ctx_t *ctx = (_lock_page_ctx_t *)user_data;
+    _lock_page_ctx_t *ctx = (_lock_page_ctx_t *)lv_event_get_user_data(e);
     if (!ctx)
         return;
     _verify_password(ctx);
@@ -60,11 +61,13 @@ static void _on_numpad_complete(const char *digits, void *user_data)
 
 static void _verify_password(_lock_page_ctx_t *ctx)
 {
-    eos_numpad_t *numpad = ctx->numpad;
+    const char *digits = (ctx->textarea && lv_obj_is_valid(ctx->textarea)) ? lv_textarea_get_text(ctx->textarea) : "";
+    if (!digits)
+        digits = "";
 
-    /* Hash entered digits */
+    /* Hash entered text */
     uint8_t hash[EOS_SHA256_DIGEST_SIZE];
-    eos_sha256((const uint8_t *)numpad->entered_digits, strlen(numpad->entered_digits), hash);
+    eos_sha256((const uint8_t *)digits, strlen(digits), hash);
 
     char entered_hex[EOS_SHA256_HEX_STR_SIZE];
     eos_sha256_to_hex(hash, entered_hex, sizeof(entered_hex));
@@ -95,12 +98,12 @@ static void _verify_password(_lock_page_ctx_t *ctx)
         lv_obj_set_style_text_color(ctx->title_label, EOS_COLOR_RED, 0);
     }
 
-    /* Shake animation on dot container */
-    if (numpad->dot_container && lv_obj_is_valid(numpad->dot_container))
+    /* Shake animation on textarea */
+    if (ctx->textarea && lv_obj_is_valid(ctx->textarea))
     {
         lv_anim_t anim;
         lv_anim_init(&anim);
-        lv_anim_set_var(&anim, numpad->dot_container);
+        lv_anim_set_var(&anim, ctx->textarea);
         lv_anim_set_values(&anim, -12, 12);
         lv_anim_set_duration(&anim, 60);
         lv_anim_set_repeat_count(&anim, 3);
@@ -108,9 +111,12 @@ static void _verify_password(_lock_page_ctx_t *ctx)
         lv_anim_set_exec_cb(&anim, _shake_anim_exec_cb);
         lv_anim_set_completed_cb(&anim, _shake_anim_complete_cb);
         lv_anim_start(&anim);
-    }
 
-    eos_numpad_clear(numpad);
+        /* Clear input and keep it focused so the keyboard keeps working */
+        lv_textarea_set_text(ctx->textarea, "");
+        lv_textarea_set_cursor_pos(ctx->textarea, 0);
+        lv_obj_add_state(ctx->textarea, LV_STATE_FOCUSED);
+    }
 
     /* Restore title after a short delay */
     lv_async_call(_restore_title_async_cb, ctx->title_label);
@@ -144,7 +150,23 @@ static void _restore_title_async_cb(void *user_data)
     }
 }
 
-static void _create_lock_ui(_lock_page_ctx_t *ctx, lv_obj_t *parent, uint8_t target_length)
+/* 密码输入框样式，与 WiFi 输入页面的 textarea 保持一致 */
+static void _style_password_textarea(lv_obj_t *textarea)
+{
+    lv_obj_set_style_bg_opa(textarea, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_bg_color(textarea, lv_color_black(), 0);
+    lv_obj_set_style_border_width(textarea, 0, 0);
+    lv_obj_set_style_pad_all(textarea, 0, 0);
+    lv_obj_set_style_text_color(textarea, EOS_COLOR_WHITE, 0);
+    lv_obj_set_style_bg_opa(textarea, LV_OPA_TRANSP, LV_PART_CURSOR | LV_STATE_FOCUSED);
+    lv_obj_set_style_border_width(textarea, 1, LV_PART_CURSOR | LV_STATE_FOCUSED);
+    lv_obj_set_style_border_side(textarea, LV_BORDER_SIDE_LEFT, LV_PART_CURSOR | LV_STATE_FOCUSED);
+    lv_obj_set_style_border_color(textarea, EOS_COLOR_BLUE, LV_PART_CURSOR | LV_STATE_FOCUSED);
+    lv_obj_set_style_border_opa(textarea, LV_OPA_COVER, LV_PART_CURSOR | LV_STATE_FOCUSED);
+    lv_obj_set_style_anim_duration(textarea, 400, LV_PART_CURSOR | LV_STATE_FOCUSED);
+}
+
+static void _create_lock_ui(_lock_page_ctx_t *ctx, lv_obj_t *parent)
 {
     /* Root container filling parent — absolute top layer, security barrier */
     ctx->root = lv_obj_create(parent);
@@ -159,12 +181,13 @@ static void _create_lock_ui(_lock_page_ctx_t *ctx, lv_obj_t *parent, uint8_t tar
     lv_obj_remove_flag(ctx->root, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_scrollbar_mode(ctx->root, LV_SCROLLBAR_MODE_OFF);
 
-    /* Main flex container */
+    /* Main flex container — bottom 120px reserved for the keyboard */
     lv_obj_t *container = lv_obj_create(ctx->root);
     lv_obj_set_size(container, lv_pct(100), lv_pct(100));
     lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(container, 0, 0);
     lv_obj_set_style_pad_all(container, 0, 0);
+    lv_obj_set_style_pad_bottom(container, 120, 0);
     lv_obj_add_flag(container, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
     lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_scrollbar_mode(container, LV_SCROLLBAR_MODE_OFF);
@@ -186,7 +209,27 @@ static void _create_lock_ui(_lock_page_ctx_t *ctx, lv_obj_t *parent, uint8_t tar
     lv_obj_set_style_text_color(ctx->title_label, EOS_COLOR_TEXT_GREY, 0);
     eos_label_set_font_size(ctx->title_label, EOS_FONT_SIZE_MEDIUM);
 
-    ctx->numpad = eos_numpad_create(container, target_length, false, _on_numpad_complete, NULL, ctx);
+    /* Password textarea */
+    ctx->textarea = lv_textarea_create(container);
+    lv_obj_set_width(ctx->textarea, 200);
+    lv_obj_set_height(ctx->textarea, 66);
+    lv_textarea_set_max_length(ctx->textarea, 255);
+    lv_textarea_set_one_line(ctx->textarea, false);
+    _style_password_textarea(ctx->textarea);
+
+    /* 键盘"确定"键 → READY 事件 → 验证密码 */
+    lv_obj_add_event_cb(ctx->textarea, _on_textarea_ready, LV_EVENT_READY, ctx);
+
+    /* Half-circle keyboard (same as WiFi password input) on the root */
+    ctx->keyboard = eos_round_keyboard_create(ctx->root);
+    eos_round_keyboard_set_textarea(ctx->keyboard, ctx->textarea);
+
+    /* Focus the textarea and put the cursor at the end so input is ready */
+    if (ctx->textarea && lv_obj_is_valid(ctx->textarea))
+    {
+        lv_textarea_set_cursor_pos(ctx->textarea, 0);
+        lv_obj_add_state(ctx->textarea, LV_STATE_FOCUSED);
+    }
 }
 
 static void _destroy_lock_ui(_lock_page_ctx_t *ctx)
@@ -195,20 +238,17 @@ static void _destroy_lock_ui(_lock_page_ctx_t *ctx)
         return;
 
     /* Reset translate if animating */
-    if (ctx->numpad && ctx->numpad->dot_container && lv_obj_is_valid(ctx->numpad->dot_container))
+    if (ctx->textarea && lv_obj_is_valid(ctx->textarea))
     {
-        lv_obj_set_style_translate_x(ctx->numpad->dot_container, 0, 0);
+        lv_obj_set_style_translate_x(ctx->textarea, 0, 0);
     }
 
+    /* Keyboard is a child of root and frees its own context on delete */
     if (ctx->root && lv_obj_is_valid(ctx->root))
     {
         lv_obj_delete(ctx->root);
         ctx->root = NULL;
     }
-
-    /* Free numpad context (widgets already destroyed with root) */
-    eos_numpad_delete(ctx->numpad);
-    ctx->numpad = NULL;
 
     eos_free(ctx);
 }
@@ -232,12 +272,8 @@ void eos_lock_page_show(void)
 
     _ctx->magic = LOCK_PAGE_MAGIC;
 
-    /* Determine target length from config */
-    bool simple = eos_config_get_bool(EOS_CONFIG_KEY_PASSWORD_SIMPLE_BOOL, true);
-    uint8_t target_length = simple ? 4 : 6;
-
     /* Build UI on overlay layer — naturally above header_layer on lv_layer_top */
-    _create_lock_ui(_ctx, eos_overlay_get_overlay_layer(), target_length);
+    _create_lock_ui(_ctx, eos_overlay_get_overlay_layer());
 
     /* Ensure top z-order within overlay layer */
     if (_ctx->root)

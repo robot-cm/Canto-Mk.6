@@ -28,6 +28,12 @@
 #include "nvs_flash.h"
 #include "driver/gpio.h"
 #include "driver/i2c.h"
+/* 关机深睡:esp_deep_sleep_start / esp_sleep_get_wakeup_cause /
+ * esp_sleep_enable_timer_wakeup;深睡期间用 pad hold 保持背光为低
+ * (GPIO43 非 RTC GPIO,浮空会被板上拉反亮,见 board_backlight_low_hold) */
+#include "esp_sleep.h"
+#include "esp_rom_gpio.h"
+#include "soc/gpio_sig_map.h"
 /* microSD(SDSPI,与 LCD 共用 SPI3 总线,见 board_sd_mount) */
 #include "driver/sdspi_host.h"
 #include "driver/spi_common.h"
@@ -435,13 +441,244 @@ static esp_err_t board_fs_mount(void)
 }
 
 /* ════════════════════════════════════════════════════════════════
+ *  关机深睡(方案A:深睡 + RTC 定时器唤醒轮询,双模式)
+ *
+ *  模式(关机页选择,经 board_power_setoff_params 传入):
+ *    - 触摸模式(timed=0): 唤醒读 CHSC6X,长按开机(连续唤醒读到触摸;
+ *      任一唤醒读到即开机 ≈ 按住 3s)。
+ *    - 定时模式(timed=1): 触摸无效,存 wake_after_s 秒,深睡一次睡满后
+ *      RTC 定时器唤醒即自动开机;零中途唤醒,零微闪。
+ *
+ *  硬件约束(已核实,AGENTS.md 第28节):
+ *    - 触摸 INT = GPIO44,非 RTC GPIO → 深睡期间无法被触摸唤醒
+ *      (S3 深睡 GPIO 唤醒仅支持 RTC GPIO0-21),瞬间点击几乎全部错过,
+ *      故采用"周期性定时唤醒后轮询触摸状态"捕获手势。
+ *    - 背光 BL = GPIO43,非 RTC GPIO → 深睡后浮空被板上拉 → 反亮
+ *  因此:深睡唤醒靠 RTC 定时器;唤醒后从 app_main 重新启动(RTC_DATA_ATTR
+ *  变量跨深睡保留);轮询期间用 gpio_hold 把背光保持在低电平
+ *  (ESP32-S3 所有 GPIO 支持 pad hold,深睡期间由 RTC 域维持)。
+ *  定时模式不依赖 esp_rtc_get_time_us()(深睡唤醒后软件时基可能未恢复,
+ *  曾导致 now<deadline 永远重睡、根本不开机);只存秒数 + 一次性 RTC
+ *  定时器睡眠,唤醒即开机。精度受 RTC 慢时钟(RC)影响 ±5-10%,属预期。
+ *
+ *  功耗(实测量级):每唤醒一次约 50-80ms 活跃(@50-80mA)+ 深睡 44µA;
+ *  触摸模式 3s 周期平均 ≈1.5-2mA,1 分钟后自动降到 5s;定时模式一次
+ *  睡到 deadline(零中途唤醒),功耗 = 纯深睡 44µA。
+ * ════════════════════════════════════════════════════════════════ */
+#define POWEROFF_HOLD_WAKEUPS_TO_BOOT  1   /* 触摸模式:连续 N 次唤醒读到触摸即开机(周期 3s,N=1 ≈ 按住 3s) */
+#define POWEROFF_WAKEUP_PERIOD_US      (3000 * 1000)  /* 触摸模式轮询周期:3s */
+#define POWEROFF_SLOW_AFTER_WAKES      20  /* 触摸模式:20 次唤醒(~1 分钟)后降频 */
+#define POWEROFF_WAKEUP_PERIOD_SLOW_US (5000 * 1000)  /* 触摸模式待机轮询周期:5s */
+
+/* 关机待机状态(跨深睡保留) */
+RTC_DATA_ATTR static bool    s_poweroff_pending      = false;
+RTC_DATA_ATTR static bool    s_poweroff_timed        = false;  /* true=定时模式(触摸无效,到点自动开机) */
+RTC_DATA_ATTR static uint32_t s_poweroff_wake_secs   = 0;      /* 定时模式: 自动开机延时秒数(RTC 定时器一次睡) */
+RTC_DATA_ATTR static uint8_t s_poweroff_hold_wakeups = 0;  /* 连续长按唤醒计数 */
+RTC_DATA_ATTR static uint32_t s_poweroff_wakes       = 0;
+
+/* 背光(GPIO43)拉低 + pad hold:深睡期间保持低电平,防浮空反亮。
+ * 必须与 esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON)
+ * 搭配使用(见 board_poweroff_enter_deep_sleep):GPIO43 的 IO_MUX 复用
+ * 配置位于 RTC 外设域,若 RTC_PERIPH 深睡掉电,唤醒后 IO_MUX 会复位成
+ * 硅片默认 UART0 TXD(输出空闲高)+ hold 锁存丢失 → 背光反亮,关机页面
+ * 残影整段待机可见(真机已见)。保持 RTC_PERIPH 供电 → IO_MUX 保持
+ * GPIO-out 低电平配置,深睡期间与唤醒全程 pad 低,物理黑屏。
+ * 5 次触摸开机时 board_backlight_hold_release() 释放后由正常 LEDC
+ * 初始化接管。 */
+static void board_backlight_low_hold(void)
+{
+    /* 参考 gc9a01 驱动 bltest:把引脚信号源从 LEDC 切回 GPIO out */
+    esp_rom_gpio_pad_select_gpio(BOARD_GC9A01_BL_PIN);
+    esp_rom_gpio_connect_out_signal(BOARD_GC9A01_BL_PIN, SIG_GPIO_OUT_IDX, 0, 0);
+    gpio_set_direction(BOARD_GC9A01_BL_PIN, GPIO_MODE_OUTPUT);
+    gpio_set_level(BOARD_GC9A01_BL_PIN, 0);
+    gpio_hold_en(BOARD_GC9A01_BL_PIN);
+    gpio_deep_sleep_hold_en();
+    ESP_LOGD(TAG, "Backlight GPIO%d held low for deep sleep", BOARD_GC9A01_BL_PIN);
+}
+
+static void board_backlight_hold_release(void)
+{
+    gpio_deep_sleep_hold_dis();
+    gpio_hold_dis(BOARD_GC9A01_BL_PIN);
+}
+
+/* 深睡(不返回):失败则保持黑屏死循环重试,【绝不返回】。
+ * 若返回,PM 状态仍是 DEEP_SLEEP,系统黑屏运行,任何触摸都会触发
+ * _indev_pressed_cb -> eos_pm_wake_up() 假唤醒,用户看到
+ * "按下关机却立即亮回系统"(像重启)。 */
+static void _poweroff_sleep(uint64_t period_us)
+{
+    esp_sleep_enable_timer_wakeup(period_us);
+    for (int fail = 0; ; fail++)
+    {
+        esp_deep_sleep_start();  /* 成功则永不返回 */
+        ESP_LOGE(TAG, "Deep sleep start failed #%d (keep black, retry)", fail);
+        if (fail >= 5)
+        {
+            /* 死循环黑屏等于"根本不开机":失败 5 次强制重启,恢复可操作 */
+            ESP_LOGE(TAG, "Deep sleep start failed %d times -> force reboot", fail);
+            esp_restart();
+        }
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+}
+
+/* 进入关机深睡(由 board_power_set(DEV_POWER_STATE_OFF) 调用,不返回) */
+static void board_poweroff_enter_deep_sleep(void)
+{
+    ESP_LOGI(TAG, "Power off: enter deep sleep (%s)",
+             s_poweroff_timed ? "timed, one-shot until deadline" : "touch hold-to-boot");
+    if (!s_poweroff_timed)
+        ESP_LOGI(TAG, "  wake every %u ms to poll touch (hold to boot)",
+                 (unsigned)(POWEROFF_WAKEUP_PERIOD_US / 1000));
+
+    s_poweroff_pending      = true;
+    s_poweroff_hold_wakeups = 0;
+    s_poweroff_wakes        = 0;
+
+    /* 背光保持低(防深睡浮空反亮) */
+    board_backlight_low_hold();
+
+    /* 先整屏刷黑再 DISPOFF:消除每次唤醒 boot 窗口的"弱弱一闪"。
+     * 唤醒 = 完整重启,ROM→bootloader 会解除 GPIO hold(CONFIG_ESP_SLEEP_
+     * GPIO_RESET_WORKAROUND),GPIO43 短暂回到 UART0 TXD 高 → 背光反亮,
+     * 透出关机页面残影(GRAM 保留最后一帧);app_main 早期 backlight_low_hold
+     * 才压回黑,故每 1s 定时唤醒微闪一次。fill_black 把 GRAM 写纯黑后,
+     * 背光反亮也无画面可透,微闪不可见。
+     * 此前 fill_black 因与在途异步 flush 交错触发断言崩溃被禁;驱动现已有
+     * display_drain_pending_tx() 排空保护(display_off/fill_black 内部调用),
+     * 同步 SPI 发送安全,不会导致 esp_deep_sleep_start 失败。
+     * 面板显示关闭(0x28 DISPOFF)仍保留:关面板刷新,防正常开机路径闪亮;
+     * 面板常供电 + 无硬件 RST,寄存器状态跨深睡保持,开机 init(0x29)恢复。 */
+    eos_dev_display_gc9a01_fill_black();
+    eos_dev_display_gc9a01_display_off();
+
+    /* 保持 RTC 外设域供电:GPIO43 的 IO_MUX 复用配置位于 RTC 域。
+     * 默认深睡 RTC_PERIPH 掉电 → 唤醒时 IO_MUX 复位成 UART0 TXD 默认
+     * (输出空闲高)、hold 锁存丢失 → 背光反亮,关机页面残影整段待机
+     * 可见,且每次 1s 唤醒 boot 时 GPIO 重配造成闪烁(真机已见)。
+     * 保持供电 → IO_MUX 保持 GPIO-out 低配置,深睡与唤醒全程 pad 低。 */
+    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
+
+    /* 初始睡眠周期:触摸模式固定 3s;定时模式直接睡 wake_after_s 秒
+     * (零中途唤醒,零微闪)。不依赖 esp_rtc_get_time_us() 的深睡连续
+     * 性(唤醒后时基可能未恢复,曾导致"永远没到点"死循环不开机),
+     * 按秒数设置 RTC 定时器一次睡满,唤醒即由 poll 判定开机。 */
+    uint64_t period_us = POWEROFF_WAKEUP_PERIOD_US;
+    if (s_poweroff_timed)
+    {
+        period_us = (uint64_t)s_poweroff_wake_secs * 1000000ULL;
+        if (period_us == 0)
+            period_us = 1000;  /* 0 秒兜底:睡 1ms 即醒 */
+        ESP_LOGI(TAG, "Power off (timed): one-shot sleep %u s",
+                 (unsigned)s_poweroff_wake_secs);
+    }
+
+    /* 注意:不配置 GPIO44 触摸唤醒——S3 深睡 GPIO 唤醒仅支持 RTC GPIO
+     * (GPIO0-21),触摸 INT 在 GPIO44(非 RTC),深睡期间 GPIO 外设掉电,
+     * gpio_wakeup_enable 配置的唤醒寄存器随之丢失,点击无法唤醒芯片。
+     * 开机手势依赖周期性定时唤醒后轮询触摸(触摸模式);定时模式无需
+     * 任何 GPIO 唤醒源,唤醒判定全靠 RTC 定时器。 */
+    _poweroff_sleep(period_us);   /* 不返回 */
+}
+
+/* 关机待机轮询:深睡唤醒后调用。
+ *  - 最小初始化(GPIO + I2C)。
+ *  - 定时模式:触摸无效,定时器睡满自动开机(返回继续正常启动);
+ *    一次睡满 wake_after_s 秒,零中途唤醒(零微闪)。
+ *  - 触摸模式:读 CHSC6X,长按开机(任一唤醒读到触摸 ≈ 按住 3s);
+ *    长时间无触摸自动降频。
+ *  - 否则重新深睡(不返回)。
+ * 注意:
+ *  - 不做任何完整系统初始化(LVGL/SD/服务),保持最短路程回睡。
+ *  - 开头无条件 board_backlight_low_hold() 兜底:即使 RTC_PERIPH 保电
+ *    后 hold 意外失效(GPIO43 复位为 UART0 TXD 高反亮),也在最早的
+ *    应用代码点压回低电平,消除"关机页面残影整段亮"。 */
+static void board_poweroff_poll(void)
+{
+    s_poweroff_wakes++;
+
+    /* 兜底:唤醒后无条件重新拉低背光 + hold(幂等;已低则无操作)。
+     * 保证 poll 期间与回睡瞬间背光物理黑。 */
+    board_backlight_low_hold();
+
+    board_gpio_init();      /* 触摸 INT(GPIO44) 输入 */
+    board_i2c_bus_init();   /* I2C:读 CHSC6X 需要 */
+
+    /* 定时模式:触摸无效。本系统深睡唯一唤醒源就是 RTC 定时器(未配置
+     * 任何 GPIO 唤醒),非定时器唤醒已被 app_main 拦截走正常启动分支;
+     * 能走到这里 = 定时器睡满 wake_after_s 秒 → 直接开机。不依赖
+     * esp_rtc_get_time_us() 判断(唤醒后时基可能未恢复,曾导致
+     * now<deadline 永远重睡、根本不开机)。 */
+    if (s_poweroff_timed)
+    {
+        ESP_LOGI(TAG, "Power off (timed): timer expired -> power on");
+        s_poweroff_pending      = false;
+        s_poweroff_hold_wakeups = 0;
+        s_poweroff_wakes        = 0;
+        s_poweroff_timed        = false;
+        s_poweroff_wake_secs    = 0;
+        board_backlight_hold_release();
+        return;  /* 继续正常启动 */
+    }
+
+    /* 触摸模式:读 CHSC6X,唤醒瞬间触摸状态可能尚未稳定,短重试 */
+    int32_t x = 0, y = 0;
+    bool touched = false;
+    for (int i = 0; i < 10 && !touched; i++) {
+        touched = eos_dev_touch_chsc6x_read(&x, &y);
+        if (!touched) vTaskDelay(pdMS_TO_TICKS(3));
+    }
+
+    /* 长按检测:连续唤醒读到触摸即"长按中"。周期 3s,N=1 → 手指按住,
+     * 到某次唤醒(≤3s)读到触摸即开机。深睡下瞬间点击无法命中唤醒窗口,
+     * 长按的持续状态可被定时轮询稳定捕获,是可靠的开机手势。 */
+    if (touched) {
+        s_poweroff_hold_wakeups++;
+    } else {
+        s_poweroff_hold_wakeups = 0;
+    }
+
+    if (s_poweroff_hold_wakeups >= POWEROFF_HOLD_WAKEUPS_TO_BOOT) {
+        ESP_LOGI(TAG, "Power off: hold detected (x=%ld y=%ld) -> power on",
+                 (long)x, (long)y);
+        s_poweroff_pending      = false;
+        s_poweroff_hold_wakeups = 0;
+        s_poweroff_wakes        = 0;
+        s_poweroff_timed        = false;
+        s_poweroff_wake_secs    = 0;
+        board_backlight_hold_release();
+        return;  /* 继续正常启动 */
+    }
+
+    /* 再睡:长时间无触摸自动降频(刚关机响应快,长时间待机更省电) */
+    uint64_t period_us = POWEROFF_WAKEUP_PERIOD_US;
+    if (s_poweroff_wakes >= POWEROFF_SLOW_AFTER_WAKES)
+        period_us = POWEROFF_WAKEUP_PERIOD_SLOW_US;
+    ESP_LOGI(TAG, "Power off: no boot yet (hold=%u), sleep %u ms (wake #%u)",
+             (unsigned)s_poweroff_hold_wakeups,
+             (unsigned)(period_us / 1000),
+             (unsigned)s_poweroff_wakes);
+    _poweroff_sleep(period_us);   /* 不返回 */
+}
+
+/* ════════════════════════════════════════════════════════════════
  *  Power OPS:把 PM 服务的熄屏/亮屏状态接到 GC9A01 背光。
  *  DEV_POWER_STATE_ON -> 背光 100%;SLEEP/AOD -> 背光 0%。
  *  这是"手掌覆盖熄屏/双击亮屏"生效的前提(此前 ops 为 NULL,
  *  eos_service_pm._pm_set_state 只打错误日志,屏幕无任何变化)。
+ *  DEV_POWER_STATE_OFF(关机) -> 进入硬件深睡(esp_deep_sleep_start,不返回)。
  * ════════════════════════════════════════════════════════════════ */
 static int board_power_set(dev_power_state_t state)
 {
+    /* 关机:进入深睡轮询(不返回) */
+    if (state == DEV_POWER_STATE_OFF) {
+        board_poweroff_enter_deep_sleep();
+        return 0;  /* esp_deep_sleep_start 不返回 */
+    }
+
     eos_dev_display_t *disp = eos_dev_display_get_instance();
     if (!disp || !disp->ops || !disp->ops->power_on || !disp->ops->power_off)
     {
@@ -455,8 +692,29 @@ static int board_power_set(dev_power_state_t state)
     return 0;
 }
 
+/* 关机模式参数(PM 服务在深睡前调用):存入 RTC_DATA_ATTR 跨深睡保留。
+ * timed=1: 定时模式,触摸无效,存秒数,深睡一次睡满自动开机;
+ * timed=0: 触摸模式,3s 周期轮询触摸,长按开机。 */
+static int board_power_setoff_params(bool timed, uint32_t wake_after_s)
+{
+    s_poweroff_timed = timed;
+    if (timed)
+    {
+        s_poweroff_wake_secs = wake_after_s;
+        ESP_LOGI(TAG, "Power off (timed): wake after %u s (RTC timer one-shot)",
+                 (unsigned)wake_after_s);
+    }
+    else
+    {
+        s_poweroff_wake_secs = 0;
+        ESP_LOGI(TAG, "Power off (touch): hold to boot");
+    }
+    return 0;
+}
+
 static const eos_dev_power_ops_t s_board_power_ops = {
-    .set_power = board_power_set,
+    .set_power           = board_power_set,
+    .set_poweroff_params = board_power_setoff_params,
 };
 
 /* ════════════════════════════════════════════════════════════════
@@ -480,6 +738,39 @@ void app_main(void)
 {
     ESP_LOGI(TAG, "=== ElenixOS ESP32-S3 boot ===");
     ESP_LOGI(TAG, "Board: XIAO ESP32-S3 + Round Display 1.28\"");
+
+    /* 0a. 关机待机轮询唤醒:背光 GPIO43 深睡前已 pad hold 低电平。
+     * 轮询路径【不释放】hold——一旦 gpio_deep_sleep_hold_dis() 释放,
+     * GPIO43 在"重新拉低+hold"之前浮空被板上拉反亮,残留关机画面
+     * 每 3s 闪一次(真机已见,闪烁内容即关机页面残影;轮询周期改 3s 后频率大降)。
+     * 关键保障:board_poweroff_enter_deep_sleep 里
+     * esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON)
+     * 保持 RTC 域 IO_MUX 不复位(否则唤醒后 GPIO43 复位成 UART0 TXD
+     * 高反亮);board_poweroff_poll 开头再无条件重新拉低兜底。
+     * 触摸模式长按 / 定时模式睡满 → board_poweroff_poll 内部解除 hold
+     * 并清标志,返回后继续正常启动;未满则重新深睡(不返回)。 */
+    if (s_poweroff_pending) {
+        ESP_LOGI(TAG, "Wake from poweroff: cause=%d pending=%d timed=%d wake_secs=%u wakes=%u",
+                 (int)esp_sleep_get_wakeup_cause(), (int)s_poweroff_pending,
+                 (int)s_poweroff_timed, (unsigned)s_poweroff_wake_secs,
+                 (unsigned)s_poweroff_wakes);
+        if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER) {
+            board_poweroff_poll();  /* 不释放 hold;长按/定时到点 → 内部 release 后返回 */
+        } else {
+            /* 非定时器唤醒(USB 重刷/BOOT 键等):取消关机待机,正常启动 */
+            ESP_LOGW(TAG, "Power off pending but wake cause=%d -> normal boot",
+                     (int)esp_sleep_get_wakeup_cause());
+            s_poweroff_pending      = false;
+            s_poweroff_hold_wakeups = 0;
+            s_poweroff_wakes        = 0;
+            gpio_deep_sleep_hold_dis();
+            gpio_hold_dis(BOARD_GC9A01_BL_PIN);
+        }
+    } else {
+        /* 正常启动:解除深睡 pad hold(否则后续 LEDC/GPIO 对背光的操作无效) */
+        gpio_deep_sleep_hold_dis();
+        gpio_hold_dis(BOARD_GC9A01_BL_PIN);
+    }
 
     /* 0. 创建 FreeRTOS 任务——必须在任何 internal 大分配之前!
      * 原因:ui_task 会执行 flash 写(如配置保存→SPIFFS)。flash 写期间 CPU cache

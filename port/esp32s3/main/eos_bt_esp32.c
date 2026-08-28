@@ -281,3 +281,35 @@ eos_result_t eos_net_bt_backend_set_enabled(bool enabled, const char *name)
 
     return EOS_OK;
 }
+
+eos_result_t eos_net_bt_backend_power_down(void)
+{
+    s_enabled = false;
+    if (!s_initialized)
+        return EOS_OK;
+
+    if (s_synced)
+        ble_gap_adv_stop();
+
+    /* ESP-IDF's NimBLE lifecycle requires stop before deinit. Deinit then
+     * disables and deinitializes the controller, releasing the PM locks that
+     * would otherwise prevent automatic Light-sleep. */
+    int stop_ret = nimble_port_stop();
+    if (stop_ret != 0)
+    {
+        ESP_LOGE(EOS_BT_ESP_TAG, "nimble_port_stop failed: %d", stop_ret);
+        return EOS_ERR_NET_BT;
+    }
+    esp_err_t deinit_ret = nimble_port_deinit();
+    if (deinit_ret != ESP_OK)
+    {
+        ESP_LOGE(EOS_BT_ESP_TAG, "nimble_port_deinit failed: %s",
+                 esp_err_to_name(deinit_ret));
+        return EOS_ERR_NET_BT;
+    }
+
+    s_initialized = false;
+    s_synced = false;
+    ESP_LOGI(EOS_BT_ESP_TAG, "BLE controller deinitialized for power save");
+    return EOS_OK;
+}

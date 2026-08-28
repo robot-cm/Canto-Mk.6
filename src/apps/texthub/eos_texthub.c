@@ -110,6 +110,9 @@ static char     *s_cur_path;             /* full path or NULL            */
 static char     *s_cur_dir;              /* parent dir or NULL           */
 static int       s_cur_idx;              /* index inside same-dir list   */
 static int       s_cur_total;
+/* reading position (permille 0..10000) persisted to history on exit */
+static uint32_t  s_cur_pos;              /* 0 = top, 10000 = end         */
+static bool      s_restoring;            /* suppress scroll callbacks during restore */
 
 /* text buffer */
 static eos_file_t s_fp = EOS_FILE_INVALID;
@@ -266,6 +269,90 @@ static void _seg_prev(void)
     }
 }
 
+/* Update s_cur_pos (permille 0..10000) from the current scroll state. */
+static void _update_cur_pos(void)
+{
+    if (!s_cur_path || s_size == 0) { s_cur_pos = 0; return; }
+
+    int32_t sy = lv_obj_get_scroll_y(s_card);
+    int32_t max_y = sy + lv_obj_get_scroll_bottom(s_card);
+    if (max_y < 0) max_y = 0;
+
+    if (!s_seg_mode) {
+        s_cur_pos = (max_y > 0) ? (uint32_t)((uint64_t)sy * 10000 / (uint32_t)max_y) : 0;
+    } else {
+        /* position in file = seg_start + ratio inside the segment */
+        uint32_t seg_len = s_seg_end - s_seg_start;
+        uint32_t in_seg  = (max_y > 0)
+            ? (uint32_t)((uint64_t)sy * seg_len / (uint32_t)max_y)
+            : 0;
+        s_cur_pos = (uint32_t)(((uint64_t)(s_seg_start + in_seg) * 10000) / s_size);
+    }
+    if (s_cur_pos > 10000) s_cur_pos = 10000;
+}
+
+/* Load a segment starting at an arbitrary byte offset (history restore).
+ * Displayed segment number is approximated by start / TH_SEG_BYTES. */
+static bool _seg_load_at(uint32_t start)
+{
+    if (s_fp == EOS_FILE_INVALID) return false;
+    if (start >= s_size) return false;
+    if (eos_storage_file_seek(s_fp, start) != EOS_OK) return false;
+
+    char stack_buf[TH_SEG_BYTES];
+    ssize_t rd = eos_storage_file_read(s_fp, stack_buf, TH_SEG_BYTES);
+    if (rd <= 0) return false;
+    uint32_t len = (uint32_t)rd;
+
+    if (start + len < s_size) {
+        int32_t i = (int32_t)len - 1;
+        while (i >= 0 && stack_buf[i] != '\n') i--;
+        if (i >= 0) {
+            len = (uint32_t)i + 1;
+        } else if (len > TH_SEG_LINE_MAX) {
+            len = TH_SEG_LINE_MAX;
+        }
+        if (len == 0) return false;
+    }
+
+    char *txt = (char *)eos_malloc(len + 1);
+    if (!txt) return false;
+    memcpy(txt, stack_buf, len);
+    txt[len] = '\0';
+
+    if (s_text) eos_free(s_text);
+    s_text = txt;
+    s_seg_idx    = start / TH_SEG_BYTES;  /* approximate, display only */
+    s_seg_start  = start;
+    s_seg_end    = start + len;
+    return true;
+}
+
+/* Restore reading position (permille 0..10000) right after _open_path. */
+static void _restore_pos(uint32_t pos)
+{
+    if (!s_card || !s_cur_path || pos == 0 || pos > 10000) return;
+
+    s_restoring = true;   /* suppress SCROLL_END handler during restore */
+    if (!s_seg_mode) {
+        int32_t max_y = lv_obj_get_scroll_y(s_card) + lv_obj_get_scroll_bottom(s_card);
+        if (max_y > 0) {
+            lv_obj_scroll_to_y(s_card, (int32_t)((uint64_t)max_y * pos / 10000), LV_ANIM_OFF);
+        }
+    } else {
+        /* resume from a byte offset; segment granularity is acceptable */
+        uint32_t byte = (uint32_t)((uint64_t)s_size * pos / 10000);
+        if (_seg_load_at(byte)) {
+            lv_label_set_text(s_body, s_text);
+            lv_obj_update_layout(s_card);
+            lv_obj_scroll_to_y(s_card, 0, LV_ANIM_OFF);
+            _update_bar();
+        }
+    }
+    s_restoring = false;
+    _update_cur_pos();
+}
+
 /* ------------------------------------------------------------------ */
 /* Same-directory text file listing (for idx/total and [>] next)      */
 /* ------------------------------------------------------------------ */
@@ -331,10 +418,17 @@ static void _show_centered_msg(const char *txt)
     lv_obj_scroll_to_y(s_card, 0, LV_ANIM_OFF);
 }
 
-static void _write_history(const char *path)
+/* Persist last file + reading position (permille 0..10000).
+ * Format: "<path>\n<pos>\n"; a bare-path line is the legacy format (pos=0). */
+static void _write_history(const char *path, uint32_t pos)
 {
+    if (!path) return;
     eos_storage_mkdir_recursive(TH_HIST_DIR);
-    eos_storage_write_file(TH_HIST_FILE, path, strlen(path));
+    char buf[EOS_FS_PATH_MAX + 16];
+    int n = snprintf(buf, sizeof(buf), "%s\n%u\n", path, (unsigned)pos);
+    if (n < 0) n = 0;
+    if ((size_t)n > sizeof(buf)) n = (int)sizeof(buf);
+    eos_storage_write_file(TH_HIST_FILE, buf, (size_t)n);
 }
 
 static bool _open_path(const char *path)
@@ -407,7 +501,9 @@ static bool _open_path(const char *path)
     lv_obj_scroll_to_y(s_card, 0, LV_ANIM_OFF);
     _update_bar();
 
-    _write_history(path);
+    /* a fresh file always starts at the top */
+    s_cur_pos = 0;
+    _write_history(path, s_cur_pos);
     EOS_LOG_I("Texthub: opened %s (%u bytes%s)", path, size,
               s_seg_mode ? ", seg-mode" : "");
     return true;
@@ -791,6 +887,11 @@ static lv_obj_t *_make_bar_btn(lv_obj_t *parent, int x, int w,
 static void _card_scroll_cb(lv_event_t *e)
 {
     lv_obj_t *card = lv_event_get_target(e);
+    if (s_restoring) return;   /* position restore in progress */
+
+    /* keep reading position fresh (non-seg mode too) */
+    _update_cur_pos();
+
     if (!s_seg_mode || s_fp == EOS_FILE_INVALID) return;
 
     int32_t sy = lv_obj_get_scroll_y(card);
@@ -908,13 +1009,28 @@ static void _on_enter(eos_activity_t *act)
     if (eos_storage_is_file(TH_HIST_FILE)) {
         char *last = eos_storage_read_file(TH_HIST_FILE);
         if (last) {
-            size_t len = strlen(last);
-            while (len > 0 && (last[len - 1] == '\n' || last[len - 1] == '\r')) {
-                last[--len] = '\0';
+            uint32_t pos = 0;
+            char *nl = strchr(last, '\n');
+            if (nl) {
+                /* new format: "<path>\n<pos>\n" */
+                *nl = '\0';
+                const char *ps = nl + 1;
+                char *pe = strchr(ps, '\r');
+                if (pe) *pe = '\0';
+                pos = (uint32_t)strtoul(ps, NULL, 10);
+                if (pos > 10000) pos = 10000;
+            } else {
+                /* legacy format: bare path only (position = top) */
+                size_t len = strlen(last);
+                while (len > 0 && (last[len - 1] == '\n' || last[len - 1] == '\r')) {
+                    last[--len] = '\0';
+                }
             }
+            size_t len = strlen(last);
             if (len > 1 && strncmp(last, TH_DIR "/", strlen(TH_DIR) + 1) == 0) {
                 if (eos_storage_is_file(last) && _open_path(last)) {
                     eos_free(last);
+                    _restore_pos(pos);
                     return;
                 }
             }
@@ -938,11 +1054,17 @@ static void _on_enter(eos_activity_t *act)
 static void _on_destroy(eos_activity_t *act)
 {
     (void)act;
+    /* persist the reading position (view is still valid during on_destroy) */
+    if (s_cur_path) {
+        _update_cur_pos();
+        _write_history(s_cur_path, s_cur_pos);
+    }
     _fm_close();
     _free_text();
     if (s_cur_path) { eos_free(s_cur_path); s_cur_path = NULL; }
     if (s_cur_dir)  { eos_free(s_cur_dir);  s_cur_dir  = NULL; }
     s_cur_idx = s_cur_total = 0;
+    s_cur_pos = 0;
 }
 
 static const eos_activity_lifecycle_t s_lifecycle = {

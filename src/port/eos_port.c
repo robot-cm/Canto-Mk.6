@@ -40,6 +40,11 @@ EOS_WEAK eos_result_t eos_net_bt_backend_set_enabled(bool enabled, const char *n
     return EOS_OK;
 }
 
+EOS_WEAK eos_result_t eos_net_bt_backend_power_down(void)
+{
+    return EOS_OK;
+}
+
 EOS_WEAK void eos_locate_phone(void)
 {
     return;

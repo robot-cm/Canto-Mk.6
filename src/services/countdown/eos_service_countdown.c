@@ -42,7 +42,7 @@
 #include "eos_mem.h"
 
 /* Timer App 固定 id（与 apps/timer/manifest.json 的 id 一致） */
-#define EOS_COUNTDOWN_APP_ID "com.elenix.timer"
+#define EOS_COUNTDOWN_APP_ID "com.cantomk6.timer"
 /* App 私有配置路径：JS 侧 eos.config 读写的是同一文件 */
 #define EOS_COUNTDOWN_CFG_PATH EOS_APP_DATA_DIR EOS_COUNTDOWN_APP_ID "/config.json"
 
