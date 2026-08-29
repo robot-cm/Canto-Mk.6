@@ -24,6 +24,7 @@ extern "C" {
 #define EOS_IMG_LOGO EOS_SYS_RES_IMG_DIR "logo.bin"
 #define EOS_IMG_ALBUM "/sdcard/theme/icons/album.bin"
 #define EOS_IMG_TEXTHUB "/sdcard/theme/icons/texthub.bin"
+#define EOS_IMG_DICTIONARY "/sdcard/theme/icons/dictionary.bin"
 
 #ifdef __cplusplus
 }

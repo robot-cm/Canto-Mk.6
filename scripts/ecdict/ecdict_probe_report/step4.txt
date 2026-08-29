@@ -1,0 +1,230 @@
+====================================================================================================
+ECDICT STEP 4.0 — REAL FIELD SIZE ANALYSIS
+====================================================================================================
+
+Database : /home/erashaperavm/下载/ElenixOS-fork/resources/ecdict-sqlite-28/stardict.db
+
+Fields:
+  word
+  phonetic
+  translation
+  definition
+  pos
+  exchange
+
+tag     : NOT INCLUDED
+
+Reading SQLite...
+
+  processed 500,000 (314,179 entries/s)
+  processed 1,000,000 (317,496 entries/s)
+  processed 1,500,000 (319,989 entries/s)
+  processed 2,000,000 (321,941 entries/s)
+  processed 2,500,000 (322,939 entries/s)
+  processed 3,000,000 (323,387 entries/s)
+
+Entries       : 3,402,564
+Raw field data: 168.17 MB
+Read time     : 10.49 s
+
+====================================================================================================
+FIELD SIZE STATISTICS
+====================================================================================================
+
+Field                  Total         Avg       P50       P90       P95       P99         Max       Empty    Share
+-----------------------------------------------------------------------------------------------------------------
+word                49.05 MB        15 B      14 B      25 B      29 B      39 B       147 B           0   29.17%
+phonetic             4.84 MB         1 B       0 B       5 B      13 B      23 B        99 B   3,049,430    2.88%
+translation         91.42 MB        28 B      21 B      53 B      69 B     118 B    20.27 KB      16,536   54.36%
+definition          16.23 MB         5 B       0 B       0 B      16 B     141 B    12.05 KB   3,225,488    9.65%
+pos                278.61 KB         0 B       0 B       0 B       0 B       5 B        25 B   3,350,037    0.16%
+exchange             6.36 MB         2 B       0 B      11 B      16 B      24 B       114 B   2,980,994    3.78%
+
+====================================================================================================
+COMBINED ENTRY PAYLOAD
+====================================================================================================
+
+Total       : 168.17 MB
+Average     : 52 B
+P50         : 35 B
+P90         : 94 B
+P95         : 143 B
+P99         : 350 B
+Max         : 32.70 KB
+
+====================================================================================================
+LARGEST 30 ENTRIES
+====================================================================================================
+
+h.and.                            20.29 KB
+    word                   6 B
+    phonetic               5 B
+    translation       20.27 KB
+
+gonest                            17.95 KB
+    word                   6 B
+    phonetic               4 B
+    translation       17.94 KB
+
+g.o.s.                            17.17 KB
+    word                   6 B
+    phonetic               5 B
+    translation       17.16 KB
+
+betterest                         17.08 KB
+    word                   9 B
+    phonetic               6 B
+    translation       17.07 KB
+
+wentest                           16.92 KB
+    word                   7 B
+    phonetic               4 B
+    translation       16.91 KB
+
+runnest                           16.27 KB
+    word                   7 B
+    phonetic               4 B
+    translation       16.26 KB
+
+brokest                           15.62 KB
+    word                   7 B
+    phonetic               7 B
+    translation       15.60 KB
+
+tookest                           15.22 KB
+    word                   7 B
+    phonetic               4 B
+    translation       15.21 KB
+
+takest                            15.13 KB
+    word                   6 B
+    phonetic               5 B
+    translation       15.12 KB
+
+taked                             15.13 KB
+    word                   5 B
+    phonetic               5 B
+    translation       15.12 KB
+
+breakest                          15.10 KB
+    word                   8 B
+    phonetic               5 B
+    translation       15.09 KB
+
+turnest                           15.04 KB
+    word                   7 B
+    phonetic               6 B
+    translation       15.02 KB
+
+endest                            13.50 KB
+    word                   6 B
+    phonetic               3 B
+    translation       13.49 KB
+
+mindest                           12.65 KB
+    word                   7 B
+    phonetic               6 B
+    translation       12.64 KB
+
+g.o                               12.50 KB
+    word                   3 B
+    phonetic               5 B
+    translation       12.49 KB
+
+drawest                           12.22 KB
+    word                   7 B
+    phonetic               6 B
+    translation       12.21 KB
+
+sex story                         12.06 KB
+    word                   9 B
+    definition        12.05 KB
+
+playlike                          11.82 KB
+    word                   8 B
+    phonetic               4 B
+    translation       11.81 KB
+
+playest                           11.78 KB
+    word                   7 B
+    phonetic               5 B
+    translation       11.77 KB
+
+beatest                           11.67 KB
+    word                   7 B
+    phonetic               5 B
+    translation       11.65 KB
+
+strikingest                       11.59 KB
+    word                  11 B
+    phonetic              12 B
+    translation       11.56 KB
+
+guy code                          11.42 KB
+    word                   8 B
+    definition        11.41 KB
+
+strikest                          11.36 KB
+    word                   8 B
+    phonetic               7 B
+    translation       11.35 KB
+
+downest                           11.19 KB
+    word                   7 B
+    phonetic               5 B
+    translation       11.18 KB
+
+footest                           10.95 KB
+    word                   7 B
+    phonetic               4 B
+    translation       10.94 KB
+
+miss thangs                       10.70 KB
+    word                  11 B
+    definition        10.69 KB
+
+passest                           10.67 KB
+    word                   7 B
+    phonetic              11 B
+    translation       10.65 KB
+
+gottest                           10.62 KB
+    word                   7 B
+    phonetic               5 B
+    translation       10.61 KB
+
+gettest                           10.46 KB
+    word                   7 B
+    phonetic               3 B
+    translation       10.45 KB
+
+getted                            10.46 KB
+    word                   6 B
+    phonetic               3 B
+    translation       10.45 KB
+
+====================================================================================================
+BINARY STORAGE SIMULATION
+====================================================================================================
+
+This estimates several possible entry layouts.
+
+A: inline + compact lengths                223.34 MB
+B: inline + 6×uint32 lengths               246.05 MB
+C: offset based header                     246.05 MB
+
+====================================================================================================
+PRELIMINARY OBSERVATIONS
+====================================================================================================
+
+Definition share : 9.65%
+Translation share: 54.36%
+Exchange share   : 3.78%
+
+NOTE:
+The binary format has NOT been finalized.
+This step only measures the real data.
+
+====================================================================================================
+STEP 4.0 COMPLETE
+====================================================================================================

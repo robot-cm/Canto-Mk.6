@@ -1,0 +1,591 @@
+ECDICT STEP 3.1 — ADAPTIVE BUCKET SIMULATOR
+====================================================================================================
+
+Database       : /home/erashaperavm/下载/ElenixOS-fork/resources/ecdict-sqlite-28/stardict.db
+Targets        : 4 KB, 8 KB, 16 KB, 32 KB, 64 KB, 128 KB, 256 KB
+Max depth      : 16
+Index estimate : 16 bytes / bucket
+
+Phase 1/4 — Reading SQLite...
+
+  read 500,000 (658,267 entries/s)
+  read 1,000,000 (649,096 entries/s)
+  read 1,500,000 (675,619 entries/s)
+  read 2,000,000 (692,755 entries/s)
+  read 2,500,000 (702,963 entries/s)
+  read 3,000,000 (712,944 entries/s)
+
+Sorting normalized words...
+Entries        : 3,402,564
+Estimated data : 220.25 MB
+Read + sort    : 5.05 s
+Sort time      : 0.16 s
+
+Verifying normalized sort order...
+Sort check    : PASS (0.111 s)
+
+Analyzing normalized duplicates...
+Duplicate groups       : 0
+Entries in duplicates  : 0
+Maximum duplicate count: 0
+
+Phase 2/4 — Building byte offsets...
+Offset time    : 0.118 s
+Final offset   : 220.25 MB
+
+Largest 20 individual entries:
+  h.and.                                   20.30 KB
+  gonest                                   17.96 KB
+  g.o.s.                                   17.18 KB
+  betterest                                17.10 KB
+  wentest                                  16.94 KB
+  runnest                                  16.29 KB
+  brokest                                  15.63 KB
+  tookest                                  15.23 KB
+  takest                                   15.15 KB
+  taked                                    15.15 KB
+  breakest                                 15.12 KB
+  turnest                                  15.05 KB
+  endest                                   13.51 KB
+  mindest                                  12.67 KB
+  g.o                                      12.52 KB
+  drawest                                  12.24 KB
+  sex story                                12.08 KB
+  playlike                                 11.83 KB
+  playest                                  11.79 KB
+  beatest                                  11.68 KB
+
+Phase 3/4 — Adaptive bucket simulation...
+
+====================================================================================================
+TARGET BUCKET ≈ 4 KB
+====================================================================================================
+Buckets          : 387,611
+Entries          : 3,402,564
+Data             : 220.25 MB
+Index            : 6056.42 KB
+Total storage    : 226.16 MB
+
+Bucket size:
+  min            : 0.02 KB
+  average        : 0.58 KB
+  P50            : 0.22 KB
+  P90            : 1.58 KB
+  P95            : 2.44 KB
+  P99            : 3.79 KB
+  max            : 90.56 KB
+
+Entries / bucket:
+  min            : 1
+  average        : 8.8
+  P50            : 3
+  P90            : 23
+  P95            : 36
+  P99            : 60
+  max            : 1,502
+
+Un-splittable buckets:
+  buckets        : 1,958
+  entries        : 255,624
+  data           : 17.44 MB
+
+Prefix depth distribution:
+  depth  1: 36 buckets
+  depth  2: 1,796 buckets
+  depth  3: 17,575 buckets
+  depth  4: 52,136 buckets
+  depth  5: 87,008 buckets
+  depth  6: 76,759 buckets
+  depth  7: 55,319 buckets
+  depth  8: 36,904 buckets
+  depth  9: 24,686 buckets
+  depth 10: 15,532 buckets
+  depth 11: 10,092 buckets
+  depth 12: 5,171 buckets
+  depth 13: 2,874 buckets
+  depth 14: 944 buckets
+  depth 15: 483 buckets
+  depth 16: 296 buckets
+
+Simulation time : 1.493 s
+
+Largest 20 buckets:
+  chemica                    1,502 entries       90.56 KB depth=7  [UNSPLITTABLE: no further prefix split]
+  frequ                      1,229 entries       76.45 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  busine                     1,078 entries       72.36 KB depth=6  [UNSPLITTABLE: no further prefix split]
+  characte                   1,075 entries       71.00 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  adjus                      1,133 entries       69.55 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  measu                      1,063 entries       66.81 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  operatio                   1,031 entries       66.02 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  netwo                      1,026 entries       63.47 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  informatio                   924 entries       61.74 KB depth=10  [UNSPLITTABLE: no further prefix split]
+  colou                        989 entries       61.52 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  environm                     921 entries       60.30 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  compoun                    1,003 entries       58.40 KB depth=7  [UNSPLITTABLE: no further prefix split]
+  potassiu                     901 entries       55.85 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  switc                        887 entries       55.60 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  coefficie                    841 entries       54.05 KB depth=9  [UNSPLITTABLE: no further prefix split]
+  weath                        729 entries       49.46 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  develo                       714 entries       47.73 KB depth=6  [UNSPLITTABLE: no further prefix split]
+  indirec                      776 entries       46.58 KB depth=7  [UNSPLITTABLE: no further prefix split]
+  musculu                      727 entries       46.52 KB depth=7  [UNSPLITTABLE: no further prefix split]
+  visua                        738 entries       45.99 KB depth=5  [UNSPLITTABLE: no further prefix split]
+
+====================================================================================================
+TARGET BUCKET ≈ 8 KB
+====================================================================================================
+Buckets          : 251,405
+Entries          : 3,402,564
+Data             : 220.25 MB
+Index            : 3928.20 KB
+Total storage    : 224.09 MB
+
+Bucket size:
+  min            : 0.02 KB
+  average        : 0.90 KB
+  P50            : 0.28 KB
+  P90            : 2.50 KB
+  P95            : 4.17 KB
+  P99            : 7.19 KB
+  max            : 90.56 KB
+
+Entries / bucket:
+  min            : 1
+  average        : 13.5
+  P50            : 4
+  P90            : 37
+  P95            : 61
+  P99            : 111
+  max            : 1,502
+
+Un-splittable buckets:
+  buckets        : 666
+  entries        : 159,397
+  data           : 10.58 MB
+
+Prefix depth distribution:
+  depth  1: 37 buckets
+  depth  2: 1,762 buckets
+  depth  3: 14,830 buckets
+  depth  4: 44,115 buckets
+  depth  5: 62,937 buckets
+  depth  6: 47,761 buckets
+  depth  7: 31,398 buckets
+  depth  8: 18,745 buckets
+  depth  9: 12,422 buckets
+  depth 10: 8,138 buckets
+  depth 11: 4,747 buckets
+  depth 12: 2,454 buckets
+  depth 13: 1,177 buckets
+  depth 14: 529 buckets
+  depth 15: 246 buckets
+  depth 16: 107 buckets
+
+Simulation time : 1.044 s
+
+Largest 20 buckets:
+  chemica                    1,502 entries       90.56 KB depth=7  [UNSPLITTABLE: no further prefix split]
+  frequ                      1,229 entries       76.45 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  busine                     1,078 entries       72.36 KB depth=6  [UNSPLITTABLE: no further prefix split]
+  characte                   1,075 entries       71.00 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  adjus                      1,133 entries       69.55 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  measu                      1,063 entries       66.81 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  operatio                   1,031 entries       66.02 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  netwo                      1,026 entries       63.47 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  informatio                   924 entries       61.74 KB depth=10  [UNSPLITTABLE: no further prefix split]
+  colou                        989 entries       61.52 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  environm                     921 entries       60.30 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  compoun                    1,003 entries       58.40 KB depth=7  [UNSPLITTABLE: no further prefix split]
+  potassiu                     901 entries       55.85 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  switc                        887 entries       55.60 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  coefficie                    841 entries       54.05 KB depth=9  [UNSPLITTABLE: no further prefix split]
+  weath                        729 entries       49.46 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  develo                       714 entries       47.73 KB depth=6  [UNSPLITTABLE: no further prefix split]
+  indirec                      776 entries       46.58 KB depth=7  [UNSPLITTABLE: no further prefix split]
+  musculu                      727 entries       46.52 KB depth=7  [UNSPLITTABLE: no further prefix split]
+  visua                        738 entries       45.99 KB depth=5  [UNSPLITTABLE: no further prefix split]
+
+====================================================================================================
+TARGET BUCKET ≈ 16 KB
+====================================================================================================
+Buckets          : 156,792
+Entries          : 3,402,564
+Data             : 220.25 MB
+Index            : 2449.88 KB
+Total storage    : 222.64 MB
+
+Bucket size:
+  min            : 0.02 KB
+  average        : 1.44 KB
+  P50            : 0.34 KB
+  P90            : 4.06 KB
+  P95            : 7.25 KB
+  P99            : 13.86 KB
+  max            : 90.56 KB
+
+Entries / bucket:
+  min            : 1
+  average        : 21.7
+  P50            : 5
+  P90            : 60
+  P95            : 107
+  P99            : 211
+  max            : 1,502
+
+Un-splittable buckets:
+  buckets        : 206
+  entries        : 88,646
+  data           : 5.65 MB
+
+Prefix depth distribution:
+  depth  1: 39 buckets
+  depth  2: 1,710 buckets
+  depth  3: 11,581 buckets
+  depth  4: 36,479 buckets
+  depth  5: 40,451 buckets
+  depth  6: 27,651 buckets
+  depth  7: 16,713 buckets
+  depth  8: 9,073 buckets
+  depth  9: 5,659 buckets
+  depth 10: 3,646 buckets
+  depth 11: 2,015 buckets
+  depth 12: 890 buckets
+  depth 13: 477 buckets
+  depth 14: 248 buckets
+  depth 15: 118 buckets
+  depth 16: 42 buckets
+
+Simulation time : 0.787 s
+
+Largest 20 buckets:
+  chemica                    1,502 entries       90.56 KB depth=7  [UNSPLITTABLE: no further prefix split]
+  frequ                      1,229 entries       76.45 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  busine                     1,078 entries       72.36 KB depth=6  [UNSPLITTABLE: no further prefix split]
+  characte                   1,075 entries       71.00 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  adjus                      1,133 entries       69.55 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  measu                      1,063 entries       66.81 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  operatio                   1,031 entries       66.02 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  netwo                      1,026 entries       63.47 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  informatio                   924 entries       61.74 KB depth=10  [UNSPLITTABLE: no further prefix split]
+  colou                        989 entries       61.52 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  environm                     921 entries       60.30 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  compoun                    1,003 entries       58.40 KB depth=7  [UNSPLITTABLE: no further prefix split]
+  potassiu                     901 entries       55.85 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  switc                        887 entries       55.60 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  coefficie                    841 entries       54.05 KB depth=9  [UNSPLITTABLE: no further prefix split]
+  weath                        729 entries       49.46 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  develo                       714 entries       47.73 KB depth=6  [UNSPLITTABLE: no further prefix split]
+  indirec                      776 entries       46.58 KB depth=7  [UNSPLITTABLE: no further prefix split]
+  musculu                      727 entries       46.52 KB depth=7  [UNSPLITTABLE: no further prefix split]
+  visua                        738 entries       45.99 KB depth=5  [UNSPLITTABLE: no further prefix split]
+
+====================================================================================================
+TARGET BUCKET ≈ 32 KB
+====================================================================================================
+Buckets          : 93,107
+Entries          : 3,402,564
+Data             : 220.25 MB
+Index            : 1454.80 KB
+Total storage    : 221.67 MB
+
+Bucket size:
+  min            : 0.02 KB
+  average        : 2.42 KB
+  P50            : 0.41 KB
+  P90            : 6.85 KB
+  P95            : 13.17 KB
+  P99            : 26.86 KB
+  max            : 90.56 KB
+
+Entries / bucket:
+  min            : 1
+  average        : 36.5
+  P50            : 6
+  P90            : 102
+  P95            : 194
+  P99            : 411
+  max            : 1,502
+
+Un-splittable buckets:
+  buckets        : 52
+  entries        : 38,481
+  data           : 2.38 MB
+
+Prefix depth distribution:
+  depth  1: 40 buckets
+  depth  2: 1,620 buckets
+  depth  3: 8,811 buckets
+  depth  4: 28,573 buckets
+  depth  5: 23,892 buckets
+  depth  6: 13,587 buckets
+  depth  7: 7,561 buckets
+  depth  8: 3,847 buckets
+  depth  9: 2,205 buckets
+  depth 10: 1,455 buckets
+  depth 11: 743 buckets
+  depth 12: 462 buckets
+  depth 13: 141 buckets
+  depth 14: 120 buckets
+  depth 15: 50 buckets
+
+Simulation time : 0.679 s
+
+Largest 20 buckets:
+  chemica                    1,502 entries       90.56 KB depth=7  [UNSPLITTABLE: no further prefix split]
+  frequ                      1,229 entries       76.45 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  busine                     1,078 entries       72.36 KB depth=6  [UNSPLITTABLE: no further prefix split]
+  characte                   1,075 entries       71.00 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  adjus                      1,133 entries       69.55 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  measu                      1,063 entries       66.81 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  operatio                   1,031 entries       66.02 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  netwo                      1,026 entries       63.47 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  informatio                   924 entries       61.74 KB depth=10  [UNSPLITTABLE: no further prefix split]
+  colou                        989 entries       61.52 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  environm                     921 entries       60.30 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  compoun                    1,003 entries       58.40 KB depth=7  [UNSPLITTABLE: no further prefix split]
+  potassiu                     901 entries       55.85 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  switc                        887 entries       55.60 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  coefficie                    841 entries       54.05 KB depth=9  [UNSPLITTABLE: no further prefix split]
+  weath                        729 entries       49.46 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  develo                       714 entries       47.73 KB depth=6  [UNSPLITTABLE: no further prefix split]
+  indirec                      776 entries       46.58 KB depth=7  [UNSPLITTABLE: no further prefix split]
+  musculu                      727 entries       46.52 KB depth=7  [UNSPLITTABLE: no further prefix split]
+  visua                        738 entries       45.99 KB depth=5  [UNSPLITTABLE: no further prefix split]
+
+====================================================================================================
+TARGET BUCKET ≈ 64 KB
+====================================================================================================
+Buckets          : 50,892
+Entries          : 3,402,564
+Data             : 220.25 MB
+Index            : 795.19 KB
+Total storage    : 221.03 MB
+
+Bucket size:
+  min            : 0.02 KB
+  average        : 4.43 KB
+  P50            : 0.50 KB
+  P90            : 12.87 KB
+  P95            : 25.56 KB
+  P99            : 53.15 KB
+  max            : 90.56 KB
+
+Entries / bucket:
+  min            : 1
+  average        : 66.9
+  P50            : 8
+  P90            : 190
+  P95            : 384
+  P99            : 827
+  max            : 1,502
+
+Un-splittable buckets:
+  buckets        : 7
+  entries        : 8,111
+  data           : 0.50 MB
+
+Prefix depth distribution:
+  depth  1: 41 buckets
+  depth  2: 1,570 buckets
+  depth  3: 7,149 buckets
+  depth  4: 20,239 buckets
+  depth  5: 11,613 buckets
+  depth  6: 5,246 buckets
+  depth  7: 2,217 buckets
+  depth  8: 1,205 buckets
+  depth  9: 780 buckets
+  depth 10: 456 buckets
+  depth 11: 171 buckets
+  depth 12: 120 buckets
+  depth 13: 22 buckets
+  depth 14: 37 buckets
+  depth 15: 26 buckets
+
+Simulation time : 0.501 s
+
+Largest 20 buckets:
+  chemica                    1,502 entries       90.56 KB depth=7  [UNSPLITTABLE: no further prefix split]
+  frequ                      1,229 entries       76.45 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  busine                     1,078 entries       72.36 KB depth=6  [UNSPLITTABLE: no further prefix split]
+  characte                   1,075 entries       71.00 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  adjus                      1,133 entries       69.55 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  measu                      1,063 entries       66.81 KB depth=5  [UNSPLITTABLE: no further prefix split]
+  operatio                   1,031 entries       66.02 KB depth=8  [UNSPLITTABLE: no further prefix split]
+  commer                     1,004 entries       63.99 KB depth=6
+  bill                         864 entries       63.99 KB depth=4
+  aga                          960 entries       63.93 KB depth=3
+  drag                         880 entries       63.92 KB depth=4
+  runn                         801 entries       63.88 KB depth=4
+  second                     1,018 entries       63.87 KB depth=7
+  fea                          846 entries       63.82 KB depth=3
+  track                      1,029 entries       63.78 KB depth=5
+  ground                     1,129 entries       63.77 KB depth=7
+  reti                         958 entries       63.76 KB depth=4
+  jum                          816 entries       63.65 KB depth=3
+  pneumat                    1,060 entries       63.65 KB depth=7
+  retro                        988 entries       63.61 KB depth=5
+
+====================================================================================================
+TARGET BUCKET ≈ 128 KB
+====================================================================================================
+Buckets          : 26,685
+Entries          : 3,402,564
+Data             : 220.25 MB
+Index            : 416.95 KB
+Total storage    : 220.66 MB
+
+Bucket size:
+  min            : 0.02 KB
+  average        : 8.45 KB
+  P50            : 0.73 KB
+  P90            : 25.53 KB
+  P95            : 51.19 KB
+  P99            : 102.38 KB
+  max            : 127.90 KB
+
+Entries / bucket:
+  min            : 1
+  average        : 127.5
+  P50            : 11
+  P90            : 380
+  P95            : 772
+  P99            : 1,592
+  max            : 2,217
+
+Un-splittable buckets:
+  buckets        : 0
+  entries        : 0
+  data           : 0.00 MB
+
+Prefix depth distribution:
+  depth  1: 43 buckets
+  depth  2: 1,515 buckets
+  depth  3: 6,439 buckets
+  depth  4: 11,860 buckets
+  depth  5: 4,162 buckets
+  depth  6: 1,570 buckets
+  depth  7: 469 buckets
+  depth  8: 346 buckets
+  depth  9: 127 buckets
+  depth 10: 72 buckets
+  depth 11: 41 buckets
+  depth 12: 2 buckets
+  depth 13: 2 buckets
+  depth 14: 11 buckets
+  depth 15: 26 buckets
+
+Simulation time : 0.434 s
+
+Largest 20 buckets:
+  three-                     2,052 entries      127.90 KB depth=6
+  emb                        1,736 entries      127.66 KB depth=3
+  commu                      1,830 entries      127.58 KB depth=5
+  lead                       2,097 entries      127.55 KB depth=4
+  puls                       2,166 entries      127.40 KB depth=4
+  mechan                     2,016 entries      127.37 KB depth=6
+  diffe                      1,958 entries      127.36 KB depth=5
+  nit                        2,130 entries      127.25 KB depth=3
+  too                        1,799 entries      127.20 KB depth=3
+  rei                        1,860 entries      126.95 KB depth=3
+  tea                        1,758 entries      126.84 KB depth=3
+  fie                        2,036 entries      126.66 KB depth=3
+  computer                   1,656 entries      126.61 KB depth=8
+  righ                       2,033 entries      126.61 KB depth=4
+  multi-                     2,045 entries      126.55 KB depth=6
+  cru                        1,868 entries      126.39 KB depth=3
+  fli                        1,524 entries      126.35 KB depth=3
+  sof                        2,046 entries      126.32 KB depth=3
+  eve                        1,866 entries      126.30 KB depth=3
+  est                        1,779 entries      126.15 KB depth=3
+
+====================================================================================================
+TARGET BUCKET ≈ 256 KB
+====================================================================================================
+Buckets          : 14,533
+Entries          : 3,402,564
+Data             : 220.25 MB
+Index            : 227.08 KB
+Total storage    : 220.47 MB
+
+Bucket size:
+  min            : 0.02 KB
+  average        : 15.52 KB
+  P50            : 1.11 KB
+  P90            : 46.75 KB
+  P95            : 92.18 KB
+  P99            : 193.86 KB
+  max            : 255.93 KB
+
+Entries / bucket:
+  min            : 1
+  average        : 234.1
+  P50            : 17
+  P90            : 707
+  P95            : 1,378
+  P99            : 2,989
+  max            : 4,335
+
+Un-splittable buckets:
+  buckets        : 0
+  entries        : 0
+  data           : 0.00 MB
+
+Prefix depth distribution:
+  depth  1: 44 buckets
+  depth  2: 1,487 buckets
+  depth  3: 5,546 buckets
+  depth  4: 5,600 buckets
+  depth  5: 1,155 buckets
+  depth  6: 507 buckets
+  depth  7: 150 buckets
+  depth  8: 44 buckets
+
+Simulation time : 0.450 s
+
+Largest 20 buckets:
+  dep                        3,730 entries      255.93 KB depth=3
+  automati                   3,890 entries      255.70 KB depth=8
+  dist                       3,784 entries      255.60 KB depth=4
+  cre                        3,680 entries      254.70 KB depth=3
+  ol                         3,912 entries      254.23 KB depth=2
+  def                        3,782 entries      254.18 KB depth=3
+  gener                      3,900 entries      253.96 KB depth=5
+  ven                        3,940 entries      253.26 KB depth=3
+  oc                         3,943 entries      251.53 KB depth=2
+  ed                         3,652 entries      251.44 KB depth=2
+  epi                        3,679 entries      251.10 KB depth=3
+  line                       4,335 entries      250.95 KB depth=4
+  family                     2,856 entries      250.25 KB depth=6
+  her                        3,607 entries      249.96 KB depth=3
+  double                     4,245 entries      249.29 KB depth=7
+  py                         4,083 entries      249.21 KB depth=2
+  ang                        3,842 entries      248.45 KB depth=3
+  high-                      3,876 entries      247.91 KB depth=5
+  pseudo                     4,239 entries      247.64 KB depth=6
+  cam                        3,753 entries      247.07 KB depth=3
+
+Phase 4/4 — Final comparison...
+
+
+=============================================================================================================================
+COMPARISON
+=============================================================================================================================
+   Target    Buckets     Avg KB     P50 KB     P95 KB     P99 KB      Max KB    P95 Entries     Index KB  Unsplittable
+-----------------------------------------------------------------------------------------------------------------------------
+       4K    387,611       0.58       0.22       2.44       3.79       90.56             36      6056.42         1,958
+       8K    251,405       0.90       0.28       4.17       7.19       90.56             61      3928.20           666
+      16K    156,792       1.44       0.34       7.25      13.86       90.56            107      2449.88           206
+      32K     93,107       2.42       0.41      13.17      26.86       90.56            194      1454.80            52
+      64K     50,892       4.43       0.50      25.56      53.15       90.56            384       795.19             7
+     128K     26,685       8.45       0.73      51.19     102.38      127.90            772       416.95             0
+     256K     14,533      15.52       1.11      92.18     193.86      255.93          1,378       227.08             0
+
+====================================================================================================
+FINAL SANITY CHECK
+====================================================================================================
+Entries         : 3,402,564
+Expected        : 3,402,564
+Binary estimate : 220.25 MB
+All entries preserved: PASS
+
+STEP 3.1 COMPLETE

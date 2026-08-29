@@ -33,7 +33,9 @@ PORT=/dev/ttyACM0
 stty -F "$PORT" 115200 raw -echo -hupcl
 printf 'time set %s\r\n' "$(date '+%Y-%m-%d %H:%M:%S')" > "$PORT"
 
-python3.11 /home/erashaperavm/下载/ElenixOS-fork/scripts/album_optimize.py -i <输入目录> -o <输出目录>
+python3.11 scripts/album_optimize.py --input "/home/erashaperavm/图片/电驭叛客游戏截图" --output "/home/erashaperavm/图片/电驭叛客游戏截图优化"
+
+python3.11 scripts/album_optimize.py --input "/home/erashaperavm/图片/cdpr" --output "/home/erashaperavm/图片/cdpr优化"
 
 python3.11 scripts/icon/sync_app_icons.py
 
@@ -56,12 +58,14 @@ python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/ap
 /sdcard/apps/<任意文件名>.eapk
 /sdcard/album/
 /sdcard/calendar/festival.json
+ /sdcard/ecdict/ecdict.dat
 /sdcard/texthub/
 /sdcard/history/bt
 /sdcard/history/wifi
 /sdcard/history/album
 /sdcard/history/texthub
-/sdcard/theme/icon/album.bin, texthub.bin, sleep.bin
+/sdcard/font/font.ttf
+/sdcard/theme/icon/album.bin, texthub.bin, dictionary.bin
 /.sys/app/app_data/com.cantomk6.alarm/config.json
 /.sys/app/app_data/com.cantomk6.breach/config.json
 /.sys/app/app_data/com.cantomk6.calculator/config.json

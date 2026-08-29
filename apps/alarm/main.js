@@ -200,6 +200,9 @@ function paintHome() {
             var y = 2 + i * 52;                        // 行1/2/3: y2/54/106, 底156(屏186) 与按钮组 y160 留 4px
             var row = new lv.obj(homeC);
             row.setSize(146, 50); row.setPos(40, y);   // x40..186：行1 顶部 y32 圆界 38.4..201.6，四角留 ≥1px（原 x0 行左缘被圆裁 38px）
+            row.setStyleBgOpa(0, 0);                   // 无矩形托底：文字直接显示
+            row.setStyleBorderWidth(0, 0);
+            row.setStyleRadius(0, 0);
             row.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
             row.addEventCb(function () { openEdit(a, false); }, lv.EVENT_PRESSED, null);
 

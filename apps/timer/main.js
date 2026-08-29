@@ -229,9 +229,9 @@ function paintHome() {
             var y = 2 + i * 52;                        // 行1/2/3: y2/54/106, 底156(屏186) 与按钮组 y160 留 4px
             var row = new lv.obj(homeC);
             row.setSize(160, 50); row.setPos(40, y);   // x40..200：行1 顶部 y32 圆界 38.4..201.6，四角留 ≥1px
-            row.setStyleBgOpa(10, 0);
+            row.setStyleBgOpa(0, 0);                   // 无矩形托底：文字直接显示
             row.setStyleBgColor(hex(WHITE), 0);
-            row.setStyleRadius(12, 0);
+            row.setStyleRadius(0, 0);
             row.setStylePadAll(0, 0);
             row.setStyleBorderWidth(0, 0);
             row.removeFlag(lv.OBJ_FLAG_SCROLLABLE);

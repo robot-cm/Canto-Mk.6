@@ -28,6 +28,7 @@
 #include "eos_flash_light.h"
 #include "eos_album.h"
 #include "eos_texthub.h"
+#include "eos_dictionary.h"
 #include "eos_service_storage.h"
 #include "eos_app_header.h"
 #include "eos_mem.h"
@@ -92,16 +93,19 @@ const eos_sys_app_entry_t eos_sys_app_entry_list[EOS_SYS_APP_LAST] = {eos_settin
 const char *eos_native_app_id_list[EOS_NATIVE_APP_LAST] = {
     "com.cantomk6.album",
     "com.cantomk6.texthub",
+    "com.cantomk6.dictionary",
 };
 
 const char *eos_native_app_icon_list[EOS_NATIVE_APP_LAST] = {
     EOS_IMG_ALBUM,
     EOS_IMG_TEXTHUB,
+    EOS_IMG_DICTIONARY,
 };
 
 const eos_sys_app_entry_t eos_native_app_entry_list[EOS_NATIVE_APP_LAST] = {
     eos_album_enter,
     eos_texthub_enter,
+    eos_dictionary_enter,
 };
 
 static void _app_list_on_resueme(eos_activity_t *a);

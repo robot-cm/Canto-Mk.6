@@ -35,7 +35,7 @@
 #define EOS_BA_SCREEN_PX    240U
 #define EOS_BA_SCANLINE_NUM 5U
 
-#define EOS_BA_FLASH_PERIOD_MS 500U /* 4 colors x 0.5s = 2.0s */
+#define EOS_BA_FLASH_PERIOD_MS 500U /* not used for equal timing; see s_flash_dur[] */
 
 #define EOS_BA_TYPE_PERIOD_MS 150U  /* 12 chars x 150ms = 1.8s */
 #define EOS_BA_FADE_PERIOD_MS 33U
@@ -67,6 +67,8 @@ static eos_boot_anim_ctx_t s_ctx;
 /* stage 0 solid color flash sequence (initialized at runtime:
  * lv_color_hex() is a plain function, not a constant expression) */
 static lv_color_t s_flash_colors[4];
+/* per-color hold durations (ms): blue 0.8s, red 0.9s, yellow 0.6s, green 0.4s */
+static const uint32_t s_flash_dur[4] = { 800U, 900U, 600U, 400U };
 
 /* forward declarations (timer callbacks cross-reference each other) */
 static void _flash_timer_cb(lv_timer_t *t);
@@ -92,7 +94,8 @@ static void _apply_opa_tree(lv_obj_t *parent, int32_t opa)
         lv_obj_set_style_opa(lv_obj_get_child(parent, i), opa, 0);
 }
 
-/* Stage 0: solid color flash, one color every 500ms (blue/red/yellow/green) */
+/* Stage 0: solid color flash, each color held for its own duration
+ * (blue 0.8s, red 0.9s, yellow 0.6s, green 0.4s) */
 static void _flash_timer_cb(lv_timer_t *t)
 {
     (void)t;
@@ -100,10 +103,12 @@ static void _flash_timer_cb(lv_timer_t *t)
     if (s_ctx.flash_step < 4)
     {
         lv_obj_set_style_bg_color(s_ctx.flash, s_flash_colors[s_ctx.flash_step], 0);
+        /* re-arm the timer with this color's own hold duration */
+        lv_timer_set_period(s_ctx.flash_timer, s_flash_dur[s_ctx.flash_step]);
         return;
     }
 
-    /* t = 2.0s: stage 0 done, release its object, start stage 1 */
+    /* all 4 colors shown: stage 0 done, release its object, start stage 1 */
     _stop_timer(&s_ctx.flash_timer);
     if (s_ctx.flash)
     {
@@ -264,7 +269,7 @@ void eos_boot_anim_start(eos_boot_anim_done_cb_t done_cb)
     lv_obj_move_foreground(s_ctx.flash);
 
     s_ctx.flash_step = 0;
-    s_ctx.flash_timer = lv_timer_create(_flash_timer_cb, EOS_BA_FLASH_PERIOD_MS, NULL);
+    s_ctx.flash_timer = lv_timer_create(_flash_timer_cb, s_flash_dur[0], NULL);
 
     EOS_LOG_I("boot animation started (4.0s)");
 }

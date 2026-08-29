@@ -39,6 +39,7 @@ enum
 {
     EOS_NATIVE_APP_ALBUM = 0,
     EOS_NATIVE_APP_TEXTHUB,
+    EOS_NATIVE_APP_DICTIONARY,
 /* New native C apps can be added here */
     EOS_NATIVE_APP_LAST
 };

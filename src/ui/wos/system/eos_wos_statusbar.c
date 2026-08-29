@@ -65,12 +65,21 @@ static void _render(void)
             snprintf(buf, sizeof(buf), "%02d:%02d %d%%", dt.hour, dt.min, (int)batt);
         else
             snprintf(buf, sizeof(buf), "%02d:%02d --%%", dt.hour, dt.min);
+
+        /* 电池状态着色: 充电→绿, <20%→红, 其余→白 */
+        lv_color_t c = WOS_COLOR_TEXT_PRIMARY;
+        if (batt >= 0 && eos_battery_is_charging())
+            c = lv_color_hex(0x66BB6A);
+        else if (batt >= 0 && batt < 20)
+            c = lv_color_hex(0xEF5350);
+        lv_obj_set_style_text_color(s_label, c, 0);
     }
     else
     {
         const char *wday = (dt.day_of_week >= 1 && dt.day_of_week <= 7)
                                ? _wday_abbr[dt.day_of_week] : "";
         snprintf(buf, sizeof(buf), "%d/%d %s", dt.month, dt.day, wday);
+        lv_obj_set_style_text_color(s_label, WOS_COLOR_TEXT_PRIMARY, 0);
     }
     lv_label_set_text(s_label, buf);
 }

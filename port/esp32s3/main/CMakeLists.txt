@@ -23,6 +23,7 @@ set(MAIN_REQUIRES
     fatfs
     esp_driver_sdspi
     sdmmc
+    esp_adc
 )
 if(EXISTS "${MICROLINK_COMPONENT_DIR}")
     list(APPEND MAIN_REQUIRES microlink)
@@ -37,6 +38,9 @@ idf_component_register(
         "eos_dev_rtc_bm8563.c"
         "eos_mem_align.c"
         "eos_net_wifi_esp32.c"
+        "${EOS_ROOT}/resources/images/icon/eos_icon_delete.c"
+        "${EOS_ROOT}/resources/images/icon/eos_icon_fm.c"
+        "${EOS_ROOT}/resources/images/icon/eos_icon_search.c"
     INCLUDE_DIRS
         "."
         "${EOS_ROOT}/third_party/cJSON"

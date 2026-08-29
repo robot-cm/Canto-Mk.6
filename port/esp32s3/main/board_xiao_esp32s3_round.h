@@ -104,10 +104,11 @@ extern "C" {
  *  来源:lv_hardware_test.h (analogReadMilliVolts(D0))
  *  电压范围 1850~2100 mV → 0~100%
  * ════════════════════════════════════════════════════════════════ */
-#define BOARD_BATTERY_ADC_CH   ADC1_CHANNEL_0    /* GPIO1 = ADC1_CH0 */
+#define BOARD_BATTERY_ADC_CH   ADC_CHANNEL_0     /* GPIO1 = ADC1_CH0 (adc_channel_t,oneshot API) */
 #define BOARD_BATTERY_ADC_PIN  XIAO_D0_GPIO      /* D0 = GPIO1 */
-#define BOARD_BATTERY_VMIN_MV  1850
-#define BOARD_BATTERY_VMAX_MV  2100
+#define BOARD_BATTERY_VMIN_MV  1850   /* 分压后 D0 电压下限(0%) */
+#define BOARD_BATTERY_VMAX_MV  2100   /* 分压后 D0 电压上限(100%) */
+#define BOARD_BATTERY_FULL_MV  2090   /* ≥此电压视为已充满(不再显示充电) */
 #define BOARD_BATTERY_SAMPLES  20
 
 /* ════════════════════════════════════════════════════════════════

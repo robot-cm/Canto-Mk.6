@@ -28,6 +28,13 @@
 #include "nvs_flash.h"
 #include "driver/gpio.h"
 #include "driver/i2c.h"
+/* 电池:ADC1_CH0(GPIO1) 单次模式 + eFuse 校准(见 _battery_request_update) */
+#include "esp_adc/adc_oneshot.h"
+#include "esp_adc/adc_cali.h"
+#include "esp_adc/adc_cali_scheme.h"
+/* 充电检测:USB-Serial-JTAG is_connected = USB 已插入(VBUS 供电)→ charging
+ * XIAO ESP32-S3 普通版无 ADC_BAT / VBUS 检测脚,充电状态只能靠 USB 连接推断 */
+#include "driver/usb_serial_jtag.h"
 /* 关机深睡:esp_deep_sleep_start / esp_sleep_get_wakeup_cause /
  * esp_sleep_enable_timer_wakeup;深睡期间用 pad hold 保持背光为低
  * (GPIO43 非 RTC GPIO,浮空会被板上拉反亮,见 board_backlight_low_hold) */
@@ -59,6 +66,7 @@
 #include "eos_dev_time.h"
 #include "eos_dev_rtc_bm8563.h"
 #include "eos_dev_battery.h"
+#include "eos_service_battery.h" /* eos_battery_raw_t / eos_battery_report_raw */
 #include "eos_dev_power.h"
 #include "eos_shell.h"
 #include "eos_shell_framework.h"
@@ -76,18 +84,126 @@ extern void eos_bt_esp32_early_init(void);
 static SemaphoreHandle_t s_eos_ready = NULL;
 
 /* ════════════════════════════════════════════════════════════════
- *  非 LCD 设备 OPS stub(阶段C 后续替换为真实驱动)
- *  GC9A01 / CHSC6X / BM8563(RTC) 已是真实驱动
- *  battery/power/sensor 仍 stub
+ *  电池驱动(真实):D0=GPIO1=ADC1_CH0 单次模式读电池电压
+ *  - 20 次均值(raw) → adc_cali 校准转真实 mV(曲线拟合优先,线拟合兜底,
+ *    校准不可用再退化为 raw*3300/4095 线性估算,保证任何情况能出数字)
+ *  - 电压范围 1850~2100 mV → 0~100%(与 board 头注释一致,
+ *    来源 lv_hardware_test.h analogReadMilliVolts(D0))
+ *  - 无电流计/充电检测引脚:current_ma=-1, charging=false
+ *  - 阶段化懒初始化:unit/chan 与 cali 分开建,失败部分可下次 timer 重试
  * ════════════════════════════════════════════════════════════════ */
-#if 0 /* TODO 阶段C: 取消注释以注册 */
-static void _stub_battery_request_update(void)
+static adc_oneshot_unit_handle_t s_batt_adc = NULL;
+static adc_cali_handle_t         s_batt_cali = NULL;
+
+static esp_err_t _battery_hw_init(void)
 {
-    /* TODO 阶段C: ADC 读取 D0,analogReadMilliVolts,20 次均值 */
+    if (s_batt_adc == NULL)
+    {
+        adc_oneshot_unit_init_cfg_t init_cfg = {
+            .unit_id = ADC_UNIT_1,
+        };
+        esp_err_t ret = adc_oneshot_new_unit(&init_cfg, &s_batt_adc);
+        if (ret != ESP_OK)
+            return ret;
+
+        adc_oneshot_chan_cfg_t chan_cfg = {
+            .atten    = ADC_ATTEN_DB_12,
+            .bitwidth = ADC_BITWIDTH_12,
+        };
+        ret = adc_oneshot_config_channel(s_batt_adc, BOARD_BATTERY_ADC_CH, &chan_cfg);
+        if (ret != ESP_OK)
+            return ret;
+    }
+
+    if (s_batt_cali == NULL)
+    {
+        adc_cali_curve_fitting_config_t curve_cfg = {
+            .unit_id   = ADC_UNIT_1,
+            .atten     = ADC_ATTEN_DB_12,
+            .bitwidth  = ADC_BITWIDTH_12,
+        };
+        /* ESP32-S3 仅支持 curve fitting 校准(依赖出厂 eFuse),
+         * 创建失败时 s_batt_cali 保持 NULL → request_update 走线性估算兜底 */
+        esp_err_t ret = adc_cali_create_scheme_curve_fitting(&curve_cfg, &s_batt_cali);
+        if (ret != ESP_OK)
+        {
+            s_batt_cali = NULL;
+            ESP_LOGW(TAG, "Battery ADC cali unavailable, use linear estimate");
+        }
+    }
+    return ESP_OK;
 }
 
-static void _stub_power_set(dev_power_state_t s) { (void)s; /* TODO: PMIC */ }
-#endif
+/* 电压→百分比:分段查表 + 线性插值,贴合锂电 S 形放电曲线。
+ * 表中点为分压后 D0 电压实测近似,如需更准请按实板标定
+ * (量到某百分比对应电压,填进 v/p 表即可)。 */
+static int _batt_voltage_to_percent(int mv)
+{
+    static const int16_t v[] = {1850, 1890, 1930, 1975, 2010, 2045, 2070, 2090, 2100};
+    static const int8_t  p[] = {0,    15,   30,   45,   60,   75,   88,   95,  100};
+    const int n = (int)(sizeof(v) / sizeof(v[0]));
+
+    if (mv <= v[0])        return p[0];
+    if (mv >= v[n - 1])    return p[n - 1];
+    for (int i = 1; i < n; i++)
+    {
+        if (mv <= v[i])
+            return p[i - 1] + (mv - v[i - 1]) * (p[i] - p[i - 1])
+                              / (v[i] - v[i - 1]);
+    }
+    return 100;
+}
+
+/* 被电池服务 LVGL timer 周期调用(正常 60s,活跃 10s,充电 5s) */
+static void _battery_request_update(void)
+{
+    if (s_batt_adc == NULL)
+    {
+        if (_battery_hw_init() != ESP_OK)
+        {
+            ESP_LOGE(TAG, "Battery ADC init failed, retry next tick");
+            return;
+        }
+        ESP_LOGI(TAG, "Battery ADC ready (GPIO%d ADC1_CH0)", BOARD_BATTERY_ADC_PIN);
+    }
+
+    int sum_raw = 0;
+    for (int i = 0; i < BOARD_BATTERY_SAMPLES; i++)
+    {
+        int raw = 0;
+        if (adc_oneshot_read(s_batt_adc, BOARD_BATTERY_ADC_CH, &raw) != ESP_OK)
+            return;   /* 本次采样失败:放弃本轮,下次 timer 再读 */
+        sum_raw += raw;
+    }
+    int raw_avg = sum_raw / BOARD_BATTERY_SAMPLES;
+
+    int mv = -1;
+    if (s_batt_cali != NULL && adc_cali_raw_to_voltage(s_batt_cali, raw_avg, &mv) != ESP_OK)
+        mv = -1;
+    if (mv < 0)
+        mv = raw_avg * 3300 / 4095;   /* 无校准兜底:线性估算 */
+
+    int percent = _batt_voltage_to_percent(mv);
+
+    /* 充电判定:USB 已插入(VBUS 供电)视为充电,但电压 ≥ 满电阈值
+     * 时视为已充满(充满后充电 IC 停充,不再显示绿色)。
+     * XIAO ESP32-S3 普通版无充电状态 GPIO,这是硬件上最可靠的信号:
+     * USB-Serial-JTAG 外设在检测到 VBUS 时置位 connected。 */
+    bool usb_in   = usb_serial_jtag_is_connected();
+    bool charging = usb_in && (mv >= 0) && (mv < BOARD_BATTERY_FULL_MV);
+
+    eos_battery_raw_t raw = {
+        .percent    = (int8_t)percent,
+        .voltage_mv = (int16_t)mv,
+        .current_ma = -1,
+        .charging   = charging,
+    };
+    eos_battery_report_raw(&raw);
+}
+
+static const eos_battery_dev_ops_t s_board_battery_ops = {
+    .request_update = _battery_request_update,
+};
 
 /* ════════════════════════════════════════════════════════════════
  *  I2C 总线初始化(touch CHSC6X + RTC BM8563 共用)
@@ -727,8 +843,9 @@ static void board_drivers_register(void)
     eos_dev_rtc_bm8563_init();
     /* Power ops 必须在 eos_init()(PM 服务读取 instance)之前注册 */
     eos_dev_power_register(&s_board_power_ops);
-    /* TODO 阶段C: eos_dev_battery_register / sensor */
-    ESP_LOGI(TAG, "Drivers registered (GC9A01/CHSC6X/BM8563 real, power->backlight)");
+    /* 电池:ADC1_CH0 单次模式 + 校准;设计容量 500mAh(service 默认同值) */
+    eos_dev_battery_register(&s_board_battery_ops, 500);
+    ESP_LOGI(TAG, "Drivers registered (GC9A01/CHSC6X/BM8563 real, power->backlight, battery->ADC)");
 }
 
 /* ════════════════════════════════════════════════════════════════

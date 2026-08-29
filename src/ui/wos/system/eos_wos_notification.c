@@ -11,7 +11,7 @@
 
 #define EOS_LOG_TAG "WosNotify"
 
-#define NOTIFY_W   216
+#define NOTIFY_W   240
 #define NOTIFY_H   56
 
 static lv_obj_t *s_card = NULL;

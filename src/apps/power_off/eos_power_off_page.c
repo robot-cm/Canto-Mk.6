@@ -316,7 +316,7 @@ void eos_power_off_page_open(void)
     lv_obj_remove_style_all(s_page);
     lv_obj_set_size(s_page, lv_pct(100), lv_pct(100));
     lv_obj_set_style_bg_color(s_page, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(s_page, LV_OPA_70, 0);
+    lv_obj_set_style_bg_opa(s_page, LV_OPA_COVER, 0);
     lv_obj_clear_flag(s_page, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(s_page, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(s_page, _mask_cb, LV_EVENT_CLICKED, NULL);

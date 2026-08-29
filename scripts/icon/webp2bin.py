@@ -10,7 +10,7 @@ through the LVGL bin decoder. The file format is:
 
     lv_image_header_t (12 bytes, little-endian):
         magic(1)=0x19 | cf(1)=LV_COLOR_FORMAT_ARGB8888(0x10)
-        flags(2)=0 | w(2) | h(2) | stride(2)=w*4 | reserved(3)=0
+        flags(2)=0 | w(2) | h(2) | stride(2)=w*4 | reserved(2)=0
     then raw ARGB8888 pixels, little-endian byte order [B, G, R, A].
 
 Usage:
@@ -53,7 +53,8 @@ def save_lv_bin(im: Image.Image, out: Path) -> None:
             r, g, b, a = px[x, y]
             # ARGB8888 little-endian memory layout: [B, G, R, A]
             data += struct.pack("<I", (a << 24) | (r << 16) | (g << 8) | b)
-    header = struct.pack("<BBBBHHH3B", MAGIC, CF_ARGB8888, 0, 0, w, h, stride, 0, 0, 0)
+    # LVGL v9 lv_image_header_t (12B little-endian): magic(1)|cf(1)|flags(2)|w(2)|h(2)|stride(2)|reserved(2)
+    header = struct.pack("<BBHHHHH", MAGIC, CF_ARGB8888, 0, w, h, stride, 0)
     out.write_bytes(header + bytes(data))
 
 
@@ -130,9 +131,7 @@ SYSTEM_ICONS = {
     "flash_light": ("torch", 48),     # flash_light.bin
     "album": ("album", 48),           # album.bin (Launcher native Album app)
     "texthub": ("texthub", 48),       # texthub.bin (Launcher native Texthub app)
-    "app": (None, 48),                # app.bin (builtin)
-    "watchface": (None, 48),          # watchface.bin (builtin)
-    "logo": (None, 96),               # logo.bin (builtin, boot splash)
+    "dictionary": ("dictionary", 48), # dictionary.bin (Launcher native Dictionary app)
 }
 
 

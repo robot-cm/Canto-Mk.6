@@ -1,0 +1,701 @@
+{
+  "generated_at": "2026-08-29T19:46:05.622068",
+  "database": {
+    "path": "/home/erashaperavm/下载/ElenixOS-fork/resources/ecdict-sqlite-28/stardict.db",
+    "file_size_bytes": 851288064,
+    "file_size_mb": 811.852,
+    "sqlite_page_size": 1024,
+    "sqlite_page_count": 831336,
+    "sqlite_freelist_count": 0,
+    "journal_mode": "delete",
+    "encoding": "UTF-8",
+    "user_version": 0
+  },
+  "tables": [
+    {
+      "name": "sqlite_sequence",
+      "type": "table",
+      "sql": "CREATE TABLE sqlite_sequence(name,seq)",
+      "row_count": 1,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "name",
+          "type": "",
+          "not_null": false,
+          "default": null,
+          "primary_key_position": 0
+        },
+        {
+          "cid": 1,
+          "name": "seq",
+          "type": "",
+          "not_null": false,
+          "default": null,
+          "primary_key_position": 0
+        }
+      ],
+      "indexes": [],
+      "foreign_keys": [],
+      "column_statistics": {
+        "name": {
+          "null_count": 0,
+          "null_ratio": 0.0,
+          "empty_string_count": 0,
+          "empty_string_ratio": 0.0,
+          "sqlite_types": {
+            "text": 1
+          },
+          "text_length": {
+            "count": 1,
+            "min": 8,
+            "max": 8,
+            "average": 8.0,
+            "p50": 8,
+            "p90": 8,
+            "p95": 8,
+            "p99": 8
+          }
+        },
+        "seq": {
+          "null_count": 0,
+          "null_ratio": 0.0,
+          "empty_string_count": 0,
+          "empty_string_ratio": 0.0,
+          "sqlite_types": {
+            "integer": 1
+          }
+        }
+      },
+      "samples": [
+        {
+          "name": "stardict",
+          "seq": 3402564
+        }
+      ]
+    },
+    {
+      "name": "stardict",
+      "type": "table",
+      "sql": "CREATE TABLE \"stardict\" (\n\"id\" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE,\n\"word\" VARCHAR(64) COLLATE NOCASE NOT NULL UNIQUE,\n\"sw\" VARCHAR(64) COLLATE NOCASE NOT NULL,\n\"phonetic\" VARCHAR(64),\n\"definition\" TEXT,\n\"translation\" TEXT,\n\"pos\" VARCHAR(16),\n\"collins\" INTEGER DEFAULT(0),\n\"oxford\" INTEGER DEFAULT(0),\n\"tag\" VARCHAR(64),\n\"bnc\" INTEGER DEFAULT(NULL),\n\"frq\" INTEGER DEFAULT(NULL),\n\"exchange\" TEXT,\n\"detail\" TEXT,\n\"audio\" TEXT\n)",
+      "row_count": 3402564,
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "not_null": true,
+          "default": null,
+          "primary_key_position": 1
+        },
+        {
+          "cid": 1,
+          "name": "word",
+          "type": "VARCHAR(64)",
+          "not_null": true,
+          "default": null,
+          "primary_key_position": 0
+        },
+        {
+          "cid": 2,
+          "name": "sw",
+          "type": "VARCHAR(64)",
+          "not_null": true,
+          "default": null,
+          "primary_key_position": 0
+        },
+        {
+          "cid": 3,
+          "name": "phonetic",
+          "type": "VARCHAR(64)",
+          "not_null": false,
+          "default": null,
+          "primary_key_position": 0
+        },
+        {
+          "cid": 4,
+          "name": "definition",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key_position": 0
+        },
+        {
+          "cid": 5,
+          "name": "translation",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key_position": 0
+        },
+        {
+          "cid": 6,
+          "name": "pos",
+          "type": "VARCHAR(16)",
+          "not_null": false,
+          "default": null,
+          "primary_key_position": 0
+        },
+        {
+          "cid": 7,
+          "name": "collins",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": "0",
+          "primary_key_position": 0
+        },
+        {
+          "cid": 8,
+          "name": "oxford",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": "0",
+          "primary_key_position": 0
+        },
+        {
+          "cid": 9,
+          "name": "tag",
+          "type": "VARCHAR(64)",
+          "not_null": false,
+          "default": null,
+          "primary_key_position": 0
+        },
+        {
+          "cid": 10,
+          "name": "bnc",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": "NULL",
+          "primary_key_position": 0
+        },
+        {
+          "cid": 11,
+          "name": "frq",
+          "type": "INTEGER",
+          "not_null": false,
+          "default": "NULL",
+          "primary_key_position": 0
+        },
+        {
+          "cid": 12,
+          "name": "exchange",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key_position": 0
+        },
+        {
+          "cid": 13,
+          "name": "detail",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key_position": 0
+        },
+        {
+          "cid": 14,
+          "name": "audio",
+          "type": "TEXT",
+          "not_null": false,
+          "default": null,
+          "primary_key_position": 0
+        }
+      ],
+      "indexes": [
+        {
+          "name": "sd_1",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            {
+              "sequence": 0,
+              "column_id": 1,
+              "column_name": "word"
+            }
+          ]
+        },
+        {
+          "name": "stardict_3",
+          "unique": false,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            {
+              "sequence": 0,
+              "column_id": 2,
+              "column_name": "sw"
+            },
+            {
+              "sequence": 1,
+              "column_id": 1,
+              "column_name": "word"
+            }
+          ]
+        },
+        {
+          "name": "stardict_2",
+          "unique": true,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            {
+              "sequence": 0,
+              "column_id": 1,
+              "column_name": "word"
+            }
+          ]
+        },
+        {
+          "name": "stardict_1",
+          "unique": true,
+          "origin": "c",
+          "partial": false,
+          "columns": [
+            {
+              "sequence": 0,
+              "column_id": 0,
+              "column_name": "id"
+            }
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_stardict_2",
+          "unique": true,
+          "origin": "u",
+          "partial": false,
+          "columns": [
+            {
+              "sequence": 0,
+              "column_id": 1,
+              "column_name": "word"
+            }
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_stardict_1",
+          "unique": true,
+          "origin": "u",
+          "partial": false,
+          "columns": [
+            {
+              "sequence": 0,
+              "column_id": 0,
+              "column_name": "id"
+            }
+          ]
+        }
+      ],
+      "foreign_keys": [],
+      "column_statistics": {
+        "id": {
+          "null_count": 0,
+          "null_ratio": 0.0,
+          "empty_string_count": 0,
+          "empty_string_ratio": 0.0,
+          "sqlite_types": {
+            "integer": 3402564
+          }
+        },
+        "word": {
+          "null_count": 0,
+          "null_ratio": 0.0,
+          "empty_string_count": 0,
+          "empty_string_ratio": 0.0,
+          "sqlite_types": {
+            "text": 3402564
+          },
+          "text_length": {
+            "count": 3402564,
+            "min": 1,
+            "max": 147,
+            "average": 15.109
+          }
+        },
+        "sw": {
+          "null_count": 0,
+          "null_ratio": 0.0,
+          "empty_string_count": 0,
+          "empty_string_ratio": 0.0,
+          "sqlite_types": {
+            "text": 3402564
+          },
+          "text_length": {
+            "count": 3402564,
+            "min": 1,
+            "max": 125,
+            "average": 13.977
+          }
+        },
+        "phonetic": {
+          "null_count": 2421087,
+          "null_ratio": 0.711548,
+          "empty_string_count": 628343,
+          "empty_string_ratio": 0.184668,
+          "sqlite_types": {
+            "null": 2421087,
+            "text": 981477
+          },
+          "text_length": {
+            "count": 981477,
+            "min": 0,
+            "max": 79,
+            "average": 4.149,
+            "p50": 0,
+            "p90": 13.0,
+            "p95": 16.0,
+            "p99": 24.0
+          }
+        },
+        "definition": {
+          "null_count": 2539724,
+          "null_ratio": 0.746415,
+          "empty_string_count": 685764,
+          "empty_string_ratio": 0.201543,
+          "sqlite_types": {
+            "null": 2539724,
+            "text": 862840
+          },
+          "text_length": {
+            "count": 862840,
+            "min": 0,
+            "max": 12343,
+            "average": 19.72,
+            "p50": 0.0,
+            "p90": 66.0,
+            "p95": 121.0,
+            "p99": 272.0
+          }
+        },
+        "translation": {
+          "null_count": 14669,
+          "null_ratio": 0.004311,
+          "empty_string_count": 1867,
+          "empty_string_ratio": 0.000549,
+          "sqlite_types": {
+            "text": 3387895,
+            "null": 14669
+          },
+          "text_length": {
+            "count": 3387895,
+            "min": 0,
+            "max": 11814,
+            "average": 12.514
+          }
+        },
+        "pos": {
+          "null_count": 2551076,
+          "null_ratio": 0.749751,
+          "empty_string_count": 798961,
+          "empty_string_ratio": 0.234811,
+          "sqlite_types": {
+            "null": 2551076,
+            "text": 851488
+          },
+          "text_length": {
+            "count": 851488,
+            "min": 0,
+            "max": 25,
+            "average": 0.335,
+            "p50": 0.0,
+            "p90": 0.0,
+            "p95": 5.0,
+            "p99": 5.0
+          }
+        },
+        "collins": {
+          "null_count": 3388931,
+          "null_ratio": 0.995993,
+          "empty_string_count": 0,
+          "empty_string_ratio": 0.0,
+          "sqlite_types": {
+            "null": 3388931,
+            "integer": 13633
+          }
+        },
+        "oxford": {
+          "null_count": 3399103,
+          "null_ratio": 0.998983,
+          "empty_string_count": 0,
+          "empty_string_ratio": 0.0,
+          "sqlite_types": {
+            "null": 3399103,
+            "integer": 3461
+          }
+        },
+        "tag": {
+          "null_count": 2556283,
+          "null_ratio": 0.751281,
+          "empty_string_count": 831339,
+          "empty_string_ratio": 0.244327,
+          "sqlite_types": {
+            "null": 2556283,
+            "text": 846281
+          },
+          "text_length": {
+            "count": 846281,
+            "min": 0,
+            "max": 34,
+            "average": 0.193,
+            "p50": 0,
+            "p90": 0,
+            "p95": 0,
+            "p99": 5.0
+          }
+        },
+        "bnc": {
+          "null_count": 2556283,
+          "null_ratio": 0.751281,
+          "empty_string_count": 0,
+          "empty_string_ratio": 0.0,
+          "sqlite_types": {
+            "null": 2556283,
+            "integer": 846281
+          }
+        },
+        "frq": {
+          "null_count": 2556283,
+          "null_ratio": 0.751281,
+          "empty_string_count": 0,
+          "empty_string_ratio": 0.0,
+          "sqlite_types": {
+            "null": 2556283,
+            "integer": 846281
+          }
+        },
+        "exchange": {
+          "null_count": 2431910,
+          "null_ratio": 0.714729,
+          "empty_string_count": 549084,
+          "empty_string_ratio": 0.161374,
+          "sqlite_types": {
+            "null": 2431910,
+            "text": 970654
+          },
+          "text_length": {
+            "count": 970654,
+            "min": 0,
+            "max": 114,
+            "average": 6.876,
+            "p50": 0.0,
+            "p90": 18.0,
+            "p95": 22.0,
+            "p99": 33.0
+          }
+        },
+        "detail": {
+          "null_count": 3402563,
+          "null_ratio": 1.0,
+          "empty_string_count": 0,
+          "empty_string_ratio": 0.0,
+          "sqlite_types": {
+            "null": 3402563,
+            "text": 1
+          },
+          "text_length": {
+            "count": 1,
+            "min": 2,
+            "max": 2,
+            "average": 2.0,
+            "p50": 2,
+            "p90": 2,
+            "p95": 2,
+            "p99": 2
+          }
+        },
+        "audio": {
+          "null_count": 2556283,
+          "null_ratio": 0.751281,
+          "empty_string_count": 846281,
+          "empty_string_ratio": 0.248719,
+          "sqlite_types": {
+            "null": 2556283,
+            "text": 846281
+          },
+          "text_length": {
+            "count": 846281,
+            "min": 0,
+            "max": 0,
+            "average": 0.0,
+            "p50": 0,
+            "p90": 0,
+            "p95": 0,
+            "p99": 0.0
+          }
+        }
+      },
+      "samples": [
+        {
+          "id": 1,
+          "word": "'a",
+          "sw": "a",
+          "phonetic": "eɪ",
+          "definition": null,
+          "translation": "na. 一\nn. 英文字母表的第一字母；【乐】A音\nart. 冠以不定冠词主要表示类别\n[网络] 从；按；一个",
+          "pos": null,
+          "collins": null,
+          "oxford": null,
+          "tag": null,
+          "bnc": null,
+          "frq": null,
+          "exchange": null,
+          "detail": null,
+          "audio": null
+        },
+        {
+          "id": 2,
+          "word": "'A' game",
+          "sw": "agame",
+          "phonetic": null,
+          "definition": null,
+          "translation": "[网络] 游戏；一个游戏；一局",
+          "pos": null,
+          "collins": null,
+          "oxford": null,
+          "tag": null,
+          "bnc": null,
+          "frq": null,
+          "exchange": null,
+          "detail": null,
+          "audio": null
+        },
+        {
+          "id": 3,
+          "word": "'Abbāsīyah",
+          "sw": "abbāsīyah",
+          "phonetic": null,
+          "definition": null,
+          "translation": "[地名] 阿巴西耶 ( 埃 )",
+          "pos": null,
+          "collins": null,
+          "oxford": null,
+          "tag": null,
+          "bnc": null,
+          "frq": null,
+          "exchange": null,
+          "detail": null,
+          "audio": null
+        },
+        {
+          "id": 4,
+          "word": "'Abd al Kūrī",
+          "sw": "abdalkūrī",
+          "phonetic": null,
+          "definition": null,
+          "translation": "[地名] 阿卜杜勒库里岛 ( 也门 )",
+          "pos": null,
+          "collins": null,
+          "oxford": null,
+          "tag": null,
+          "bnc": null,
+          "frq": null,
+          "exchange": null,
+          "detail": null,
+          "audio": null
+        },
+        {
+          "id": 5,
+          "word": "'Abd al Mājid",
+          "sw": "abdalmājid",
+          "phonetic": null,
+          "definition": null,
+          "translation": "[地名] 阿卜杜勒马吉德 ( 苏丹 )",
+          "pos": null,
+          "collins": null,
+          "oxford": null,
+          "tag": null,
+          "bnc": null,
+          "frq": null,
+          "exchange": null,
+          "detail": null,
+          "audio": null
+        },
+        {
+          "id": 6,
+          "word": "'Abd al Qādir",
+          "sw": "abdalqādir",
+          "phonetic": null,
+          "definition": null,
+          "translation": "[地名] 阿卜杜勒加迪尔 ( 苏丹 )",
+          "pos": null,
+          "collins": null,
+          "oxford": null,
+          "tag": null,
+          "bnc": null,
+          "frq": null,
+          "exchange": null,
+          "detail": null,
+          "audio": null
+        },
+        {
+          "id": 7,
+          "word": "'Abd Allāh",
+          "sw": "abdallāh",
+          "phonetic": null,
+          "definition": null,
+          "translation": "[地名] 阿卜杜拉 ( 苏丹 )",
+          "pos": null,
+          "collins": null,
+          "oxford": null,
+          "tag": null,
+          "bnc": null,
+          "frq": null,
+          "exchange": null,
+          "detail": null,
+          "audio": null
+        },
+        {
+          "id": 8,
+          "word": "'Abd Allāh, Khawr",
+          "sw": "abdallāhkhawr",
+          "phonetic": null,
+          "definition": null,
+          "translation": "[地名] 阿卜杜拉水道 ( 科·伊拉 )",
+          "pos": null,
+          "collins": null,
+          "oxford": null,
+          "tag": null,
+          "bnc": null,
+          "frq": null,
+          "exchange": null,
+          "detail": null,
+          "audio": null
+        },
+        {
+          "id": 9,
+          "word": "'Abd, 'Ayn al",
+          "sw": "abdaynal",
+          "phonetic": null,
+          "definition": null,
+          "translation": "[地名] 阿卜德泉 ( 利、沙特 )",
+          "pos": null,
+          "collins": null,
+          "oxford": null,
+          "tag": null,
+          "bnc": null,
+          "frq": null,
+          "exchange": null,
+          "detail": null,
+          "audio": null
+        },
+        {
+          "id": 10,
+          "word": "'Abde, Al",
+          "sw": "abdeal",
+          "phonetic": null,
+          "definition": null,
+          "translation": "[地名] 阿卜德 ( 黎 )",
+          "pos": null,
+          "collins": null,
+          "oxford": null,
+          "tag": null,
+          "bnc": null,
+          "frq": null,
+          "exchange": null,
+          "detail": null,
+          "audio": null
+        }
+      ]
+    }
+  ]
+}
