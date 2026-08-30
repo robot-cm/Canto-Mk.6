@@ -1,4 +1,4 @@
-# Canto Mk.6 固件 Release
+# Canto Mk.6
 
 基于 **Seeed Studio XIAO ESP32-S3** + **1.28" 圆形触摸显示屏 (240×240, GC9A01)** 的轻量级微型设备系统。Core 稳定、系统服务统一提供能力、App 可插件化（`.eapk` 置于 SD 卡）。
 
