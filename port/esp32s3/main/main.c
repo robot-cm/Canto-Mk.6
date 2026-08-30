@@ -70,6 +70,7 @@
 #include "eos_dev_power.h"
 #include "eos_shell.h"
 #include "eos_shell_framework.h"
+#include "eos_service_config.h" /* eos_config_get_bool / EOS_CONFIG_KEY_DEV_MODE_BOOL */
 #include <string.h>
 #include "eos_dev_sensor.h"
 
@@ -377,6 +378,9 @@ static void shell_usb_echo(const char *line, void *user)
     fflush(stdout);
 }
 
+/* 运行时 DEV 开关持有的 shell 监听 task 句柄(NULL=未运行) */
+static TaskHandle_t s_shell_usb_task = NULL;
+
 static void shell_usb_line_handler(const char *line, void *user)
 {
     (void)user;
@@ -399,17 +403,61 @@ static void shell_usb_task(void *arg)
     }
 }
 
+static void board_shell_usb_set_enabled(bool enabled, void *user)
+{
+    (void)user;
+    if (enabled)
+    {
+        if (s_shell_usb_task != NULL)
+            return; /* already running (idempotent) */
+        /* 运行时开启:创建阻塞式 USB-Serial-JTAG 监听 task,用户可在 idf.py
+         * monitor 里敲命令。shell 只读写 USB 口,不碰 flash 写 → 栈放 PSRAM,
+         * 别挤 internal RAM (eos_init 前 internal 必须为 ui_task 保留
+         * 48KB+TCB 连续块)。 */
+        BaseType_t r = xTaskCreatePinnedToCoreWithCaps(shell_usb_task, "shell_usb", 4096, NULL, 5,
+                                                       &s_shell_usb_task, BOARD_TASK_INPUT_AFFINITY,
+                                                       MALLOC_CAP_SPIRAM);
+        if (r == pdPASS)
+            ESP_LOGI(TAG, "Shell: USB-Serial-JTAG console ENABLED — type 'help' in idf.py monitor");
+        else
+        {
+            s_shell_usb_task = NULL;
+            ESP_LOGE(TAG, "Shell: USB-Serial-JTAG task create failed");
+        }
+    }
+    else
+    {
+        if (s_shell_usb_task == NULL)
+            return; /* already stopped (idempotent) */
+        ESP_LOGI(TAG, "Shell: USB-Serial-JTAG console DISABLED");
+        vTaskDelete(s_shell_usb_task);
+        s_shell_usb_task = NULL;
+    }
+}
+
+/* DEV 开关默认值:跟随构建模式(Dev 构建开 / Release 构建关) */
+#if defined(EOS_BUILD_RELEASE) && EOS_BUILD_RELEASE
+#define BOARD_DEV_MODE_BOOT_DEFAULT false
+#else
+#define BOARD_DEV_MODE_BOOT_DEFAULT true
+#endif
+
 static void board_shell_usb_cdc_start(void)
 {
     eos_shell_framework_init();
-    /* shell 只读写 USB 口,不碰 flash 写 → 栈放 PSRAM,别挤 internal RAM
-     * (eos_init 前 internal 必须为 ui_task 保留 48KB+TCB 连续块)。 */
-    BaseType_t r = xTaskCreatePinnedToCoreWithCaps(shell_usb_task, "shell_usb", 4096, NULL, 5, NULL,
-                                                   BOARD_TASK_INPUT_AFFINITY, MALLOC_CAP_SPIRAM);
-    if (r == pdPASS)
-        ESP_LOGI(TAG, "Shell: USB-Serial-JTAG console ready — type 'help' in idf.py monitor");
-    else
-        ESP_LOGE(TAG, "Shell: USB-Serial-JTAG task create failed");
+    /* 运行时 DEV 开关(Control Center "DEV" 按钮):壳监听 task 由框架回调
+     * 启停,串口日志级别随状态自动切换(ON->DEBUG, OFF->静默)。
+     * 此处先按编译默认应用一次(确保 task 状态与框架一致);
+     * 持久化配置在文件系统挂载后由 board_apply_dev_mode_config() 覆盖。 */
+    eos_shell_framework_set_console_ctl(board_shell_usb_set_enabled, NULL);
+    eos_shell_framework_set_console_enabled(BOARD_DEV_MODE_BOOT_DEFAULT);
+}
+
+/* 文件系统就绪后应用持久化的 DEV 开关(Control Center 保存的 dev_mode) */
+static void board_apply_dev_mode_config(void)
+{
+    eos_shell_framework_set_console_enabled(
+        eos_config_get_bool(EOS_CONFIG_KEY_DEV_MODE_BOOL, BOARD_DEV_MODE_BOOT_DEFAULT));
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -981,6 +1029,8 @@ void app_main(void)
     /* 6.5 文件系统:真 microSD 优先挂载 /sdcard,无卡回退 SPIFFS
      * (config/state/资源依赖,须在 eos_init 前) */
     board_fs_mount();
+    /* 6.6 应用持久化的 DEV 开关(依赖配置文件在 fs 上,须在 mount 后) */
+    board_apply_dev_mode_config();
 
     /* 7. FreeRTOS 任务已在 app_main 最开头创建(步骤 0:internal 最完整时
      * 分配 48KB ui_task 栈,此时才能成功;驱动/SPIFFS 之后 largest 只有 ~45KB)。 */

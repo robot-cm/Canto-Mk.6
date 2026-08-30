@@ -64,6 +64,7 @@ extern const lv_image_dsc_t eos_icon_wifi;
 extern const lv_image_dsc_t eos_icon_bluetooth;
 extern const lv_image_dsc_t eos_icon_wireguard;
 extern const lv_image_dsc_t eos_icon_pwd;
+extern const lv_image_dsc_t eos_icon_settings_apps;
 
 /* Variables --------------------------------------------------*/
 
@@ -1899,9 +1900,11 @@ void eos_settings_enter(void)
     // Password settings (名字统一缩写为 PWD)
     btn = eos_list_add_round_icon_button(settings_list, EOS_COLOR_TEAL_BLUE, &eos_icon_pwd, "PWD");
     lv_obj_add_event_cb(btn, _settings_view_password, LV_EVENT_CLICKED, NULL);
-    // App list
-    btn =
-        eos_list_add_round_icon_button_str_id(settings_list, EOS_COLOR_GREY, RI_FILE_LIST_LINE, STR_ID_SETTINGS_APPS);
+    // App list (resources/images/icon/settings.apps.webp)
+    btn = eos_list_add_round_icon_button(settings_list,
+                                         EOS_COLOR_GREY,
+                                         &eos_icon_settings_apps,
+                                         eos_lang_get_text(STR_ID_SETTINGS_APPS));
     lv_obj_add_event_cb(btn, _settings_view_apps, LV_EVENT_CLICKED, NULL);
     // General settings
     btn = eos_list_add_round_icon_button_str_id(settings_list, EOS_COLOR_GREY, RI_TOOLS_FILL, STR_ID_SETTINGS_GENERAL);

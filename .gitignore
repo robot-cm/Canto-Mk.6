@@ -107,3 +107,6 @@ Thumbs.db
 tmp/
 temp/
 
+# --- 大型离线词典数据库（>100MB, GitHub 无法接收, 不入库）---
+resources/ecdict-sqlite-28/
+

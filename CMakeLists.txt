@@ -14,6 +14,23 @@ else()
     add_compile_definitions(EOS_SYS_ROOT_DIR="${CMAKE_SOURCE_DIR}/fs/")
 endif()
 
+# ───────────────────────────────────────────────────────────────
+# Build mode: Dev (default) vs Release
+#   - Release: set via `cmake -DEOS_BUILD_RELEASE=1`, or
+#              `CMAKE_BUILD_TYPE=Release` (aligned with JerryScript logic).
+#   - Release disables all EOS_LOG_* output (via EOS_LOG_DISABLE) and
+#     skips starting the interactive USB-Serial shell task.
+#   - Shell core (eos_shell_init / eos_shell_exec) is ALWAYS kept so the
+#     system can still issue commands internally (rescue/debug entry per
+#     AGENTS.md §9). Only the blocking USB-JTAG listener task is dropped.
+# ───────────────────────────────────────────────────────────────
+if(EOS_BUILD_RELEASE OR CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_compile_definitions(EOS_BUILD_RELEASE=1 EOS_LOG_DISABLE=1)
+    message(STATUS "[ElenixOS] Build mode: RELEASE (logs off, shell listener off)")
+else()
+    message(STATUS "[ElenixOS] Build mode: DEV (logs on, shell listener on)")
+endif()
+
 # Recursively gather all source files
 file(GLOB_RECURSE ELENIXOS_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/**/*.c

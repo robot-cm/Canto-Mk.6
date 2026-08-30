@@ -119,6 +119,9 @@ target_sources(${COMPONENT_LIB} PRIVATE
     "${EOS_ROOT}/resources/images/icon/eos_icon_powersave.c"
     "${EOS_ROOT}/resources/images/icon/eos_icon_beastmode.c"
     "${EOS_ROOT}/resources/images/icon/eos_icon_setting.c"
+    "${EOS_ROOT}/resources/images/icon/eos_icon_devmode.c"
+    "${EOS_ROOT}/resources/images/icon/eos_icon_settings_apps.c"
+    "${EOS_ROOT}/resources/images/icon/eos_icon_bootanim.c"
     # Settings 页面图标(wireguard.webp 普通转换; pwd.webp 白色抠图生成)
     "${EOS_ROOT}/resources/images/icon/eos_icon_wireguard.c"
     "${EOS_ROOT}/resources/images/icon/eos_icon_pwd.c"

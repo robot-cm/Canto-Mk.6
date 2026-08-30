@@ -34,6 +34,7 @@
 #include "eos_chrome_manager.h"
 #include "eos_overlay_layer.h"
 #include "eos_activity.h"
+#include "eos_shell_framework.h"
 
 /* 彩色图标(由 resources/images/icon 下的 webp 转换的 ARGB8888 静态图) */
 extern const lv_image_dsc_t eos_icon_bluetooth;
@@ -42,6 +43,7 @@ extern const lv_image_dsc_t eos_icon_torch;
 extern const lv_image_dsc_t eos_icon_powersave;
 extern const lv_image_dsc_t eos_icon_beastmode;
 extern const lv_image_dsc_t eos_icon_setting;
+extern const lv_image_dsc_t eos_icon_devmode;
 
 /* Macros and Definitions -------------------------------------*/
 #define _BTN_DEFAULT_COLOR EOS_THEME_SECONDARY_COLOR
@@ -552,6 +554,24 @@ static void _control_center_beast_mode_btn_cb(lv_event_t *e)
     }
 }
 
+static void _control_center_dev_mode_btn_cb(lv_event_t *e)
+{
+    lv_obj_t *btn = lv_event_get_target(e);
+
+    if (lv_obj_has_state(btn, LV_STATE_CHECKED))
+    {
+        EOS_LOG_I("Dev mode switch ON (shell + serial log)");
+        eos_shell_framework_set_console_enabled(true);
+        eos_config_set_bool(EOS_CONFIG_KEY_DEV_MODE_BOOL, true);
+    }
+    else
+    {
+        EOS_LOG_I("Dev mode switch OFF");
+        eos_shell_framework_set_console_enabled(false);
+        eos_config_set_bool(EOS_CONFIG_KEY_DEV_MODE_BOOL, false);
+    }
+}
+
 static void _control_center_settings_entry_cb(lv_event_t *e)
 {
     eos_settings_enter();
@@ -763,6 +783,18 @@ eos_control_center_t *eos_control_center_create(lv_obj_t *parent)
     btn = _control_center_create_img_btn(container, &eos_icon_setting, NULL);
     lv_obj_add_event_cb(btn, _control_center_settings_entry_cb, LV_EVENT_CLICKED, 0);
     cc->settings_btn = btn;
+    /************************** Dev mode (开发者模式:shell + 串口日志) **************************/
+    btn = _control_center_create_img_switch_btn(container, &eos_icon_devmode, NULL, EOS_COLOR_PURPLE);
+    lv_obj_add_event_cb(btn, _control_center_dev_mode_btn_cb, LV_EVENT_VALUE_CHANGED, NULL);
+    if (eos_shell_framework_get_console_enabled())
+    {
+        lv_obj_add_state(btn, LV_STATE_CHECKED);
+    }
+    else
+    {
+        lv_obj_remove_state(btn, LV_STATE_CHECKED);
+    }
+    cc->dev_btn = btn;
     return cc;
 }
 
@@ -839,6 +871,19 @@ static void _system_config_update_event_cb(eos_event_t *e)
         else
         {
             lv_obj_remove_state(control_center_instance->wifi_btn, LV_STATE_CHECKED);
+        }
+    }
+
+    // Update Dev mode switch state
+    if (control_center_instance->dev_btn)
+    {
+        if (eos_shell_framework_get_console_enabled())
+        {
+            lv_obj_add_state(control_center_instance->dev_btn, LV_STATE_CHECKED);
+        }
+        else
+        {
+            lv_obj_remove_state(control_center_instance->dev_btn, LV_STATE_CHECKED);
         }
     }
 

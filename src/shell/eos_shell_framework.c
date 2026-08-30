@@ -7,6 +7,7 @@
 
 #include <string.h>
 #include "eos_shell.h"
+#include "eos_log.h"
 
 /* State ------------------------------------------------------*/
 typedef struct
@@ -21,6 +22,17 @@ typedef struct
 } eos_shell_framework_ctx_t;
 
 static eos_shell_framework_ctx_t s_ctx;
+
+/* Runtime console control state ------------------------------*/
+#if defined(EOS_BUILD_RELEASE) && EOS_BUILD_RELEASE
+/* Release profile: console starts disabled (persisted DEV switch re-applies at boot) */
+static bool s_console_enabled = false;
+#else
+/* Dev profile: console starts enabled */
+static bool s_console_enabled = true;
+#endif
+static eos_shell_console_ctl_t s_console_ctl = NULL;
+static void *s_console_ctl_user = NULL;
 
 /* Helpers ----------------------------------------------------*/
 
@@ -74,6 +86,30 @@ void eos_shell_framework_init(void)
 void eos_shell_framework_prompt(eos_shell_output_cb_t echo_fn, void *user)
 {
     _prompt(echo_fn, user);
+}
+
+void eos_shell_framework_set_console_ctl(eos_shell_console_ctl_t cb, void *user)
+{
+    s_console_ctl = cb;
+    s_console_ctl_user = user;
+}
+
+void eos_shell_framework_set_console_enabled(bool enabled)
+{
+    s_console_enabled = enabled;
+
+    /* Serial log follows the console: ON -> full DEBUG, OFF -> silent. */
+    eos_log_set_min_level(enabled ? EOS_LOG_LEVEL_DEBUG : EOS_LOG_LEVEL_OFF);
+
+    /* Forward to the transport hook (task create/delete). The hook must be
+     * idempotent: it is called on every state change, including boot apply. */
+    if (s_console_ctl)
+        s_console_ctl(enabled, s_console_ctl_user);
+}
+
+bool eos_shell_framework_get_console_enabled(void)
+{
+    return s_console_enabled;
 }
 
 void eos_shell_framework_feed(char c,

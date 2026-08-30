@@ -2,9 +2,10 @@
  * @file eos_boot_anim.c
  * @brief Boot self-test animation implementation.
  *
- * Stage 0 (0.0s - 2.0s) : full-screen solid color flashes (blue/red/yellow/green)
- * Stage 1 (2.0s - 4.0s) : typewriter "INFILTRATING" (1.8s) -> quick fade-out
- *                         (~0.2s) -> done callback, revealing the main UI.
+ * Stage 0 (0.0s - 2.7s) : full-screen solid color flashes (blue/red/yellow/green)
+ * Stage 1 (2.7s - 5.0s) : brand logo (2.3s, resources/images/icon/bootanim.webp)
+ * Stage 2 (5.0s - 6.8s) : typewriter "INFILTRATING" (1.8s)
+ * Stage 3 (6.8s - 7.0s) : quick fade-out (~0.2s) -> done callback, revealing the main UI.
  *
  * The whole sequence is timer/anim driven so it never blocks the main loop,
  * every stage releases its objects as soon as it finishes, the sequence runs
@@ -19,6 +20,9 @@
 #include "eos_font.h"
 #define EOS_LOG_TAG "BootAnim"
 #include "eos_log.h"
+
+/* Stage 1 brand logo (converted from resources/images/icon/bootanim.webp) */
+extern const lv_image_dsc_t eos_icon_bootanim;
 
 /* Macros and Definitions -------------------------------------*/
 
@@ -39,7 +43,9 @@
 
 #define EOS_BA_TYPE_PERIOD_MS 150U  /* 12 chars x 150ms = 1.8s */
 #define EOS_BA_FADE_PERIOD_MS 33U
-#define EOS_BA_FADE_STEPS     6U    /* ~0.2s -> stage 1 totals 2.0s */
+#define EOS_BA_FADE_STEPS     6U    /* ~0.2s -> stage 3 totals 2.0s */
+
+#define EOS_BA_LOGO_PERIOD_MS 2300U /* stage 1 brand logo hold (2.3s) */
 
 /* Variables --------------------------------------------------*/
 
@@ -48,10 +54,12 @@ typedef struct
     lv_obj_t *overlay;    /* full-screen container on lv_layer_top() */
     lv_obj_t *bg;         /* deep space grey background (+ scanlines) */
     lv_obj_t *flash;      /* stage 0 solid color full-screen object   */
-    lv_obj_t *glow;       /* stage 1 text glow halo label             */
-    lv_obj_t *label;      /* stage 1 "INFILTRATING" label             */
+    lv_obj_t *logo;       /* stage 1 brand logo image                 */
+    lv_obj_t *glow;       /* stage 2 text glow halo label             */
+    lv_obj_t *label;      /* stage 2 "INFILTRATING" label             */
 
     lv_timer_t *flash_timer;
+    lv_timer_t *logo_timer;
     lv_timer_t *type_timer;
     lv_timer_t *fade_timer;
 
@@ -72,6 +80,7 @@ static const uint32_t s_flash_dur[4] = { 800U, 900U, 600U, 400U };
 
 /* forward declarations (timer callbacks cross-reference each other) */
 static void _flash_timer_cb(lv_timer_t *t);
+static void _logo_timer_cb(lv_timer_t *t);
 static void _type_timer_cb(lv_timer_t *t);
 static void _fade_timer_cb(lv_timer_t *t);
 
@@ -116,8 +125,27 @@ static void _flash_timer_cb(lv_timer_t *t)
         s_ctx.flash = NULL;
     }
 
-    /* stage 1: typewriter text with neon glow (dual-label halo trick:
-     * a slightly upscaled, semi-transparent cyan label behind a white one) */
+    /* stage 1: brand logo, centered on the deep space background (2.3s) */
+    s_ctx.logo = lv_img_create(s_ctx.overlay);
+    lv_img_set_src(s_ctx.logo, &eos_icon_bootanim);
+    lv_obj_center(s_ctx.logo);
+    lv_obj_move_foreground(s_ctx.logo);
+    s_ctx.logo_timer = lv_timer_create(_logo_timer_cb, EOS_BA_LOGO_PERIOD_MS, NULL);
+}
+
+/* Stage 1 done: release the logo, start the typewriter stage.
+ * Stage 2: typewriter text with neon glow (dual-label halo trick:
+ * a slightly upscaled, semi-transparent cyan label behind a white one) */
+static void _logo_timer_cb(lv_timer_t *t)
+{
+    (void)t;
+    _stop_timer(&s_ctx.logo_timer);
+    if (s_ctx.logo)
+    {
+        lv_obj_delete(s_ctx.logo);
+        s_ctx.logo = NULL;
+    }
+
     s_ctx.glow = lv_label_create(s_ctx.overlay);
     eos_label_set_font_size(s_ctx.glow, EOS_FONT_SIZE_LARGE);
     lv_obj_center(s_ctx.glow);
@@ -151,7 +179,7 @@ static void _type_timer_cb(lv_timer_t *t)
         return;
     }
 
-    /* typing done (~3.8s): start the fade-out */
+    /* typing done (~6.8s): start the fade-out */
     _stop_timer(&s_ctx.type_timer);
     s_ctx.fade_step = 0;
     s_ctx.fade_timer = lv_timer_create(_fade_timer_cb, EOS_BA_FADE_PERIOD_MS, NULL);
@@ -175,7 +203,7 @@ static void _fade_timer_cb(lv_timer_t *t)
 
     if (s_ctx.fade_step >= EOS_BA_FADE_STEPS)
     {
-        /* t = 4.0s: done - free every remaining object */
+        /* t = 7.0s: done - free every remaining object */
         _stop_timer(&s_ctx.fade_timer);
         if (s_ctx.overlay)
         {
@@ -271,7 +299,7 @@ void eos_boot_anim_start(eos_boot_anim_done_cb_t done_cb)
     s_ctx.flash_step = 0;
     s_ctx.flash_timer = lv_timer_create(_flash_timer_cb, s_flash_dur[0], NULL);
 
-    EOS_LOG_I("boot animation started (4.0s)");
+    EOS_LOG_I("boot animation started (7.0s)");
 }
 
 bool eos_boot_anim_running(void)

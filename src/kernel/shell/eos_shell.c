@@ -266,7 +266,8 @@ static void cmd_prof(eos_shell_output_cb_t out, void *user, int argc, char **arg
     }
 
     uint32_t total_a = 0, total_b = 0;
-    n = uxTaskGetSystemState(arr, n, &total_a);
+    UBaseType_t cap = n; /* array capacity = initial task count */
+    n = uxTaskGetSystemState(arr, cap, &total_a);
     for (UBaseType_t k = 0; k < n; k++)
     {
         run_a[k] = arr[k].ulRunTimeCounter;
@@ -274,8 +275,20 @@ static void cmd_prof(eos_shell_output_cb_t out, void *user, int argc, char **arg
 
     vTaskDelay(pdMS_TO_TICKS(100));
 
-    n = uxTaskGetSystemState(arr, n, &total_b);
-    uint32_t dt = total_b - total_a;
+    UBaseType_t n2 = uxTaskGetSystemState(arr, cap, &total_b);
+    if (n2 < n)
+    {
+        n = n2; /* a task exited during the window; only compare common indices */
+    }
+    /* Run-time counter is uint32_t (CONFIG_FREERTOS_RUN_TIME_COUNTER_TYPE_U32)
+     * and ticks at 1MHz via ESP timer -> overflows after ~71min. Compute the
+     * delta in 64-bit with wrap-around compensation so dt never goes negative
+     * or explodes into thousands of percent. */
+    uint64_t dt = (uint64_t)total_b - (uint64_t)total_a;
+    if (total_b < total_a)
+    {
+        dt += (uint64_t)1u << 32; /* counter wrapped between samples */
+    }
     if (dt == 0)
     {
         sh_out(out, user, "  CPU: run-time counter not ticking");
@@ -285,28 +298,37 @@ static void cmd_prof(eos_shell_output_cb_t out, void *user, int argc, char **arg
     }
 
     /* total busy = 100% - combined idle (one IDLE task per core) */
-    uint32_t idle_run = 0;
+    uint64_t idle_run = 0;
     for (UBaseType_t k = 0; k < n; k++)
     {
         if (strncmp(arr[k].pcTaskName, "IDLE", 4) == 0)
         {
-            idle_run += arr[k].ulRunTimeCounter - run_a[k];
+            uint64_t dr = (uint64_t)arr[k].ulRunTimeCounter - (uint64_t)run_a[k];
+            if (arr[k].ulRunTimeCounter < run_a[k])
+            {
+                dr += (uint64_t)1u << 32; /* per-task wrap */
+            }
+            idle_run += dr;
         }
     }
-    uint32_t busy = 1000u - (uint32_t)((idle_run * 1000u) / dt);
+    uint32_t busy = (uint32_t)(1000u - (idle_run * 1000u) / dt);
 
     sh_out(out, user, "  CPU  : %u.%u%% busy  (dual-core, %u tasks, 100ms window)",
-           busy / 10u, busy % 10u, (unsigned)n);
+           busy / 10u, busy % 10u, (unsigned)n2);
 
     sh_out(out, user, "  top tasks:");
     UBaseType_t shown = 0;
     while (shown < n && shown < 8)
     {
         UBaseType_t best = 0;
-        uint32_t best_dr = 0;
+        uint64_t best_dr = 0;
         for (UBaseType_t k = 0; k < n; k++)
         {
-            uint32_t dr = arr[k].ulRunTimeCounter - run_a[k];
+            uint64_t dr = (uint64_t)arr[k].ulRunTimeCounter - (uint64_t)run_a[k];
+            if (arr[k].ulRunTimeCounter < run_a[k])
+            {
+                dr += (uint64_t)1u << 32; /* per-task wrap */
+            }
             if (dr > best_dr)
             {
                 best_dr = dr;

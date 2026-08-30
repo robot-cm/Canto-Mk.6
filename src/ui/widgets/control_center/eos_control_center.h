@@ -30,6 +30,7 @@ typedef struct
     lv_obj_t *wifi_btn;
     lv_obj_t *bl_btn;
     lv_obj_t *settings_btn;
+    lv_obj_t *dev_btn;
 } eos_control_center_t;
 /* Public function prototypes --------------------------------*/
 

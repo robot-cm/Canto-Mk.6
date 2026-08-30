@@ -140,8 +140,8 @@ void eos_log_set_min_level(eos_log_level_t level)
 {
     if (level < EOS_LOG_LEVEL_DEBUG)
         level = EOS_LOG_LEVEL_DEBUG;
-    if (level > EOS_LOG_LEVEL_ERROR)
-        level = EOS_LOG_LEVEL_ERROR;
+    if (level > EOS_LOG_LEVEL_OFF)
+        level = EOS_LOG_LEVEL_OFF;
     s_min_level = level;
 }
 

@@ -40,12 +40,50 @@ extern "C" {
  */
 typedef void (*eos_shell_line_handler_t)(const char *line, void *user);
 
+/**
+ * @brief Runtime console enable/disable hook.
+ *
+ * The interactive console (shell listener task + serial log) can be toggled
+ * at runtime from the UI (Control Center "DEV" switch). The framework stores
+ * the current state and applies it to the serial log level; the transport
+ * itself (e.g. a USB-CDC listener task in main.c) registers this callback to
+ * be started/stopped accordingly.
+ *
+ * @param enabled true to start the console transport, false to stop it
+ * @param user    Opaque data registered with eos_shell_framework_set_console_ctl()
+ */
+typedef void (*eos_shell_console_ctl_t)(bool enabled, void *user);
+
 /* Public function prototypes --------------------------------*/
 
 /**
  * @brief Initialize the framework (reset buffer/history). Safe to call once.
  */
 void eos_shell_framework_init(void);
+
+/**
+ * @brief Register the transport start/stop hook (set by the platform layer).
+ * @param cb   Callback invoked on every eos_shell_framework_set_console_enabled().
+ *             May be NULL to detach.
+ * @param user Opaque data forwarded to the callback.
+ */
+void eos_shell_framework_set_console_ctl(eos_shell_console_ctl_t cb, void *user);
+
+/**
+ * @brief Enable/disable the interactive console at runtime.
+ *
+ * Applies the serial log level (DEBUG when enabled, OFF when disabled) and
+ * forwards the new state to the registered transport hook.
+ *
+ * @param enabled New console state
+ */
+void eos_shell_framework_set_console_enabled(bool enabled);
+
+/**
+ * @brief Get the current interactive console state.
+ * @return true if the console is enabled
+ */
+bool eos_shell_framework_get_console_enabled(void);
 
 /**
  * @brief Feed a single input character into the framework.

@@ -36,6 +36,19 @@
 #define EOS_COMPILE_MODE DEBUG
 #endif
 
+/* Build profile: Dev vs Release.
+ * Normally driven by the build system (CMake injects EOS_BUILD_RELEASE=1
+ * when `-DEOS_BUILD_RELEASE=1` or `CMAKE_BUILD_TYPE=Release`). This header
+ * only provides a fallback so the symbol is always defined for #ifdef checks.
+ * Release mode:
+ *   - EOS_LOG_DISABLE is set by the build system -> all EOS_LOG_* become no-ops
+ *   - the interactive USB-Serial shell listener task is skipped at startup
+ * Shell CORE (eos_shell_init / eos_shell_exec) stays available in both modes
+ * (AGENTS.md §9: shell must remain a rescue/debug entry). */
+#ifndef EOS_BUILD_RELEASE
+#define EOS_BUILD_RELEASE 0
+#endif
+
 /* Feature switches -------------------------------------------*/
 
 #ifndef EOS_ICON_STR_BUILD_IN
@@ -139,11 +152,6 @@
 #define EOS_FONT_CFG_SMALL_SIZE (EOS_FONT_CFG_MEDIUM_SIZE - 6) /* 20px:整体小两号,见 eos_font_jbm_20 */
 #endif
 
-/* 20px 与 26px 之间的中档字号(22..25px 请求用 22px 字体),见 eos_font_jbm_22 */
-#ifndef EOS_FONT_CFG_LARGE_MINUS_SIZE
-#define EOS_FONT_CFG_LARGE_MINUS_SIZE 22
-#endif
-
 /* 16px 与 20px 之间的中档字号(17..19px 请求用 18px 字体),见 eos_font_jbm_18 */
 #ifndef EOS_FONT_CFG_TALL_SIZE
 #define EOS_FONT_CFG_TALL_SIZE 18
@@ -168,7 +176,6 @@
 /* JetBrainsMono-Medium (拉丁/数字/符号, 清晰等宽) + 内置 fallback=source_han_sans_*(中文) */
 #define EOS_FONT_LARGE_NAME eos_font_jbm_30
 #define EOS_FONT_MEDIUM_NAME eos_font_jbm_26
-#define EOS_FONT_LARGE_MINUS_NAME eos_font_jbm_22
 #define EOS_FONT_SMALL_NAME eos_font_jbm_20
 #define EOS_FONT_TALL_NAME eos_font_jbm_18
 #define EOS_FONT_EXTRA_SMALL_NAME eos_font_jbm_16
@@ -177,7 +184,6 @@
 #else
 #define EOS_FONT_LARGE_NAME lv_font_montserrat_30
 #define EOS_FONT_MEDIUM_NAME lv_font_montserrat_30
-#define EOS_FONT_LARGE_MINUS_NAME lv_font_montserrat_30
 #define EOS_FONT_SMALL_NAME lv_font_montserrat_30
 #define EOS_FONT_TALL_NAME eos_font_jbm_18
 #define EOS_FONT_EXTRA_SMALL_NAME eos_font_jbm_16

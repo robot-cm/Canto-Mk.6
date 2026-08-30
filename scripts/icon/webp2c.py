@@ -5,6 +5,8 @@
     python3 scripts/icon/webp2c.py [--size 36] bluetooth wifi torch powersave
     # 抠图(把接近某色的像素转透明, 例如白色背景的 pwd.webp):
     python3 scripts/icon/webp2c.py --key FFFFFF --key-tol 48 pwd
+    # 文件名含 '.' 等非法标识符字符时用 --name 指定 C 变量名:
+    python3 scripts/icon/webp2c.py --size 96 --name settings_apps settings.apps
 输出:
     resources/images/icon/eos_icon_<name>.c
 """
@@ -83,6 +85,9 @@ def main():
                     help="抠图: 把接近该 RGB(如 FFFFFF) 的像素转透明")
     ap.add_argument("--key-tol", type=int, default=40,
                     help="抠图容差(0-255), 默认 40")
+    ap.add_argument("--name", default=None,
+                    help="生成的 C 变量名/输出文件名(默认 eos_icon_<name>;"
+                         "文件名含 '.' 等非法字符时必需, 如 settings.apps → settings_apps)")
     args = ap.parse_args()
 
     key = None
@@ -94,8 +99,9 @@ def main():
         if not src.exists():
             print(f"SKIP {name}: {src} 不存在")
             continue
-        out = OUT_DIR / f"eos_icon_{name}.c"
-        out.write_text(gen_c(src, f"eos_icon_{name}", args.size, key, args.key_tol),
+        var = f"eos_icon_{args.name}" if args.name else f"eos_icon_{name}"
+        out = OUT_DIR / f"{var}.c"
+        out.write_text(gen_c(src, var, args.size, key, args.key_tol),
                        encoding="utf-8")
         print(f"生成 {out} ({out.stat().st_size} B)")
 

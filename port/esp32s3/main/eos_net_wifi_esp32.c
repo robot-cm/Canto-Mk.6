@@ -138,10 +138,9 @@ esp_err_t eos_net_wifi_esp32_init(void)
      * 这里把静态 buffer 压到最小、关闭 AMPDU/AMSDU,动态 buffer 经
      * CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP 自动落到 8MB PSRAM。
      *
-     * internal DMA 需求实测:static_rx 1.6KB/个 + rx_mgmt 1.6KB/个 +
-     * mgmt_sbuf 0.3KB/个。2+2+4 ≈ 7.6KB,恰好 ≤ eos_init() 之后 internal
-     * largest(≈7KB)的预算,使 early init(BT 之后 largest≈15KB)或
-     * 碎片化后的懒初始化都有较大概率成功。再低会明显影响吞吐/扫面稳定性。 */
+     * 参数下限(esp_wifi.h):static_rx 2、rx_mgmt 1、mgmt_sbuf 6。
+     * mgmt_sbuf 曾设 4 会触发 "short buf number out of range" 导致
+     * esp_wifi_init 返回 ESP_ERR_INVALID_ARG,必须 ≥ 6。 */
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     cfg.static_rx_buf_num   = 2;
     cfg.static_tx_buf_num   = 0;
@@ -150,7 +149,7 @@ esp_err_t eos_net_wifi_esp32_init(void)
     cfg.dynamic_tx_buf_num  = 8;
     cfg.cache_tx_buf_num    = 0;
     cfg.rx_mgmt_buf_num     = 2;
-    cfg.mgmt_sbuf_num       = 4;
+    cfg.mgmt_sbuf_num       = 6;
     cfg.ampdu_rx_enable     = 0;
     cfg.ampdu_tx_enable     = 0;
     cfg.amsdu_tx_enable     = 0;

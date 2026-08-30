@@ -49,6 +49,9 @@ extern "C" {
 #define EOS_CONFIG_KEY_SOCKS5_PASSWORD_STR "socks5_password"
 /* VPN (WireGuard/Tailscale via microlink) */
 #define EOS_CONFIG_KEY_VPN_ENABLED_BOOL "vpn_enabled"
+/* Developer mode: runtime toggle for interactive shell + serial log output
+   (Control Center "DEV" switch). Boot default follows the build profile. */
+#define EOS_CONFIG_KEY_DEV_MODE_BOOL "dev_mode"
 #define EOS_CONFIG_KEY_VPN_AUTH_KEY_STR "vpn_auth_key"
 #define EOS_CONFIG_KEY_VPN_DEVICE_NAME_STR "vpn_device_name"
 #define EOS_CONFIG_KEY_TIMEZONE_OFFSET_MIN_NUMBER "timezone_offset_min"

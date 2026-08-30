@@ -150,7 +150,8 @@ typedef enum
     EOS_LOG_LEVEL_DEBUG = 0, /**< Debug level */
     EOS_LOG_LEVEL_INFO, /**< Info level */
     EOS_LOG_LEVEL_WARN, /**< Warning level */
-    EOS_LOG_LEVEL_ERROR /**< Error level */
+    EOS_LOG_LEVEL_ERROR, /**< Error level */
+    EOS_LOG_LEVEL_OFF /**< Silence all log output (runtime Dev-mode switch) */
 } eos_log_level_t;
 
 /**

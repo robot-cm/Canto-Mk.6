@@ -43,6 +43,7 @@
 #include "eos_round_keyboard.h"
 #include "eos_service_storage.h"
 #include "eos_app_header.h"
+#include "eos_icon.h"
 #include "eos_log.h"
 
 /* ---------------------------------------------------------------- */
@@ -65,6 +66,10 @@
 #define DICT_NORM_CAP       256
 #define DICT_RESULT_CAP     2048
 #define DICT_QUERY_CAP      64
+
+#define DICT_FUZZY_PAGE     10   /* 模糊结果每批渲染条数(懒加载页大小) */
+#define DICT_WORD_CAP       80   /* 模糊命中 word 缓冲 */
+#define DICT_SUMMARY_CAP    64   /* 模糊命中翻译摘要缓冲 */
 
 /* ---------------------------------------------------------------- */
 /* Small endian helpers                                              */
@@ -95,6 +100,7 @@ static uint8_t *s_bucket_buf;    /* current bucket data (PSRAM)  */
 static uint32_t s_bucket_count;
 static uint32_t s_checkpoint_every;
 static uint32_t s_cur_bucket_size;
+static uint32_t s_cur_bucket_idx;   /* 当前已加载 bucket 索引(避免重复加载) */
 static bool s_loaded;
 
 static bool _read_full(uint8_t *buf, size_t size)
@@ -167,6 +173,7 @@ static void _dict_close(void)
     }
     s_loaded = false;
     s_cur_bucket_size = 0;
+    s_cur_bucket_idx = UINT32_MAX;
 }
 
 static bool _dict_open(void)
@@ -290,6 +297,7 @@ static bool _load_bucket(uint32_t bi)
         return false;
     }
     s_cur_bucket_size = dsize;
+    s_cur_bucket_idx = bi;
     return true;
 }
 
@@ -459,6 +467,121 @@ static bool dict_lookup(const char *query, char *out, size_t cap)
 }
 
 /* ---------------------------------------------------------------- */
+/* Fuzzy search: 前缀匹配, 流式游标遍历                              */
+/* .dat 按 normalized 排序, 前缀匹配结果是连续区间, 因此可            */
+/* 从 _find_bucket 定位起点, 顺序扫描直到第一个不匹配即结束,          */
+/* 无需全库扫描, 内存恒定(只保留当前 bucket), 天然支持懒加载。       */
+/* ---------------------------------------------------------------- */
+
+typedef struct {
+    uint32_t bi;            /* 当前 bucket 索引 */
+    uint32_t ei;            /* bucket 内当前 entry 序号 */
+    uint32_t eo;            /* bucket 内当前 entry 偏移(相对 entry 区起点) */
+    char     prefix[DICT_NORM_CAP]; /* 归一化前缀 */
+    bool     done;          /* 已扫描到末尾(无更多匹配) */
+} dict_fuzzy_t;
+
+/* 返回下一条前缀匹配的 word(原始拼写, 非归一化) + 翻译字段摘要。
+ * 语义类似迭代器: 首次调用前必须 _fuzzy_open 初始化。
+ * 内存: 只缓存当前 bucket, 跨 bucket 自动续读。 */
+static bool _fuzzy_next(dict_fuzzy_t *fz, char *word, size_t word_cap,
+                        char *trans, size_t trans_cap)
+{
+    if (fz->done) return false;
+    const size_t plen = strlen(fz->prefix);
+    if (plen == 0) { fz->done = true; return false; }
+
+    while (fz->bi < s_bucket_count) {
+        /* 当前 bucket 未加载或已切换 → 重新加载 */
+        if (s_cur_bucket_idx != fz->bi) {
+            if (!_load_bucket(fz->bi)) { fz->done = true; return false; }
+        }
+        const uint8_t *b = s_bucket_buf;
+        if (memcmp(b, "BKT1", 4) != 0) { fz->done = true; return false; }
+        uint32_t b_entry_count = _rd_u32(b + 8);
+        uint32_t entry_start = _rd_u32(b + 20);
+        uint32_t dsize = s_cur_bucket_size;
+        if (entry_start > dsize) { fz->done = true; return false; }
+
+        uint32_t eoff = entry_start + fz->eo;
+        while (fz->ei < b_entry_count && eoff + DICT_ENTRY_HEADER_SIZE <= dsize) {
+            uint16_t wl = _rd_u16(b + eoff + 0);
+            uint16_t pl = _rd_u16(b + eoff + 2);
+            uint16_t tl = _rd_u16(b + eoff + 4);
+            uint16_t dl = _rd_u16(b + eoff + 6);
+            uint16_t posl = _rd_u16(b + eoff + 8);
+            uint16_t el = _rd_u16(b + eoff + 10);
+            uint32_t total = DICT_ENTRY_HEADER_SIZE + (uint32_t)wl + pl + tl + dl + posl + el;
+            if (eoff + total > dsize) break;
+
+            const char *w = (const char *)(b + eoff + DICT_ENTRY_HEADER_SIZE);
+            size_t wl_cap = wl < DICT_NORM_CAP - 1 ? wl : DICT_NORM_CAP - 1;
+
+            /* 归一化并比较 */
+            char nw[DICT_NORM_CAP];
+            memcpy(nw, w, wl_cap);
+            nw[wl_cap] = '\0';
+            _norm(nw, nw, sizeof(nw));
+
+            int cmp = strncmp(nw, fz->prefix, plen);
+            if (cmp == 0) {
+                /* 前缀命中 → 输出原始 word + translation 摘要, 游标前进 */
+                size_t wn = wl;
+                if (wn >= word_cap) wn = word_cap - 1;
+                memcpy(word, w, wn);
+                word[wn] = '\0';
+
+                if (trans && trans_cap > 0) {
+                    const char *t = w + wl + pl;   /* word 后是 phonetic, 再后是 translation */
+                    size_t tn = tl;
+                    if (tn >= trans_cap) tn = trans_cap - 1;
+                    memcpy(trans, t, tn);
+                    trans[tn] = '\0';
+                }
+
+                fz->eo = (eoff - entry_start) + total;
+                fz->ei++;
+                return true;
+            }
+            if (cmp > 0) {
+                /* 已越过前缀区间(排序保证后续均不匹配) */
+                fz->done = true;
+                return false;
+            }
+            /* 仍在区间前, 跳过 */
+            eoff += total;
+            fz->ei++;
+            fz->eo = (eoff - entry_start);
+        }
+        /* 当前 bucket 扫完 → 下一 bucket */
+        fz->bi++;
+        fz->ei = 0;
+        fz->eo = 0;
+    }
+    fz->done = true;
+    return false;
+}
+
+/* 初始化模糊游标: 定位到首个 >= prefix 的位置, 并预取第一个匹配 */
+static bool _fuzzy_open(dict_fuzzy_t *fz, const char *query, char *first_word,
+                        size_t word_cap, char *first_trans, size_t trans_cap)
+{
+    memset(fz, 0, sizeof(*fz));
+    if (_norm(query, fz->prefix, sizeof(fz->prefix)) == 0) return false;
+    EOS_LOG_I("dict: fuzzy open prefix='%s'", fz->prefix);
+
+    int32_t bi = _find_bucket(fz->prefix);
+    if (bi < 0) {
+        /* prefix 小于所有 bucket 首个 checkpoint: 从 bucket 0 起扫 */
+        fz->bi = 0;
+    } else {
+        fz->bi = (uint32_t)bi;
+    }
+    /* 预取第一条, 无匹配则返回 false */
+    return _fuzzy_next(fz, first_word, word_cap, first_trans, trans_cap);
+}
+
+/* ---------------------------------------------------------------- */
 /* UI (album style)                                                  */
 /* ---------------------------------------------------------------- */
 #define _UI_BG        0x12121A
@@ -499,12 +622,23 @@ static lv_obj_t *s_dim;      /* 搜索时全屏黑色底(遮住结果, 在其上
 static char s_result[DICT_RESULT_CAP];
 static char s_query[DICT_QUERY_CAP];
 
+/* 模糊搜索(懒加载)状态 */
+static dict_fuzzy_t s_fuzzy;     /* 当前模糊游标 */
+static bool s_fuzzy_mode;        /* 当前处于模糊结果列表模式 */
+static bool s_fuzzy_more;        /* 还有更多匹配可加载 */
+static int  s_fuzzy_y;           /* 列表当前渲染 y */
+static char s_exact_word[DICT_WORD_CAP];    /* 精确命中词(非空 = 列表顶部置顶项) */
+static char s_exact_trans[DICT_SUMMARY_CAP]; /* 精确命中词翻译摘要 */
+static bool s_detail_mode;                  /* true = 详情/消息页(左滑回列表, 不退出) */
+
 static void _show_idle(void);
 static void _show_msg(const char *msg);
 static void _show_result_ui(void);
 static void _render_result(const char *word, const char *phon, const char *rest);
 static void _save_history(const char *word);
 static void _run_lookup(void);
+static void _render_search_list(void);
+static void _fuzzy_load_more(void);
 
 /* 输入框动画: v: 0..100, 0=圆形小点 100=展开胶囊; 宽度向两侧对称拉伸 */
 static void _ta_anim_exec(void *var, int32_t v)
@@ -582,11 +716,17 @@ static void _run_lookup(void)
         return;
     }
 
+    /* 重置精确命中状态(置顶项) */
+    s_exact_word[0] = '\0';
+    s_exact_trans[0] = '\0';
+
     if (!dict_lookup(s_query, s_result, sizeof(s_result))) {
-        _show_msg("Word not found");
+        /* 精确未命中 → 前缀匹配列表(懒加载) */
+        _render_search_list();
         return;
     }
 
+    /* 精确命中: 保存置顶项(word + 翻译), 也进列表, 点箭头展开详情 */
     /* 解析结果: line1=word line2=phonetic rest=translation/[pos]def/ex */
     char *line1 = s_result;
     char *nl = strchr(line1, '\n');
@@ -596,8 +736,17 @@ static void _run_lookup(void)
     if (nl2) *nl2 = '\0';
     char *rest = nl2 ? nl2 + 1 : "";
 
+    strncpy(s_exact_word, line1, sizeof(s_exact_word) - 1);
+    s_exact_word[sizeof(s_exact_word) - 1] = '\0';
+
+    /* rest 首行 = translation(中文释义) */
+    char *tnl = strchr(rest, '\n');
+    if (tnl) *tnl = '\0';
+    strncpy(s_exact_trans, rest, sizeof(s_exact_trans) - 1);
+    s_exact_trans[sizeof(s_exact_trans) - 1] = '\0';
+
     _save_history(line1);
-    _render_result(line1, line2, rest);
+    _render_search_list();
 }
 
 /* 在滚动区追加一行, 返回其 y 增量 */
@@ -618,6 +767,9 @@ static void _add_row(const char *text, eos_font_size_t fs, uint32_t color, int *
 
 static void _render_result(const char *word, const char *phon, const char *rest)
 {
+    s_fuzzy_mode = false;
+    s_fuzzy_more = false;
+    s_detail_mode = true;
     lv_obj_clean(s_scroll);
     int y = 6;
 
@@ -660,8 +812,235 @@ static void _show_result_ui(void)
     lv_obj_remove_flag(s_pill, LV_OBJ_FLAG_HIDDEN);
 }
 
+/* ---------------------------------------------------------------- */
+/* Fuzzy list (懒加载匹配列表)                                       */
+/* ---------------------------------------------------------------- */
+
+#define _FUZZY_ROW_H  46   /* 两行: Word 标题 + 释义摘要 + 右侧箭头 */
+#define _FUZZY_PAD_Y  6
+#define _FUZZY_SUMMARY_CHARS 10   /* 中文释义摘要最大字符数(超出补 ...) */
+
+/* 中文释义摘要: 取前 max_chars 个 UTF-8 字符(首个换行处截断), 有剩余内容补 "..." */
+static void _summary(const char *in, char *out, size_t out_cap, size_t max_chars)
+{
+    if (!out || out_cap == 0) return;
+    out[0] = '\0';
+    if (!in) return;
+
+    size_t i = 0, chars = 0;
+    while (in[i]) {
+        if (in[i] == '\n') break;                  /* 取主要释义行 */
+        if (chars >= max_chars) break;             /* 已满 max_chars 字 */
+        unsigned char c = (unsigned char)in[i];
+        size_t len = (c < 0x80) ? 1 : (c < 0xE0) ? 2 : (c < 0xF0) ? 3 : 4;
+        if (i + len >= out_cap - 1) break;         /* 缓冲余量不足 */
+        memcpy(out + i, in + i, len);
+        i += len;
+        chars++;
+    }
+    if (in[i] != '\0' && i + 3 < out_cap) {        /* 还有内容 → 省略号 */
+        memcpy(out + i, "...", 3);
+        i += 3;
+    }
+    out[i] = '\0';
+}
+
+/* 点击行右箭头 → 精确查看该词详情 */
+static void _fuzzy_row_cb(lv_event_t *e)
+{
+    lv_obj_t *arrow = lv_event_get_target(e);
+    const char *word = lv_obj_get_user_data(arrow);
+    if (!word || !word[0]) return;
+
+    strncpy(s_query, word, sizeof(s_query) - 1);
+    s_query[sizeof(s_query) - 1] = '\0';
+    s_fuzzy_mode = false;   /* 退出列表模式, 显示详情 */
+    s_exact_word[0] = '\0'; /* 从列表点入详情: 回列表时以该词重新生成列表 */
+    s_exact_trans[0] = '\0';
+
+    if (!dict_lookup(s_query, s_result, sizeof(s_result))) {
+        _show_msg("Word not found");
+        return;
+    }
+    char *line1 = s_result;
+    char *nl = strchr(line1, '\n');
+    if (nl) *nl = '\0';
+    char *line2 = nl ? nl + 1 : "";
+    char *nl2 = strchr(line2, '\n');
+    if (nl2) *nl2 = '\0';
+    char *rest = nl2 ? nl2 + 1 : "";
+    _save_history(line1);
+    _render_result(line1, line2, rest);
+}
+
+/* 箭头删除时释放 user_data(word 副本) */
+static void _fuzzy_row_del_cb(lv_event_t *e)
+{
+    lv_obj_t *arrow = lv_event_get_target(e);
+    char *w = lv_obj_get_user_data(arrow);
+    if (w) {
+        eos_free(w);
+        lv_obj_set_user_data(arrow, NULL);
+    }
+}
+
+/* 追加一个匹配行: Word 标题 + 中文释义摘要 + 右侧箭头(仅箭头可展开详情) */
+static void _fuzzy_add_row(const char *word, const char *trans, int *y)
+{
+    lv_obj_t *row = lv_obj_create(s_scroll);
+    lv_obj_remove_style_all(row);
+    lv_obj_set_size(row, DICT_ROW_W, _FUZZY_ROW_H);
+    lv_obj_set_pos(row, DICT_ROW_X, *y);
+    lv_obj_set_style_bg_color(row, lv_color_hex(_UI_PANEL), 0);
+    lv_obj_set_style_bg_opa(row, LV_OPA_50, 0);
+    lv_obj_set_style_radius(row, 8, 0);
+    lv_obj_set_style_border_width(row, 0, 0);
+    /* 行本身不拦截点击 → 列表滑动顺畅; 只有右箭头可展开详情 */
+
+    /* Word 标题 */
+    lv_obj_t *title = lv_label_create(row);
+    lv_label_set_long_mode(title, LV_LABEL_LONG_MODE_CLIP);
+    lv_obj_set_width(title, DICT_ROW_W - 40);
+    lv_obj_set_pos(title, 8, 5);
+    lv_obj_set_style_text_color(title, lv_color_hex(_UI_TEXT), 0);
+    eos_label_set_font_size(title, EOS_FONT_SIZE_EXTRA_SMALL);
+    lv_label_set_text(title, word);
+
+    /* 中文释义摘要 (前 10 字 + ...) */
+    if (trans && trans[0]) {
+        char sum[DICT_SUMMARY_CAP];
+        _summary(trans, sum, sizeof(sum), _FUZZY_SUMMARY_CHARS);
+        lv_obj_t *sumlb = lv_label_create(row);
+        lv_label_set_long_mode(sumlb, LV_LABEL_LONG_MODE_CLIP);
+        lv_obj_set_width(sumlb, DICT_ROW_W - 40);
+        lv_obj_set_pos(sumlb, 8, 25);
+        lv_obj_set_style_text_color(sumlb, lv_color_hex(_UI_DIM), 0);
+        eos_label_set_font_size(sumlb, EOS_FONT_SIZE_MICRO);
+        lv_label_set_text(sumlb, sum);
+    }
+
+    /* 右侧箭头: 唯一可展开入口 */
+    lv_obj_t *arrbtn = lv_button_create(row);
+    lv_obj_remove_style_all(arrbtn);
+    lv_obj_set_size(arrbtn, 24, _FUZZY_ROW_H - 4);
+    lv_obj_align(arrbtn, LV_ALIGN_RIGHT_MID, 0, 0);
+    lv_obj_add_flag(arrbtn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(arrbtn, _fuzzy_row_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(arrbtn, _fuzzy_row_del_cb, LV_EVENT_DELETE, NULL);
+    lv_obj_set_user_data(arrbtn, eos_strdup(word));
+    lv_obj_t *arr = lv_label_create(arrbtn);
+    lv_obj_set_style_text_font(arr, &EOS_FONT_ICON, 0);
+    lv_obj_set_style_text_color(arr, lv_color_hex(_UI_DIM), 0);
+    lv_label_set_text(arr, RI_ARROW_RIGHT_S_LINE);
+    lv_obj_center(arr);
+
+    *y += _FUZZY_ROW_H + _FUZZY_PAD_Y;
+}
+
+/* 从游标加载下一批匹配(懒加载页), 返回本批条数 */
+static void _fuzzy_load_more(void)
+{
+    if (!s_fuzzy_mode || !s_fuzzy_more) return;
+    char word[DICT_WORD_CAP];
+    char trans[DICT_SUMMARY_CAP];
+    int n = 0;
+    while (n < DICT_FUZZY_PAGE && _fuzzy_next(&s_fuzzy, word, sizeof(word), trans, sizeof(trans))) {
+        if (s_exact_word[0] && strcmp(word, s_exact_word) == 0) continue; /* 已置顶, 跳过 */
+        _fuzzy_add_row(word, trans, &s_fuzzy_y);
+        n++;
+    }
+    if (n < DICT_FUZZY_PAGE) {
+        s_fuzzy_more = false;   /* 已耗尽 */
+        if (n == 0) {
+            lv_obj_t *end = lv_label_create(s_scroll);
+            lv_label_set_long_mode(end, LV_LABEL_LONG_MODE_CLIP);
+            lv_obj_set_width(end, DICT_ROW_W);
+            lv_obj_set_pos(end, DICT_ROW_X, s_fuzzy_y);
+            lv_obj_set_style_text_color(end, lv_color_hex(_UI_DIM), 0);
+            eos_label_set_font_size(end, EOS_FONT_SIZE_MICRO);
+            lv_label_set_text(end, "-- end of matches --");
+            s_fuzzy_y += 18;
+        }
+    }
+    lv_obj_update_layout(s_scroll);
+}
+
+/* 滚动接近底部 → 加载下一批 */
+static void _fuzzy_scroll_cb(lv_event_t *e)
+{
+    (void)e;
+    if (!s_fuzzy_mode || !s_fuzzy_more) return;
+    int32_t sy = lv_obj_get_scroll_y(s_scroll);
+    int32_t bottom = lv_obj_get_scroll_bottom(s_scroll);
+    if (bottom <= 0) return;                    /* 未溢出(可能已滚动到底) */
+    if (sy >= bottom - 8) {
+        _fuzzy_load_more();
+    }
+}
+
+/* 搜索 → 渲染匹配列表: 精确命中词置顶, 其后为前缀匹配(按词典序),
+ * 每行 = Word + 中文释义前 10 字摘要 + 右侧箭头, 点箭头展开详情。
+ * 列表可滚动, 匹配项按需懒加载。 */
+static void _render_search_list(void)
+{
+    lv_obj_clean(s_scroll);
+    s_fuzzy_mode = true;
+    s_fuzzy_more = true;
+    s_detail_mode = false;
+    s_fuzzy_y = 6;
+
+    /* 标题: 显示查询词(精确命中 → results, 否则 fuzzy match) */
+    lv_obj_t *hint = lv_label_create(s_scroll);
+    lv_label_set_long_mode(hint, LV_LABEL_LONG_MODE_CLIP);
+    lv_obj_set_width(hint, DICT_ROW_W);
+    lv_obj_set_pos(hint, DICT_ROW_X, s_fuzzy_y);
+    lv_obj_set_style_text_color(hint, lv_color_hex(_UI_DIM), 0);
+    eos_label_set_font_size(hint, EOS_FONT_SIZE_MICRO);
+    char hbuf[DICT_QUERY_CAP + 24];
+    if (s_exact_word[0]) {
+        snprintf(hbuf, sizeof(hbuf), "results: '%s'", s_query);
+    } else {
+        snprintf(hbuf, sizeof(hbuf), "fuzzy match: '%s'", s_query);
+    }
+    lv_label_set_text(hint, hbuf);
+    s_fuzzy_y += 20;
+
+    /* 精确命中词置顶(最符合) */
+    if (s_exact_word[0]) {
+        _fuzzy_add_row(s_exact_word, s_exact_trans, &s_fuzzy_y);
+    }
+
+    /* 前缀匹配游标: 跳过已置顶的精确词 */
+    char first[DICT_WORD_CAP];
+    char ftrans[DICT_SUMMARY_CAP];
+    if (_fuzzy_open(&s_fuzzy, s_query, first, sizeof(first), ftrans, sizeof(ftrans))) {
+        if (!(s_exact_word[0] && strcmp(first, s_exact_word) == 0)) {
+            _fuzzy_add_row(first, ftrans, &s_fuzzy_y);
+        }
+    } else {
+        s_fuzzy_more = false;
+        if (!s_exact_word[0]) {
+            _show_msg("Word not found");
+            return;
+        }
+    }
+
+    /* 首屏尽量填满可视区, 避免初次无滚动; 之后靠滚动懒加载 */
+    lv_obj_update_layout(s_scroll);
+    int32_t h = lv_obj_get_height(s_scroll);
+    int guard = 0;
+    while (s_fuzzy_more && s_fuzzy_y < (int)h && guard++ < 8) {
+        _fuzzy_load_more();
+        lv_obj_update_layout(s_scroll);
+    }
+    _show_result_ui();
+}
+
 static void _show_msg(const char *msg)
 {
+    s_fuzzy_mode = false;
+    s_fuzzy_more = false;
+    s_detail_mode = true;
     lv_obj_clean(s_scroll);
     lv_obj_t *lb = lv_label_create(s_scroll);
     lv_label_set_long_mode(lb, LV_LABEL_LONG_MODE_WRAP);
@@ -677,6 +1056,9 @@ static void _show_msg(const char *msg)
 /* 空页面: 仅底部悬浮胶囊 */
 static void _show_idle(void)
 {
+    s_fuzzy_mode = false;
+    s_fuzzy_more = false;
+    s_detail_mode = false;
     lv_obj_add_flag(s_scroll, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(s_ta, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(s_kb, LV_OBJ_FLAG_HIDDEN);
@@ -773,6 +1155,7 @@ static void _build_ui(eos_activity_t *act)
     lv_obj_set_style_radius(s_scroll, 10, 0);
     lv_obj_set_scroll_dir(s_scroll, LV_DIR_VER);
     lv_obj_set_scrollbar_mode(s_scroll, LV_SCROLLBAR_MODE_AUTO);
+    lv_obj_add_event_cb(s_scroll, _fuzzy_scroll_cb, LV_EVENT_SCROLL_END, NULL);
     lv_obj_add_flag(s_scroll, LV_OBJ_FLAG_HIDDEN);
 
     /* 搜索遮罩: 全屏黑色底, 盖住结果; 输入框/键盘在其上层展开 */
@@ -855,8 +1238,15 @@ static bool _on_swipe_back(eos_activity_t *act, lv_dir_t dir)
 {
     (void)act;
     (void)dir;
-    eos_activity_back();
-    return true;
+
+    /* 详情/消息页 → 返回搜索列表(不退出 app) */
+    if (s_detail_mode) {
+        _render_search_list();
+        return true;
+    }
+
+    /* 搜索列表 / 输入框(搜索框) / 空闲页 → 默认退出 app */
+    return false;
 }
 
 /* ---------------------------------------------------------------- */
