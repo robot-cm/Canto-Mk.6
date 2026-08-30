@@ -1,0 +1,2 @@
+HERE IS THE CONTAINED ECDIT DAT FILES, SCRIPTS:
+ElenixOS-fork/scripts/ecdict

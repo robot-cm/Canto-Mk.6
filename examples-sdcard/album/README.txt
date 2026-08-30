@@ -1,0 +1,6 @@
+PUT YOUR CANTO MK6 ALBUM PHOTOS HERE, USE COMMAND TO PREPROCESS PNG OR JPEG:
+python3.11 scripts/album_optimize.py --input <IN> --output <OUT>
+
+PUT <OUT> DIRECTLY TO /sdcard/album/
+
+ALLOW FLODER-WRAPPED
