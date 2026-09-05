@@ -22,7 +22,9 @@
 /* 睡眠定时器:超时后自动熄屏(进 AOD/SLEEP)。
  * 曾为调试置 1 禁用以保持屏幕常亮,现在已不需要——正式启用。 */
 #define DEBUG_DISABLE_TIMER 0 /**< [Debug] Whether to disable the timer */
-#define _DEFAULT_TIMEOUT_SEC 15
+/* 熄屏默认超时 10s(电池优化:无操作 10s 后关背光并进入硬件 Light Sleep)。
+ * 可被 EOS_CONFIG_KEY_SLEEP_TIMEOUT_SEC_NUMBER 覆盖(Settings -> Screen timeout)。 */
+#define _DEFAULT_TIMEOUT_SEC 10
 
 /* ---- 触摸手势:手掌覆盖(长按静止)熄屏 / 双击亮屏 ----
  * CHSC6X 触摸芯片只有单点坐标、无手势寄存器,故:

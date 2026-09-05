@@ -86,6 +86,9 @@
 /* Variables --------------------------------------------------*/
 static bool _is_inited = false;
 static bool _pending_root_start = false;
+/* 深睡/待机唤醒后跳过开机动画(一次性):极简时钟 5 连击升级完整系统时由板级调用,
+ * 使系统接近瞬时恢复(正常开机仍保留动画)。 */
+static bool _boot_anim_skip = false;
 
 /* Periodic memory report (real hardware only; disabled on simulator) */
 #if !EOS_SIMULATOR
@@ -173,6 +176,13 @@ static lv_indev_t *_get_key_indev()
 static void _on_boot_anim_done(void)
 {
     _pending_root_start = true;
+}
+
+/* 请求跳过下一次开机动画(供深睡唤醒快速恢复;仅生效一次)。
+ * 正常开机路径不调用,动画保留。 */
+void eos_boot_anim_skip_request(void)
+{
+    _boot_anim_skip = true;
 }
 
 void _sys_init_err_handler(const char *err_msg)
@@ -333,8 +343,17 @@ void eos_init(void)
     /* Boot self-test animation (timer-driven, never blocks the main loop).
      * Its completion callback only raises a flag; eos_main_loop() then starts
      * the activity controller (which deletes the Logo Screen and shows the
-     * watchface), so the main UI appears only after the animation ends. */
-    eos_boot_anim_start(_on_boot_anim_done);
+     * watchface), so the main UI appears only after the animation ends.
+     * 电池优化:待机(Deep Sleep)唤醒需快速恢复,按板级请求跳过动画直接启动 root。 */
+    if (_boot_anim_skip)
+    {
+        _boot_anim_skip = false; /* 一次性 */
+        _on_boot_anim_done();
+    }
+    else
+    {
+        eos_boot_anim_start(_on_boot_anim_done);
+    }
     _is_inited = true;
 }
 

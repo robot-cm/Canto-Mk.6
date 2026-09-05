@@ -620,6 +620,14 @@ static void _app_list_set_last_launch_app_id(const char *app_id)
     snprintf(_app_list_last_launch_app_id, sizeof(_app_list_last_launch_app_id), "%s", app_id);
 }
 
+/* 公开查询"最近一次启动的 App id"(供系统层在深睡/待机前快照恢复目标)。
+ * 从未启动过任何 App(整机刚开)返回 NULL;是否前台需调用方结合当前
+ * activity 类型判断(退出到表盘后该 id 仍保留最近一次值)。 */
+const char *eos_app_list_get_last_launch_app_id(void)
+{
+    return _app_list_last_launch_app_id[0] ? _app_list_last_launch_app_id : NULL;
+}
+
 static lv_obj_t *_app_list_get_bubble_grid(eos_activity_t *activity)
 {
     if (!activity)

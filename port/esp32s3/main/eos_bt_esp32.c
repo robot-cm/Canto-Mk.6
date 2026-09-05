@@ -24,6 +24,34 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_heap_caps.h"
+
+/* ── 编译期可选:Bt 未使能时跳过整个 NimBLE 后端 ──────────────
+ * 默认 sdkconfig(CONFIG_BT_ENABLED=n)下 esp_bt.h / NimBLE 头不可用,
+ * 本文件必须能整体跳过;menuconfig 开启 BT 后自动恢复真实现。
+ * 关闭分支:同签名空实现,main.c 的无条件调用与 eos_net_bt.c 的
+ * 强/弱后端关系均不受影响。 */
+#if !defined(CONFIG_BT_ENABLED) || !CONFIG_BT_ENABLED
+
+#include "eos_core.h"
+
+void eos_bt_esp32_early_init(void)
+{
+}
+
+eos_result_t eos_net_bt_backend_set_enabled(bool enabled, const char *name)
+{
+    (void)enabled;
+    (void)name;
+    return EOS_OK;
+}
+
+eos_result_t eos_net_bt_backend_power_down(void)
+{
+    return EOS_OK;
+}
+
+#else /* CONFIG_BT_ENABLED=y:真实现 */
+
 #include "esp_bt.h" /* esp_bt_controller_deinit:清理半初始化 controller */
 #include "esp_nimble_hci.h"
 #include "nimble/nimble_port.h"
@@ -313,3 +341,5 @@ eos_result_t eos_net_bt_backend_power_down(void)
     ESP_LOGI(EOS_BT_ESP_TAG, "BLE controller deinitialized for power save");
     return EOS_OK;
 }
+
+#endif /* CONFIG_BT_ENABLED */

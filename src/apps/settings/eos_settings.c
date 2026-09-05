@@ -718,8 +718,8 @@ static void _aod_mode_switch_cb(lv_event_t *e)
     }
 }
 
-/* 熄屏时间选项: 5s / 15s / 30s / 45s / 60s / 300s */
-static const uint32_t _sleep_timeout_options[] = {5, 15, 30, 45, 60, 300};
+/* 熄屏时间选项: 5s / 10s / 15s / 30s / 45s / 60s / 300s (10s 为电池优化默认) */
+static const uint32_t _sleep_timeout_options[] = {5, 10, 15, 30, 45, 60, 300};
 #define _SLEEP_TIMEOUT_OPTIONS_COUNT (sizeof(_sleep_timeout_options) / sizeof(_sleep_timeout_options[0]))
 
 static void _wake_duration_radio_list_selection_changed_cb(lv_event_t *e)
@@ -746,8 +746,8 @@ static void _wake_duration_entry_button_clicked_cb(lv_event_t *e)
     }
     eos_radio_page_add_event_cb(rp, _wake_duration_radio_list_selection_changed_cb, NULL);
     eos_radio_page_set_comment(rp, "Auto off after no touch");
-    uint32_t timeout = eos_config_get_number(EOS_CONFIG_KEY_SLEEP_TIMEOUT_SEC_NUMBER, 15);
-    uint32_t checked_index = 1; /* default 15s */
+    uint32_t timeout = eos_config_get_number(EOS_CONFIG_KEY_SLEEP_TIMEOUT_SEC_NUMBER, 10);
+    uint32_t checked_index = 1; /* default 10s */
     for (uint32_t i = 0; i < _SLEEP_TIMEOUT_OPTIONS_COUNT; i++)
     {
         if (_sleep_timeout_options[i] == timeout)

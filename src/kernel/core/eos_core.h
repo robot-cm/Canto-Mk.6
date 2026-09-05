@@ -35,6 +35,12 @@ bool eos_is_initialized(void);
  */
 uint32_t eos_main_loop(void);
 /**
+ * @brief Request to skip the next boot animation (one-shot).
+ * @note Deep-sleep/standby wake needs fast visual recovery; normal power-on
+ * keeps the boot animation. Call from board layer before eos_init().
+ */
+void eos_boot_anim_skip_request(void);
+/**
  * @brief Get the elapsed milliseconds since start up
  * @return Elapsed milliseconds
  */

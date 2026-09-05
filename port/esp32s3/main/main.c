@@ -32,13 +32,11 @@
 #include "esp_adc/adc_oneshot.h"
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
-/* 充电检测:USB-Serial-JTAG is_connected = USB 已插入(VBUS 供电)→ charging
- * XIAO ESP32-S3 普通版无 ADC_BAT / VBUS 检测脚,充电状态只能靠 USB 连接推断 */
-#include "driver/usb_serial_jtag.h"
 /* 关机深睡:esp_deep_sleep_start / esp_sleep_get_wakeup_cause /
  * esp_sleep_enable_timer_wakeup;深睡期间用 pad hold 保持背光为低
  * (GPIO43 非 RTC GPIO,浮空会被板上拉反亮,见 board_backlight_low_hold) */
 #include "esp_sleep.h"
+#include "esp_timer.h" /* 真实毫秒基准(跨 Light Sleep 连续,IDF 内建补偿) */
 #include "esp_rom_gpio.h"
 #include "soc/gpio_sig_map.h"
 /* microSD(SDSPI,与 LCD 共用 SPI3 总线,见 board_sd_mount) */
@@ -71,7 +69,12 @@
 #include "eos_shell.h"
 #include "eos_shell_framework.h"
 #include "eos_service_config.h" /* eos_config_get_bool / EOS_CONFIG_KEY_DEV_MODE_BOOL */
+#include "eos_service_pm.h"     /* eos_pm_get_state():L1 Light Sleep / L2 待机判定 */
+#include "framework/activity/eos_activity.h" /* L2 待机前快照当前 UI(恢复用) */
+#include "framework/app/eos_app_list.h"     /* eos_app_list_get_last_launch_app_id */
 #include <string.h>
+#include <stdio.h>
+#include <sys/stat.h>   /* mkdir():/sdcard/history/deepsleep 历史目录 */
 #include "eos_dev_sensor.h"
 
 static const char *TAG = "Board";
@@ -118,14 +121,16 @@ static esp_err_t _battery_hw_init(void)
 
     if (s_batt_cali == NULL)
     {
-        adc_cali_curve_fitting_config_t curve_cfg = {
-            .unit_id   = ADC_UNIT_1,
-            .atten     = ADC_ATTEN_DB_12,
-            .bitwidth  = ADC_BITWIDTH_12,
+        /* ESP32-S3 只有 curve fitting 校准方案(依赖出厂 eFuse),无 line fitting
+         * (后者是经典 ESP32 的 API)。config 带 .chan,须与上/下文通道一致。 */
+        adc_cali_curve_fitting_config_t cali_cfg = {
+            .unit_id  = ADC_UNIT_1,
+            .chan     = BOARD_BATTERY_ADC_CH,
+            .atten    = ADC_ATTEN_DB_12,
+            .bitwidth = ADC_BITWIDTH_12,
         };
-        /* ESP32-S3 仅支持 curve fitting 校准(依赖出厂 eFuse),
-         * 创建失败时 s_batt_cali 保持 NULL → request_update 走线性估算兜底 */
-        esp_err_t ret = adc_cali_create_scheme_curve_fitting(&curve_cfg, &s_batt_cali);
+        /* 创建失败时 s_batt_cali 保持 NULL → request_update 走线性估算兜底 */
+        esp_err_t ret = adc_cali_create_scheme_curve_fitting(&cali_cfg, &s_batt_cali);
         if (ret != ESP_OK)
         {
             s_batt_cali = NULL;
@@ -153,6 +158,20 @@ static int _batt_voltage_to_percent(int mv)
                               / (v[i] - v[i - 1]);
     }
     return 100;
+}
+
+/* VBUS/USB 在位检测(XIAO 普通版无充电状态 GPIO)。
+ * usb_serial_jtag_is_connected() 由 IDF 在启用 USB 串行控制台
+ * (CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG_ENABLED)时才编译提供;本树默认控制台
+ * 走 UART,该驱动未编入。未启用时返回 false —— 宁可不显示充电,也不误报。 */
+static bool _board_vbus_present(void)
+{
+#if defined(CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG_ENABLED)
+    extern bool usb_serial_jtag_is_connected(void);
+    return usb_serial_jtag_is_connected();
+#else
+    return false;
+#endif
 }
 
 /* 被电池服务 LVGL timer 周期调用(正常 60s,活跃 10s,充电 5s) */
@@ -187,10 +206,8 @@ static void _battery_request_update(void)
     int percent = _batt_voltage_to_percent(mv);
 
     /* 充电判定:USB 已插入(VBUS 供电)视为充电,但电压 ≥ 满电阈值
-     * 时视为已充满(充满后充电 IC 停充,不再显示绿色)。
-     * XIAO ESP32-S3 普通版无充电状态 GPIO,这是硬件上最可靠的信号:
-     * USB-Serial-JTAG 外设在检测到 VBUS 时置位 connected。 */
-    bool usb_in   = usb_serial_jtag_is_connected();
+     * 时视为已充满(充满后充电 IC 停充,不再显示绿色)。 */
+    bool usb_in   = _board_vbus_present();
     bool charging = usb_in && (mv >= 0) && (mv < BOARD_BATTERY_FULL_MV);
 
     eos_battery_raw_t raw = {
@@ -277,6 +294,14 @@ static void board_gpio_init(void)
     gpio_set_level(BOARD_LED_PIN, 0);
 }
 
+/* 前向声明(实现均在文件后部的"关机/待机 Deep Sleep 骨架"附近):
+ * ui_task/board_pm_step 在定义之前调用,必须先声明且带 static,
+ * 否则 C 会按隐式(非 static)声明处理,后面 static 定义直接冲突。 */
+static void board_pm_step(void);                  /* L1/L2 主状态机单步(ui_task 内) */
+static void board_standby_enter_deep_sleep(void); /* L2 进入:固化历史后复用关机深睡骨架 */
+static void board_standby_clock_gate(void);       /* L2 唤醒极简时钟(8s/5 击),超时回深睡 */
+static void board_standby_try_restore_ui(void);   /* 完整启动后恢复深睡前 App(尽力而为) */
+
 /* ════════════════════════════════════════════════════════════════
  *  FreeRTOS 任务
  * ════════════════════════════════════════════════════════════════ */
@@ -292,23 +317,27 @@ static void ui_task(void *arg)
     ESP_LOGI(TAG, "ui_task started (LVGL %dx%d)", BOARD_GC9A01_WIDTH, BOARD_GC9A01_HEIGHT);
     const TickType_t period = pdMS_TO_TICKS(BOARD_LVGL_TIMER_PERIOD_MS);
     TickType_t last_wake = xTaskGetTickCount();
-    TickType_t last_tick = last_wake;
+    int64_t last_tick_us = esp_timer_get_time(); /* 真实毫秒基准(Light Sleep 连续) */
     uint32_t ticks = 0;
     for (;;) {
         /* 注意:lv_timer_handler() 内部自带 lv_lock/lv_unlock(递归锁),
          * 这里不再外层加锁,避免锁嵌套混乱 */
-        /* tick 必须前进真实经过的时间:用 FreeRTOS tick 差分,而非固定增量。
+        /* tick 必须前进真实经过的时间:用 esp_timer(毫秒)差分而非固定增量。
          * 历史 bug:每 5ms 循环只 lv_tick_inc(1) → 所有 LVGL timer 慢 5 倍
          * (JS lv.timer 1000ms 倒计时实际 5s,Breach 失准)。
-         * 差分法不受单轮循环耗时波动影响(渲染/flush 拖长某轮也不会漂移),
-         * 计时永远与真实时间同步。FREERTOS_HZ=1000 → portTICK_PERIOD_MS=1,
-         * (now - last_tick) 即真实毫秒。 */
-        TickType_t now = xTaskGetTickCount();
-        lv_tick_inc((uint32_t)(now - last_tick) * portTICK_PERIOD_MS);
-        last_tick = now;
+         * 电池优化:board_pm_step() 会单步 Light Sleep(阻塞最长 500ms),期间
+         * FreeRTOS tick 冻结——若沿用 tick 差分,LVGL 计时会显著漂慢(闹钟/
+         * 双击窗口失效)。esp_timer 由 ESP-IDF 在 Light Sleep 内保持连续,故改用它。 */
+        int64_t now_us = esp_timer_get_time();
+        lv_tick_inc((uint32_t)((now_us - last_tick_us) / 1000));
+        last_tick_us = now_us;
         /* 统一走 eos_main_loop():dispatch_tick + lv_timer_handler,并在开机动画
          * 完成后于此初始化 activity controller(主界面延迟显示的关键入口)。 */
         eos_main_loop();
+        /* 电池优化:软件熄屏(SLEEP)时在此单步硬件 Light Sleep,并在无触摸累计
+         * 15min 后自动转 L2 待机(Deep Sleep,极简时钟唤醒,不返回)。
+         * 注意:Light Sleep 期间本任务休眠,其余任务一并暂停,唤醒即恢复。 */
+        board_pm_step();
         if ((++ticks % 200) == 0) {
             /* 心跳诊断:证明 ui_task 循环活着(约 1s 一次) */
             ESP_LOGI(TAG, "ui heartbeat: %u ticks, DRAM free=%u",
@@ -476,11 +505,12 @@ static void board_apply_dev_mode_config(void)
  * 的临时缓冲 esp_dma_capable_malloc() 直接失败(ESP_ERR_NO_MEM 0x101,
  * 日志 "dma_utils: Not enough heap memory")→ FATFS 读失败 → 系统崩溃。
  * 返回 DMA|SPIRAM caps 后:临时缓冲可落 PSRAM(8MB),不再受内部 DMA 限制。 */
-static void board_sd_get_dma_info(int slot, esp_dma_mem_info_t *dma_mem_info)
+static esp_err_t board_sd_get_dma_info(int slot, esp_dma_mem_info_t *dma_mem_info)
 {
     (void)slot;
     dma_mem_info->extra_heap_caps = MALLOC_CAP_DMA | MALLOC_CAP_SPIRAM;
     dma_mem_info->dma_alignment_bytes = 4;
+    return ESP_OK;
 }
 
 static esp_err_t board_sd_mount(void)
@@ -629,10 +659,38 @@ static esp_err_t board_fs_mount(void)
  *  触摸模式 3s 周期平均 ≈1.5-2mA,1 分钟后自动降到 5s;定时模式一次
  *  睡到 deadline(零中途唤醒),功耗 = 纯深睡 44µA。
  * ════════════════════════════════════════════════════════════════ */
-#define POWEROFF_HOLD_WAKEUPS_TO_BOOT  1   /* 触摸模式:连续 N 次唤醒读到触摸即开机(周期 3s,N=1 ≈ 按住 3s) */
-#define POWEROFF_WAKEUP_PERIOD_US      (3000 * 1000)  /* 触摸模式轮询周期:3s */
-#define POWEROFF_SLOW_AFTER_WAKES      20  /* 触摸模式:20 次唤醒(~1 分钟)后降频 */
-#define POWEROFF_WAKEUP_PERIOD_SLOW_US (5000 * 1000)  /* 触摸模式待机轮询周期:5s */
+/* 电池优化(用户确认):关机的触摸唤醒轮询周期 3s→8s,约 1 分钟后的降频慢周期
+ * 5s→16s。Deep Sleep ~44µA 下,每次唤醒几十 ms@几十 mA,周期越长平均电流越低;
+ * 手势语义不变:任一唤醒读到触摸即开机(等效长按 8s/16s,倒计时模式不受影响)。 */
+#define POWEROFF_HOLD_WAKEUPS_TO_BOOT  1   /* 触摸模式:连续 N 次唤醒读到触摸即开机(周期 8s,N=1 ≈ 按住 8s) */
+#define POWEROFF_WAKEUP_PERIOD_US      (8000 * 1000)  /* 触摸模式轮询周期:8s(原 3s) */
+#define POWEROFF_SLOW_AFTER_WAKES      20  /* 触摸模式:20 次唤醒(~2.7 分钟)后降频 */
+#define POWEROFF_WAKEUP_PERIOD_SLOW_US (16000 * 1000) /* 触摸模式待机轮询周期:16s(原 5s) */
+
+/* ═══ 电池优化:L1 硬件轻睡 + L2 自动待机(15min) ═══
+ * L1(短时未使用):PM 软件熄屏(SLEEP,默认 10s 无操作,超时在 PM 服务)后进
+ *   ESP32-S3 硬件 Light Sleep —— board_pm_step() 单步:500ms RTC 定时唤醒推进
+ *   LVGL 计时(esp_timer 跨轻睡连续,闹钟/双击窗口不失准)+ 触摸 INT(GPIO44)
+ *   低电平即时唤醒。双击亮屏仍由 UI(PM 服务)判定;板级保证触摸后 600ms 内
+ *   CPU 清醒(PM 双击窗口 400ms),两次 press 都落在真实运行期,不吞击。
+ * L2(长时间未使用):L1 期间无触摸累计 15min → 自动待机 Deep Sleep
+ *   (board_standby_enter_deep_sleep),复用关机 8s/16s 触摸轮询骨架;长按唤醒
+ *   后先显示"极简时钟"8s(仅 LVGL 渲染),8s 内连续 5 击 → 真正唤醒主系统
+ *   (跳过 Boot Anim 快速恢复);否则 8s 后自动回 Deep Sleep。 */
+#define BOARD_L1_LS_PERIOD_US       (500 * 1000)      /* L1 Light Sleep 周期唤醒:500ms */
+#define BOARD_L1_ACT_GUARD_MS       600               /* 触摸后保持 CPU 清醒窗口(> PM 双击窗口 400ms) */
+#define BOARD_L2_IDLE_MS            (15 * 60 * 1000)  /* 无触摸累计 15min → L2 自动待机 */
+#define BOARD_STANDBY_CLOCK_MS      8000              /* L2 唤醒极简时钟最长显示:8s */
+#define BOARD_CLOCK_TAP_GAP_MS      500               /* 极简时钟 5 击:相邻两击间隔上限,超限重新计数 */
+#define BOARD_CLOCK_TAPS_TO_BOOT    5                 /* 极简时钟内连续 5 击 → 真正唤醒主系统 */
+#define BOARD_CLOCK_TEXT_LEN        16
+
+/* 待机(L2)跨深睡状态:与手动关机(s_poweroff_*)互斥 */
+RTC_DATA_ATTR static bool    s_standby_pending       = false; /* true=待机唤醒后先进极简时钟,5 击才进主系统 */
+RTC_DATA_ATTR static uint8_t s_standby_hold_wakeups  = 0;     /* 待机长按唤醒计数 */
+RTC_DATA_ATTR static uint32_t s_standby_wakes        = 0;     /* 待机轮询次数(降频) */
+RTC_DATA_ATTR static char    s_standby_restore_ui[BOARD_CLOCK_TEXT_LEN] = "watchface"; /* 恢复目标:app id 或主界面 */
+RTC_DATA_ATTR static bool    s_standby_boot_restore = false; /* 极简时钟 5 击后置位:本次启动结束后恢复深睡前 UI */
 
 /* 关机待机状态(跨深睡保留) */
 RTC_DATA_ATTR static bool    s_poweroff_pending      = false;
@@ -640,6 +698,9 @@ RTC_DATA_ATTR static bool    s_poweroff_timed        = false;  /* true=定时模
 RTC_DATA_ATTR static uint32_t s_poweroff_wake_secs   = 0;      /* 定时模式: 自动开机延时秒数(RTC 定时器一次睡) */
 RTC_DATA_ATTR static uint8_t s_poweroff_hold_wakeups = 0;  /* 连续长按唤醒计数 */
 RTC_DATA_ATTR static uint32_t s_poweroff_wakes       = 0;
+
+/* L1 实时状态(普通 static:Light Sleep 不重启;Deep Sleep 重启后自然复位) */
+static int64_t s_l1_last_act_us = 0; /* 最后触摸/活动时刻(esp_timer us);超过 guard 才进 Light Sleep */
 
 /* 背光(GPIO43)拉低 + pad hold:深睡期间保持低电平,防浮空反亮。
  * 必须与 esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON)
@@ -829,6 +890,323 @@ static void board_poweroff_poll(void)
 }
 
 /* ════════════════════════════════════════════════════════════════
+ *  L1 / L2 电池优化状态机(Light Sleep + 自动待机 Deep Sleep)
+ * ════════════════════════════════════════════════════════════════
+ *
+ *  L1:PM 进入 SLEEP(熄屏,10s 无触摸)后,board_pm_step() 让整个芯片
+ *      Light Sleep(500ms RTC 定时 + 触摸 INT(GPIO44) 低电平即时唤醒)。
+ *      双击唤醒仍由 UI(PM 服务)判定;板级只在触摸/GPIO 唤醒后把
+ *      s_l1_last_act_us 更新,保证 600ms guard 内 CPU 清醒,两次 press
+ *      都落在真实运行期(LVGL 定时器仍推进,不吞双击)。
+ *
+ *  L2:Light Sleep 累计无触摸 15min → 自动待机 Deep Sleep。深睡期间
+ *      GPIO44 无法唤醒(S3 仅 RTC GPIO0~21 可深睡唤醒),故复用关机骨架:
+ *      8s/16s RTC 周期唤醒 → 读 CHSC6X 检测"长按"。长按被识别后不直接
+ *      进主系统,而是先在 eos_init() 之前显示 8s "极简时钟"(纯 LVGL,
+ *      时间读 RTC 设备,服务/JS/网络全未启动,极低开销);8s 内连续 5 击
+ *      (相邻间隔 ≤500ms)→ 真正唤醒:清待机标志、跳过 Boot Anim、恢复
+ *      深睡前使用的 App(/sdcard/history/deepsleep/latest_ui.txt 与
+ *      s_standby_restore_ui 快照);否则 8s 到点自动回 Deep Sleep。
+ *
+ *  关机(s_poweroff_*)与待机(s_standby_*)共用同一"深睡+触摸轮询"骨架,
+ *  靠 RTC_DATA_ATTR 标志区分唤醒后行为:关机=长按直接开机;
+ *  待机=长按后先进极简时钟(5 击再决定)。互斥,不会同时置位。
+ */
+
+/* 前台若是 App(非表盘/启动器/锁屏等主界面),返回其可恢复 app id;
+ * 否则返回 NULL(→ 恢复为表盘主界面)。仅作待机历史快照用。
+ * 注意:运行期(ui_task)才能调用;极简时钟 gate 在 eos_init 之前,
+ * 不需要也不允许调用本函数。 */
+static const char *board_standby_foreground_app_id(void)
+{
+    eos_activity_t *top = eos_activity_get_current();
+    if (!top)
+        return NULL;
+    eos_activity_type_t t = eos_activity_get_type(top);
+    /* App 或 App 内部页(输入页/子页等)→ 用最近一次启动的 App id;
+     * 表盘 / App 列表 / 表盘列表 / 锁屏均视为主界面,不恢复。 */
+    if (t == EOS_ACTIVITY_TYPE_APP || t == EOS_ACTIVITY_TYPE_INPUT_PAGE) {
+        const char *id = eos_app_list_get_last_launch_app_id();
+        if (id && id[0] && strcmp(id, "watchface") != 0)
+            return id;
+    }
+    return NULL;
+}
+
+/* 尽力写入 /sdcard/history/deepsleep/latest_ui.txt(SD 缺失/写失败静默) */
+static void board_standby_write_history(void)
+{
+    if (mkdir("/sdcard/history", 0755) != 0) { /* 已存在或失败都不致命 */ }
+    if (mkdir("/sdcard/history/deepsleep", 0755) != 0) { }
+
+    FILE *f = fopen("/sdcard/history/deepsleep/latest_ui.txt", "w");
+    if (!f) {
+        ESP_LOGD(TAG, "Standby: cannot write history (SD not ready?)");
+        return;
+    }
+    fprintf(f, "%s\n", s_standby_restore_ui);
+    fclose(f);
+}
+
+/* L2 待机入口(从 board_pm_step 调用,ui_task 上下文,不返回):
+ * 先把"深睡前前台 UI"固化到 RTC 变量 + SD 历史文件,再复用关机深睡
+ * 骨架(背光 pad hold 拉低 + fill_black + DISPOFF + 8s/16s 触摸轮询)。 */
+static void board_standby_enter_deep_sleep(void)
+{
+    ESP_LOGI(TAG, "Standby: 15min idle -> L2 deep sleep (snapshot UI first)");
+
+    /* 前台是 App → 记 app id;表盘/启动器 → watchface(正常启动即主界面) */
+    const char *fg = board_standby_foreground_app_id();
+    if (fg && strlen(fg) < sizeof(s_standby_restore_ui)) {
+        snprintf(s_standby_restore_ui, sizeof(s_standby_restore_ui), "%s", fg);
+    } else {
+        snprintf(s_standby_restore_ui, sizeof(s_standby_restore_ui), "watchface");
+    }
+    board_standby_write_history();
+    ESP_LOGI(TAG, "Standby: restore target '%s' (also at /sdcard/history/deepsleep/latest_ui.txt)",
+             s_standby_restore_ui);
+
+    s_standby_pending      = true;  /* 唤醒后:长按 → 极简时钟,5 击才进主系统 */
+    s_standby_boot_restore = false; /* 5 击在 gate 内部再置位 */
+    s_standby_hold_wakeups = 0;
+    s_standby_wakes        = 0;
+    board_poweroff_enter_deep_sleep();  /* 不返回(深睡轮询,8s/16s) */
+}
+
+/* 极简时钟(L2 待机长按唤醒):纯 LVGL 渲染,位于 eos_init() 之前,
+ * 系统服务/JS/网络均未启动。时间直接读 RTC 设备实例(HAL 已在
+ * board_drivers_register 注册),避免拉启 time 服务。 */
+/* TODO(待机/功耗):极简时钟阶段"单核运行"暂未实现。评估结论——收益小
+ * (仅 Clock-Only 渲染,双核空闲核本就 WFI)、改启动链风险高(需禁用另一核
+ * 并重建调度),故保持双核、只跑轻量渲染循环。后续若实测待机电流不达标再议。 */
+static void board_standby_clock_gate(void)
+{
+    ESP_LOGI(TAG, "Standby: long-press wake -> minimal clock %u ms "
+             "(%u taps to fully boot)", (unsigned)BOARD_STANDBY_CLOCK_MS,
+             (unsigned)BOARD_CLOCK_TAPS_TO_BOOT);
+
+    /* 周几:设备层 day_of_week 语义 1=MON..7=SUN(或 0=SUN..6=SAT),
+     * v%7 在两种语义下都映射到"周日开头"表 → 稳定英文星期。 */
+    static const char *const s_weekday_en[7] =
+        { "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
+
+    /* 深睡唤醒刚复位过面板,清一次 GRAM 避免残留 */
+    eos_dev_display_gc9a01_fill_black();
+
+    /* 建立纯 LVGL 极简时钟屏:Montserrat 字体编译期自带,无需字体服务 */
+    lv_obj_t *scr = lv_obj_create(NULL);
+    lv_obj_remove_style_all(scr);
+    lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
+
+    lv_obj_t *time_lb = lv_label_create(scr);
+    lv_obj_set_style_text_font(time_lb, &lv_font_montserrat_40, 0);
+    lv_obj_set_style_text_color(time_lb, lv_color_white(), 0);
+    lv_obj_set_width(time_lb, BOARD_GC9A01_WIDTH);
+    lv_obj_set_style_text_align(time_lb, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(time_lb, LV_ALIGN_TOP_MID, 0, 84);
+
+    lv_obj_t *date_lb = lv_label_create(scr);
+    lv_obj_set_style_text_font(date_lb, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_color(date_lb, lv_color_white(), 0);
+    lv_obj_set_width(date_lb, BOARD_GC9A01_WIDTH);
+    lv_obj_set_style_text_align(date_lb, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(date_lb, LV_ALIGN_TOP_MID, 0, 156);
+
+    lv_obj_t *week_lb = lv_label_create(scr);
+    lv_obj_set_style_text_font(week_lb, &lv_font_montserrat_28, 0);
+    lv_obj_set_style_text_color(week_lb, lv_color_white(), 0);
+    lv_obj_set_width(week_lb, BOARD_GC9A01_WIDTH);
+    lv_obj_set_style_text_align(week_lb, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(week_lb, LV_ALIGN_TOP_MID, 0, 196);
+
+    lv_label_set_text(time_lb, "--:--");
+    lv_label_set_text(date_lb, "");
+    lv_label_set_text(week_lb, "");
+    lv_screen_load(scr);
+    lv_refr_now(NULL);   /* 同步刷一帧(服务未启动,不跑 lv_timer_handler) */
+
+    /* 时间短字符串 + RTC 直接读取 */
+    char time_str[BOARD_CLOCK_TEXT_LEN];
+    char date_str[BOARD_CLOCK_TEXT_LEN];
+
+    int64_t start_us    = esp_timer_get_time();
+    int64_t deadline_us = start_us + (int64_t)BOARD_STANDBY_CLOCK_MS * 1000;
+    int64_t last_render_us = 0;
+    int64_t last_tap_us    = 0;
+    int     tap_count      = 0;
+    bool    prev_touched   = false;
+
+    while (1) {
+        int64_t now_us = esp_timer_get_time();
+        if (now_us >= deadline_us)
+            break;   /* 8s 窗口结束,无 5 击 → 回 Deep Sleep */
+
+        /* 触摸轮询:上升沿计一次击。初始的"长按"在 gate 前已释放,
+         * 不会被误计;相邻两击间隔 >500ms 则重新计数。 */
+        int32_t x = 0, y = 0;
+        bool touched = eos_dev_touch_chsc6x_read(&x, &y);
+        if (touched && !prev_touched) {
+            if (tap_count == 0 ||
+                (now_us - last_tap_us) <= (int64_t)BOARD_CLOCK_TAP_GAP_MS * 1000) {
+                tap_count++;
+            } else {
+                tap_count = 1;   /* 超时,序列作废重计 */
+            }
+            last_tap_us = now_us;
+            ESP_LOGI(TAG, "Standby clock: tap %d/%d", tap_count,
+                     (int)BOARD_CLOCK_TAPS_TO_BOOT);
+            if (tap_count >= BOARD_CLOCK_TAPS_TO_BOOT) {
+                /* 5 击 → 真正唤醒:清待机、快启动(跳过 Boot Anim)+ 恢复 UI */
+                lv_obj_del(scr);
+                s_standby_pending      = false;
+                s_standby_boot_restore = true;  /* 主系统起来后恢复上次 UI */
+                ESP_LOGI(TAG, "Standby clock: %d taps -> fully boot "
+                         "(restore '%s')", (int)BOARD_CLOCK_TAPS_TO_BOOT,
+                         s_standby_restore_ui);
+                return;   /* 继续正常 app_main 启动(eos_init) */
+            }
+        }
+        prev_touched = touched;
+
+        /* 每秒刷新时间/日期(文本未变时不动,LVGL 无连续刷屏) */
+        if ((now_us - last_render_us) >= 1000 * 1000) {
+            last_render_us = now_us;
+            eos_dev_time_t *td = eos_dev_time_get_instance();
+            if (td && td->ops && td->ops->get_datetime) {
+                eos_datetime_t dt = td->ops->get_datetime();
+                snprintf(time_str, sizeof(time_str), "%02u:%02u",
+                         (unsigned)dt.hour, (unsigned)dt.min);
+                snprintf(date_str, sizeof(date_str), "%02u/%02u",
+                         (unsigned)(dt.year % 100), (unsigned)dt.month);
+                lv_label_set_text(time_lb, time_str);
+                lv_label_set_text(date_lb, date_str);
+                lv_label_set_text(week_lb,
+                    s_weekday_en[((unsigned)dt.day_of_week) % 7]);
+                lv_refr_now(NULL);
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+
+    /* 8s 窗口结束未到 5 击:清屏并回 Deep Sleep(待机标志保持 → 下次唤醒
+     * 仍先进极简时钟;board_poweroff_enter_deep_sleep 不返回) */
+    ESP_LOGI(TAG, "Standby clock: timeout, back to L2 deep sleep");
+    lv_obj_del(scr);
+    s_standby_boot_restore = false;
+    board_poweroff_enter_deep_sleep();   /* 不返回 */
+}
+
+/* 主系统启动完成后的 App 恢复:极简时钟 5 击才会走到这里。
+ * 等 root/watchface 就绪(无动画后 root 立即出现)再启动深睡前 App;
+ * App 不存在/启动失败则保持表盘主界面。 */
+static void board_standby_try_restore_ui(void)
+{
+    if (!s_standby_boot_restore)
+        return;
+    s_standby_boot_restore = false;   /* 一次性 */
+    if (s_standby_restore_ui[0] == '\0' ||
+        strcmp(s_standby_restore_ui, "watchface") == 0)
+        return;
+
+    /* 等 ui_task 处理完 root 启动(避开切换动画窗口,最多 ~5s) */
+    for (int i = 0; i < 100; i++) {
+        eos_activity_t *top = eos_activity_get_current();
+        if (top && !eos_activity_is_transition_in_progress())
+            break;
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+
+    eos_result_t r = eos_app_launch_immediately(s_standby_restore_ui);
+    if (r == EOS_OK) {
+        ESP_LOGI(TAG, "Standby restore: opened '%s'",
+                 s_standby_restore_ui);
+    } else {
+        ESP_LOGW(TAG, "Standby restore: '%s' unavailable (%d), stay watchface",
+                 s_standby_restore_ui, (int)r);
+    }
+}
+
+/* L1/L2 主状态机单步:ui_task 每轮(eos_main_loop 后)调用。
+ * 仅 PM 处于 SLEEP(熄屏)时工作;亮屏/AOD 直接返回不干预。 */
+static void board_pm_step(void)
+{
+    static bool            s_l1_gpio_wake_armed = false;
+    static int64_t         s_l2_idle_start_us   = 0;  /* 连续 L1 无触摸累计起点 */
+    static eos_pm_state_t  s_prev_state         = EOS_PM_DISPLAY_ON;
+
+    eos_pm_state_t st  = eos_pm_get_state();
+    int64_t now_us = esp_timer_get_time();
+
+    /* 状态边界跟踪 */
+    if (st != EOS_PM_SLEEP) {
+        if (s_prev_state != st) {
+            s_prev_state = st;          /* 进入 ON/AOD:CPU 常醒 */
+            s_l1_last_act_us = now_us;
+        }
+        s_l2_idle_start_us = 0;
+        return;
+    }
+    if (s_prev_state != EOS_PM_SLEEP) {
+        s_prev_state      = EOS_PM_SLEEP;
+        s_l1_last_act_us  = now_us;    /* 刚熄屏视作"有活动",先撑 guard */
+        s_l2_idle_start_us = 0;
+    }
+
+    /* 手指仍压在屏上(手掌覆盖熄屏后未抬起等):持续按活动算,不睡 */
+    if (gpio_get_level(BOARD_TOUCH_INT_PIN) == 0) {
+        s_l1_last_act_us = now_us;
+        s_l2_idle_start_us = 0;
+        return;
+    }
+
+    /* 触摸后 600ms guard:PM 双击窗口 400ms,保证两次 press 都在真实运行期 */
+    if (now_us - s_l1_last_act_us < (int64_t)BOARD_L1_ACT_GUARD_MS * 1000)
+        return;
+
+    /* 连续无触摸计时(准入 guard 通过才起表,L2 从熄屏算满 15min) */
+    if (s_l2_idle_start_us == 0)
+        s_l2_idle_start_us = s_l1_last_act_us;
+
+    /* L2:累计 15min 无触摸 → 自动待机深睡(固化 UI 历史后不返回) */
+    if (now_us - s_l2_idle_start_us >= (int64_t)BOARD_L2_IDLE_MS * 1000) {
+        board_standby_enter_deep_sleep();   /* 不返回 */
+    }
+
+    /* L1 Light Sleep:500ms RTC 周期 + 触摸 INT(GPIO44)低电平即时唤醒。
+     * 注:Deep Sleep 仅 RTC GPIO0~21 可 GPIO 唤醒;Light Sleep 任意 GPIO
+     * 均可(gpio_wakeup_enable + esp_sleep_enable_gpio_wakeup)。
+     * 若平台不支持/未配置成功,退化为 500ms 轮询(双击唤醒可能漏,降级可接受)。 */
+    if (!s_l1_gpio_wake_armed) {
+        esp_err_t we = gpio_wakeup_enable(BOARD_TOUCH_INT_PIN, GPIO_INTR_LOW_LEVEL);
+        if (we == ESP_OK)
+            esp_sleep_enable_gpio_wakeup();
+        else
+            ESP_LOGW(TAG, "L1: GPIO wakeup unsupported(%d), timer-poll only",
+                     (int)we);
+        s_l1_gpio_wake_armed = true;   /* 仅尝试一次 */
+    }
+    esp_sleep_enable_timer_wakeup(BOARD_L1_LS_PERIOD_US);
+
+    esp_err_t ls = esp_light_sleep_start();   /* 阻塞 ~500ms 或触摸唤醒 */
+    if (ls != ESP_OK) {
+        /* 有外设(如 WiFi/BT modem)持锁无法轻睡:本轮跳过,下轮再试 */
+        ESP_LOGD(TAG, "L1: light sleep skipped (%d)", (int)ls);
+        return;
+    }
+    /* 进轻睡成功:打唤醒原因便于验证(GPIO=触摸唤醒/TIMER=周期唤醒)。
+     * 仅 DEBUG 级别,避免 500ms 一次刷屏;验证时开 log level debug。 */
+    ESP_LOGD(TAG, "L1: light sleep entered (wake=%d)",
+             (int)esp_sleep_get_wakeup_cause());
+
+    /* 唤醒原因:GPIO=触摸(重新计时);定时器=无触摸(累计继续) */
+    if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_GPIO) {
+        s_l1_last_act_us   = esp_timer_get_time();
+        s_l2_idle_start_us = 0;        /* 触摸打断 L2 计时 */
+    }
+}
+
+/* ════════════════════════════════════════════════════════════════
  *  Power OPS:把 PM 服务的熄屏/亮屏状态接到 GC9A01 背光。
  *  DEV_POWER_STATE_ON -> 背光 100%;SLEEP/AOD -> 背光 0%。
  *  这是"手掌覆盖熄屏/双击亮屏"生效的前提(此前 ops 为 NULL,
@@ -891,8 +1269,10 @@ static void board_drivers_register(void)
     eos_dev_rtc_bm8563_init();
     /* Power ops 必须在 eos_init()(PM 服务读取 instance)之前注册 */
     eos_dev_power_register(&s_board_power_ops);
-    /* 电池:ADC1_CH0 单次模式 + 校准;设计容量 500mAh(service 默认同值) */
-    eos_dev_battery_register(&s_board_battery_ops, 500);
+    /* 电池:ADC1_CH0 单次模式 + 校准;实际电芯 180~220mAh(XIAO 小电池),
+     * 取中值 200mAh 作为容量口径(影响百分比/低电阈值/续航估算)。如后期实测
+     * 标定,改这里一个数即可。 */
+    eos_dev_battery_register(&s_board_battery_ops, 200);
     ESP_LOGI(TAG, "Drivers registered (GC9A01/CHSC6X/BM8563 real, power->backlight, battery->ADC)");
 }
 
@@ -930,6 +1310,10 @@ void app_main(void)
             s_poweroff_wakes        = 0;
             gpio_deep_sleep_hold_dis();
             gpio_hold_dis(BOARD_GC9A01_BL_PIN);
+            /* L2 待机复用关机骨架(s_poweroff_pending 也会置位),这里一并
+             * 取消:USB/BOOT 唤醒一律正常开机,不进极简时钟 gate */
+            s_standby_pending      = false;
+            s_standby_boot_restore = false;
         }
     } else {
         /* 正常启动:解除深睡 pad hold(否则后续 LEDC/GPIO 对背光的操作无效) */
@@ -1035,6 +1419,20 @@ void app_main(void)
     /* 7. FreeRTOS 任务已在 app_main 最开头创建(步骤 0:internal 最完整时
      * 分配 48KB ui_task 栈,此时才能成功;驱动/SPIFFS 之后 largest 只有 ~45KB)。 */
 
+    /* 7.5 L2 待机唤醒的"极简时钟"gate:仅 s_standby_pending(15min 自动待机
+     * 后长按唤醒)时执行。此处位于 eos_init() 之前:LVGL/触摸/RTC 设备均已
+     * 就绪,但 time/JS/网络等服务尚未启动,时间直接读 RTC 设备,开销极低。
+     * 8s 内连续 5 击 → 清待机标志返回(走正常 eos_init 完整启动);
+     * 否则 8s 到点自动回 Deep Sleep(不返回)。 */
+    if (s_standby_pending) {
+        board_standby_clock_gate();   /* 5 击内部清标志;超时深睡不返回 */
+    }
+    /* 极简时钟 5 击 = "真正唤醒":跳过 Boot Anim 快速进入主系统(开关保留,
+     * 仅此路径自动跳过;普通开机仍显示开机动画) */
+    if (s_standby_boot_restore) {
+        eos_boot_anim_skip_request();
+    }
+
     /* 8. ElenixOS Core 初始化(持 LVGL 递归锁,避免与 ui_task 并发竞态) */
     lv_lock();
     eos_init();
@@ -1044,6 +1442,9 @@ void app_main(void)
     if (s_eos_ready != NULL) {
         xSemaphoreGive(s_eos_ready);
     }
+    /* 8.5 L2 完整唤醒的 App 恢复:极简时钟 5 击后置位 s_standby_boot_restore,
+     * root/watchface 就绪后尝试回到深睡前正在使用的 App(尽力而为) */
+    board_standby_try_restore_ui();
     /* 诊断:eos_init() 之后的 internal RAM 状态(验证阈值 8KB 分流效果) */
     ESP_LOGI(TAG, "Heap after eos_init: DRAM free=%u (largest=%u), PSRAM free=%u",
              (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),

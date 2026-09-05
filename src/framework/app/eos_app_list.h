@@ -58,6 +58,14 @@ extern const char *eos_native_app_icon_list[EOS_NATIVE_APP_LAST];
  */
 eos_result_t eos_app_launch_immediately(const char *app_id);
 /**
+ * @brief Get the app id of the most recently launched app
+ * @return const char* App id string, or NULL if no app was launched yet.
+ * @note Keeps its value even after returning to the watchface; check the
+ *       current activity type to know whether an app is truly foreground.
+ *       Used by the board layer to snapshot/restore UI across deep sleep.
+ */
+const char *eos_app_list_get_last_launch_app_id(void);
+/**
  * @brief Enter app list
  * @return eos_activity_t* App list activity object
  */
