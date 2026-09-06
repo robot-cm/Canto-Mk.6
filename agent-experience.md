@@ -821,3 +821,209 @@ if (total == 0u) total = 1u;   /* 最小 1 秒 */
 5. **深睡串口掉线是预期行为，不是死机**：ESP32-S3 深睡期间 USB UART 断连，monitor 报
    `device disconnected / waiting to reconnect`，唤醒后自动恢复；区分"深睡掉线"与"panic 死机"
    看掉线前最后一条日志是否定格在 `one-shot sleep … s`（正常）还是卡在断言/错误（异常）。
+
+---
+
+# Agent 经验总结：Watchface 渲染崩溃 `draw_letter_cb` LoadProhibited —— 压缩字库与 `CONFIG_LV_CONF_SKIP` 配置陷阱
+
+> 来源：XIAO ESP32-S3 + Round Display 1.28″，ElenixOS（Canto Mk.6）Builtin watchface 首屏（2026-09-06）。
+> 现象：boot 动画结束、进入 watchface 后立即 `Guru Meditation Error: Core 0 panic'ed (LoadProhibited)`，
+> backtrace 定格在 `lv_draw_sw_letter.c:179 draw_letter_cb`。
+
+### 15.1 Bug 一句话结论
+
+**不是内存不足，是压缩字库没被解码**：中文字符在 16px 子集字库里查不到 → fallback 到全量
+`eos_font_han_sans_22`（`bitmap_format=1`，即 `LV_FONT_FMT_TXT_COMPRESSED`），而 LVGL 编译时
+`LV_USE_FONT_COMPRESSED` 实际为 **0**，`lv_font_get_bitmap_fmt_txt()` 命中
+`#if !LV_USE_FONT_COMPRESSED` 分支 → `LV_LOG_WARN` + `return NULL` → 渲染线程把 NULL 当位图解引用 → 崩溃。
+
+启用压缩的开关写在了 **`lv_conf.h` 里，但那个文件根本没被编译**（`CONFIG_LV_CONF_SKIP=y`），
+LVGL 的真实配置来源是 **sdkconfig 的 Kconfig**。
+
+### 15.2 崩溃现场
+
+```text
+[INFO] [WFBuiltin] Builtin watchface: enter
+[DEBUG] [AppHeader] Hide app header
+Guru Meditation Error: Core  0 panic'ed (LoadProhibited). Exception was unhandled.
+EXCVADDR: 0x00000010
+--- 0x420fb882: draw_letter_cb at .../third_party/lvgl/src/draw/sw/lv_draw_sw_letter.c:179
+--- 0x420d2cf5: lv_draw_unit_draw_letter at .../lv_draw_label.c:631
+--- 0x420f83a8: render_thread_cb at .../lv_draw_sw.c:365
+```
+
+两条判读要点：
+1. 崩在 **render thread**（`prvRunThread`），不在 UI 线程 → UI 线程打日志覆盖不到崩溃点，
+   必须在 UI 线程"模拟渲染调用链"复现（见 15.3）。
+2. `EXCVADDR: 0x00000010` 是典型的 **NULL 指针 + 小偏移** 解引用，对应 `glyph_draw_dsc->glyph_data` 为 NULL。
+
+### 15.3 证据链：如何在 UI 线程复现渲染路径
+
+在 `eos_watchface_builtin.c` 加临时探针，逐字符走一遍与崩溃栈相同的 API：
+
+```c
+lv_font_glyph_dsc_t gd;
+bool ok = lv_font_get_glyph_dsc(ft[fi], &gd, cp, 0);
+lv_draw_buf_t *db = lv_draw_buf_create(gd.box_w, gd.box_h, LV_COLOR_FORMAT_A8, LV_STRIDE_AUTO);
+lv_draw_buf_t *r  = db ? lv_font_get_glyph_bitmap(&gd, db) : NULL;
+EOS_LOG_I("[bm] ... db=%p bm=%p d0=%02x d1=%02x d2=%02x", (void *)db, (void *)r, ...);
+```
+
+输出（关键四行）：
+
+```text
+[bm] jbm 'b' cp=98    gid=67   adv=16 box=12x20 fmt=4 db=0x3fcccda8 bm=0x3fcccda8 d0=bb d1=ff d2=dd  ← 正常
+[bm] han '?' cp=27721 gid=2852 adv=22 box=22x21 fmt=4 db=0x3fcccda8 bm=0x0        d0=00 d1=00 d2=00  ← 元凶
+[bm]    resolved=0x3c2bf4d0 han16=0x3c3e5880 han22=0x3c2bf4d0                                        ← fallback 命中 han22
+[bm]    fdsc bpp=4 bfmt=1 cmap=37 gbmp=0x3c2dd204 gdsc[2852]=0x3c2cdb34 bw=22 bh=21 bi=427412
+```
+
+四层排除：
+- `db` 非空 → **不是** draw buffer 分配失败（"DRAM 紧张"假说排除）
+- `gid=2852`、`box=22x21` 非零 → **不是** cmap 查表错乱 / gid 越界（第一版假说，被此读数推翻）
+- `resolved == han22` → 确认走 fallback 链，`'汉'` 不在 han16 的 176 字子集里
+- `bfmt=1` + `bm=NULL` → 精准锁定"压缩字库没解码"
+
+### 15.4 根因（三层）
+
+**第一层：为什么会 fallback 到 han22。**
+`eos_font_han_sans_16` 是 176 字子集（生成时带 `--lv-fallback eos_font_han_sans_22`），
+子集外的汉字全部落到全量 22px 字库；该字库由 `lv_font_conv` **默认压缩**生成 → `bitmap_format=1`。
+（对比：`jbm_22/26/30` 生成时显式 `--no-compress`，`bitmap_format=0`，所以它们一直是好的 ——
+这正好解释了"只有中文崩"。）
+
+**第二层：为什么压缩字库解不出来。**
+`lv_font_fmt_txt.c` 中 gid≠0、box≠0 时，唯一能返回 NULL 的路径：
+
+```c
+#if LV_USE_FONT_COMPRESSED
+    ...decompress...; return draw_buf;     /* 非空 */
+#else
+    LV_LOG_WARN("Compressed fonts is used but LV_USE_FONT_COMPRESSED is not enabled...");
+    return NULL;                           /* ← 命中这里 */
+#endif
+```
+PLAIN 分支与该宏无关 → 只有压缩字库受影响，与"jbm / montserrat 全部正常"完全吻合。
+
+**第三层（真正的坑）：宏为什么是 0。**
+
+```text
+sdkconfig:2028: CONFIG_LV_CONF_SKIP=y
+```
+
+`lv_conf_internal.h` 的处理：
+
+```c
+#include "lv_conf_kconfig.h"                              /* 36-42 行 */
+#if defined(CONFIG_LV_CONF_SKIP) && !defined(LV_CONF_SKIP)
+    #define LV_CONF_SKIP
+#endif
+...
+#if !defined(LV_CONF_SKIP) || defined(LV_CONF_PATH)
+    #include "lv_conf.h"          /* ← 被 SKIP，整份 lv_conf.h 不参与编译 */
+#endif
+...
+#ifndef LV_USE_FONT_COMPRESSED                            /* 1900-1907 行 */
+    #ifdef CONFIG_LV_USE_FONT_COMPRESSED
+        #define LV_USE_FONT_COMPRESSED CONFIG_LV_USE_FONT_COMPRESSED
+    #else
+        #define LV_USE_FONT_COMPRESSED 0                  /* ← 最终值 */
+    #endif
+#endif
+```
+
+本工程有 **三份 `lv_conf.h`**（`port/esp32s3/main/`、`third_party/lvgl/`、模拟器目录），
+`third_party/lvgl/lv_conf.h:153` 甚至写着 `#define LV_USE_FONT_COMPRESSED 1` 且带注释说明"压缩字体…" ——
+**但它是死配置，从未参与编译**。历史排查一直在改这个文件，所以"改了没用"。
+
+### 15.5 修复
+
+改 **sdkconfig**（Kconfig 才是真实来源），而不是 `lv_conf.h`：
+
+```bash
+sed -i 's/# CONFIG_LV_USE_FONT_COMPRESSED is not set/CONFIG_LV_USE_FONT_COMPRESSED=y/' sdkconfig
+idf.py reconfigure      # 必须：重新生成 build/config/sdkconfig.h
+idf.py build            # 宏影响 lv_global.h 结构体布局，会全量重编
+```
+
+验证：
+```text
+build/config/sdkconfig.h:957:#define CONFIG_LV_USE_FONT_COMPRESSED 1
+```
+
+真机复测（探针日志）：
+```text
+[bm] han '?' cp=27721 gid=2852 box=22x21 bm=0x3fcccde0 d0=00 d1=00 d2=11   ← bm 非空，有真实 alpha
+```
+watchface 正常显示，心跳持续 1600+ ticks 无崩溃。
+
+**正面副作用**：`eos_font_icon` 也是压缩字库，此前"右滑打开 Control Center 渲染图标字符崩溃重启"
+大概率同一根因，一并修复。
+
+### 15.6 关键排查手法：dump 宏的"真实编译值"（本次最值钱的一招）
+
+**不要相信"文件里写了什么"，要直接问编译器"看到了什么"。**
+
+1. 从 `compile_commands.json` 取目标源文件的编译命令，把 `-c` 换成 `-E -dM`
+   （去掉 `-o` / `-MMD` / `-MF` / `-MT`）：
+
+```bash
+cd port/esp32s3 && python3 -c "
+import json,subprocess
+for e in json.load(open('build/compile_commands.json')):
+    if e['file'].endswith('lv_font_fmt_txt.c'):
+        toks=e['command'].split(); out=[]; i=0
+        while i<len(toks):
+            t=toks[i]
+            if t=='-c': out.append('-E -dM')
+            elif t in ('-o','-MF','-MT'): i+=1
+            elif t.startswith('-MMD'): pass
+            else: out.append(t)
+            i+=1
+        p=subprocess.run(' '.join(out),shell=True,capture_output=True,text=True)
+        print([l for l in p.stdout.splitlines() if 'LV_USE_FONT_COMPRESSED' in l])
+        break"
+```
+输出 `#define LV_USE_FONT_COMPRESSED 0` → 宏真值实锤。
+（坑：`-c` 必须按 **token** 精确替换；用 `str.replace('-c', ...)` 会污染 `-fdiagnostics-color`
+之类的选项导致编译失败。）
+
+2. 再换 `-E -H` 打印 header 树 → 树里**只有 `lv_conf_internal.h`，从未出现 `lv_conf.h`**，
+   直接暴露 `LV_CONF_SKIP` 生效、用户配置被旁路。
+
+3. 交叉验证：`grep CONFIG_LV_USE_FONT_COMPRESSED sdkconfig build/config/sdkconfig.h`。
+
+### 15.7 通用教训
+
+1. **LVGL 有两套配置来源，先确认用哪套**：`CONFIG_LV_CONF_SKIP=y` 时 **`lv_conf.h` 整个失效**，
+   一切以 sdkconfig（Kconfig）为准。在 ESP-IDF + LVGL 项目里改配置前
+   **先 `grep CONFIG_LV_CONF_SKIP sdkconfig`**，再决定改 `lv_conf.h` 还是 `sdkconfig`；
+   "改了 `lv_conf.h` 没效果"的第一嫌疑就是这个。
+2. **"配置改了没生效"优先怀疑编译单元没看到它**：用 15.6 的 `-E -dM` 直接问编译器，
+   比反复读源码/加日志快一个数量级；`-E -H` 还能看出实际 include 的是哪一份同名头文件
+   （本工程有三份 `lv_conf.h`）。
+3. **崩溃点在渲染线程时，在 UI 线程"复现调用链"最有效**：按崩溃栈的同一组 API
+   （`lv_font_get_glyph_dsc` → `lv_font_get_glyph_bitmap`）自己调一遍并打印返回值，
+   能在不破坏系统的前提下拿到崩溃现场变量（`db` / `bm` / `box` / `gid`），把"猜测"变成"读数"。
+4. **用"路径排除法"读返回值**：`db` 非空排除内存分配；`gid` / `box` 非零排除 cmap 与索引；
+   `resolved_font` 排除 fallback 链异常 —— 排除一层、收敛一层。
+   本 bug 第一版假说（cmap 查表错乱 / gid 越界）就是被"gid 与 box 都正常"这一读数推翻的。
+5. **DRAM 只剩 ~74 KB 不等于内存是根因**。本次 `DRAM free=74895` 看着紧张，但 draw buffer 分配成功、
+   崩在 NULL 解引用 → 内存只是背景噪声。看到"内存小"先验证能否分配成功，别急着查泄漏。
+6. **`lv_font_conv` 的压缩属性要显式确认**：`bitmap_format=1`（压缩）必须配套
+   `LV_USE_FONT_COMPRESSED=1`；`--no-compress` 生成的是 `0`，无需该宏。
+   同一项目两种字库并存时，"只有某几个字库崩"就是最强的分流线索。
+7. **子集字库 + fallback 是隐形炸弹**：子集外的字才走 fallback 全量字库，
+   若两者压缩属性不同，只有出现子集外字符时才崩。排查务必确认 **fallback 目标字库**
+   （`--lv-fallback` 指向谁）及其属性。
+8. **临时探针必须可回收**：探针集中写进一个带"temp 诊断，定位后删除"注释的块，
+   定位后用 `git diff HEAD -- <file>` 核对 —— 若该文件相对 HEAD 的 diff 恰好只有探针
+   （本例 +135 行、无其他改动），`git checkout -- <file>` 即可原子还原，不留残渣。
+
+### 15.8 验证清单（字体 / 渲染类改动后）
+
+- [ ] 中英文混排首屏不崩（**子集内 + 子集外汉字都要测**，后者才会走 fallback）
+- [ ] 探针日志确认 `bm != NULL` 且首字节有真实 alpha（不是全 0）
+- [ ] `idf.py reconfigure` 后核对 `build/config/sdkconfig.h` 里出现新宏
+- [ ] 改宏后**全量重编**（宏会改变 LVGL 全局结构体布局，增量编译容易留下不一致的 .o）
+- [ ] 定位完成后 `git diff HEAD -- <探针文件>`，确认只剩探针后清理干净

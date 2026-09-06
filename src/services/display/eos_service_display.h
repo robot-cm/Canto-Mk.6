@@ -68,6 +68,13 @@ void eos_display_power_off(void);
 void eos_display_restore(eos_display_duration_t duration_ms);
 
 /**
+ * @brief Set the LVGL refresh period (limits the maximum frame rate)
+ * @param period_ms Refresh period in ms (e.g. 100 = ~10 FPS cap);
+ * pass 0 to restore the system default (matches LV_DEF_REFR_PERIOD)
+ */
+void eos_display_refresh_period_set(uint32_t period_ms);
+
+/**
  * @brief Backlight direct-drive diagnostic (bltest)
  * 绕过 PWM,把背光引脚直接拉高/拉低,用于验证引脚到背光的物理通路
  * (无需万用表):true=引脚拉高(屏幕应全亮), false=引脚拉低(屏幕应全黑)。

@@ -798,7 +798,13 @@ void eos_app_header_init(void)
     EOS_CHECK_PTR_RETURN_FREE(app_header, app_header);
 
     app_header->grad_bg_img = _create_gradient_bg();
-    EOS_CHECK_PTR_RETURN_FREE(app_header->grad_bg_img, app_header);
+    if (!app_header->grad_bg_img)
+    {
+        /* 降级继续:渐变背景缺失不影响 header 基本功能(标题/返回键/时钟)。
+         * 原 EOS_CHECK 直接返回导致整个组件瘫痪(container=NULL → 后续
+         * Show/Hide/SetTitle 全部报 "container is invalid",污染每帧渲染)。 */
+        EOS_LOG_W("Gradient bg unavailable, app header runs without background");
+    }
 
     // Semi-transparent container
     app_header->container = lv_obj_create(eos_overlay_get_header_layer());
@@ -814,9 +820,6 @@ void eos_app_header_init(void)
 
     lv_obj_add_event_cb(app_header->container, _grad_bg_img_delete_cb, LV_EVENT_DELETE, app_header->grad_bg_img);
     lv_obj_add_event_cb(app_header->container, _app_header_container_delete_cb, LV_EVENT_DELETE, NULL);
-
-    lv_coord_t header_h = _HEADER_HEIGHT;
-    lv_coord_t header_w = lv_obj_get_width(app_header->container);
 
     // Back button
     app_header->back_btn = eos_back_btn_create(app_header->container, false);

@@ -23,6 +23,7 @@
 #include "eos_app_list.h"   /* eos_app_list_enter(): open the app list page */
 #include "eos_app_header.h" /* eos_app_header_set_back_btn_visible() */
 #include "eos_power_off_page.h" /* up-swipe: power-off page (hardware deep sleep) */
+#include "eos_service_power_save.h" /* 省电模式:手势/轮播收敛 */
 
 /* 16px 中文子集字体(仅含轮播文案 177 字符,fallback 到全字库 han_sans_22) */
 LV_FONT_DECLARE(eos_font_han_sans_16);
@@ -315,6 +316,13 @@ static void _builtin_hint_timer_cb(lv_timer_t *timer)
         return;
     }
 
+    /* 省电模式:暂停主界面文案轮播(文案静止在当前行,减少无效重绘;
+     * 退出省电后轮播自动继续) */
+    if (eos_power_save_is_active())
+    {
+        return;
+    }
+
     _hint_remain_ms -= 100;
     if (_hint_remain_ms > 0)
     {
@@ -391,6 +399,13 @@ static void _builtin_long_pressed_cb(lv_event_t *e)
         return;
     }
 
+    /* 省电模式:不允许长按切换表盘(只能停留在当前主界面) */
+    if (eos_power_save_is_active())
+    {
+        EOS_LOG_D("home catcher long-press IGNORED (power save active)");
+        return;
+    }
+
     EOS_LOG_D("home catcher long-press accepted (dx=%d dy=%d) -> watchface list", dx, dy);
     eos_watchface_list_enter();
 }
@@ -400,6 +415,19 @@ static void _builtin_swipe_navigate(lv_coord_t dx, lv_coord_t dy)
     /* Ignore sub-threshold movement (a tap, not a swipe). */
     if (LV_ABS(dx) < 30 && LV_ABS(dy) < 30)
         return;
+
+    /* 省电模式:只保留右滑打开 Control Center(可在其中关闭省电开关),
+     * 其余手势(左滑 App 列表 / 上滑关机 / 下滑通知)一律忽略。 */
+    if (eos_power_save_is_active())
+    {
+        if (LV_ABS(dx) > LV_ABS(dy) && dx > 0)
+        {
+            eos_control_center_t *cc = eos_control_center_get_instance();
+            if (cc && cc->swipe_panel)
+                eos_swipe_panel_slide_down(cc->swipe_panel);
+        }
+        return;
+    }
 
     if (LV_ABS(dx) > LV_ABS(dy))
     {

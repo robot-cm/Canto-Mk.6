@@ -83,10 +83,6 @@ void *eos_malloc_core(size_t size)
     hdr->type = got;
     hdr->size = size;
 
-    EOS_LOG_D("Auto memory alloc: [%s]%d",
-              hdr->type == EOS_MEM_POOL_FAST ? "EOS_MEM_POOL_FAST" : "EOS_MEM_POOL_LARGE",
-              total);
-
     return (void *)(hdr + 1);
 }
 
@@ -188,10 +184,6 @@ void *eos_realloc_core(void *ptr, size_t new_size)
     eos_mem_type_t original_type = old_hdr->type; // Keep original memory type
     size_t old_size = old_hdr->size;
 
-    EOS_LOG_D("Realloc:  %zu, keep pool: %s",
-              new_size,
-              original_type == EOS_MEM_POOL_FAST ? "EOS_MEM_POOL_FAST" : "EOS_MEM_POOL_LARGE");
-
     // Always realloc in the original memory pool
     size_t total = new_size + sizeof(eos_mem_header_t);
     eos_mem_header_t *new_hdr = (original_type == EOS_MEM_POOL_FAST)
@@ -238,7 +230,6 @@ void *eos_realloc_core(void *ptr, size_t new_size)
     new_hdr->type = original_type;
     new_hdr->size = new_size;
 
-    EOS_LOG_D("Realloc success in original pool");
     return (void *)(new_hdr + 1);
 }
 

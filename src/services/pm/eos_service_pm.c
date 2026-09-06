@@ -18,6 +18,7 @@
 #include "eos_touch.h"
 #include "eos_dispatcher.h"
 #include "eos_dfw.h"
+#include "eos_service_power_save.h" /* eos_power_save_is_active + 熄屏策略宏 */
 /* Macros and Definitions -------------------------------------*/
 /* 睡眠定时器:超时后自动熄屏(进 AOD/SLEEP)。
  * 曾为调试置 1 禁用以保持屏幕常亮,现在已不需要——正式启用。 */
@@ -52,8 +53,10 @@ static uint32_t s_tap_first_ms = 0;   /**< 第一次点击时刻 */
 /* Function Implementations -----------------------------------*/
 void eos_pm_reset_timer(void);
 
-/* ---- Deep-sleep black-screen mask (simulator only) ---- */
-static void _ds_mask_create(void)
+/* ---- 黑屏 mask:熄屏(SLEEP)与关机/待机深睡(DEEP_SLEEP)共用 ----
+ * 真机背光已灭(+面板 0x28),mask 只是模拟器的熄屏视觉与真机防残影兜底;
+ * 两种场景共用同一对象,故日志按 ctx 区分,避免普通熄屏被误读成进深睡。 */
+static void _ds_mask_create(const char *ctx)
 {
     if (_ds_mask)
         return;
@@ -66,7 +69,7 @@ static void _ds_mask_create(void)
     lv_obj_set_style_radius(_ds_mask, 0, 0);
     lv_obj_set_style_border_width(_ds_mask, 0, 0);
     lv_obj_move_foreground(_ds_mask);
-    EOS_LOG_I("Deep sleep: screen masked (black)");
+    EOS_LOG_I("%s: screen masked (black)", ctx ? ctx : "Black mask");
 }
 
 static void _ds_mask_destroy(void)
@@ -124,6 +127,14 @@ static void _pm_set_state(eos_pm_state_t state)
             _ds_mask_destroy();
             eos_event_post(EOS_EVENT_SYSTEM_DISPLAY_ON, NULL, NULL);
             dev->ops->set_power(DEV_POWER_STATE_ON);
+            /* 唤醒强制整屏重绘:熄屏期间黑 mask 帧残留在面板 GRAM,若唤醒后
+             * 恰好无对象 invalidate,LVGL 不会自动重绘 → DISPON+背光后看到
+             * 的是黑帧(表现为"双击亮了但画面全黑/像没唤醒")。显式 invalidate
+             * 全屏并立即同步刷一帧,保证背光亮起时 GRAM 已是当前 UI。 */
+            lv_obj_invalidate(lv_screen_active());
+            lv_obj_invalidate(lv_layer_top());
+            lv_refr_now(NULL);
+            EOS_LOG_I("Wake: full redraw forced");
             if (t)
                 lv_timer_resume(t);
             break;
@@ -137,7 +148,7 @@ static void _pm_set_state(eos_pm_state_t state)
             dev->ops->set_power(DEV_POWER_STATE_SLEEP);
             /* 模拟器无背光概念,黑屏 mask 提供熄屏视觉;真机背光已灭,
              * 静态黑屏渲染无额外开销。 */
-            _ds_mask_create();
+            _ds_mask_create("Light sleep (screen off)");
             break;
         case EOS_PM_DISPLAY_AOD:
             if (t)
@@ -213,7 +224,7 @@ void eos_pm_deep_sleep_request(uint32_t duration_sec)
         lv_timer_delete(_ds_timer);
         _ds_timer = NULL;
     }
-    _ds_mask_create();
+    _ds_mask_create("Deep sleep");
     _pm_set_state(EOS_PM_DEEP_SLEEP);
     if (duration_sec > 0)
     {
@@ -223,23 +234,37 @@ void eos_pm_deep_sleep_request(uint32_t duration_sec)
     }
 }
 
-void eos_pm_power_off(void)
+/* 进入深睡关机公共主体(不返回)。调用前必须经 set_poweroff_params 明确
+ * 本次关机模式,否则可能带上次关机(RTC_DATA_ATTR 跨深睡保留)的模式残留。 */
+static void _pm_power_off_enter(void)
 {
-    EOS_LOG_I("Power off requested");
     if (_ds_timer)
     {
         lv_timer_delete(_ds_timer);
         _ds_timer = NULL;
     }
-    _ds_mask_create();
+    _ds_mask_create("Deep sleep");
     _pm_set_state(EOS_PM_DEEP_SLEEP);
     /* 真机(ESP32-S3): 板级 set_power(DEV_POWER_STATE_OFF) 进入硬件深睡
-     * (深睡 + RTC 定时器唤醒轮询 CHSC6X 触摸,累计 5 次触摸开机),
+     * (深睡 + RTC 定时器唤醒轮询 CHSC6X 触摸,长按开机),
      * esp_deep_sleep_start() 不返回,芯片重新启动后从 app_main 继续。
      * 模拟器: 无电源硬件,黑屏 mask 已由 _ds_mask_create() 提供。 */
     eos_dev_power_t *dev = eos_dev_power_get_instance();
     if (dev->ops && dev->ops->set_power)
         dev->ops->set_power(DEV_POWER_STATE_OFF);
+}
+
+/* 触摸模式关机(长按开机)。必须显式把板级模式重置为触摸:
+ * 定时关机若中途被强制复位(RTC_DATA_ATTR 跨深睡保留 timed=1),
+ * 残留会让本次"触摸关机"错误地走定时路径 —— 睡满后自动开机,
+ * 用户看到"关机后没有真正待机,自己重启"。 */
+void eos_pm_power_off(void)
+{
+    EOS_LOG_I("Power off requested (touch mode, hold to boot)");
+    eos_dev_power_t *dev = eos_dev_power_get_instance();
+    if (dev->ops && dev->ops->set_poweroff_params)
+        dev->ops->set_poweroff_params(false, 0);
+    _pm_power_off_enter();
 }
 
 /* 定时关机:先通知板级"定时模式"(触摸无效,到点自动开机),再走关机流程。
@@ -250,7 +275,7 @@ void eos_pm_power_off_timed(uint32_t wake_after_s)
     eos_dev_power_t *dev = eos_dev_power_get_instance();
     if (dev->ops && dev->ops->set_poweroff_params)
         dev->ops->set_poweroff_params(true, wake_after_s);
-    eos_pm_power_off();
+    _pm_power_off_enter();
 }
 
 void eos_pm_reset_timer(void)
@@ -343,6 +368,13 @@ void eos_service_pm_init(void)
     EOS_LOG_I("Power manager init");
     aod_mode = eos_config_get_bool(EOS_CONFIG_KEY_AOD_MODE_BOOL, false);
     uint32_t timer_period_sec = eos_config_get_number(EOS_CONFIG_KEY_SLEEP_TIMEOUT_SEC_NUMBER, _DEFAULT_TIMEOUT_SEC);
+    /* 省电模式激活(重启后保持)时强制 5s 熄屏:eos_service_power_save_init()
+     * 先于本服务运行(eos_core.c),它设置的运行时超时当时 t 尚未创建会落空,
+     * 因此在此按省电状态对齐初始熄屏超时。 */
+    if (eos_power_save_is_active())
+    {
+        timer_period_sec = EOS_POWER_SAVE_SLEEP_TIMEOUT_SEC;
+    }
 #if DEBUG_DISABLE_TIMER
     t = NULL;
 #else

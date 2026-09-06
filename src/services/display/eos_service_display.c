@@ -15,6 +15,10 @@
 
 /* Macros and Definitions -------------------------------------*/
 
+/* LVGL 刷新周期默认值(须与生效中的 lv_conf.h LV_DEF_REFR_PERIOD 一致,
+ * 即 port/esp32s3/main/lv_conf.h 的 20ms) */
+#define _REFRESH_PERIOD_DEFAULT_MS 20
+
 /* Variables --------------------------------------------------*/
 static uint8_t _saved_brightness = 50;
 static uint8_t _current_brightness = 50;
@@ -75,6 +79,22 @@ void eos_display_set_brightness(uint8_t brightness, eos_display_duration_t durat
 uint8_t eos_display_get_brightness(void)
 {
     return _current_brightness;
+}
+
+void eos_display_refresh_period_set(uint32_t period_ms)
+{
+    /* 0 = 复位到系统默认刷新周期(须与生效中的 lv_conf.h LV_DEF_REFR_PERIOD 一致) */
+    if (period_ms == 0)
+    {
+        period_ms = _REFRESH_PERIOD_DEFAULT_MS;
+    }
+    lv_display_t *disp = lv_display_get_default();
+    lv_timer_t *refr = disp ? lv_display_get_refr_timer(disp) : NULL;
+    if (!refr)
+    {
+        return;
+    }
+    lv_timer_set_period(refr, period_ms);
 }
 
 void eos_display_power_on(void)

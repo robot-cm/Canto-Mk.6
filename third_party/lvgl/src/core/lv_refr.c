@@ -1349,9 +1349,36 @@ static void draw_buf_flush(lv_display_t * disp)
     /*Flush the rendered content to the display*/
     lv_layer_t * layer = disp->layer_head;
 
+    /* EOS stall guard: 若 draw task 链长期无进展(render 空闲而 dispatch 反复
+     * 返回 IDLE),ui_task 会在下方 while 忙自旋占死 CPU1 直至 task_wdt 重启
+     * (真机 backtrace: lv_draw_get_next_available_task/is_independent)。
+     * 检测无进展则转储任务状态并中止本帧,避免死机并把证据留在串口。 */
+    uint32_t no_progress = 0;
+    lv_draw_task_t * last_head = NULL;
+
     while(layer->draw_task_head) {
         lv_draw_dispatch_wait_for_request();
         lv_draw_dispatch();
+
+        if(layer->draw_task_head == last_head) {
+            if(++no_progress > 4000) {
+                lv_draw_task_t * tt = layer->draw_task_head;
+                for(int i = 0; tt && i < 8; i++) {
+                    LV_LOG_WARN("EOS stall task[%d]: type=%d state=%d area=(%ld,%ld,%ld,%ld)",
+                                i, tt->type, tt->state,
+                                (long)tt->area.x1, (long)tt->area.y1,
+                                (long)tt->area.x2, (long)tt->area.y2);
+                    tt = tt->next;
+                }
+                LV_LOG_WARN("EOS dispatch stall: %u rounds no progress, frame aborted",
+                            (unsigned)no_progress);
+                break;
+            }
+        }
+        else {
+            last_head = layer->draw_task_head;
+            no_progress = 0;
+        }
     }
 
     /* In double buffered mode wait until the other buffer is freed

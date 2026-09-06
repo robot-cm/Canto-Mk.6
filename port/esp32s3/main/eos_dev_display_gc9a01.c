@@ -571,6 +571,11 @@ typedef struct {
  * flush_cb queue 时累加,flush_wait_cb get_trans_result 取回时递减 */
 static volatile int s_pending_tx;
 
+/* 唤醒黑屏诊断:LVGL flush 帧计数(单线程自增/读取,无需原子)。
+ * display_off/on 打印差值,可区分"唤醒后根本没渲染"与"渲染内容黑"。 */
+static uint32_t s_flush_total  = 0; /* 累计 flush 的帧数 */
+static uint32_t s_flush_at_off = 0; /* 上次熄屏(display_off)时的计数 */
+
 typedef struct {
     flush_trans_t col_cmd;   /* 0x2A 命令 */
     flush_trans_t col_data;  /* 0x2A 参数(4B) */
@@ -674,6 +679,7 @@ static void display_flush_tx_init(void)
 
 static void display_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
 {
+    s_flush_total++;
     uint16_t w = area->x2 - area->x1 + 1;
     uint16_t h = area->y2 - area->y1 + 1;
     size_t len = (size_t)w * h * 2;
@@ -826,8 +832,32 @@ void eos_dev_display_gc9a01_display_off(void)
      * 该像素事务,触发 assert(ret_trans == trans_desc) 崩溃(真机已踩)。 */
     display_drain_pending_tx();
 
+    s_flush_at_off = s_flush_total;   /* 记录熄屏时 flush 计数,唤醒对比用 */
     display_send_cmd(0x28);   /* Display OFF */
-    ESP_LOGI(TAG, "display OFF (0x28)");
+    ESP_LOGI(TAG, "display OFF (0x28), flush_total=%u", (unsigned)s_flush_total);
+}
+
+/* 面板显示打开(0x29 DISPON):与 display_off 配对,用于熄屏(Light Sleep)
+ * 后唤醒恢复显示。
+ * 目的:熄屏时关面板可省掉面板静态电流(熄屏待机最大的一项,见
+ * board_power_set 的 DEV_POWER_STATE_SLEEP 分支)。
+ * GRAM 内容保留,无需重跑 init 序列;同 display_off 一样先排空在途异步
+ * flush,避免同步发送与 LVGL 渲染帧事务竞争触发 assert。 */
+void eos_dev_display_gc9a01_display_on(void)
+{
+    if (!s_init_done) return;
+
+    display_drain_pending_tx();
+
+    display_send_cmd(0x29);   /* Display ON */
+    /* 退出 DISPOFF 后面板需要稳定时间(上电 init 序列用 120ms;此处 GRAM 与
+     * 电荷泵已在工作,20ms 足够,再开背光即可避免黑帧/闪白) */
+    vTaskDelay(pdMS_TO_TICKS(20));
+    /* 唤醒黑屏诊断:差值=熄屏到唤醒期间 LVGL flush 的帧数(应为 0~少量;
+     * 若远大于此说明熄屏时 UI 仍在持续刷屏,应检查是否漏停动画);
+     * 唤醒后的 flush 由下一条日志之后新帧反映。 */
+    ESP_LOGI(TAG, "display ON (0x29), flushed=%u since off (total %u)",
+             (unsigned)(s_flush_total - s_flush_at_off), (unsigned)s_flush_total);
 }
 
 /* LVGL 显示初始化:lv_display_create + 双缓冲(PARTIAL) + flush_cb */
@@ -847,36 +877,8 @@ esp_err_t eos_dev_display_gc9a01_lvgl_init(void)
      * 纯 PSRAM;不要组合 MALLOC_CAP_DMA——无 CONFIG_SPIRAM_DMA_CAPABLE
      * 时 PSRAM 块不带 DMA cap,组合请求必失败回退 internal,57.6KB 占用
      * 会挤掉 ui_task 的 48KB internal 栈(largest<50KB → 创建失败,UI 全灭)。 */
-    ESP_LOGI(TAG, "[FIX-DIAG] need=%lu SPIRAM free=%u largest=%u | DMA free=%u largest=%u",
-             (unsigned long)buf_bytes,
-             heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
-             heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM),
-             heap_caps_get_free_size(MALLOC_CAP_DMA),
-             heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
-
-    /* [FIX-DIAG2] 全量堆信息 + 分配矩阵 */
-    ESP_LOGI(TAG, "[FIX-DIAG2] ==== heap dump ====");
-    heap_caps_dump_all();
-    ESP_LOGI(TAG, "[FIX-DIAG2] ==== alloc matrix ====");
-    {
-        void *ptrs[8];
-        int np = 0;
-#define T2(sz, cap, nm) do { \
-        void *p_ = heap_caps_malloc(sz, cap); \
-        ESP_LOGI(TAG, "[FIX-DIAG2] %-20s %6luB -> %p", nm, (unsigned long)(sz), p_); \
-        if (p_) ptrs[np++] = p_; \
-    } while (0)
-        T2(1, MALLOC_CAP_SPIRAM, "SPIRAM 1B");
-        T2(16, MALLOC_CAP_SPIRAM, "SPIRAM 16B");
-        T2(28800, MALLOC_CAP_SPIRAM, "SPIRAM 28800B");
-        T2(28800, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT, "SPIRAM|8BIT");
-        T2(28800, MALLOC_CAP_SPIRAM | MALLOC_CAP_32BIT, "SPIRAM|32BIT");
-        T2(28800, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT | MALLOC_CAP_32BIT, "SPIRAM|8|32");
-        T2(28800, MALLOC_CAP_DEFAULT | MALLOC_CAP_SPIRAM, "DEFAULT|SPIRAM");
-        T2(28800, MALLOC_CAP_DEFAULT, "DEFAULT");
-        for (int i = 0; i < np; i++) free(ptrs[i]);
-    }
-#undef T2
+    /* 2016-09-05 曾在此处 heap_caps_dump_all() 排障:8MB PSRAM 池逐块经 ROM
+     * UART 打印、长时间屏蔽中断,真机触发 Interrupt WDT(TWDT)panic,已移除。 */
     lv_color_t *buf1 = heap_caps_malloc(buf_bytes, MALLOC_CAP_SPIRAM);
     if (!buf1) buf1 = heap_caps_malloc(buf_bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT | MALLOC_CAP_32BIT);
     if (!buf1) buf1 = heap_caps_malloc(buf_bytes, MALLOC_CAP_DMA);
@@ -894,7 +896,6 @@ esp_err_t eos_dev_display_gc9a01_lvgl_init(void)
         free(buf1);
         return ESP_ERR_NO_MEM;
     }
-    ESP_LOGI(TAG, "[FIX-DIAG] buf1=%p buf2=%p", (void *)buf1, (void *)buf2);
     ESP_LOGI(TAG, "LVGL buffers: %lu B x2 @%p/%p (PSRAM/DMA)",
              (unsigned long)buf_bytes, (void *)buf1, (void *)buf2);
 

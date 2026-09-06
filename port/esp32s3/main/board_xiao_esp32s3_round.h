@@ -125,9 +125,13 @@ extern "C" {
  *  FreeRTOS 任务配置(板级 main.c 使用)
  *  依据 AGENTS.md 第20节(动画性能)+ 第22节(内存策略)
  * ════════════════════════════════════════════════════════════════ */
-/* 8192 过小:Settings->WiFi 转场时 lv_snapshot 渲染曾栈溢出(TCB 8688/504)。
- * 12288 words = 48KB:internal RAM 预算上限(eos_init 前分配,见 main.c 注释) */
-#define BOARD_TASK_UI_STACK      12288  /* LVGL + GC9A01 flush(internal RAM) */
+/* 12288 words=48KB internal:2026-09-06 真机实测 PSRAM 版 S3 内部最大连续
+ * region≈32KB(bootloader/静态占用后),48KB 必然分配失败(FAILED: ui task
+ * create)。32KB(8192 words)在 Settings->WiFi lv_snapshot 转场曾爆栈。
+ * 现用 24KB internal:重载已上移 eos_init(24KB main 栈),ui_task 只跑
+ * eos_main_loop/lv_timer_handler;后续如 lv_snapshot 仍爆,方案是 ui 栈迁
+ * PSRAM + 独立 internal 小栈任务做 flash 写。 */
+#define BOARD_TASK_UI_STACK      6144   /* LVGL + GC9A01 flush(internal RAM,24KB) */
 #define BOARD_TASK_UI_PRIO       5
 #define BOARD_TASK_UI_AFFINITY    1      /* Core 1 */
 #define BOARD_TASK_INPUT_STACK    4096   /* CST816 轮询 + lv_indev 喂入 */

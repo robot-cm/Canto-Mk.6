@@ -1,6 +1,6 @@
-cd /home/erashaperavm/下载/ElenixOS-fork/port/esp32s3 && idf.py -p /dev/ttyACM0 build flash monitor
+cd /home/erashaperavm/下载/ElenixOS-fork-stable/port/esp32s3 && idf.py -p /dev/ttyACM0 build flash monitor
 
-cd /home/erashaperavm/下载/ElenixOS-fork/port/esp32s3 && idf.py -p /dev/ttyACM0 monitor
+cd /home/erashaperavm/下载/ElenixOS-fork-stable/port/esp32s3 && idf.py -p /dev/ttyACM0 monitor
 
 
 

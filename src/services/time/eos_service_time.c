@@ -59,6 +59,9 @@
 /* Variables --------------------------------------------------*/
 
 static eos_datetime_t _last_valid;              /* 最后有效时间(读失败回退) */
+static uint32_t _calib_tick = 0;                /* 校准锚点:该 tick 时刻对应 _calib_unix */
+static uint32_t _calib_unix = 0;                /* 锚点墙钟(unix 秒;RTC 读回 / 显式校时) */
+static bool _calibrated = false;                /* 是否已有可用锚点 */
 static eos_time_source_t _source = EOS_TIME_SOURCE_NONE;
 
 static void _ntp_poll_timer_create(void); /* 前向声明(init 先于定义调用) */
@@ -300,6 +303,9 @@ eos_result_t eos_service_time_init(void)
     }
 
     _last_valid = chosen;
+    _calib_unix = _dt_to_unix(&chosen);
+    _calib_tick = eos_tick_get();
+    _calibrated = true;
     _sync_libc(&chosen);
     EOS_LOG_I("System time: %04d-%02d-%02d %02d:%02d:%02d (source=%d)",
               chosen.year, chosen.month, chosen.day,
@@ -310,49 +316,53 @@ eos_result_t eos_service_time_init(void)
 
 eos_datetime_t eos_time_get(void)
 {
-    static eos_datetime_t last_sec_time;
-    static uint32_t sec_base_tick = 0;
-    static uint8_t initialized = 0;
+    /* RTC 轮询节流 + 单调走时:
+     *  - 内部以「校准锚点 + tick 内插」连续走时,最多每秒向 RTC 发起一次 I2C 校准,
+     *    避免每次查询都同步 I2C(阻塞调用者)。
+     *  - RTC 短暂不可读(I2C 抖动)时维持旧锚点单调推进:秒照走、ms 取余,
+     *    不冻结 —— 否则 JS 倒计时/秒表在 RTC 故障窗口内完全停摆。 */
+    enum { CALIB_PERIOD_MS = 1000u };
+    static uint32_t s_last_read_tick = 0; /* 上次实际发起 I2C 的时刻 */
 
     eos_dev_time_t *dev = eos_dev_time_get_instance();
-    if (dev->ops == NULL || dev->ops->get_datetime == NULL) {
-        EOS_LOG_E("Time device OPS not available");
-        eos_datetime_t dt = _last_valid;
-        dt.ms = 0;
-        return dt;
-    }
-
-    eos_datetime_t now = dev->ops->get_datetime();
+    bool dev_ok = (dev != NULL && dev->ops != NULL && dev->ops->get_datetime != NULL);
     uint32_t tick = eos_tick_get();
 
-    if (!_is_valid(&now)) {
-        /* RTC 暂不可读:回退最后有效时间(秒不推进,ms 由 tick 补偿) */
-        if (_last_valid.year == 0) {
+    if (!_calibrated) {
+        /* 尚无时间基准:尝试一次 RTC 建立锚点 */
+        if (dev_ok) {
+            eos_datetime_t rtc = dev->ops->get_datetime();
+            if (_is_valid(&rtc)) {
+                _calib_unix  = _dt_to_unix(&rtc);
+                _calib_tick  = tick;
+                _calibrated  = true;
+                s_last_read_tick = tick;
+            }
+        }
+        if (!_calibrated) {
             eos_datetime_t zero;
             memset(&zero, 0, sizeof(zero));
-            return zero;
+            return zero; /* 设备缺失且无任何基准 */
         }
-        now = _last_valid;
-        uint32_t ms = tick - sec_base_tick;
-        now.ms = (uint16_t)((ms >= 1000) ? 999 : ms);
-        return now;
     }
 
-    if (!initialized || now.sec != last_sec_time.sec || now.min != last_sec_time.min
-        || now.hour != last_sec_time.hour || now.day != last_sec_time.day
-        || now.month != last_sec_time.month || now.year != last_sec_time.year) {
-        sec_base_tick = tick;
-        last_sec_time = now;
-        initialized = 1;
+    /* 到校准节奏:读一次 RTC。成功则重新锚定(消除内部时钟漂移);
+     * 失败则保留旧锚点,由下方内插继续单调走时。 */
+    if (dev_ok && (uint32_t)(tick - s_last_read_tick) >= CALIB_PERIOD_MS) {
+        s_last_read_tick = tick;
+        eos_datetime_t rtc = dev->ops->get_datetime();
+        if (_is_valid(&rtc)) {
+            _calib_unix = _dt_to_unix(&rtc);
+            _calib_tick = tick;
+        }
     }
 
-    uint32_t ms = tick - sec_base_tick;
-    if (ms >= 1000) {
-        ms = 999;
-    }
-    now.ms = (uint16_t)ms;
-    _last_valid = now;
-    return now;
+    uint32_t el = tick - _calib_tick;
+    eos_datetime_t result;
+    _unix_to_dt((uint32_t)(_calib_unix + el / 1000u), &result);
+    result.ms = (uint16_t)(el % 1000u);
+    _last_valid = result;
+    return result;
 }
 
 eos_result_t eos_time_set(eos_datetime_t dt)
@@ -370,6 +380,9 @@ eos_result_t eos_time_set(eos_datetime_t dt)
     _dev_set(&dt);
     _backup_save(&dt);
     _last_valid = dt;
+    _calib_unix = _dt_to_unix(&dt);
+    _calib_tick = eos_tick_get();
+    _calibrated = true;
     _sync_libc(&dt);
     _source = EOS_TIME_SOURCE_RTC; /* 显式校时后视为已校准 */
     EOS_LOG_I("Time set: %04d-%02d-%02d %02d:%02d:%02d",

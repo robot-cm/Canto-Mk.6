@@ -55,6 +55,11 @@ void eos_dev_display_gc9a01_fill_black(void);
  * 大量 SPI 活动导致 esp_deep_sleep_start 失败。 */
 void eos_dev_display_gc9a01_display_off(void);
 
+/* 面板显示打开(0x29 DISPON,熄屏唤醒时调用):与 display_off 配对。
+ * GRAM 保留、无需重跑 init 序列;内部先排空在途异步 flush 再同步发命令,
+ * 并等待 20ms 面板稳定(调用方随后开背光,顺序反了会看到一帧黑闪)。 */
+void eos_dev_display_gc9a01_display_on(void);
+
 #ifdef __cplusplus
 }
 #endif

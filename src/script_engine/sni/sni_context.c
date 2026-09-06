@@ -230,14 +230,6 @@ void sni_context_add_resource(sni_context_t *ctx, void *ptr, jerry_value_t js_ob
     node->next = ctx->resource_heads[idx];
     ctx->resource_heads[idx] = node;
     ctx->resource_counts[idx]++;
-
-    EOS_LOG_D("ADD_RESOURCE: ctx=%p ptr=%p type=%s(%d) idx=%d (count=%d)",
-              ctx,
-              ptr,
-              sni_type_name(type),
-              type,
-              idx,
-              ctx->resource_counts[idx]);
 }
 
 void sni_context_remove_resource(sni_context_t *ctx, void *ptr, sni_type_t type)
@@ -273,12 +265,6 @@ void sni_context_remove_resource(sni_context_t *ctx, void *ptr, sni_type_t type)
 
             ctx->resource_counts[idx]--;
             eos_free(node);
-            EOS_LOG_D("REMOVE_RESOURCE: ctx=%p ptr=%p type=%s(%d) (count=%d)",
-                      ctx,
-                      ptr,
-                      sni_type_name(type),
-                      type,
-                      ctx->resource_counts[idx]);
             return;
         }
         prev = node;

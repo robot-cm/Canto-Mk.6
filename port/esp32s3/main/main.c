@@ -38,6 +38,7 @@
 #include "esp_sleep.h"
 #include "esp_timer.h" /* 真实毫秒基准(跨 Light Sleep 连续,IDF 内建补偿) */
 #include "esp_rom_gpio.h"
+#include "esp_pm.h" /* 智能模式默认 CPU profile:esp_pm_configure DFS 80-160MHz */
 #include "soc/gpio_sig_map.h"
 /* microSD(SDSPI,与 LCD 共用 SPI3 总线,见 board_sd_mount) */
 #include "driver/sdspi_host.h"
@@ -335,7 +336,8 @@ static void ui_task(void *arg)
          * 完成后于此初始化 activity controller(主界面延迟显示的关键入口)。 */
         eos_main_loop();
         /* 电池优化:软件熄屏(SLEEP)时在此单步硬件 Light Sleep,并在无触摸累计
-         * 15min 后自动转 L2 待机(Deep Sleep,极简时钟唤醒,不返回)。
+         * 达 L2 阈值(默认 15min,省电模式收紧到 10min)后自动转 L2 待机
+         * (Deep Sleep,极简时钟唤醒,不返回)。
          * 注意:Light Sleep 期间本任务休眠,其余任务一并暂停,唤醒即恢复。 */
         board_pm_step();
         if ((++ticks % 200) == 0) {
@@ -679,8 +681,8 @@ static esp_err_t board_fs_mount(void)
  *   (跳过 Boot Anim 快速恢复);否则 8s 后自动回 Deep Sleep。 */
 #define BOARD_L1_LS_PERIOD_US       (500 * 1000)      /* L1 Light Sleep 周期唤醒:500ms */
 #define BOARD_L1_ACT_GUARD_MS       600               /* 触摸后保持 CPU 清醒窗口(> PM 双击窗口 400ms) */
-#define BOARD_L2_IDLE_MS            (15 * 60 * 1000)  /* 无触摸累计 15min → L2 自动待机 */
-#define BOARD_STANDBY_CLOCK_MS      8000              /* L2 唤醒极简时钟最长显示:8s */
+#define BOARD_L2_IDLE_MS            (15 * 60 * 1000)  /* 熄屏累计无触摸 15min → L2 自动待机 Deep Sleep(省电模式经 eos_pm_set_l2_idle_ms 运行时收紧到 10min) */
+#define BOARD_STANDBY_CLOCK_MS      8000              /* L2 长按唤醒后极简时钟窗口 8s;超时自动回 Deep Sleep */
 #define BOARD_CLOCK_TAP_GAP_MS      500               /* 极简时钟 5 击:相邻两击间隔上限,超限重新计数 */
 #define BOARD_CLOCK_TAPS_TO_BOOT    5                 /* 极简时钟内连续 5 击 → 真正唤醒主系统 */
 #define BOARD_CLOCK_TEXT_LEN        16
@@ -701,6 +703,27 @@ RTC_DATA_ATTR static uint32_t s_poweroff_wakes       = 0;
 
 /* L1 实时状态(普通 static:Light Sleep 不重启;Deep Sleep 重启后自然复位) */
 static int64_t s_l1_last_act_us = 0; /* 最后触摸/活动时刻(esp_timer us);超过 guard 才进 Light Sleep */
+
+/* L2 自动待机阈值(默认 15min,见 BOARD_L2_IDLE_MS)。省电模式可运行时收紧/
+ * 恢复(见 eos_pm_set_l2_idle_ms)。普通 static:深睡重启后复位回默认值。 */
+static uint32_t s_l2_idle_ms = BOARD_L2_IDLE_MS;
+
+/* 供上层(eos_service_power_save)经 extern 调用:查询/设置 L2 待机阈值。 */
+uint32_t eos_pm_get_l2_idle_ms(void)
+{
+    return s_l2_idle_ms;
+}
+
+void eos_pm_set_l2_idle_ms(uint32_t idle_ms)
+{
+    if (idle_ms < 1000)
+    {
+        ESP_LOGW(TAG, "PM: invalid L2 idle %u ms ignored", (unsigned)idle_ms);
+        return;
+    }
+    s_l2_idle_ms = idle_ms;
+    ESP_LOGI(TAG, "PM: L2 auto-standby idle -> %u s", (unsigned)(s_l2_idle_ms / 1000));
+}
 
 /* 背光(GPIO43)拉低 + pad hold:深睡期间保持低电平,防浮空反亮。
  * 必须与 esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON)
@@ -735,10 +758,19 @@ static void board_backlight_hold_release(void)
  * "按下关机却立即亮回系统"(像重启)。 */
 static void _poweroff_sleep(uint64_t period_us)
 {
+    /* 清掉 L1/Light Sleep 及此前深睡残留的全部 wakeup 源,只保留本次
+     * RTC 定时器唤醒:
+     *  - L1 的 gpio_wakeup_enable(GPIO44)+esp_sleep_enable_gpio_wakeup()
+     *    从不撤销,配置保留在 esp_sleep 内部;GPIO44 非 RTC GPIO,
+     *    Deep Sleep 不支持,残留会导致 esp_deep_sleep_start() 失败
+     *    (立即返回 → 重试 5 次 → esp_restart,表现"入睡即重启"——
+     *    ee57376 无 L1,故此前正常)。
+     *  - L1 的 500ms 定时唤醒同样会覆盖/污染本次深睡周期。 */
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
     esp_sleep_enable_timer_wakeup(period_us);
     for (int fail = 0; ; fail++)
     {
-        esp_deep_sleep_start();  /* 成功则永不返回 */
+        esp_deep_sleep_start();  /* 成功则永不返回;失败返回 */
         ESP_LOGE(TAG, "Deep sleep start failed #%d (keep black, retry)", fail);
         if (fail >= 5)
         {
@@ -953,7 +985,8 @@ static void board_standby_write_history(void)
  * 骨架(背光 pad hold 拉低 + fill_black + DISPOFF + 8s/16s 触摸轮询)。 */
 static void board_standby_enter_deep_sleep(void)
 {
-    ESP_LOGI(TAG, "Standby: 15min idle -> L2 deep sleep (snapshot UI first)");
+    ESP_LOGI(TAG, "Standby: %u s idle -> L2 deep sleep (snapshot UI first)",
+             (unsigned)(eos_pm_get_l2_idle_ms() / 1000));
 
     /* 前台是 App → 记 app id;表盘/启动器 → watchface(正常启动即主界面) */
     const char *fg = board_standby_foreground_app_id();
@@ -970,7 +1003,19 @@ static void board_standby_enter_deep_sleep(void)
     s_standby_boot_restore = false; /* 5 击在 gate 内部再置位 */
     s_standby_hold_wakeups = 0;
     s_standby_wakes        = 0;
+    /* L2 待机永远走"触摸轮询 + 长按唤醒"语义:清除任何残留的定时关机状态
+     * (RTC_DATA_ATTR 跨深睡保留;若上次定时关机未到点被强制复位,timed=1
+     * 残留会让本次待机错误地"一次性睡满自动开机"而非长按唤醒)。 */
+    s_poweroff_timed     = false;
+    s_poweroff_wake_secs = 0;
     board_poweroff_enter_deep_sleep();  /* 不返回(深睡轮询,8s/16s) */
+}
+
+/* 开发/测试用:立即进入 L2 待机硬件深睡(走极简时钟 + 5 击唤醒路径),
+ * 跳过 15min 空闲等待。供 shell 命令 `power standby` 调用。 */
+void eos_board_enter_standby_deep_sleep(void)
+{
+    board_standby_enter_deep_sleep();
 }
 
 /* 极简时钟(L2 待机长按唤醒):纯 LVGL 渲染,位于 eos_init() 之前,
@@ -1168,8 +1213,9 @@ static void board_pm_step(void)
     if (s_l2_idle_start_us == 0)
         s_l2_idle_start_us = s_l1_last_act_us;
 
-    /* L2:累计 15min 无触摸 → 自动待机深睡(固化 UI 历史后不返回) */
-    if (now_us - s_l2_idle_start_us >= (int64_t)BOARD_L2_IDLE_MS * 1000) {
+    /* L2:累计 s_l2_idle_ms(默认 15min,省电模式收紧到 10min)无触摸 →
+     * 自动待机深睡(固化 UI 历史后不返回) */
+    if (now_us - s_l2_idle_start_us >= (int64_t)s_l2_idle_ms * 1000) {
         board_standby_enter_deep_sleep();   /* 不返回 */
     }
 
@@ -1207,10 +1253,13 @@ static void board_pm_step(void)
 }
 
 /* ════════════════════════════════════════════════════════════════
- *  Power OPS:把 PM 服务的熄屏/亮屏状态接到 GC9A01 背光。
- *  DEV_POWER_STATE_ON -> 背光 100%;SLEEP/AOD -> 背光 0%。
- *  这是"手掌覆盖熄屏/双击亮屏"生效的前提(此前 ops 为 NULL,
- *  eos_service_pm._pm_set_state 只打错误日志,屏幕无任何变化)。
+ *  Power OPS:把 PM 服务的熄屏/亮屏状态接到 GC9A01 背光 + 面板显示。
+ *  DEV_POWER_STATE_ON  -> 开面板(0x29)+ 恢复背光
+ *  DEV_POWER_STATE_SLEEP -> 灭背光 + 关面板(0x28)
+ *  DEV_POWER_STATE_AOD -> 面板保持开(仅背光为 0,与 SLEEP 同样处理)
+ *  熄屏时额外关面板(此前只灭背光):面板静态电流是熄屏(Light Sleep)期间
+ *  最大的一项耗电(约 2-4mA),关掉后整段待机只有深睡/轻睡的芯片电流。
+ *  GRAM 内容保留,唤醒只需一条 0x29,无需重跑 init 序列。
  *  DEV_POWER_STATE_OFF(关机) -> 进入硬件深睡(esp_deep_sleep_start,不返回)。
  * ════════════════════════════════════════════════════════════════ */
 static int board_power_set(dev_power_state_t state)
@@ -1227,10 +1276,18 @@ static int board_power_set(dev_power_state_t state)
         ESP_LOGE(TAG, "Power set(%d) failed: display HAL not ready", (int)state);
         return -1;
     }
-    if (state == DEV_POWER_STATE_ON)
-        disp->ops->power_on();
-    else
+    if (state == DEV_POWER_STATE_SLEEP)
+    {
+        /* 熄屏:先灭背光再关面板,避免"先黑屏再灭背光"的可见闪烁 */
         disp->ops->power_off();
+        eos_dev_display_gc9a01_display_off();
+    }
+    else
+    {
+        /* 亮屏/AOD:先开面板再恢复背光(顺序反了会看到一帧黑) */
+        eos_dev_display_gc9a01_display_on();
+        disp->ops->power_on();
+    }
     return 0;
 }
 
@@ -1276,6 +1333,32 @@ static void board_drivers_register(void)
     ESP_LOGI(TAG, "Drivers registered (GC9A01/CHSC6X/BM8563 real, power->backlight, battery->ADC)");
 }
 
+/* 智能模式(省电/性能均未启用)默认 CPU profile:DFS 80-160MHz 按需调频。
+ * 必须在 eos_init() 之前调用:power_save / beast_mode 服务首次切换模式时会把
+ * "当前 PM 配置"快照为 _pm_normal_config,退出时用它恢复。先在此配好智能
+ * profile,两个服务快照到的就是 DFS 80-160,退出后回落回 DFS 智能档,
+ * 而不是回落到 sdkconfig 的固定 160MHz(未 configure 时 esp_pm_get_configuration
+ * 读到空配置,服务自身会回落为固定 160)。
+ * 自动 Light-sleep 保持关闭:省电服务实测 light_sleep_enable=true 会让系统在
+ * UI 活跃期也进 Light-sleep(USB-Serial-JTAG 控制台失活/背光明灭闪烁);
+ * 熄屏轻睡由 board_pm_step() 手动 500ms 打点,与 DFS 正交。 */
+static void board_smart_cpu_profile_apply(void)
+{
+    esp_pm_config_t cfg = {
+        .max_freq_mhz = 160,
+        .min_freq_mhz = 80,
+        .light_sleep_enable = false,
+    };
+    esp_err_t err = esp_pm_configure(&cfg);
+    if (err != ESP_OK)
+    {
+        ESP_LOGW(TAG, "Smart CPU profile (DFS 80-160MHz) failed: %s", esp_err_to_name(err));
+        return;
+    }
+    ESP_LOGI(TAG, "Smart CPU profile: DFS %u-%uMHz (auto light-sleep off)",
+             (unsigned)cfg.min_freq_mhz, (unsigned)cfg.max_freq_mhz);
+}
+
 /* ════════════════════════════════════════════════════════════════
  *  ESP-IDF 入口
  * ════════════════════════════════════════════════════════════════ */
@@ -1308,6 +1391,10 @@ void app_main(void)
             s_poweroff_pending      = false;
             s_poweroff_hold_wakeups = 0;
             s_poweroff_wakes        = 0;
+            /* 一并清除定时模式残留:否则本次"非定时器复位"后 timed=1/
+             * wake_secs 保持,下次触摸关机或 L2 待机将错误地"睡满自动开机" */
+            s_poweroff_timed        = false;
+            s_poweroff_wake_secs    = 0;
             gpio_deep_sleep_hold_dis();
             gpio_hold_dis(BOARD_GC9A01_BL_PIN);
             /* L2 待机复用关机骨架(s_poweroff_pending 也会置位),这里一并
@@ -1432,6 +1519,11 @@ void app_main(void)
     if (s_standby_boot_restore) {
         eos_boot_anim_skip_request();
     }
+
+    /* 7.9 智能模式默认 CPU profile:DFS 80-160MHz。必须早于 eos_init()
+     * (见 board_smart_cpu_profile_apply 注释:省电/性能服务在 init 时快照
+     * "当前 PM 配置",退出时回落到它 —— 即回落回 DFS 智能档而非固定 160)。 */
+    board_smart_cpu_profile_apply();
 
     /* 8. ElenixOS Core 初始化(持 LVGL 递归锁,避免与 ui_task 并发竞态) */
     lv_lock();

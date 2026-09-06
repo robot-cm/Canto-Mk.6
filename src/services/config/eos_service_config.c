@@ -237,7 +237,9 @@ void eos_service_config_init()
                       (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM),
                       (unsigned)heap_caps_get_free_size(MALLOC_CAP_DMA),
                       (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
-            EOS_ASSERT(0);
+            /* SD/SPIFFS 是不可信/可故障存储:写失败绝不能 panic(Core 稳定性)。
+             * 降级为内存默认配置继续启动,后续各 get_* 返回默认值。 */
+            EOS_LOG_W("Config file unavailable - continuing with in-memory defaults");
         }
     }
     else
@@ -249,7 +251,7 @@ void eos_service_config_init()
             if (_create_default_cfg_json(EOS_CONFIG_FILE_PATH) != EOS_OK)
             {
                 EOS_LOG_E("Create default config json failed");
-                EOS_ASSERT(0);
+                EOS_LOG_W("Config file invalid & recreate failed - using in-memory defaults");
             }
         }
         else

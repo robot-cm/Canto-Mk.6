@@ -376,6 +376,19 @@ static void _touch_obj_released_cb(lv_event_t *e)
 
                 target = sw->base - abs(move_delta);
             }
+            else if (sw->reversed)
+            {
+                /* Open panel (geometry was mirrored by eos_slide_widget_reverse():
+                 * base is now the open position, target the closed one). A swipe
+                 * further along the open direction - e.g. Control Center slides
+                 * in from the left edge, so a right-swipe on the open panel must
+                 * close it again. Without this branch the panel is stuck open
+                 * (revert goes back to the open position). */
+                transit_state = EOS_SLIDE_WIDGET_STATE_THRESHOLD;
+                settle_state = EOS_SLIDE_WIDGET_STATE_IDLE;
+                EOS_LOG_I("Reverse swipe on open panel: close it");
+                target = sw->target;
+            }
             else
             {
                 transit_state = EOS_SLIDE_WIDGET_STATE_REVERTING;

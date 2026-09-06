@@ -140,7 +140,7 @@ static const eos_shell_cmd_t s_cmds[] =
     {"plugin",  "plugin <scan [--force] | list>",          cmd_plugin},
     {"ime",     "ime <pinyin>  (pinyin -> Chinese)",       cmd_ime},
     {"launcher","launcher mode <v1|v2>  (switch launcher impl)", cmd_launcher},
-    {"power",   "power <status|deep-sleep [sec]|wake>  (PM control)", cmd_power},
+    {"power",   "power <status|deep-sleep [sec]|standby|wake>  (PM control)", cmd_power},
     {"wos",     "wos <list|open <id>|close|status|notify>  (WOS UI framework)", cmd_wos},
     {"prof",    "prof - show resource utilization (SRAM/PSRAM/DMA/CPU)", cmd_prof},
 };
@@ -595,6 +595,19 @@ static void cmd_power(eos_shell_output_cb_t out, void *user, int argc, char **ar
             sec = (uint32_t)atoi(argv[2]);
         sh_out(out, user, "[power] deep-sleep requested (auto-wake=%u s)", (unsigned)sec);
         eos_pm_deep_sleep_request(sec);
+    }
+    else if (strcmp(argv[1], "standby") == 0)
+    {
+        sh_out(out, user,
+               "[power] entering L2 standby deep sleep (minimal clock + 5-tap to boot)");
+#ifdef EOS_PLATFORM_ESP32
+        extern void eos_board_enter_standby_deep_sleep(void);
+        eos_board_enter_standby_deep_sleep();
+        sh_out(out, user, "[power] (unexpected) returned from deep sleep");
+#else
+        sh_out(out, user,
+               "[power] standby deep sleep only supported on ESP32 target");
+#endif
     }
     else if (strcmp(argv[1], "wake") == 0)
     {

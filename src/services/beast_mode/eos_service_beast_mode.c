@@ -5,10 +5,16 @@
  * 启用:
  *   1. 状态持久化(config key "beast_mode",重启后仍保持)
  *   2. 锁定 CPU 最高主频 240MHz(禁用 DFS 降频),性能最激进
- *   3. 广播 EOS_EVENT_BEAST_MODE_CHANGED(状态变化事件)
+ *   3. 收紧 LVGL 刷新周期(默认 20ms → 10ms,动画/手势更跟手)
+ *   4. 广播 EOS_EVENT_BEAST_MODE_CHANGED(状态变化事件)
  * 禁用:
- *   1. 恢复系统默认调频配置(智能模式:合理 CPU 使用、平衡性能与省电)
+ *   1. 恢复系统默认调频配置(DFS 80-160MHz,智能模式)
+ *   2. 恢复 LVGL 默认刷新周期(20ms)
  *
+ * 边界:性能模式【只】动 CPU 频率与 LVGL 刷新周期——
+ *   - 不改屏幕亮度(与智能模式一致,沿用用户/省电退出恢复值)
+ *   - 不改熄屏/深睡规则(熄屏超时 10s / L2 15min 与智能模式完全相同,
+ *     beast 服务不触碰 PM sleep timer / L1 / L2 时序)
  * 与省电模式互斥:
  *   - eos_beast_mode_enter() 会先退出省电模式
  *   - eos_power_save_enter() 会先退出性能模式
@@ -23,6 +29,7 @@
 #include "eos_event.h"
 #include "eos_service_config.h"
 #include "eos_service_power_save.h"
+#include "eos_service_display.h" /* eos_display_refresh_period_set:刷新周期 0=复位默认 */
 #include "eos_port.h"
 
 #if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
@@ -35,6 +42,7 @@
 
 #define _BEAST_MODE_CONFIG_KEY "beast_mode"
 #define _BEAST_MODE_CPU_MHZ    240   /* ESP32-S3 最高主频 */
+#define _BEAST_MODE_REFR_PERIOD_MS 10 /* LVGL 刷新周期:默认 20ms → 10ms(50→100FPS 上限) */
 
 /* Variables --------------------------------------------------*/
 
@@ -95,6 +103,15 @@ static void _power_profile_apply(bool enabled)
 #endif
 }
 
+/* 性能模式:收紧 LVGL 刷新周期(20→10ms),动画/手势更跟手。
+ * 边界:与省电模式互斥(激活状态不可能共存);只调刷新周期,
+ * 不改亮度/熄屏/深睡(那些只由省电模式收窄)。模拟器同样生效
+ * (display 服务跨平台,刷新周期走 LVGL refr timer)。 */
+static void _refresh_period_apply(bool enabled)
+{
+    eos_display_refresh_period_set(enabled ? _BEAST_MODE_REFR_PERIOD_MS : 0);
+}
+
 eos_result_t eos_service_beast_mode_init(void)
 {
     _beast_mode_event_id = eos_event_register_id();
@@ -111,6 +128,7 @@ eos_result_t eos_service_beast_mode_init(void)
     if (_active)
     {
         _power_profile_apply(true);
+        _refresh_period_apply(true);
     }
     EOS_LOG_I("Beast mode init: %s", _active ? "ACTIVE" : "inactive");
     return EOS_OK;
@@ -133,12 +151,14 @@ eos_result_t eos_beast_mode_enter(void)
     _active = true;
     eos_config_set_bool(_BEAST_MODE_CONFIG_KEY, true);
     _power_profile_apply(true);
+    _refresh_period_apply(true);
 
     if (_beast_mode_event_id != EOS_EVENT_LAST)
     {
         eos_event_post(_beast_mode_event_id, NULL, NULL);
     }
-    EOS_LOG_I("Beast mode ENTERED (CPU locked %dMHz)", _BEAST_MODE_CPU_MHZ);
+    EOS_LOG_I("Beast mode ENTERED (CPU locked %dMHz, LVGL refresh %dms)",
+              _BEAST_MODE_CPU_MHZ, _BEAST_MODE_REFR_PERIOD_MS);
     return EOS_OK;
 }
 
@@ -151,11 +171,12 @@ eos_result_t eos_beast_mode_exit(void)
     _active = false;
     eos_config_set_bool(_BEAST_MODE_CONFIG_KEY, false);
     _power_profile_apply(false);
+    _refresh_period_apply(false);
 
     if (_beast_mode_event_id != EOS_EVENT_LAST)
     {
         eos_event_post(_beast_mode_event_id, NULL, NULL);
     }
-    EOS_LOG_I("Beast mode EXITED (back to smart mode)");
+    EOS_LOG_I("Beast mode EXITED (back to smart mode, LVGL refresh back to default)");
     return EOS_OK;
 }

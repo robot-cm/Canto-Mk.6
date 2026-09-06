@@ -22,6 +22,11 @@ extern "C" {
 
 /* Public macros ----------------------------------------------*/
 
+/* 省电模式的熄屏/L2/刷新策略(公共:PM 服务与显示策略据此对齐) */
+#define EOS_POWER_SAVE_SLEEP_TIMEOUT_SEC 5       /* 无触摸 5s 即熄屏进入 Light Sleep */
+#define EOS_POWER_SAVE_L2_IDLE_MS        600000  /* 熄屏累计无触摸 10min → L2 自动待机 Deep Sleep */
+#define EOS_POWER_SAVE_REFR_PERIOD_MS    100     /* LVGL 刷新周期上限(≈10 FPS,限制持续动画刷新) */
+
 /* Public typedefs --------------------------------------------*/
 
 /* Public function prototypes --------------------------------*/

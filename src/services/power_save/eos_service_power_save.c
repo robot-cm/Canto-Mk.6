@@ -4,16 +4,19 @@
  *
  * 启用:
  *   1. 状态持久化(config key "power_save",重启后仍保持省电)
- *   2. 低亮度 (eos_display_set_brightness 20%)
+ *   2. 最低亮度 (5%,0=熄灭不可读)
  *   3. DFS(80-160MHz) + 自动 Light-sleep（保持触摸唤醒与运行上下文）
- *   4. 返回主界面 (eos_activity_back_to_watchface)
- *   5. 广播 EOS_EVENT_POWER_SAVE_CHANGED,watchface 据此显示/隐藏退出按钮
+ *   4. 熄屏/待机收紧:无触摸 5s 熄屏 Light Sleep;熄屏累计 10min → L2 自动
+ *      待机 Deep Sleep(运行时覆盖,退出恢复;不写持久 config)
+ *   5. 限制屏幕刷新率(LVGL 刷新周期 20→100ms,退出恢复)
+ *   6. 返回主界面 (eos_activity_back_to_watchface)
+ *   7. 广播 EOS_EVENT_POWER_SAVE_CHANGED
  * 禁用:
- *   1. 恢复亮度/频率
+ *   1. 恢复亮度/频率/熄屏超时/L2 阈值/刷新周期
  *   2. 广播事件
  *
- * 页面锁定: eos_activity_enter() 与 watchface 手势回调均检查
- *   eos_power_save_is_active(),确保只能停留在主界面。
+ * 页面锁定: watchface 手势回调均检查 eos_power_save_is_active(),
+ *   只保留右滑打开 Control Center(可在其中关闭省电开关)。
  */
 
 #include "eos_service_power_save.h"
@@ -24,6 +27,7 @@
 #include "eos_event.h"
 #include "eos_service_config.h"
 #include "eos_service_display.h"
+#include "eos_service_pm.h"
 #include "eos_activity.h"
 #include "eos_net_wifi.h"
 #include "eos_net_bt.h"
@@ -33,16 +37,26 @@
 #if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
 /* ESP-IDF v5.3:esp_cpu.h 无运行时调频 API(esp_cpu_update_freq 为 v5.4+),
  * 动态调频统一走 esp_pm_configure(需 CONFIG_PM_ENABLE=y,sdkconfig.defaults 已开) */
+#include "sdkconfig.h"
 #include "esp_pm.h"
+#endif
+
+#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+/* L2 自动待机阈值查询/设置接口:定义于 port/esp32s3/main/main.c(板级) */
+extern void     eos_pm_set_l2_idle_ms(uint32_t idle_ms);
+extern uint32_t eos_pm_get_l2_idle_ms(void);
 #endif
 
 /* Macros and Definitions -------------------------------------*/
 
 #define _POWER_SAVE_CONFIG_KEY  "power_save"
-#define _POWER_SAVE_BRIGHTNESS  20     /* 省电低亮度 20% */
+#define _POWER_SAVE_BRIGHTNESS  5      /* 省电最低亮度 5%(0=背光熄灭不可读,5% 夜间可辨识) */
 #define _BRIGHTNESS_TRANS_MS    300
 #define _POWER_SAVE_CPU_MIN_MHZ 80
 #define _POWER_SAVE_CPU_MAX_MHZ 160
+
+/* 熄屏超时(5s)/L2 待机阈值(10min)/刷新周期(100ms)策略宏来自
+ * eos_service_power_save.h(与 PM 服务初始对齐共用同一来源) */
 
 /* Variables --------------------------------------------------*/
 
@@ -56,6 +70,41 @@ static bool _bt_was_enabled = false;
 static esp_pm_config_t _pm_normal_config;
 static bool _pm_normal_config_valid = false;
 #endif
+
+/* 进入省电前的运行参数记录(退出恢复) */
+static uint32_t _prev_l2_idle_ms = 0; /* L2 自动待机阈值(ms) */
+
+/* 熄屏/L2/刷新收紧开关(启用见文件头注释):
+ * 无触摸 5s 熄屏 Light Sleep(运行时覆盖,不写持久 config);
+ * 熄屏累计 10min → L2 自动待机 Deep Sleep;刷新周期压到 ~10FPS。
+ * 退出时恢复到进入前记录值(sleep 超时以最新持久 config 为准)。 */
+static void _idle_policy_apply(bool enabled)
+{
+    if (enabled)
+    {
+        eos_pm_set_sleep_timeout(EOS_POWER_SAVE_SLEEP_TIMEOUT_SEC);
+#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+        _prev_l2_idle_ms = eos_pm_get_l2_idle_ms();
+        if (_prev_l2_idle_ms != 0)
+            eos_pm_set_l2_idle_ms(EOS_POWER_SAVE_L2_IDLE_MS);
+#endif
+        /* 限制 LVGL 刷新率(~10 FPS),退出时复位默认周期 */
+        eos_display_refresh_period_set(EOS_POWER_SAVE_REFR_PERIOD_MS);
+    }
+    else
+    {
+        eos_pm_set_sleep_timeout(
+            (uint32_t)eos_config_get_number(EOS_CONFIG_KEY_SLEEP_TIMEOUT_SEC_NUMBER, 10));
+#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+        if (_prev_l2_idle_ms != 0)
+        {
+            eos_pm_set_l2_idle_ms(_prev_l2_idle_ms);
+            _prev_l2_idle_ms = 0;
+        }
+#endif
+        eos_display_refresh_period_set(0); /* 复位系统默认刷新周期 */
+    }
+}
 
 static void _radios_power_down(void)
 {
@@ -88,6 +137,16 @@ static void _power_profile_apply(bool enabled)
         {
             EOS_LOG_W("PM configuration read failed: %d", (int)get_err);
             return;
+        }
+        /* 未做过 esp_pm_configure 时读到的是空配置(0),直接用它恢复会失败:
+         * 回落为 sdkconfig 的 CPU 默认频率,保证退出省电一定能恢复常态。 */
+        if (_pm_normal_config.max_freq_mhz == 0)
+        {
+            _pm_normal_config.max_freq_mhz = CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ;
+        }
+        if (_pm_normal_config.min_freq_mhz == 0)
+        {
+            _pm_normal_config.min_freq_mhz = CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ;
         }
         _pm_normal_config_valid = true;
     }
@@ -133,6 +192,9 @@ eos_result_t eos_service_power_save_init(void)
         _bt_was_enabled = eos_net_bt_is_enabled();
         _radios_power_down();
         _power_profile_apply(true);
+        /* 收紧 L2/刷新周期并记录恢复值;熄屏 5s 超时此处设置会因 PM 服务
+         * (晚于本服务 init)的 t 尚未创建而落空,已在 PM init 按其激活态对齐 */
+        _idle_policy_apply(true);
     }
     EOS_LOG_I("Power save init: %s", _active ? "ACTIVE" : "inactive");
     return EOS_OK;
@@ -163,6 +225,8 @@ eos_result_t eos_power_save_enter(void)
 
     eos_display_set_brightness(_POWER_SAVE_BRIGHTNESS, _BRIGHTNESS_TRANS_MS, true);
     _power_profile_apply(true);
+    /* 熄屏/L2/刷新收紧:5s 熄屏 + 10min 自动待机 + ~10FPS 刷新上限 */
+    _idle_policy_apply(true);
 
     /* 回到主界面(省电模式下只能停留在此) */
     eos_activity_back_to_watchface();
@@ -186,6 +250,8 @@ eos_result_t eos_power_save_exit(void)
 
     eos_display_restore(EOS_DISPLAY_DURATION_MEDIUM);
     _power_profile_apply(false);
+    /* 恢复熄屏超时(读最新持久 config)/L2 阈值/刷新周期 */
+    _idle_policy_apply(false);
 
     /* 恢复省电前的无线状态 */
     eos_net_wifi_set_enabled(_wifi_was_enabled);

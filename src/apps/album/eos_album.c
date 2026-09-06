@@ -1275,7 +1275,10 @@ static void _fm_rebuild(void)
         }
 
         lv_obj_t *lbl = lv_label_create(row);
-        eos_label_set_font_size(lbl, EOS_FONT_SIZE_TINY);
+        /* 文件名可能含中文:必须用 13px 档(jbm_13 → fallback han_sans_13,
+         * 3850 字全字库)。10px 档(jbm_10 → han_sans_10)下汉字点阵被压成
+         * 一团横线,看起来就是"下划线"。 */
+        eos_label_set_font_size(lbl, EOS_FONT_SIZE_MICRO);
         lv_obj_set_style_text_color(lbl, node->is_dir ? lv_color_hex(_UI_ACCENT)
                                                       : lv_color_hex(_UI_TEXT), 0);
         lv_obj_set_style_text_opa(lbl, LV_OPA_COVER, 0);
