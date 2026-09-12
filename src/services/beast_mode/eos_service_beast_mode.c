@@ -30,6 +30,7 @@
 #include "eos_service_config.h"
 #include "eos_service_power_save.h"
 #include "eos_service_display.h" /* eos_display_refresh_period_set:刷新周期 0=复位默认 */
+#include "eos_service_cc_snapshot.h"
 #include "eos_port.h"
 
 #if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
@@ -153,6 +154,10 @@ eos_result_t eos_beast_mode_enter(void)
     _power_profile_apply(true);
     _refresh_period_apply(true);
 
+    /* 快照电源模式到 SD(/sdcard/history/cc)。无真 SD 卡时空操作,
+     * 仍以 cfg.json 的 "beast_mode" 为准(见 eos_service_cc_snapshot.h)。 */
+    eos_cc_snapshot_store_power(EOS_CC_POWER_BEAST);
+
     if (_beast_mode_event_id != EOS_EVENT_LAST)
     {
         eos_event_post(_beast_mode_event_id, NULL, NULL);
@@ -172,6 +177,9 @@ eos_result_t eos_beast_mode_exit(void)
     eos_config_set_bool(_BEAST_MODE_CONFIG_KEY, false);
     _power_profile_apply(false);
     _refresh_period_apply(false);
+
+    /* 退出性能模式:回到智能档,同步刷新快照 */
+    eos_cc_snapshot_store_power(EOS_CC_POWER_SMART);
 
     if (_beast_mode_event_id != EOS_EVENT_LAST)
     {

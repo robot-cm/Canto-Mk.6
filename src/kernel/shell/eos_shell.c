@@ -38,6 +38,7 @@
 #include "services/ime/eos_pinyin.h"
 #include "framework/watchface/eos_watchface.h"
 #include "eos_service_display.h"
+#include "eos_service_cc_snapshot.h" /* cc:控制中心设置快照诊断 */
 #include "lvgl.h"
 #ifdef EOS_PLATFORM_ESP32
 #include "esp_spiffs.h"    /* cmd_sd: SPIFFS 兜底时的容量统计 */
@@ -87,6 +88,7 @@ static void cmd_launcher(eos_shell_output_cb_t out, void *user, int argc, char *
 static void cmd_power(eos_shell_output_cb_t out, void *user, int argc, char **argv);
 static void cmd_wos(eos_shell_output_cb_t out, void *user, int argc, char **argv);
 static void cmd_prof(eos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_cc(eos_shell_output_cb_t out, void *user, int argc, char **argv);
 
 static void shell_log_cb(const char *line, void *user);
 
@@ -143,6 +145,7 @@ static const eos_shell_cmd_t s_cmds[] =
     {"power",   "power <status|deep-sleep [sec]|standby|wake>  (PM control)", cmd_power},
     {"wos",     "wos <list|open <id>|close|status|notify>  (WOS UI framework)", cmd_wos},
     {"prof",    "prof - show resource utilization (SRAM/PSRAM/DMA/CPU)", cmd_prof},
+    {"cc",      "cc <show|save|load>  (/sdcard/history/cc settings snapshot)", cmd_cc},
 };
 
 static void cmd_launcher(eos_shell_output_cb_t out, void *user, int argc, char **argv)
@@ -208,6 +211,41 @@ static void cmd_psram(eos_shell_output_cb_t out, void *user, int argc, char **ar
     sh_out(out, user, "[psram] N/A on simulator (PSRAM is an ESP32-S3 resource)");
     sh_out(out, user, "  On real hardware PSRAM holds LVGL buffers, image/animation caches,");
     sh_out(out, user, "  page data and plugin runtime objects.");
+}
+
+/* cc - control-center settings snapshot on the SD card
+ * (/sdcard/history/cc/settings.txt: brightness / bt / wifi / power mode).
+ * Useful to verify what deep sleep will restore, and to force a save/load. */
+static void cmd_cc(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+{
+    const char *sub = (argc > 1 && argv[1]) ? argv[1] : "show";
+
+    if (strcmp(sub, "show") == 0)
+    {
+        char buf[320];
+        eos_cc_snapshot_dump(buf, sizeof(buf));
+        /* dump() is multi-line: emit it line by line through the shell sink */
+        char *save = NULL;
+        for (char *line = strtok_r(buf, "\n", &save); line;
+             line = strtok_r(NULL, "\n", &save))
+        {
+            sh_out(out, user, "%s", line);
+        }
+        return;
+    }
+    if (strcmp(sub, "save") == 0)
+    {
+        eos_result_t r = eos_cc_snapshot_capture_now();
+        sh_out(out, user, "cc snapshot save: %s", r == EOS_OK ? "ok" : "failed");
+        return;
+    }
+    if (strcmp(sub, "load") == 0)
+    {
+        eos_result_t r = eos_cc_snapshot_restore_now();
+        sh_out(out, user, "cc snapshot load: %s", r == EOS_OK ? "ok" : "no snapshot");
+        return;
+    }
+    sh_out(out, user, "usage: cc <show|save|load>");
 }
 
 /* prof - simple performance monitor: SRAM / PSRAM / DMA utilization and

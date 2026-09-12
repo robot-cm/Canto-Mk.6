@@ -35,6 +35,9 @@
 #include "eos_overlay_layer.h"
 #include "eos_activity.h"
 #include "eos_shell_framework.h"
+/* SD 快照(/sdcard/history/cc/settings.txt):四项开关状态的跨深睡/跨卡持久化。
+ * 无真 SD 卡时本服务完全透明(空操作),仍走 cfg.json 原路径。 */
+#include "eos_service_cc_snapshot.h"
 
 /* 彩色图标(由 resources/images/icon 下的 webp 转换的 ARGB8888 静态图) */
 extern const lv_image_dsc_t eos_icon_bluetooth;
@@ -380,6 +383,7 @@ static void _control_center_bluetooth_switch_btn_cb(lv_event_t *e)
         EOS_LOG_D("CHECKED");
         eos_bluetooth_enable();
         eos_config_set_bool(EOS_CONFIG_KEY_BLUETOOTH_BOOL, true);
+        eos_cc_snapshot_store_bt(true);
         /* 优先连接记忆中最频繁连接的可见设备 */
         eos_net_bt_connect_from_history();
     }
@@ -388,6 +392,7 @@ static void _control_center_bluetooth_switch_btn_cb(lv_event_t *e)
         EOS_LOG_D("UNCHECKED");
         eos_bluetooth_disable();
         eos_config_set_bool(EOS_CONFIG_KEY_BLUETOOTH_BOOL, false);
+        eos_cc_snapshot_store_bt(false);
     }
 }
 
@@ -416,12 +421,16 @@ static void _control_center_brightness_slider_released_cb(lv_event_t *e)
     /* 松手即持久化:不依赖 slider 被删除(用户可能拖完直接下拉关 CC,
      * 遮罩页由 overlay_hide 清理时才触发 DELETE,那会丢配置)。 */
     eos_config_set_number(EOS_CONFIG_KEY_DISPLAY_BRIGHTNESS_NUMBER, lv_slider_get_value(slider));
+    if (eos_cc_snapshot_storage_available())
+        eos_cc_snapshot_store_brightness((uint8_t)lv_slider_get_value(slider));
 }
 
 static void _control_center_brightness_slider_delete_cb(lv_event_t *e)
 {
     lv_obj_t *slider = lv_event_get_target(e);
     eos_config_set_number(EOS_CONFIG_KEY_DISPLAY_BRIGHTNESS_NUMBER, lv_slider_get_value(slider));
+    if (eos_cc_snapshot_storage_available())
+        eos_cc_snapshot_store_brightness((uint8_t)lv_slider_get_value(slider));
     _brightness_slider_page = NULL;
 }
 
@@ -466,6 +475,7 @@ static void _wifi_switch_rollback_cb(lv_timer_t *t)
         {
             EOS_LOG_W("WiFi enable failed (async), switch rolled back");
             eos_net_wifi_set_enabled(false);
+            eos_cc_snapshot_store_wifi(false);
             lv_obj_clear_state(ctx->btn, LV_STATE_CHECKED);
         }
         lv_timer_del(t);
@@ -487,6 +497,7 @@ static void _control_center_wifi_switch_btn_cb(lv_event_t *e)
     {
         EOS_LOG_I("WiFi switch ON");
         eos_net_wifi_set_enabled(true);
+        eos_cc_snapshot_store_wifi(true);
         /* 异步执行"扫描+连接记忆 AP"(后台 worker task),立即返回,不阻塞 UI */
         eos_net_wifi_connect_from_history();
         /* 异步结果轮询:radio 起不来则回滚开关(避免"界面已开、实际没开") */
@@ -503,6 +514,7 @@ static void _control_center_wifi_switch_btn_cb(lv_event_t *e)
     {
         EOS_LOG_I("WiFi switch OFF");
         eos_net_wifi_set_enabled(false);
+        eos_cc_snapshot_store_wifi(false);
     }
 }
 
@@ -521,6 +533,7 @@ static void _control_center_power_save_btn_cb(lv_event_t *e)
             lv_obj_clear_state(control_center_instance->beast_mode_btn, LV_STATE_CHECKED);
         }
         eos_power_save_enter();
+        eos_cc_snapshot_store_power(EOS_CC_POWER_SAVE);
         /* 省电模式只能停留在主界面:收起控制中心 */
         eos_control_center_hide();
     }
@@ -528,6 +541,7 @@ static void _control_center_power_save_btn_cb(lv_event_t *e)
     {
         EOS_LOG_I("Power save switch OFF");
         eos_power_save_exit();
+        eos_cc_snapshot_store_power(EOS_CC_POWER_SMART);
     }
 }
 
@@ -546,11 +560,13 @@ static void _control_center_beast_mode_btn_cb(lv_event_t *e)
             lv_obj_clear_state(control_center_instance->power_save_btn, LV_STATE_CHECKED);
         }
         eos_beast_mode_enter();
+        eos_cc_snapshot_store_power(EOS_CC_POWER_BEAST);
     }
     else
     {
         EOS_LOG_I("Beast mode switch OFF");
         eos_beast_mode_exit();
+        eos_cc_snapshot_store_power(EOS_CC_POWER_SMART);
     }
 }
 

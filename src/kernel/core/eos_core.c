@@ -26,6 +26,7 @@
 #include "eos_swipe_panel.h"
 #include "eos_service_display.h"
 #include "eos_service_config.h"
+#include "eos_service_cc_snapshot.h"
 #include "eos_service_lock.h"
 #include "services/alarm/eos_service_alarm.h"
 #include "services/countdown/eos_service_countdown.h"
@@ -264,6 +265,11 @@ void eos_init(void)
               (unsigned)heap_caps_get_free_size(MALLOC_CAP_DMA),
               (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
     eos_service_config_init();
+    /* 控制中心四项设置的 SD 快照(/sdcard/history/cc/settings.txt)。
+     * 必须晚于 storage/config(读 cfg.json 需要),早于 power_save/beast_mode
+     * 服务(它们进入模式时会往快照里写电源模式)。无真 SD 卡时本服务完全
+     * 透明,所有读写都退化为空操作,仍以 cfg.json 为准。 */
+    eos_cc_snapshot_init();
     eos_service_state_init();
     eos_service_permission_init();
     /* RTC 校对(须在 config 之后:依赖 Flash 备份;在 UI/App 之前:时间须先就绪) */

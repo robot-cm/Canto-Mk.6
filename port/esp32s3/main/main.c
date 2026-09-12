@@ -75,6 +75,7 @@
 #include "eos_shell.h"
 #include "eos_shell_framework.h"
 #include "eos_service_config.h" /* eos_config_get_bool / EOS_CONFIG_KEY_DEV_MODE_BOOL */
+#include "eos_service_cc_snapshot.h" /* /sdcard/history/cc 四项设置快照 */
 #include "eos_service_pm.h"     /* eos_pm_get_state():L1 Light Sleep / L2 待机判定 */
 #include "framework/activity/eos_activity.h" /* L2 待机前快照当前 UI(恢复用) */
 #include "framework/app/eos_app_list.h"     /* eos_app_list_get_last_launch_app_id */
@@ -522,19 +523,22 @@ static esp_err_t board_sd_get_dma_info(int slot, esp_dma_mem_info_t *dma_mem_inf
 
 /* ── USB MSC App 支持(全部为新增,用 CONFIG_USB_MSC_APP_ENABLE 包裹) ──
  * 只新增静态状态与 5 个查询/控制函数,不修改任何已有挂载/电源逻辑的分支行为。 */
+/* 真 SD(非 SPIFFS 回退)—— 不依赖 USB MSC 配置:控制中心设置快照
+ * (/sdcard/history/cc)需要在两种构建下都能判断"是否真卡"。 */
+static bool s_sd_is_real = false;
+
+bool board_sd_is_real(void)
+{
+    return s_sd_is_real;
+}
+
 #if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
 static sdmmc_host_t               s_sd_host;        /* 挂载后含 SPI 设备句柄 */
 static sdspi_device_config_t      s_sd_slot_cfg;
 static esp_vfs_fat_mount_config_t s_sd_mount_cfg;
 static sdmmc_card_t              *s_sd_card       = NULL;
-static bool                       s_sd_is_real    = false; /* 真 SD(非 SPIFFS 回退) */
 static bool                       s_sd_vfs_mounted = false;
 static bool                       s_usb_msc_hold   = false; /* MSC 会话电源保持 */
-
-bool board_sd_is_real(void)
-{
-    return s_sd_is_real && (s_sd_card != NULL);
-}
 
 sdmmc_card_t *board_sd_get_card(void)
 {
@@ -650,13 +654,15 @@ static esp_err_t board_sd_mount(void)
     ESP_LOGI(TAG, "SD card mounted: /sdcard");
     sdmmc_card_print_info(stdout, card);
 
+    /* 真卡标志(控制中心设置快照的落盘前提,与 USB MSC 是否编译无关) */
+    s_sd_is_real = true;
+
 #if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
     /* 记录 SD 状态供 USB MSC App 使用(host 此时已写入 SPI 设备句柄) */
     s_sd_host         = host;
     s_sd_slot_cfg     = slot_config;
     s_sd_mount_cfg    = mount_config;
     s_sd_card         = card;
-    s_sd_is_real      = true;
     s_sd_vfs_mounted  = true;
 #endif
 
@@ -804,6 +810,32 @@ static esp_err_t board_fs_mount(void)
 #define BOARD_CLOCK_TAPS_TO_BOOT    5                 /* 极简时钟内连续 5 击 → 真正唤醒主系统 */
 #define BOARD_CLOCK_TEXT_LEN        16
 
+/* 极简时钟(240x240 圆屏)三行居中排版:时间 / 日期 / 星期英文缩写。
+ * 行盒高度直接取 Montserrat 字体的 line_height(montserrat_40 = 44px,
+ * montserrat_28 = 30px,见 third_party/lvgl/src/font/lv_font_montserrat_40.c
+ * 与 lv_font_montserrat_28.c 的 line_height 字段),数字与大写字母
+ * 的墨迹在行盒内上下留白基本对称(font40: 上 7 下 8;font28: 上 5 下 5),
+ * 所以按行盒排布即为光学居中:
+ *
+ *   行 1 时间 44px   60 .. 104   (font 40, "HH:MM")
+ *       间隔 8px
+ *   行 2 日期 30px  112 .. 142   (font 28, "MM/DD")
+ *       间隔 8px
+ *   行 3 星期 30px  150 .. 180   (font 28, "WED")
+ *
+ * 合计 44+8+30+8+30 = 120px,(240-120)/2 = 60 → 整块重心正好落在圆心
+ * (120,120),上下留白均为 60px。
+ *
+ * 圆屏越界校验(半径 120,圆心 (120,120);半弦 = sqrt(120^2 - dy^2)):
+ *   行 1 最远 dy = 60 → 半弦 104px,最宽 "44:44" = 116px(半宽 58)   ✔
+ *   行 2 最远 dy = 22 → 半弦 118px,最宽 "44/44" =  85px(半宽 43)   ✔
+ *   行 3 最远 dy = 60 → 半弦 104px,最宽 "WED"   =  74px(半宽 37)   ✔
+ * 三行余量都在 45px 以上,字号维持现状即可,不会压出圆形可视区。
+ * 标签用 LV_ALIGN_TOP_MID 定位 → 这里给的是"行盒顶边"的 y。 */
+#define BOARD_CLOCK_TIME_Y          60
+#define BOARD_CLOCK_DATE_Y          112
+#define BOARD_CLOCK_WEEK_Y          150
+
 /* 待机(L2)跨深睡状态:与手动关机(s_poweroff_*)互斥 */
 RTC_DATA_ATTR static bool    s_standby_pending       = false; /* true=待机唤醒后先进极简时钟,5 击才进主系统 */
 RTC_DATA_ATTR static uint8_t s_standby_hold_wakeups  = 0;     /* 待机长按唤醒计数 */
@@ -911,6 +943,11 @@ static void board_poweroff_enter_deep_sleep(void)
     s_poweroff_pending      = true;
     s_poweroff_hold_wakeups = 0;
     s_poweroff_wakes        = 0;
+
+    /* 深睡前把控制中心四项设置(亮度/蓝牙/WiFi/电源模式)固化到 SD:
+     * 深睡/关机是"整机断电"语义,延迟写(deferred writer)可能还没落卡。
+     * 无真 SD 卡时空操作(回退 cfg.json),绝不阻塞关机流程。 */
+    eos_cc_snapshot_capture_now();
 
     /* 背光保持低(防深睡浮空反亮) */
     board_backlight_low_hold();
@@ -1116,6 +1153,9 @@ static void board_standby_enter_deep_sleep(void)
     ESP_LOGI(TAG, "Standby: restore target '%s' (also at /sdcard/history/deepsleep/latest_ui.txt)",
              s_standby_restore_ui);
 
+    /* L2 待机同样是深睡:先把四项设置固化到 SD(无卡则空操作) */
+    eos_cc_snapshot_capture_now();
+
     s_standby_pending      = true;  /* 唤醒后:长按 → 极简时钟,5 击才进主系统 */
     s_standby_boot_restore = false; /* 5 击在 gate 内部再置位 */
     s_standby_hold_wakeups = 0;
@@ -1161,30 +1201,34 @@ static void board_standby_clock_gate(void)
     lv_obj_set_style_bg_color(scr, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
 
+    /* 三行:时间 / 日期 / 星期,统一 240 宽 + 居中文本 → 水平居中;
+     * y 由 BOARD_CLOCK_*_Y 给出(见上面排版校验),整块垂直居中。 */
     lv_obj_t *time_lb = lv_label_create(scr);
     lv_obj_set_style_text_font(time_lb, &lv_font_montserrat_40, 0);
     lv_obj_set_style_text_color(time_lb, lv_color_white(), 0);
     lv_obj_set_width(time_lb, BOARD_GC9A01_WIDTH);
     lv_obj_set_style_text_align(time_lb, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(time_lb, LV_ALIGN_TOP_MID, 0, 84);
+    lv_obj_align(time_lb, LV_ALIGN_TOP_MID, 0, BOARD_CLOCK_TIME_Y);
 
     lv_obj_t *date_lb = lv_label_create(scr);
     lv_obj_set_style_text_font(date_lb, &lv_font_montserrat_28, 0);
     lv_obj_set_style_text_color(date_lb, lv_color_white(), 0);
     lv_obj_set_width(date_lb, BOARD_GC9A01_WIDTH);
     lv_obj_set_style_text_align(date_lb, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(date_lb, LV_ALIGN_TOP_MID, 0, 156);
+    lv_obj_align(date_lb, LV_ALIGN_TOP_MID, 0, BOARD_CLOCK_DATE_Y);
 
     lv_obj_t *week_lb = lv_label_create(scr);
     lv_obj_set_style_text_font(week_lb, &lv_font_montserrat_28, 0);
     lv_obj_set_style_text_color(week_lb, lv_color_white(), 0);
     lv_obj_set_width(week_lb, BOARD_GC9A01_WIDTH);
     lv_obj_set_style_text_align(week_lb, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(week_lb, LV_ALIGN_TOP_MID, 0, 196);
+    lv_obj_align(week_lb, LV_ALIGN_TOP_MID, 0, BOARD_CLOCK_WEEK_Y);
 
+    /* 占位文本与真实内容等宽同形,首帧(读 RTC 前)也是三行居中的,
+     * 不会出现上重下空的跳变 */
     lv_label_set_text(time_lb, "--:--");
-    lv_label_set_text(date_lb, "");
-    lv_label_set_text(week_lb, "");
+    lv_label_set_text(date_lb, "--/--");
+    lv_label_set_text(week_lb, "---");
     lv_screen_load(scr);
     lv_refr_now(NULL);   /* 同步刷一帧(服务未启动,不跑 lv_timer_handler) */
 
@@ -1239,8 +1283,10 @@ static void board_standby_clock_gate(void)
                 eos_datetime_t dt = td->ops->get_datetime();
                 snprintf(time_str, sizeof(time_str), "%02u:%02u",
                          (unsigned)dt.hour, (unsigned)dt.min);
+                /* 日期用"月/日"(MM/DD):极简时钟只有三行,不留年份;
+                 * 年份对"看一眼时间"无价值,月/日信息量更大 */
                 snprintf(date_str, sizeof(date_str), "%02u/%02u",
-                         (unsigned)(dt.year % 100), (unsigned)dt.month);
+                         (unsigned)dt.month, (unsigned)dt.day);
                 lv_label_set_text(time_lb, time_str);
                 lv_label_set_text(date_lb, date_str);
                 lv_label_set_text(week_lb,
@@ -1666,6 +1712,20 @@ void app_main(void)
      * 仅此路径自动跳过;普通开机仍显示开机动画) */
     if (s_standby_boot_restore) {
         eos_boot_anim_skip_request();
+    }
+
+    /* 7.8 SD 快照恢复:把 /sdcard/history/cc/settings.txt 里的亮度/蓝牙/
+     * WiFi/电源模式覆盖回系统。必须在 eos_init() 之前:
+     *   - eos_init() -> eos_service_config_init() 会用 cfg.json 设一次亮度/蓝牙;
+     *   - Control Center widget 在 eos_init() 内创建,会读取服务状态决定开关;
+     *   - power_save/beast_mode 服务 init 时会快照"当前 PM 配置",此处先恢复
+     *     模式,快照到的才是正确基线。
+     * 无真 SD 卡或无快照文件时本函数直接返回,cfg.json 路径完全不变。
+     * 唤醒路径(deep sleep 重启)也走这里 —— 唤醒后再次应用同一份快照是幂等的。 */
+    {
+        eos_result_t snap_ret = eos_cc_snapshot_restore_now();
+        ESP_LOGI(TAG, "CC snapshot restore: %s",
+                 snap_ret == EOS_OK ? "applied" : "no snapshot / no SD (cfg.json in use)");
     }
 
     /* 7.9 智能模式默认 CPU profile:DFS 80-160MHz。必须早于 eos_init()

@@ -32,6 +32,7 @@
 #include "eos_net_wifi.h"
 #include "eos_net_bt.h"
 #include "eos_service_beast_mode.h"
+#include "eos_service_cc_snapshot.h"
 #include "eos_port.h"
 
 #if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
@@ -231,6 +232,10 @@ eos_result_t eos_power_save_enter(void)
     /* 回到主界面(省电模式下只能停留在此) */
     eos_activity_back_to_watchface();
 
+    /* 快照电源模式到 SD(/sdcard/history/cc)。无真 SD 卡时空操作,
+     * 仍以 cfg.json 的 "power_save" 为准(见 eos_service_cc_snapshot.h)。 */
+    eos_cc_snapshot_store_power(EOS_CC_POWER_SAVE);
+
     if (_power_save_event_id != EOS_EVENT_LAST)
     {
         eos_event_post(_power_save_event_id, NULL, NULL);
@@ -257,6 +262,14 @@ eos_result_t eos_power_save_exit(void)
     eos_net_wifi_set_enabled(_wifi_was_enabled);
     eos_net_bt_set_enabled(_bt_was_enabled);
     EOS_LOG_I("Power save: WiFi/BT restored to %d/%d", (int)_wifi_was_enabled, (int)_bt_was_enabled);
+
+    /* 退出省电:模式回到智能档,无线状态一并刷新到快照(两者都被本次改动影响) */
+    eos_cc_snapshot_store_power(EOS_CC_POWER_SMART);
+    if (eos_cc_snapshot_storage_available())
+    {
+        eos_cc_snapshot_store_wifi(_wifi_was_enabled);
+        eos_cc_snapshot_store_bt(_bt_was_enabled);
+    }
 
     if (_power_save_event_id != EOS_EVENT_LAST)
     {

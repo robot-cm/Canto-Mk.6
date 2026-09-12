@@ -35,17 +35,28 @@
               launcher hides dot-directories, so .thumb/.tiles never show up.
               The tile grid adapts to the ACTUAL size of every image, so any
               input dimension is handled (e.g. 2560x1440 -> 2048x1152).
+              DOUBLE-TAP ZOOM: the device draws the whole photo inside a 150px
+              box (ALBUM_IMG_MAX) and the tile mode paints pre-encoded pixels
+              one screen pixel each, so the magnification the user gets is
+              just "pre-encode long edge / 150". --zoom therefore caps that
+              long edge at --zoom * 150 px (default 4.0 -> 600px). The band
+              worth having on a 240px round panel is 3x..6x: below ~3x the
+              jump is invisible, above ~6x every pan has to re-read a lot of
+              tiles from the card, and this script refuses to go past that.
               RGB565 is ~2 B/px while JPEG inputs are ~10-20x compressed, so
-              raw tile data can exceed the input file. A SIZE BUDGET keeps
-              this in check: by default thumb + tiles stay <= 1.2x the input
-              file size, stepping the encoded resolution down (same aspect)
-              when needed; the long edge never drops below --enc-min (512px).
+              raw tile data can exceed the input file. Two INDEPENDENT limits
+              bound the same long edge, the stricter one wins:
+                - --zoom   : the double-tap magnification (upper bound),
+                - --budget : thumb + tiles <= 1.2x the input file size, which
+                             normally only pushes BELOW the zoom cap, with
+                             --enc-min (512px) as the quality floor under it.
               meta.txt always records the ACTUAL encoded size, so the device
               viewer pans/zooms correctly without any firmware change.
 
 Usage:
     python3 scripts/album_optimize.py --input <dir> --output <dir>
     python3 scripts/album_optimize.py -i <dir> -o <dir> --max-size 300 --max-dim 2048 --quality-min 55
+    python3 scripts/album_optimize.py -i <dir> -o <dir> --zoom 4.0
     python3 scripts/album_optimize.py -i <dir> -o <dir> --no-tiles --no-thumb
     python3 scripts/album_optimize.py -i <dir> -o <dir> --budget 1.2 --enc-min 512
     python3 scripts/album_optimize.py -i <dir> -o <dir> --jobs 8
@@ -88,6 +99,18 @@ TILE_DEFAULT = 256              # tile size (px)
 ENC_MIN = 512                   # floor for the pre-encode long edge (px)
 BUDGET_DEFAULT = 1.2            # max pre-encode bytes vs the input file size
 LV_BIN_HEADER = 12              # LVGL bin header bytes
+
+# Double-tap zoom contract, mirroring src/apps/album/eos_album.c:
+#   ALBUM_IMG_MAX (fit box)  : the whole photo lives in a 150px box
+#   tile mode                : 1 pre-encoded px == 1 screen px
+#   => magnification = pre-encode long edge / FIT_BOX_PX
+# so --zoom caps the pre-encode long edge at FIT_BOX_PX * zoom. Changing the
+# zoom means changing that single number; the device needs no update because
+# meta.txt carries the size it was given.
+FIT_BOX_PX = 150                # == ALBUM_IMG_MAX (keep in sync)
+VIEW_PX = 240                   # == ALBUM_VIEW (keep in sync)
+ZOOM_DEFAULT = 4.0              # target double-tap magnification
+ZOOM_MAX = 6.0                  # past this a pan re-reads too much tile data
 
 
 def collect_images(root):
@@ -209,28 +232,38 @@ def _thumb_bytes(w, h):
 
 
 def enc_size_for_budget(w, h, budget_bytes, tile=TILE_DEFAULT,
-                        enc_min=ENC_MIN, include_thumb=True):
-    """Largest (same aspect ratio) pre-encode size whose thumb + tiles fit
-    budget_bytes. RGB565 is ~2 B/px, so when the input JPEG is small this
-    steps the resolution down (12% per step) until the budget fits; the long
-    edge never drops below enc_min. Returns (w, h)."""
+                        enc_min=ENC_MIN, include_thumb=True, enc_max=None):
+    """Largest (same aspect ratio) pre-encode size that satisfies BOTH the
+    byte budget and the zoom contract.
+
+    enc_max (FIT_BOX_PX * --zoom) caps the long edge so the device's 1:1 tile
+    mode magnifies by that factor; it only ever shrinks, never upscales.
+    RGB565 is ~2 B/px, so when the input JPEG is small the budget steps the
+    resolution down (12% per step) until thumb + tiles fit. The long edge
+    never drops below min(enc_min, enc_max): when the zoom cap asks for less
+    than the quality floor the zoom wins, since that is the deliberate choice
+    of the user. Returns (w, h)."""
     def cost(a, b):
         n = _tiles_bytes(a, b, tile)
         if include_thumb:
             n += _thumb_bytes(a, b)
         return n
+    if enc_max and max(w, h) > enc_max:
+        r = enc_max / float(max(w, h))
+        w, h = max(1, int(w * r)), max(1, int(h * r))
+    lo = min(enc_min, max(w, h))
     if cost(w, h) <= budget_bytes:
         return w, h
     while True:
         long = max(w, h)
-        if long <= enc_min:
+        if long <= lo:
             return w, h
-        step = max(0.88, enc_min / float(long))
+        step = max(0.88, lo / float(long))
         w2 = max(1, int(w * step))
         h2 = max(1, int(h * step))
         if (w2, h2) == (w, h):            # no progress -> stop
             return w, h
-        if max(w2, h2) <= enc_min or cost(w2, h2) <= budget_bytes:
+        if max(w2, h2) <= lo or cost(w2, h2) <= budget_bytes:
             return w2, h2
         w, h = w2, h2
 
@@ -303,13 +336,17 @@ def reencode(im, src_fmt, max_size, q_min):
 
 def process_one(rel, src, root, out_dir, max_size, max_dim, q_min,
                 do_thumb=True, do_tiles=True, tile_size=TILE_DEFAULT,
-                budget_ratio=BUDGET_DEFAULT, enc_min=ENC_MIN):
-    """Normalize one image; returns (status, detail)."""
+                budget_ratio=BUDGET_DEFAULT, enc_min=ENC_MIN, enc_max=None):
+    """Normalize one image; returns (status, detail, enc_long).
+
+    enc_long is the long edge of the pre-encode the device browses 1:1 (0 when
+    no tile grid was produced); enc_long / FIT_BOX_PX is the magnification the
+    double-tap gesture gives for this image."""
     try:
         im = Image.open(src)
         im.load()
     except Exception as e:
-        return ("failed", "decode: %s" % e)
+        return ("failed", "decode: %s" % e, 0)
 
     w, h = im.size
     src_fmt = os.path.splitext(src)[1].lower().lstrip(".")
@@ -334,7 +371,7 @@ def process_one(rel, src, root, out_dir, max_size, max_dim, q_min,
         # 3) Re-encode to fit the size budget.
         ext, data = reencode(im, src_fmt, max_size, q_min)
         if data is None:
-            return ("failed", "unsupported format")
+            return ("failed", "unsupported format", 0)
 
         out_full = os.path.splitext(out_full)[0] + ext
         os.makedirs(os.path.dirname(out_full), exist_ok=True)
@@ -347,22 +384,29 @@ def process_one(rel, src, root, out_dir, max_size, max_dim, q_min,
 
     # 4) Pre-encode thumbnail + tiles from the FINAL image (adaptive grid,
     #    matches whatever the final size is). RGB565 is ~2 B/px vs the ~10x
-    #    JPEG input, so the encoded resolution is converged to keep
-    #    thumb + tiles <= budget_ratio x the input file size.
+    #    JPEG input, so the encoded resolution is bounded by BOTH
+    #      - enc_max : FIT_BOX_PX * --zoom, i.e. the double-tap magnification,
+    #      - budget  : thumb + tiles <= budget_ratio x the input file size.
+    #    The stricter of the two wins; --enc-min is the quality floor under it.
     # Assets travel with each image: hidden ".thumb"/".tiles" folders NEXT to
     # the file, so one output = one self-contained package you can drop
     # anywhere under /sdcard/album/ (any depth). The launcher hides dot-dirs.
     base = os.path.splitext(os.path.basename(out_full))[0]
     img_dir = os.path.dirname(out_full)
     enc_im = im
+    enc_long = 0
     if do_thumb or do_tiles:
         budget = max(1, int(src_size * budget_ratio))
         enc_w, enc_h = enc_size_for_budget(im.size[0], im.size[1], budget,
                                            tile_size, enc_min,
-                                           include_thumb=do_thumb)
+                                           include_thumb=do_thumb,
+                                           enc_max=enc_max)
         if (enc_w, enc_h) != (im.size[0], im.size[1]):
             enc_im = im.resize((enc_w, enc_h), Image.LANCZOS)
-            detail += " | enc %dx%d" % (enc_w, enc_h)
+        detail += " | enc %dx%d" % (enc_w, enc_h)
+        if do_tiles:
+            enc_long = max(enc_w, enc_h)
+            detail += " = %.1fx zoom" % (enc_long / float(FIT_BOX_PX))
     if do_thumb:
         try:
             tdir = os.path.join(img_dir, ".thumb")
@@ -377,7 +421,7 @@ def process_one(rel, src, root, out_dir, max_size, max_dim, q_min,
         except Exception as e:
             detail += " | tiles FAIL: %s" % e
 
-    return (status, detail)
+    return (status, detail, enc_long)
 
 
 def main():
@@ -406,6 +450,11 @@ def main():
     ap.add_argument("--enc-min", type=int, default=ENC_MIN,
                     help="floor for the pre-encode long edge in px "
                          "(default %d)" % ENC_MIN)
+    ap.add_argument("--zoom", type=float, default=ZOOM_DEFAULT,
+                    help="double-tap magnification: caps the pre-encode long "
+                         "edge at --zoom x %d px (default %.1f). 3-6 is the "
+                         "band that works on the %dpx panel."
+                         % (FIT_BOX_PX, ZOOM_DEFAULT, VIEW_PX))
     ap.add_argument("-j", "--jobs", type=int, default=0,
                     help="parallel workers (default: CPU count)")
     args = ap.parse_args()
@@ -413,6 +462,17 @@ def main():
     if not os.path.isdir(args.input):
         print("ERROR: input dir not found: %s" % args.input, file=sys.stderr)
         return 1
+    if args.zoom > ZOOM_MAX:
+        print("ERROR: --zoom %.1f is above the %.1fx ceiling. The device keeps "
+              "only a small tile window resident for its %dpx viewport, so a "
+              "wider pre-encode only turns every pan into extra SD reads."
+              % (args.zoom, ZOOM_MAX, VIEW_PX), file=sys.stderr)
+        return 2
+    if args.zoom < 3.0:
+        print("WARNING: --zoom %.1f is under the 3x floor: on a %dpx panel the "
+              "double-tap jump is barely visible." % (args.zoom, VIEW_PX),
+              file=sys.stderr)
+    enc_max = int(round(FIT_BOX_PX * args.zoom))
 
     items = collect_images(args.input)
     if not items:
@@ -431,7 +491,7 @@ def main():
     jobs = args.jobs if args.jobs > 0 else mp.cpu_count()
     tasks = [(rel, full, args.input, album_root, args.max_size, args.max_dim,
               args.quality_min, not args.no_thumb, not args.no_tiles,
-              args.tile_size, args.budget, args.enc_min)
+              args.tile_size, args.budget, args.enc_min, enc_max)
              for rel, full in items]
     if jobs > 1 and len(tasks) > 1:
         with mp.Pool(processes=jobs) as pool:
@@ -441,13 +501,18 @@ def main():
 
     n_copy = n_opt = n_fail = 0
     total_in = total_out = 0
-    for (rel, full), (status, detail) in zip(items, results):
+    z_lo = z_hi = None
+    for (rel, full), (status, detail, enc_long) in zip(items, results):
         if status == "copied":
             n_copy += 1
         elif status == "optimized":
             n_opt += 1
         else:
             n_fail += 1
+        if enc_long:
+            z = enc_long / float(FIT_BOX_PX)
+            z_lo = z if z_lo is None else min(z_lo, z)
+            z_hi = z if z_hi is None else max(z_hi, z)
         total_in += os.path.getsize(full)
         out_full = os.path.join(album_root, rel)
         if os.path.exists(out_full) or os.path.exists(
@@ -478,6 +543,12 @@ def main():
     if total_in and pre_total:
         print("pre-encode (thumb+tiles): %d B = %.2fx input  (budget %.2fx)"
               % (pre_total, pre_total / float(total_in), args.budget))
+    if args.no_tiles:
+        print("double-tap zoom: n/a (--no-tiles)")
+    elif z_lo is not None:
+        print("double-tap zoom: %.1fx .. %.1fx on the device "
+              "(target %.1fx, fit box %dpx)"
+              % (z_lo, z_hi, args.zoom, FIT_BOX_PX))
     return 0 if n_fail == 0 else 1
 
 

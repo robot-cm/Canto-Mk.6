@@ -47,6 +47,13 @@
 #define ALBUM_HIST_FILE    "/sdcard/history/album/history.txt"
 #define ALBUM_MAX          256           /* viewer list cap (== FM_MAX_CHILD) */
 #define FM_EXP_MAX         3             /* remembered expanded FM dirs (newest 3) */
+/* Double-tap enters the 1:1 tile view, so the magnification the user gets is
+ * (pre-encode long edge) / ALBUM_IMG_MAX: the fit state draws the whole photo
+ * inside a 150px box, the tile state paints pre-encoded pixels one screen
+ * pixel each. scripts/album_optimize.py caps that long edge at --zoom x
+ * ALBUM_IMG_MAX (default 4.0 -> 600px) to hold the jump in the 3x..6x band:
+ * below ~3x it is invisible on a 240px panel, above ~6x every pan has to
+ * re-read a lot of tiles from the card. Keep the two sides in sync. */
 #define ALBUM_IMG_MAX      150           /* fit box (px) for the image        */
 #define ALBUM_DECODE_MAX   1024          /* JPEG decode cap per side (px)     */
 #define ALBUM_PNG_MAX      1024          /* PNG side cap (LVGL decodes full)  */
@@ -57,7 +64,11 @@
 #define ALBUM_BIN_MAGIC    0x19          /* LVGL image header magic   */
 #define ALBUM_BIN_CF       0x12          /* LV_COLOR_FORMAT_RGB565    */
 #define ALBUM_VIEW         240           /* viewport px (== screen)   */
-#define ALBUM_TILE_MAX     16            /* tile slots (4x4 worst)    */
+#define ALBUM_TILE_MAX     16            /* tile slots (worst window 4x4) */
+/* meta.txt comes off the card, so it is untrusted input: bound its values
+ * before they reach the layout math (rx * ow, c * s_ts) or the tile window. */
+#define ALBUM_ENC_SIDE_MAX 8192          /* sanity cap on the pre-encode side */
+#define ALBUM_TILE_PITCH_MAX 1024        /* sanity cap on the tile pitch      */
 
 /* File manager (lazy tree) */
 #define FM_MAX_CHILD       256           /* max entries read per directory     */
@@ -116,7 +127,7 @@ typedef struct {
 } _tile_t;
 
 static lv_obj_t    *s_canvas;            /* tile canvas (fullscreen 240x240) */
-static lv_obj_t    *s_tile_badge;        /* "1:1" indicator */
+static lv_obj_t    *s_tile_badge;        /* magnification badge */
 static _tile_t      s_tiles[ALBUM_TILE_MAX];
 static bool         s_tile_mode;         /* 1:1 browse active */
 static int  s_orig_w = 0, s_orig_h = 0; /* original image size (from meta) */
@@ -904,12 +915,22 @@ static void _tile_enter(int tap_x, int tap_y)
     int ow = 0, oh = 0, ts = 0, cols = 0, rows = 0;
     int parsed = sscanf(meta, "%d %d %d %d %d", &ow, &oh, &ts, &cols, &rows);
     eos_free(meta);
-    if (parsed != 5 || ts <= 0 || cols <= 0 || rows <= 0 || ow <= 0 || oh <= 0) {
+    if (parsed != 5 || ts <= 0 || ts > ALBUM_TILE_PITCH_MAX ||
+        cols <= 0 || rows <= 0 || ow <= 0 || oh <= 0 ||
+        ow > ALBUM_ENC_SIDE_MAX || oh > ALBUM_ENC_SIDE_MAX) {
         _show_msg("NO HD DATA\nRun album_optimize.py");
         return;
     }
-    /* 1:1 on an image no bigger than the viewport is pointless */
+    /* Below ~1.6x (a photo that nearly fits the viewport) the jump is not
+     * worth it. The script never produces one, so this only catches packages
+     * that were hand-made. */
     if (ow <= ALBUM_VIEW && oh <= ALBUM_VIEW) return;
+
+    /* Magnification the user will actually get = pre-encode long edge / fit
+     * box, kept in tenths (integer math: float printf is not guaranteed on
+     * this build). */
+    int z10 = (ow > oh ? ow : oh);
+    z10 = (z10 * 10 + ALBUM_IMG_MAX / 2) / ALBUM_IMG_MAX;
 
     s_orig_w = ow;
     s_orig_h = oh;
@@ -931,8 +952,19 @@ static void _tile_enter(int tap_x, int tap_y)
     s_tile_badge = lv_label_create(s_root);
     lv_obj_set_style_text_color(s_tile_badge, lv_color_hex(_UI_TEXT), 0);
     lv_obj_set_style_text_font(s_tile_badge, &lv_font_montserrat_12, 0);
-    lv_label_set_text(s_tile_badge, "1:1");
-    lv_obj_align(s_tile_badge, LV_ALIGN_TOP_RIGHT, -8, 24);
+    char zoom[16];
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+    /* "N.Nx", not "1:1": the pre-encode is deliberately smaller than the
+     * original, so the panel pixel ratio says nothing about the magnification. */
+    snprintf(zoom, sizeof(zoom), "%d.%dx", z10 / 10, z10 % 10);
+#pragma GCC diagnostic pop
+    lv_label_set_text(s_tile_badge, zoom);
+    /* The GC9A01 is a ROUND panel: only the inscribed circle is visible, so a
+     * corner-anchored label (-8, 24) would sit outside it and never be seen.
+     * -52 keeps the top-right look while the label's right edge stays at x=180
+     * where the circle still reaches x=192. */
+    lv_obj_align(s_tile_badge, LV_ALIGN_TOP_RIGHT, -52, 24);
 
     /* hide chrome, start at image center */
     _ui_controls(false);
@@ -968,8 +1000,8 @@ static void _tile_enter(int tap_x, int tap_y)
     if (s_view_y < 0) s_view_y = 0;
     if (s_view_y > my) s_view_y = my;
     _tile_refresh();
-    EOS_LOG_I("Album: 1:1 %dx%d grid %dx%d ts=%d view=%d,%d",
-              ow, oh, cols, rows, ts, s_view_x, s_view_y);
+    EOS_LOG_I("Album: %d.%dx enc %dx%d grid %dx%d ts=%d view=%d,%d",
+              z10 / 10, z10 % 10, ow, oh, cols, rows, ts, s_view_x, s_view_y);
 }
 
 static void _tile_exit(void)
