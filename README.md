@@ -11,7 +11,7 @@
 - 电池充电
 
 ## 系统功能 (Core + Services)
-- **控制分中心 (Control Center)**：WiFi, BT, PowerSave, BeastMode 快速开关, Settings 和 FlashLight 入口
+- **控制分中心 (Control Center)**：WiFi, BT, PowerSave, BeastMode 快速开关, Settings 和 FlashLight 入口；亮度/蓝牙/WiFi/电源模式设置落盘 SD（无卡回退 cfg.json），待机前写入、开机早于 `eos_init()` 恢复
 - **锁屏 (Lock)**：`eos_lock_page`，支持密码解锁
 - **通知系统 (Notification)**：`eos_wos_notification`
 - **系统 Shell (USB/UART)**：`eos_shell` — 底层调试入口，独立于 SD 卡，可查看 mem/ps/wifi/sd/apps/log 等
@@ -21,8 +21,9 @@
   - **WIREGUARD 客户端代理**（`eos_net_proxy`，配置 `proxy.*`，密码不出现在明文日志）
   - SNTP 联网自动校时
 - **时间服务 (RTC + NTP)**：`eos_service_time`，墙钟 + 时区 + 网络校时
-- **电源管理 (PM)**：`eos_service_pm`
-- **省电 / 睡眠**：`eos_service_power_save`
+- **电源管理 (PM)**：`eos_service_pm` — 熄屏 / Light Sleep / Deep Sleep 状态机，深睡 UI 快照恢复，双击唤醒
+- **省电 / 睡眠**：`eos_service_power_save` — L2 自动待机 15 分钟 / 5 击恢复，熄屏关闭 GC9A01 面板，DFS 80-160MHz 调频
+- **USB MSC (U 盘)**：`EOS_NATIVE_APP_USB_MSC` — SD 卡作为 U 盘暴露给 PC（`CONFIG_USB_MSC_APP_ENABLE` 默认开）
 - **野兽模式 (Beast Mode)**：性能模式切换
 - **电池服务**：`eos_service_battery`（电量/充电检测）
 - **传感器服务**：`eos_service_sensor`（加速度/计步等）
@@ -41,7 +42,7 @@
 | **Settings** | 系统设置：Wi-Fi、蓝牙、代理(SOCKS5)、时间、显示、语言、省电、锁屏、野兽模式等 |
 | **FlashLight** | 手电筒，48 色板选色，SD 记忆光色 |
 | **Dictionary** | 英汉词典，模糊前缀搜索、结果列表、详情页（音标/释义/词性/变形） |
-| **Album** | 图片浏览（JPEG 解码 `tjpgd`），SD 卡相册 |
+| **Album** | 图片浏览（JPEG 解码 `tjpgd`），SD 卡相册，文件名中文正常显示 |
 | **Calculator** | 计算器 |
 | **GlobalTime** | 世界时钟 |
 | **Stopwatch** | 秒表 |
@@ -49,7 +50,8 @@
 | **Alarm** | 闹钟 |
 | **Calendar** | 日历 |
 | **Breach** | 工具类 App（见 manifest） |
-| **TextHub** | 文本/文件查看与工具（支持子页面内部导航） |
+| **TextHub** | 文本/文件查看与工具（支持子页面内部导航），文件名中文正常显示 |
+| **USBMSC** | SD 卡作为 U 盘暴露给 PC（默认开启） |
 
 ## 刷机说明
 1. 下载 3 个 bin 文件（bootloader / partition-table / elenixos_esp32s3）

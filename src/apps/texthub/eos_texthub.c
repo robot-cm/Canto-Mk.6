@@ -877,9 +877,14 @@ static void _fm_rebuild(void)
         }
 
         lv_obj_t *lbl = lv_label_create(row);
-        /* 文件名可能含中文:必须用 13px 档(jbm_13 → fallback han_sans_13,
-         * 3850 字全字库)。10px 档(jbm_10 → han_sans_10)下汉字点阵被压成
-         * 一团横线,看起来就是"下划线"。 */
+        /* 文件名可能含中文:必须走带 CJK 字形的字体档,不能用 lv_font_montserrat_*
+         * (纯 ASCII,中文会渲染成下划线)。
+         * 13px 档链路:jbm_13 → han_sans_13(GB2312 一级 3755 字)
+         *            → han_sans_16(175 字) → han_sans_22(GB2312 全量 6749 字),
+         * 即常用简体字全覆盖,仅二级字库外的生僻字(垚/玥/燊 等)会缺失。
+         * 另:文件名本身能否带中文由 FATFS 决定(见 sdkconfig.defaults 的
+         * CONFIG_FATFS_CODEPAGE_936 + API_ENCODING_UTF_8);若那两项缺失,
+         * 中文名在 readdir 阶段就被替换成 '_' 并退化为 8.3 短名,与本处无关。 */
         eos_label_set_font_size(lbl, EOS_FONT_SIZE_MICRO);
         lv_obj_set_style_text_color(lbl, node->is_dir ? lv_color_hex(_UI_ACCENT)
                                                       : lv_color_hex(_UI_TEXT), 0);
