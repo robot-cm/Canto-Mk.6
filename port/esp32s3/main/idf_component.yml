@@ -1,0 +1,15 @@
+# USB MSC App 依赖(Component Manager 托管组件)
+#
+# 注意:TinyUSB 不是 ESP-IDF 内置组件,必须通过 Component Manager 从
+# Espressif 组件注册表拉取。组件注册表全名为 `espressif/tinyusb`
+# (不是裸名 `tinyusb` —— 之前 MAIN_REQUIRES 用裸名导致"找不到组件")。
+#
+# 该组件只提供 TinyUSB 协议栈;USB 描述符 / tusb_config.h 由本项目
+# (port/esp32s3/main/) 提供,见 eos_usb_msc_board.h / drv.c 的引用。
+#
+# 构建前若未联网拉取,运行:
+#   cd port/esp32s3 && idf.py reconfigure
+# 组件会下载到 managed_components/,并生成/更新 dependencies.lock。
+
+dependencies:
+  espressif/tinyusb: ">=0.15.0,<1.0.0"

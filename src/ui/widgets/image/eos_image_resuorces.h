@@ -25,6 +25,9 @@ extern "C" {
 #define EOS_IMG_ALBUM "/sdcard/theme/icons/album.bin"
 #define EOS_IMG_TEXTHUB "/sdcard/theme/icons/texthub.bin"
 #define EOS_IMG_DICTIONARY "/sdcard/theme/icons/dictionary.bin"
+/* USB MSC App 图标:仓库内无 usb_msc.bin,实际由编译进 Flash 的
+ * eos_icon_usb_msc(lv_image_dsc_t)直接作为图标源,此路径仅作占位/回退。 */
+#define EOS_IMG_USB_MSC "/sdcard/theme/icons/usb_msc.bin"
 
 #ifdef __cplusplus
 }

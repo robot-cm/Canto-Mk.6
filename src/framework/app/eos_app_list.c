@@ -29,6 +29,11 @@
 #include "eos_album.h"
 #include "eos_texthub.h"
 #include "eos_dictionary.h"
+#if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
+#include "eos_usb_msc.h"
+/* App 图标编译进 Flash(resources/images/icon/eos_icon_usb_msc.c) */
+extern const lv_image_dsc_t eos_icon_usb_msc;
+#endif
 #include "eos_service_storage.h"
 #include "eos_app_header.h"
 #include "eos_mem.h"
@@ -94,18 +99,27 @@ const char *eos_native_app_id_list[EOS_NATIVE_APP_LAST] = {
     "com.cantomk6.album",
     "com.cantomk6.texthub",
     "com.cantomk6.dictionary",
+#if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
+    "com.cantomk6.usb_msc",
+#endif
 };
 
 const char *eos_native_app_icon_list[EOS_NATIVE_APP_LAST] = {
     EOS_IMG_ALBUM,
     EOS_IMG_TEXTHUB,
     EOS_IMG_DICTIONARY,
+#if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
+    EOS_IMG_USB_MSC,
+#endif
 };
 
 const eos_sys_app_entry_t eos_native_app_entry_list[EOS_NATIVE_APP_LAST] = {
     eos_album_enter,
     eos_texthub_enter,
     eos_dictionary_enter,
+#if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
+    eos_usb_msc_enter,
+#endif
 };
 
 static void _app_list_on_resueme(eos_activity_t *a);
@@ -375,7 +389,7 @@ static int32_t _app_list_find_native_app(const char *app_id)
 
 /* Resolve an app icon: prefer the installed app's own icon.bin, then the
  * native C app icon (if present), then the generic app icon. */
-static const char *_app_list_resolve_icon(const char *app_id, char *icon_path, size_t icon_path_size)
+static const void *_app_list_resolve_icon(const char *app_id, char *icon_path, size_t icon_path_size)
 {
     snprintf(icon_path, icon_path_size, EOS_APP_INSTALLED_DIR "%s/" EOS_APP_ICON_FILE_NAME, app_id);
     if (eos_storage_is_file(icon_path))
@@ -384,6 +398,14 @@ static const char *_app_list_resolve_icon(const char *app_id, char *icon_path, s
     }
 
     int32_t native_index = _app_list_find_native_app(app_id);
+#if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
+    /* USB MSC:图标编译进 Flash(eos_icon_usb_msc),不依赖 SD 上的 .bin。
+     * 直接返回 lv_image_dsc_t 指针,lv_image_set_src() 原生支持。 */
+    if (native_index == EOS_NATIVE_APP_USB_MSC)
+    {
+        return &eos_icon_usb_msc;
+    }
+#endif
     if (native_index >= 0 && eos_native_app_icon_list[native_index] &&
         eos_storage_is_file(eos_native_app_icon_list[native_index]))
     {
@@ -1256,7 +1278,7 @@ static void _register_anim_routes_once(void)
 static void _app_list_append_icon(eos_card_pager_t *cp,
                                   lv_obj_t **cur_page,
                                   uint32_t *icon_index,
-                                  const char *icon_src,
+                                  const void *icon_src,
                                   const char *app_id)
 {
     if (!(cp && cur_page && icon_index && icon_src && app_id))
@@ -1484,7 +1506,7 @@ static void _app_list_refresh(lv_obj_t *bubble_grid)
             }
 
             char icon_path[EOS_FS_PATH_MAX];
-            const char *resolved_icon = _app_list_resolve_icon(app_id, icon_path, sizeof(icon_path));
+            const void *resolved_icon = _app_list_resolve_icon(app_id, icon_path, sizeof(icon_path));
             _app_list_append_icon(cp, &cur_page, &icon_index, resolved_icon, app_id);
         }
         cJSON_Delete(app_order);
@@ -1518,7 +1540,7 @@ static void _app_list_refresh(lv_obj_t *bubble_grid)
 
             // Non-system app
             char icon_path[EOS_FS_PATH_MAX];
-            const char *resolved_icon = _app_list_resolve_icon(app_id, icon_path, sizeof(icon_path));
+            const void *resolved_icon = _app_list_resolve_icon(app_id, icon_path, sizeof(icon_path));
             _app_list_append_icon(cp, &cur_page, &icon_index, resolved_icon, app_id);
         }
     }

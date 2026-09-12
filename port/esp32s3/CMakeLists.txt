@@ -32,6 +32,17 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 project(elenixos_esp32s3)
 
+# ── USB MSC App:TinyUSB 的 tusb_config.h 定位 ────────────────
+# espressif/tinyusb 私有源文件用 #include "tusb_config.h" 局部查找,只走
+# tinyusb 自身 PRIV include + 其 REQUIRES 的组件 PUBLIC include。我们的
+# tusb_config.h 在 main 组件内,而 main 不能被加进 tinyusb 的 REQUIRES
+# (那在 managed_components/ ,会被重下载覆盖)。
+# 官方推荐做法(见 espressif__tinyusb/README.md "Using standalone TinyUSB"):
+# 直接给 tinyusb 库目标追加 PRIVATE include 目录,指向 tusb_config.h 所在处。
+# 必须在 project() 之后、tinyusb 组件库已注册时执行。
+idf_component_get_property(tusb_lib espressif__tinyusb COMPONENT_LIB)
+target_include_directories(${tusb_lib} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/main")
+
 # ════════════════════════════════════════════════════════════════
 # 关键:lv_conf.h 在 port/esp32s3/main/ 下,LVGL 组件(EXTRA_COMPONENT_DIRS)
 # 看不到 main/ 的 include 路径。用 include_directories 推到全局。

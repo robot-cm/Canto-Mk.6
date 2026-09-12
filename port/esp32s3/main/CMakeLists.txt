@@ -29,6 +29,28 @@ if(EXISTS "${MICROLINK_COMPONENT_DIR}")
     list(APPEND MAIN_REQUIRES microlink)
 endif()
 
+# ── USB MSC App(把 SD 卡作为 U 盘暴露给 PC) ─────────────
+#   功能本身是"运行时 App"(用户从 App 列表打开/关闭),此处宏仅用于
+#   "完全移除该 App":把下面 1 改成 0 后,编译产物与改动前功能一致。
+#   TinyUSB 来自 espressif/tinyusb 托管组件(CMake 组件名 espressif__tinyusb,
+#   双下划线)。main 需 REQUIRES 它才能编译 eos_usb_msc_descriptors.c(tusb.h)。
+#
+#   关键:tusb_config.h 在 main 组件内,tinyusb 私有源文件(tusb_option.h:269)
+#   用 #include "tusb_config.h" 局部查找,只走 tinyusb 自己的 PRIV include +
+#   它 REQUIRES 的组件 PUBLIC include。但 main 不能加进 tinyusb 的 REQUIRES
+#   (那是 managed_components/,会被重下载覆盖)。因此改用 tinyusb 提供的
+#   CFG_TUSB_CONFIG_FILE 编译宏,直接给 tusb_config.h 绝对路径,绕开 include
+#   路径继承。该宏必须在 project() 之后的全局作用域定义(见
+#   port/esp32s3/CMakeLists.txt 的 add_compile_definitions),因为本文件处于
+#   组件的 requirements 解析阶段,不能调用 add_compile_definitions。
+set(EOS_USB_MSC_APP_ENABLE 1 CACHE STRING "Enable USB MSC App (1=on, 0=off)")
+if(EOS_USB_MSC_APP_ENABLE)
+    # espressif__tinyusb 自身只 REQUIRES freertos,不含 usb/hal;而方案 B 需要:
+    #   usb → esp_private/usb_phy.h(usb_new_phy / usb_del_phy)
+    #   hal → hal/usb_serial_jtag_ll.h(退出时把内部 PHY 还给 USB-Serial-JTAG)
+    list(APPEND MAIN_REQUIRES espressif__tinyusb usb hal)
+endif()
+
 idf_component_register(
     SRCS
         "main.c"
@@ -38,6 +60,8 @@ idf_component_register(
         "eos_dev_rtc_bm8563.c"
         "eos_mem_align.c"
         "eos_net_wifi_esp32.c"
+        # TinyUSB 用户端 USB 描述符回调(组件要求用户提供;MSC 单接口)
+        "eos_usb_msc_descriptors.c"
         "${EOS_ROOT}/resources/images/icon/eos_icon_delete.c"
         "${EOS_ROOT}/resources/images/icon/eos_icon_fm.c"
         "${EOS_ROOT}/resources/images/icon/eos_icon_search.c"
@@ -199,6 +223,30 @@ target_compile_definitions(${COMPONENT_LIB} PUBLIC
 # microlink 已接入 → eos_net_vpn.c 编译真机驱动路径(目录存在时才启用)
 if(EXISTS "${MICROLINK_COMPONENT_DIR}")
     target_compile_definitions(${COMPONENT_LIB} PUBLIC EOS_HAVE_MICROLINK=1)
+endif()
+
+# ── USB MSC App:编译宏 + 图标资源 ─────────────────────────
+#   全仓所有新增/修改点均由 CONFIG_USB_MSC_APP_ENABLE 包裹;
+#   关闭时(上面 set 改 0)不编译任何相关代码与图标,产物与改动前一致。
+if(EOS_USB_MSC_APP_ENABLE)
+    target_compile_definitions(${COMPONENT_LIB} PUBLIC CONFIG_USB_MSC_APP_ENABLE=1)
+    target_sources(${COMPONENT_LIB} PRIVATE
+        # App 图标 / 成功图标 / 失败图标(LVGL ARGB8888,编译进 Flash)
+        "${EOS_ROOT}/resources/images/icon/eos_icon_usb_msc.c"
+        "${EOS_ROOT}/resources/images/icon/eos_icon_usb_ok.c"
+        "${EOS_ROOT}/resources/images/icon/eos_icon_usb_err.c"
+    )
+    # 强制提取 eos_usb_msc_descriptors.c.obj(与文件末尾 BT 后端那条 -u 同理)。
+    # 原因:libmain.a 在整个链接里只被扫描一次,且早于 usbd.c.obj 被提取
+    # (usbd.c 只因 eos_usb_msc_drv.c 引用 tud_task_ext 才被拉入,这发生在
+    #  第二次扫描 libespressif__tinyusb.a 时)。若不预先把这几个符号标为
+    # 未定义,ld 扫 libmain.a 时不会回头提取描述符目标文件,usbd.c 对
+    # tud_descriptor_*_cb 的引用就会 undefined reference。
+    target_link_options(${COMPONENT_LIB} INTERFACE
+        "-Wl,-u,tud_descriptor_device_cb"
+        "-Wl,-u,tud_descriptor_configuration_cb"
+        "-Wl,-u,tud_descriptor_string_cb"
+    )
 endif()
 
 # ── 链接:--wrap 重定向 malloc/free/realloc/calloc 到 8 字节对齐实现 ──

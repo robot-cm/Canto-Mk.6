@@ -16,7 +16,7 @@ cd /home/erashaperavm/下载/ElenixOS-fork-stable/port/esp32s3 && idf.py -p /dev
   8: sys.flash_light
   9: com.cantomk6.album
   10: com.cantomk6.texthub
-  11: com.cantomk6.sleep
+  11: com.cantomk6.usbmsc
 
 
 

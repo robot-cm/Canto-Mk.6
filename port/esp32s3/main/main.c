@@ -46,6 +46,11 @@
 #include "sdmmc_cmd.h"
 #include "esp_vfs_fat.h"
 #include "esp_dma_utils.h" /* esp_dma_is_buffer_alignment_satisfied 诊断 */
+/* USB MSC App 的板级能力接口(SD 释放/恢复、卡句柄、JTAG 在线、PM 保持) */
+#include "eos_usb_msc_board.h"
+#if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
+#include "ff.h" /* f_mount/FRESULT:SD 重新挂载(MSC 退出恢复)用 */
+#endif
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -515,6 +520,108 @@ static esp_err_t board_sd_get_dma_info(int slot, esp_dma_mem_info_t *dma_mem_inf
     return ESP_OK;
 }
 
+/* ── USB MSC App 支持(全部为新增,用 CONFIG_USB_MSC_APP_ENABLE 包裹) ──
+ * 只新增静态状态与 5 个查询/控制函数,不修改任何已有挂载/电源逻辑的分支行为。 */
+#if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
+static sdmmc_host_t               s_sd_host;        /* 挂载后含 SPI 设备句柄 */
+static sdspi_device_config_t      s_sd_slot_cfg;
+static esp_vfs_fat_mount_config_t s_sd_mount_cfg;
+static sdmmc_card_t              *s_sd_card       = NULL;
+static bool                       s_sd_is_real    = false; /* 真 SD(非 SPIFFS 回退) */
+static bool                       s_sd_vfs_mounted = false;
+static bool                       s_usb_msc_hold   = false; /* MSC 会话电源保持 */
+
+bool board_sd_is_real(void)
+{
+    return s_sd_is_real && (s_sd_card != NULL);
+}
+
+sdmmc_card_t *board_sd_get_card(void)
+{
+    return s_sd_card;
+}
+
+bool board_usb_serial_jtag_connected(void)
+{
+    /* 复用已有探测:控制台为 USB-Serial-JTAG 时才返回真实连接状态 */
+    return _board_vbus_present();
+}
+
+void board_pm_usb_msc_hold(bool hold)
+{
+    s_usb_msc_hold = hold;
+}
+
+bool board_pm_usb_msc_is_held(void)
+{
+    return s_usb_msc_hold;
+}
+
+/* 让 FATFS 让位给 MSC:只卸载 FATFS 卷 + 注销 VFS 挂载点,
+ * 刻意保留 sdmmc_card_t 与 SDSPI 设备,供 MSC 直读裸扇区。
+ *
+ * 【不能用 esp_vfs_fat_sdcard_unmount()】IDF 的 unmount_card_core()
+ * (components/fatfs/vfs/vfs_fat_sdmmc.c) 会依次执行:
+ *     f_mount(0, drv, 0);
+ *     ff_diskio_unregister(pdrv);
+ *     call_host_deinit(&card->host);   // sdspi_host_deinit → spi_bus_remove_device
+ *     free(card);                      // 释放 sdmmc_card_t
+ * 即 card 被释放、SPI 设备句柄失效。之后 MSC 回调再访问 s_card
+ * (csd.capacity / sdmmc_read_sectors)就是 use-after-free + 已失效的 SPI 句柄,
+ * PC 一读卡立即 panic 复位;而此刻 TinyUSB 已接管 USB PHY、console 已停,
+ * panic 日志打不出来 —— 表现为「打开 App 就重启、无错误码、无日志」。
+ *
+ * esp_vfs_fat_unregister_path() 只释放 VFS/FATFS 上下文,不碰 card/host/diskio,
+ * 因此随后 board_sd_acquire() 仍可用同一个 pdrv 重新 f_mount。 */
+esp_err_t board_sd_release(void)
+{
+    if (!s_sd_is_real || s_sd_card == NULL) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (!s_sd_vfs_mounted) {
+        return ESP_OK;
+    }
+
+    (void)f_mount(NULL, "0:", 0);          /* 先卸载 FATFS 卷,解除对 FATFS 对象的引用 */
+
+    esp_err_t err = esp_vfs_fat_unregister_path("/sdcard");
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_vfs_fat_unregister_path failed: %s", esp_err_to_name(err));
+        return err;
+    }
+    s_sd_vfs_mounted = false;
+    ESP_LOGI(TAG, "SD released to USB MSC (card+SPI host kept alive)");
+    return ESP_OK;
+}
+
+/* MSC 结束:重新挂载 FATFS/VFS(不重新初始化 SPI 设备,避免句柄冲突) */
+esp_err_t board_sd_acquire(void)
+{
+    if (!s_sd_is_real || s_sd_card == NULL) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (s_sd_vfs_mounted) {
+        return ESP_OK;
+    }
+
+    FATFS *fs = NULL;
+    esp_err_t err = esp_vfs_fat_register("/sdcard", "0:", s_sd_mount_cfg.max_files, &fs);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "esp_vfs_fat_register failed: %s", esp_err_to_name(err));
+        return err;
+    }
+    FRESULT fr = f_mount(fs, "0:", 1);
+    if (fr != FR_OK) {
+        ESP_LOGE(TAG, "f_mount failed: %d", (int)fr);
+        esp_vfs_fat_unregister_path("/sdcard");
+        return ESP_FAIL;
+    }
+    s_sd_vfs_mounted = true;
+    ESP_LOGI(TAG, "SD re-mounted after USB MSC");
+    return ESP_OK;
+}
+#endif /* CONFIG_USB_MSC_APP_ENABLE */
+
 static esp_err_t board_sd_mount(void)
 {
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
@@ -542,6 +649,16 @@ static esp_err_t board_sd_mount(void)
     }
     ESP_LOGI(TAG, "SD card mounted: /sdcard");
     sdmmc_card_print_info(stdout, card);
+
+#if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
+    /* 记录 SD 状态供 USB MSC App 使用(host 此时已写入 SPI 设备句柄) */
+    s_sd_host         = host;
+    s_sd_slot_cfg     = slot_config;
+    s_sd_mount_cfg    = mount_config;
+    s_sd_card         = card;
+    s_sd_is_real      = true;
+    s_sd_vfs_mounted  = true;
+#endif
 
     /* [DIAG-FS] 文件系统逐层实验:定位 fopen("wb") errno=22 的层次 */
     {
@@ -1183,6 +1300,14 @@ static void board_pm_step(void)
     eos_pm_state_t st  = eos_pm_get_state();
     int64_t now_us = esp_timer_get_time();
 
+#if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
+    /* USB MSC 会话进行中:禁止 Light Sleep(会中断 USB 枚举/传输),
+     * 让 UI 保持常醒以便显示状态页与响应拔线。 */
+    if (board_pm_usb_msc_is_held()) {
+        return;
+    }
+#endif
+
     /* 状态边界跟踪 */
     if (st != EOS_PM_SLEEP) {
         if (s_prev_state != st) {
@@ -1362,9 +1487,32 @@ static void board_smart_cpu_profile_apply(void)
 /* ════════════════════════════════════════════════════════════════
  *  ESP-IDF 入口
  * ════════════════════════════════════════════════════════════════ */
+/* 复位原因 → 可读文本。
+ * 用途:USB-Serial-JTAG console 会被 TinyUSB 接管而静默,崩溃时 panic 回溯
+ * 打不出来;下次开机打印这行即可判定上次复位是否 PANIC/WDT/BROWNOUT。 */
+static const char *board_reset_reason_str(esp_reset_reason_t r)
+{
+    switch (r)
+    {
+    case ESP_RST_UNKNOWN:   return "unknown";
+    case ESP_RST_POWERON:   return "power-on";
+    case ESP_RST_EXT:       return "external pin";
+    case ESP_RST_SW:        return "software";
+    case ESP_RST_PANIC:     return "PANIC (crash/abort)";
+    case ESP_RST_INT_WDT:   return "INT watchdog";
+    case ESP_RST_TASK_WDT:  return "TASK watchdog";
+    case ESP_RST_WDT:       return "other watchdog";
+    case ESP_RST_DEEPSLEEP: return "deep-sleep wake";
+    case ESP_RST_BROWNOUT:  return "BROWNOUT";
+    default:                return "?";
+    }
+}
+
 void app_main(void)
 {
     ESP_LOGI(TAG, "=== ElenixOS ESP32-S3 boot ===");
+    ESP_LOGI(TAG, "Reset reason: %d (%s)", (int)esp_reset_reason(),
+             board_reset_reason_str(esp_reset_reason()));
     ESP_LOGI(TAG, "Board: XIAO ESP32-S3 + Round Display 1.28\"");
 
     /* 0a. 关机待机轮询唤醒:背光 GPIO43 深睡前已 pad hold 低电平。

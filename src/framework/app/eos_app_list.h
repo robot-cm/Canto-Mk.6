@@ -40,6 +40,9 @@ enum
     EOS_NATIVE_APP_ALBUM = 0,
     EOS_NATIVE_APP_TEXTHUB,
     EOS_NATIVE_APP_DICTIONARY,
+#if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
+    EOS_NATIVE_APP_USB_MSC,
+#endif
 /* New native C apps can be added here */
     EOS_NATIVE_APP_LAST
 };
