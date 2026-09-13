@@ -1373,8 +1373,13 @@ static void board_pm_step(void)
 
 #if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
     /* USB MSC 会话进行中:禁止 Light Sleep(会中断 USB 枚举/传输),
-     * 让 UI 保持常醒以便显示状态页与响应拔线。 */
+     * 让 UI 保持常醒以便显示状态页与响应拔线。
+     * 若会话保持中 VBUS 已掉(拔线),立即唤醒显示,交由 App 层 tick
+     * 检测 tud_mounted() 为假并自动断开恢复,避免熄屏后看似卡死需重启。 */
     if (board_pm_usb_msc_is_held()) {
+        if (!_board_vbus_present()) {
+            eos_pm_wake_up();
+        }
         return;
     }
 #endif

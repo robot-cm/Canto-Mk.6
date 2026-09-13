@@ -43,6 +43,7 @@
 #include "eos_usb_msc_drv.h"
 #include "eos_usb_msc_board.h"
 #include "eos_font.h"
+#include "eos_service_pm.h"   /* eos_pm_wake_up() */
 
 /* 配色(参考其它 App 的深色风格) */
 #define UI_BG      0x000000
@@ -112,6 +113,18 @@ static void _set_touch_enabled(bool en)
 
 /* ── UI 构建 / 状态渲染 ───────────────────────────────────── */
 
+static void _leave(void);   /* 前置声明:见文件末尾退出路径 */
+
+/* 主动断开:先 tud_disconnect() 通知 PC 安全卸载(避免 PC 端脏拔),
+ * 再走统一 teardown + 返回桌面。拔线/点按钮/滑回桌面共用此路径。 */
+static void _on_disconnect_clicked(lv_event_t *e)
+{
+    (void)e;
+    /* drv_end()(含 tud_disconnect 通知 PC 安全卸载)由 _teardown 统一执行,
+     * 此处只需走退出路径,避免重复卸载。 */
+    _leave();
+}
+
 static void _make_exit_button(void)
 {
     if (s_btn != NULL) {
@@ -133,7 +146,7 @@ static void _make_exit_button(void)
     lv_obj_set_style_text_color(lbl, lv_color_hex(UI_TEXT), 0);
     lv_obj_center(lbl);
 
-    lv_obj_add_event_cb(btn, eos_activity_back_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(btn, _on_disconnect_clicked, LV_EVENT_CLICKED, NULL);
     s_btn = btn;
 }
 
@@ -198,12 +211,20 @@ static void _set_error_code(eos_usb_msc_err_t code)
 static void _show_ok(void)
 {
     _render_icon(&eos_icon_usb_ok, UI_OK);
-    _set_text("USB Drive Mode", "Sharing SD card with the PC.\nEject before unplugging.", UI_OK);
+    _set_text("USB Drive Mode", "Sharing SD card with the PC.\nEject or swipe back to exit.", UI_OK);
     if (s_code) {
         lv_obj_add_flag(s_code, LV_OBJ_FLAG_HIDDEN);
     }
+    /* ACTIVE 态保留可见的 Disconnect 按钮,并恢复触摸:
+     * 用户需要能主动强制断开(拔线/点按钮/滑回桌面皆可退出)。 */
+    _make_exit_button();
     if (s_btn) {
-        lv_obj_add_flag(s_btn, LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(lv_obj_get_child(s_btn, 0), "Disconnect");
+        lv_obj_clear_flag(s_btn, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (s_touch_disabled) {
+        _set_touch_enabled(true);
+        s_touch_disabled = false;
     }
 }
 
@@ -270,6 +291,9 @@ static void _teardown(void)
 static void _leave(void)
 {
     _teardown();
+    /* 主动/拔线退出后确保亮屏:MSC 期间可能已熄屏(DISPOFF),
+     * 若不唤醒,回到桌面仍是黑屏,用户误以为卡死需重启。 */
+    eos_pm_wake_up();
     if (s_act != NULL) {
         eos_activity_back();
     }
@@ -311,13 +335,12 @@ static void _tick(lv_timer_t *t)
 
         case STAGE_WAIT_ENUM: {
             if (eos_usb_msc_drv_mounted()) {
-                /* 成功:冻结界面与触摸(仅此状态禁用触摸) */
-                _set_touch_enabled(false);
-                s_touch_disabled = true;
+                /* 成功:保持触摸可用(用户需能点 Disconnect / 滑回桌面主动退出),
+                 * 仅禁止 Light Sleep 以免打断 USB。 */
                 board_pm_usb_msc_hold(true);
                 _show_ok();
                 s_stage = STAGE_ACTIVE;
-                EOS_LOG_I("USB MSC: host mounted, UI frozen");
+                EOS_LOG_I("USB MSC: host mounted, UI active");
                 break;
             }
             if ((int32_t)(lv_tick_get() - s_deadline) >= 0) {
@@ -351,8 +374,10 @@ static bool _swipe_back(eos_activity_t *self, lv_dir_t dir)
 {
     (void)self;
     (void)dir;
-    /* MSC 激活期间吞掉手势,禁止滑回桌面;其它状态放行,便于用户退出 */
-    return (s_stage == STAGE_ACTIVE);
+    /* 任意阶段滑回桌面都视为主动断开并退出(拔线/点按钮/滑动三者一致)。
+     * 返回 true 表示已自行处理,不要再走默认 back。 */
+    _on_disconnect_clicked(NULL);
+    return true;
 }
 
 static void _build_ui(eos_activity_t *act)
