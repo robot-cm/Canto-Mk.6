@@ -561,6 +561,31 @@ bool board_pm_usb_msc_is_held(void)
     return s_usb_msc_hold;
 }
 
+/* ── Spotify App 支持(全部为新增,用 CONFIG_USB_UAC_APP_ENABLE 包裹) ──
+ * Spotify(UAC 耳机播放器)与 USB MSC 共用同一套板级能力:
+ *   board_sd_is_real / board_sd_get_card / board_sd_release / board_sd_acquire /
+ *   board_usb_serial_jtag_connected 直接复用(已在上方实现);
+ * 下面只补充 Spotify 特有的两个薄封装,不修改任何既有逻辑分支。 */
+#if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
+static bool s_spotify_pm_hold = false; /* UAC 会话电源保持 */
+
+bool board_spotify_usj_online(void)
+{
+    /* 与 board_usb_serial_jtag_connected() 语义相同:USB-Serial-JTAG 是否在线 */
+    return _board_vbus_present();
+}
+
+void board_spotify_pm_hold(bool hold)
+{
+    s_spotify_pm_hold = hold;
+}
+
+bool board_spotify_pm_is_held(void)
+{
+    return s_spotify_pm_hold;
+}
+#endif /* CONFIG_USB_UAC_APP_ENABLE */
+
 /* 让 FATFS 让位给 MSC:只卸载 FATFS 卷 + 注销 VFS 挂载点,
  * 刻意保留 sdmmc_card_t 与 SDSPI 设备,供 MSC 直读裸扇区。
  *

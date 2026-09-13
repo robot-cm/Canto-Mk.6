@@ -51,6 +51,19 @@ if(EOS_USB_MSC_APP_ENABLE)
     list(APPEND MAIN_REQUIRES espressif__tinyusb usb hal)
 endif()
 
+# ── Spotify App(USB UAC 耳机音乐播放器) ───────────────────
+#   功能本身是"运行时 App"(用户从 App 列表打开/关闭);此处宏仅用于
+#   "完全移除该 App":把下面 1 改成 0 后,编译产物与改动前功能一致。
+#   注意:不复用 CONFIG_USB_MSC_APP_ENABLE —— 否则关掉 Spotify 会顺带
+#   删掉 U 盘功能,违反最小影响原则。二者各自独立。
+#   TinyUSB Host 侧(Audio 类)复用同一 espressif__tinyusb 组件。
+set(EOS_USB_UAC_APP_ENABLE 1 CACHE STRING "Enable USB UAC Spotify App (1=on, 0=off)")
+if(EOS_USB_UAC_APP_ENABLE)
+    # UAC Host 需要 usb(usb_new_phy) + hal(PHY 归还);tinyusb 已在 MSC 分支
+    # 或此处至少加入一次,重复 append 由 list 去重语义容忍(idf 内部会去重)。
+    list(APPEND MAIN_REQUIRES espressif__tinyusb usb hal)
+endif()
+
 idf_component_register(
     SRCS
         "main.c"
@@ -247,6 +260,64 @@ if(EOS_USB_MSC_APP_ENABLE)
         "-Wl,-u,tud_descriptor_configuration_cb"
         "-Wl,-u,tud_descriptor_string_cb"
     )
+endif()
+
+# ── Spotify App:编译宏 + 图标资源 ──────────────────────────
+#   全仓所有新增/修改点均由 CONFIG_USB_UAC_APP_ENABLE 包裹;
+#   关闭时(上面 set 改 0)不编译任何相关代码与图标,产物与改动前一致。
+if(EOS_USB_UAC_APP_ENABLE)
+    target_compile_definitions(${COMPONENT_LIB} PUBLIC CONFIG_USB_UAC_APP_ENABLE=1)
+    # minimp3(单头文件 MP3 解码器,CC0)位于 App 自己的 third_party/。
+    # 不放进全局 third_party/,保持 App 自包含以便整体移除。
+    target_include_directories(${COMPONENT_LIB} PRIVATE
+        "${EOS_ROOT}/src/apps/spotify/third_party"
+    )
+    target_sources(${COMPONENT_LIB} PRIVATE
+        # App 图标(36x36) / 耳机失败图标(94x94),LVGL ARGB8888 编译进 Flash
+        "${EOS_ROOT}/resources/images/icon/eos_icon_spotify.c"
+        "${EOS_ROOT}/resources/images/icon/eos_icon_earphone_err.c"
+    )
+
+    # ── TinyUSB Host 栈源文件(组件 CMakeLists.txt 未包含) ──────
+    #   espressif__tinyusb 0.21.0 的 CMakeLists.txt 硬编码的 srcs 只列了
+    #   Device 侧源文件(usbd.c / dcd_dwc2.c / 各 *_device.c),**没有**
+    #   usbh.c / hcd_dwc2.c。因此 Host 栈需要由本组件直接补编。
+    #   不能改 managed_components/(重新下载会被覆盖),故在此显式加入。
+    #
+    #   需要补编 3 个文件:
+    #     src/host/usbh.c            USBH 核心(枚举/驱动分发/tuh_task)
+    #     src/host/hub.c             根 hub / 设备树(hub.c 被 usbh.c 引用)
+    #     src/portable/synopsys/dwc2/hcd_dwc2.c   Host 控制器驱动
+    #   共用源(tusb.c / tusb_fifo.c / dwc2_common.c)已由组件编译。
+    set(TINYUSB_DIR "${EOS_ROOT}/port/esp32s3/managed_components/espressif__tinyusb")
+    if(EXISTS "${TINYUSB_DIR}/src/host/usbh.c")
+        target_sources(${COMPONENT_LIB} PRIVATE
+            "${TINYUSB_DIR}/src/host/usbh.c"
+            "${TINYUSB_DIR}/src/host/hub.c"
+            "${TINYUSB_DIR}/src/portable/synopsys/dwc2/hcd_dwc2.c"
+        )
+        # usbh.c / hub.c 用 "host/xxx.h" 与 "common/xxx.h" 平铺 include,
+        # 需要把 tinyusb/src 与其子目录加入私有 include 路径。
+        target_include_directories(${COMPONENT_LIB} PRIVATE
+            "${TINYUSB_DIR}/src"
+            "${TINYUSB_DIR}/src/host"
+            "${TINYUSB_DIR}/src/common"
+            "${TINYUSB_DIR}/src/portable/synopsys/dwc2"
+            "${TINYUSB_DIR}/src/osal"
+            "${TINYUSB_DIR}/src/class/audio"
+            "${TINYUSB_DIR}/src/class/msc"
+        )
+        # 强制提取 usbh.c.obj:main.a 的 Host 调用(tuh_rhport_init 等)可能
+        # 因 libmain.a 单遍扫描顺序而漏提取 usbh/hcd 目标文件。
+        target_link_options(${COMPONENT_LIB} INTERFACE
+            "-Wl,-u,tuh_rhport_init"
+            "-Wl,-u,tuh_task_ext"
+            "-Wl,-u,tuh_deinit"
+            "-Wl,-u,usbh_app_driver_get_cb"
+        )
+    else()
+        message(WARNING "[ElenixOS] TinyUSB Host sources not found; Spotify UAC will not link")
+    endif()
 endif()
 
 # ── 链接:--wrap 重定向 malloc/free/realloc/calloc 到 8 字节对齐实现 ──

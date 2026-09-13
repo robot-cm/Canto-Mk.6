@@ -34,6 +34,11 @@
 /* App 图标编译进 Flash(resources/images/icon/eos_icon_usb_msc.c) */
 extern const lv_image_dsc_t eos_icon_usb_msc;
 #endif
+#if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
+#include "apps/spotify/eos_spotify.h"
+/* App 图标编译进 Flash(resources/images/icon/eos_icon_spotify.c) */
+extern const lv_image_dsc_t eos_icon_spotify;
+#endif
 #include "eos_service_storage.h"
 #include "eos_app_header.h"
 #include "eos_mem.h"
@@ -102,6 +107,9 @@ const char *eos_native_app_id_list[EOS_NATIVE_APP_LAST] = {
 #if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
     "com.cantomk6.usb_msc",
 #endif
+#if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
+    "com.cantomk6.spotify",
+#endif
 };
 
 const char *eos_native_app_icon_list[EOS_NATIVE_APP_LAST] = {
@@ -111,6 +119,9 @@ const char *eos_native_app_icon_list[EOS_NATIVE_APP_LAST] = {
 #if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
     EOS_IMG_USB_MSC,
 #endif
+#if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
+    EOS_IMG_SPOTIFY,
+#endif
 };
 
 const eos_sys_app_entry_t eos_native_app_entry_list[EOS_NATIVE_APP_LAST] = {
@@ -119,6 +130,9 @@ const eos_sys_app_entry_t eos_native_app_entry_list[EOS_NATIVE_APP_LAST] = {
     eos_dictionary_enter,
 #if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
     eos_usb_msc_enter,
+#endif
+#if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
+    eos_spotify_enter,
 #endif
 };
 
@@ -404,6 +418,13 @@ static const void *_app_list_resolve_icon(const char *app_id, char *icon_path, s
     if (native_index == EOS_NATIVE_APP_USB_MSC)
     {
         return &eos_icon_usb_msc;
+    }
+#endif
+#if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
+    /* Spotify:图标编译进 Flash(eos_icon_spotify),不依赖 SD 上的 .bin。 */
+    if (native_index == EOS_NATIVE_APP_SPOTIFY)
+    {
+        return &eos_icon_spotify;
     }
 #endif
     if (native_index >= 0 && eos_native_app_icon_list[native_index] &&

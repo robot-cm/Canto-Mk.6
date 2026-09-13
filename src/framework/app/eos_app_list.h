@@ -43,6 +43,9 @@ enum
 #if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
     EOS_NATIVE_APP_USB_MSC,
 #endif
+#if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
+    EOS_NATIVE_APP_SPOTIFY,
+#endif
 /* New native C apps can be added here */
     EOS_NATIVE_APP_LAST
 };

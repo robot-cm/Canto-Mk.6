@@ -4,7 +4,7 @@
 #  - AGENTS.md 第4节:Flash 主要存 Core/系统资源,大资源放 SD
 #  - AGENTS.md 第23节:删除 OTA 前先说明收益/代价(见子报告2)
 #  - AGENTS.md 第32节最终目标未列 OTA
-#  - 子报告2 推荐:无 OTA,单 factory 7.46MB,给 Core+LVGL+JerryScript 最大余量
+#  - 子报告2 推荐:无 OTA,单 factory,给 Core+LVGL+JerryScript 最大余量
 #
 # ESP32-S3R8: 8 MB Flash,8 MB PSRAM(Quad)
 # 固件更新方式:USB 重刷(Shell 走 USB-CDC,配套)
@@ -12,16 +12,23 @@
 # 2026-08-26: spiffs 512KB -> 2MB。
 #   原因:9 个 eapk(≈252KB 源文件)+ 解包结果(≈252KB)+ 现有系统资源,
 #   512KB 装不下,Plugin Manager 扫描安装必然 ENOSPC(日志只有 sys.* 3 个)。
-#   收益:可容纳 9 个 eapk 源+解包+资源,未来 app 扩容空间。
-#   代价:factory 从 7.46MB 减到 5.94MB(固件当前 3.88MB,余量 2MB);
-#   改分区后 SPIFFS 需重新格式化(format_if_mount_failed=true 自动),现有文件丢失。
+#
+# 2026-09-13: spiffs 2MB -> 1MB,factory 5.94MB -> 6.94MB。
+#   原因:接入 Spotify(UAC 播放器)后 factory 已达 0x5bce40(97%,仅剩 208KB),
+#         而后续 MP3/WAV 解码器 + UAC Host 驱动还会继续增长,余量不足。
+#   收益:factory 获得 1MB 额外空间(总余量约 1.2MB),足以容纳 UAC Host
+#         驱动 + minimp3 解码器 + LRC 解析 + 弧控件等全部新增代码。
+#   代价:spiffs 从 2MB 减到 1MB。系统资源/EAPK 源文件实际占用约 500KB,
+#         1MB 仍有余量;若后续 eapk 数量大幅增长,重新评估。
+#   注意:改分区后 SPIFFS 需重新格式化(format_if_mount_failed=true 自动)。
+#   用户已确认:不需要 OTA。
 #
 # Name,   Type, SubType,  Offset,   Size,     Flags
 # nvs      16 KB   - 键值配置(wifi.*/proxy.* 等)
 # phy_init 4 KB    - PHY 校准数据
-# factory  5.94 MB - ElenixOS Core + Service + LVGL + JerryScript + 系统资源
-# spiffs   2 MB    - /sdcard 挂载点(EOS_SYS_ROOT_DIR),存 config/state/资源/eapk 源+解包
+# factory  6.94 MB - ElenixOS Core + Service + LVGL + JerryScript + 系统资源
+# spiffs   1 MB    - /sdcard 挂载点(EOS_SYS_ROOT_DIR),存 config/state/资源
 nvs,      data, nvs,      0x9000,   0x4000,
 phy_init, data, phy,      0xf000,   0x1000,
-factory,  app,  factory,  0x10000,  0x5F0000,
-spiffs,   data, spiffs,   0x600000, 0x200000,
+factory,  app,  factory,  0x10000,  0x6F0000,
+spiffs,   data, spiffs,   0x700000, 0x100000,
