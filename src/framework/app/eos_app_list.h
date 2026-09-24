@@ -49,6 +49,7 @@ enum
 #if defined(CONFIG_PROFMONITOR_APP_ENABLE) && CONFIG_PROFMONITOR_APP_ENABLE
     EOS_NATIVE_APP_PROFMONITOR,
 #endif
+    EOS_NATIVE_APP_EQSOLVER,
 /* New native C apps can be added here */
     EOS_NATIVE_APP_LAST
 };

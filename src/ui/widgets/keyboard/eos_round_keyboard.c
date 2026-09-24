@@ -4,15 +4,14 @@
  * 适配 240x240 圆屏, 键盘占屏幕下半部分半圆:
  *   - 键区为半圆内嵌矩形(不铺满半圆), 4 行 x 5 列
  *   - 矩形左右两侧各一个翻页箭头(查看 QWERTY/符号 的左右两页)
- *   - 右箭头下方是输入法切换键(英文→拼音→符号→数字 循环)
- *   - 支持 EN(两页) / ZH(拼音候选) / SYM(两页) / NUM 四种输入法
+ *   - 右箭头下方是输入法切换键(英文→符号→数字 循环)
+ *   - 支持 EN(两页) / SYM(两页) / NUM(单页) 三种输入法
  */
 
 #include "eos_round_keyboard.h"
 
 #include "eos_theme.h"
 #include "eos_font.h"
-#include "eos_pinyin.h"
 #include "eos_mem.h"
 #include "eos_log.h"
 
@@ -39,7 +38,6 @@
 #define _ARROW_R_X  196  /* 右箭头/模式键 x */
 #define _ARROW_Y    32   /* 箭头 y */
 #define _MODE_Y     58   /* 模式键 y(右箭头下方) */
-#define _CAND_MAX   3    /* 拼音候选个数 */
 
 /* ── 键定义: EN 两页 / 数字 / 符号两页 ── */
 static const char *const _EN_P0[15] = {"q", "w", "e", "r", "t", "a", "s", "d", "f", "g", "z", "x", "c", "v", "b"};
@@ -47,14 +45,13 @@ static const char *const _EN_P1[15] = {"y", "u", "i", "o", "p", "h", "j", "k", "
 static const char *const _NUM[14]    = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ".", "-", "_", "@"};
 static const char *const _SYM_P0[15] = {"!", "@", "#", "$", "%", "&", "*", "(", ")", "/", "{", "}", "[", "]", "<"};
 static const char *const _SYM_P1[15] = {"?", "+", "=", "-", "_", ";", ":", "'", "\"", ",", ".", "^", "~", "|", "\\"};
+/* SYM 第 3 页: 方程/不等式运算专用(math page) */
+static const char *const _SYM_P2[15] = {"<", ">", "<=", ">=", "=", "(", ")", "{", "}", "[", "]", "^", "_", "+", "-"};
 
 /* 控制键标记 */
 #define _CTRL_BACK  "@back"
 #define _CTRL_SPACE "@space"
 #define _CTRL_OK    "@ok"
-#define _CTRL_CAND0 "@cand0"
-#define _CTRL_CAND1 "@cand1"
-#define _CTRL_CAND2 "@cand2"
 
 typedef struct
 {
@@ -65,12 +62,6 @@ typedef struct
     lv_obj_t *ta;
     eos_rkb_mode_t mode;
     uint8_t page;
-    /* 拼音输入 */
-    char pybuf[16];
-    uint8_t py_len;
-    const char *cands[_CAND_MAX];
-    int cand_count;
-    char cand_tags[_CAND_MAX][8];
 } rkb_t;
 
 /* 前向声明(重建函数早于回调定义) */
@@ -92,7 +83,6 @@ static const char *_mode_text(eos_rkb_mode_t mode)
 {
     switch (mode)
     {
-    case EOS_RKB_MODE_ZH: return "拼";
     case EOS_RKB_MODE_SYM: return "#";
     case EOS_RKB_MODE_NUM: return "1";
     default: return "A";
@@ -126,29 +116,16 @@ static lv_obj_t *_rkb_make_key_at(lv_obj_t *area, int x, int y, int w, int h,
     }
     else
     {
-        /* 字母/数字/符号: 默认 26px → 22px → 20px 再收小 2 */
-        eos_label_set_font_size(label, EOS_FONT_SIZE_SMALL);
+        /* 字母/数字/符号: 默认 26px → 22px → 20px 再收小 2
+         * 复合符号(如 "<=" ">=")字号再收窄, 避免溢出按键 */
+        eos_label_set_font_size(label, (strlen(text) >= 2)
+                                        ? EOS_FONT_SIZE_EXTRA_SMALL
+                                        : EOS_FONT_SIZE_SMALL);
     }
     return btn;
 }
 
-/* ── 拼音候选查询 ── */
-
-static void _rkb_query_cands(rkb_t *ctx)
-{
-    ctx->cand_count = 0;
-    if (ctx->py_len == 0)
-        return;
-    const char *out[_CAND_MAX];
-    int written = 0;
-    eos_pinyin_lookup(ctx->pybuf, out, _CAND_MAX, &written);
-    int i;
-    for (i = 0; i < written && i < _CAND_MAX; i++)
-        ctx->cands[i] = out[i];
-    ctx->cand_count = i;
-}
-
-/* ── 第4行: 控制键 / 候选键 ── */
+/* ── 第4行: 控制键 ── */
 
 static void _rkb_make_ctrl_row(rkb_t *ctx)
 {
@@ -162,26 +139,15 @@ static void _rkb_make_ctrl_row(rkb_t *ctx)
                      _rkb_ctrl_cb, _CTRL_OK, false);
 }
 
-static void _rkb_make_cand_row(rkb_t *ctx)
-{
-    /* [c0 38][c1 38][c2 38][⌫ 26] */
-    int x = 0;
-    int i;
-    for (i = 0; i < _CAND_MAX; i++)
-    {
-        const char *txt = (i < ctx->cand_count && ctx->cands[i]) ? ctx->cands[i] : "";
-        snprintf(ctx->cand_tags[i], sizeof(ctx->cand_tags[i]), "@cand%d", i);
-        lv_obj_t *b = _rkb_make_key_at(ctx->key_area, x, _CTRL_Y, 38, _CTRL_H, txt,
-                                       _rkb_ctrl_cb, ctx->cand_tags[i], true);
-        if (txt[0] == '\0')
-            lv_obj_add_state(b, LV_STATE_DISABLED);
-        x += 40;
-    }
-    _rkb_make_key_at(ctx->key_area, 120, _CTRL_Y, 26, _CTRL_H, LV_SYMBOL_BACKSPACE,
-                     _rkb_ctrl_cb, _CTRL_BACK, false);
-}
-
 /* ── 重建键区 ── */
+
+/* 每个模式包含的页数(用于翻页箭头循环) */
+static int _rkb_mode_pages(eos_rkb_mode_t mode)
+{
+    if (mode == EOS_RKB_MODE_SYM) return 3; /* 第 3 页为方程/不等式运算页 */
+    if (mode == EOS_RKB_MODE_NUM) return 1;
+    return 2; /* EN 两页 */
+}
 
 static void _rkb_rebuild(rkb_t *ctx)
 {
@@ -193,12 +159,16 @@ static void _rkb_rebuild(rkb_t *ctx)
     switch (ctx->mode)
     {
     case EOS_RKB_MODE_EN:
-    case EOS_RKB_MODE_ZH:
         keys = ctx->page ? _EN_P1 : _EN_P0;
         count = 15;
         break;
     case EOS_RKB_MODE_SYM:
-        keys = ctx->page ? _SYM_P1 : _SYM_P0;
+        if (ctx->page == 1)
+            keys = _SYM_P1;
+        else if (ctx->page == 2)
+            keys = _SYM_P2;
+        else
+            keys = _SYM_P0;
         count = 15;
         break;
     case EOS_RKB_MODE_NUM:
@@ -215,10 +185,7 @@ static void _rkb_rebuild(rkb_t *ctx)
                          _KEY_W, _KEY_H, keys[i], _rkb_char_cb, keys[i], false);
     }
 
-    if (ctx->mode == EOS_RKB_MODE_ZH)
-        _rkb_make_cand_row(ctx);
-    else
-        _rkb_make_ctrl_row(ctx);
+    _rkb_make_ctrl_row(ctx);
 }
 
 /* ── 箭头禁用状态(数字模式单页无翻页) ── */
@@ -247,19 +214,6 @@ static void _rkb_char_cb(lv_event_t *e)
     if (!s || !ctx || !ctx->ta)
         return;
 
-    /* 拼音模式: 字母累积到 pybuf, 刷新候选 */
-    if (ctx->mode == EOS_RKB_MODE_ZH && s[1] == '\0' && s[0] >= 'a' && s[0] <= 'z')
-    {
-        if (ctx->py_len < sizeof(ctx->pybuf) - 1)
-        {
-            ctx->pybuf[ctx->py_len++] = s[0];
-            ctx->pybuf[ctx->py_len] = '\0';
-        }
-        _rkb_query_cands(ctx);
-        _rkb_rebuild(ctx);
-        return;
-    }
-
     lv_textarea_add_text(ctx->ta, s);
 }
 
@@ -273,13 +227,7 @@ static void _rkb_ctrl_cb(lv_event_t *e)
 
     if (strcmp(tag, _CTRL_BACK) == 0)
     {
-        if (ctx->mode == EOS_RKB_MODE_ZH && ctx->py_len > 0)
-        {
-            ctx->pybuf[--ctx->py_len] = '\0';
-            _rkb_query_cands(ctx);
-            _rkb_rebuild(ctx);
-        }
-        else if (ctx->ta)
+        if (ctx->ta)
         {
             lv_textarea_delete_char(ctx->ta);
         }
@@ -295,17 +243,6 @@ static void _rkb_ctrl_cb(lv_event_t *e)
         if (ctx->ta)
             lv_obj_send_event(ctx->ta, LV_EVENT_READY, NULL);
     }
-    else if (strncmp(tag, "@cand", 5) == 0)
-    {
-        int idx = tag[5] - '0';
-        if (idx < ctx->cand_count && ctx->cands[idx] && ctx->ta)
-        {
-            lv_textarea_add_text(ctx->ta, ctx->cands[idx]);
-            ctx->py_len = 0;
-            ctx->pybuf[0] = '\0';
-            _rkb_rebuild(ctx);
-        }
-    }
 }
 
 static void _rkb_arrow_cb(lv_event_t *e)
@@ -315,7 +252,12 @@ static void _rkb_arrow_cb(lv_event_t *e)
     rkb_t *ctx = root ? (rkb_t *)lv_obj_get_user_data(root) : NULL;
     if (!ctx || ctx->mode == EOS_RKB_MODE_NUM)
         return;
-    ctx->page = ((intptr_t)lv_obj_get_user_data(btn) == 1) ? 0 : 1;
+    int npages = _rkb_mode_pages(ctx->mode);
+    /* 左箭头(user_data==1)上一页, 右箭头下一页, 循环翻页 */
+    if ((intptr_t)lv_obj_get_user_data(btn) == 1)
+        ctx->page = (ctx->page - 1 + npages) % npages;
+    else
+        ctx->page = (ctx->page + 1) % npages;
     _rkb_rebuild(ctx);
 }
 
@@ -326,10 +268,8 @@ static void _rkb_mode_cb(lv_event_t *e)
     rkb_t *ctx = root ? (rkb_t *)lv_obj_get_user_data(root) : NULL;
     if (!ctx)
         return;
-    ctx->mode = (eos_rkb_mode_t)(((int)ctx->mode + 1) % 4);
+    ctx->mode = (eos_rkb_mode_t)(((int)ctx->mode + 1) % 3);
     ctx->page = 0;
-    ctx->py_len = 0;
-    ctx->pybuf[0] = '\0';
 
     lv_obj_t *l = lv_obj_get_child(ctx->mode_btn, 0);
     if (l)
@@ -439,8 +379,6 @@ void eos_round_keyboard_set_mode(lv_obj_t *kb, eos_rkb_mode_t mode)
         return;
     ctx->mode = mode;
     ctx->page = 0;
-    ctx->py_len = 0;
-    ctx->pybuf[0] = '\0';
     lv_obj_t *l = lv_obj_get_child(ctx->mode_btn, 0);
     if (l)
         lv_label_set_text(l, _mode_text(mode));

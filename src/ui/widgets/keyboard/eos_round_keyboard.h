@@ -10,8 +10,7 @@ extern "C" {
 typedef enum
 {
     EOS_RKB_MODE_EN = 0, /* 英文 QWERTY（左右两页） */
-    EOS_RKB_MODE_ZH,     /* 简中拼音（候选行） */
-    EOS_RKB_MODE_SYM,    /* 标点符号（两页） */
+    EOS_RKB_MODE_SYM,    /* 标点符号（三页: 第 3 页为方程/不等式运算页） */
     EOS_RKB_MODE_NUM,    /* 数字（单页） */
 } eos_rkb_mode_t;
 
@@ -27,7 +26,7 @@ lv_obj_t *eos_round_keyboard_create(lv_obj_t *parent);
  */
 void eos_round_keyboard_set_textarea(lv_obj_t *kb, lv_obj_t *ta);
 
-/** @brief 设置输入法模式（EN/ZH/SYM/NUM） */
+/** @brief 设置输入法模式（EN/SYM/NUM） */
 void eos_round_keyboard_set_mode(lv_obj_t *kb, eos_rkb_mode_t mode);
 
 /** @brief 获取当前输入法模式 */

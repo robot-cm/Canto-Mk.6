@@ -42,6 +42,7 @@ extern const lv_image_dsc_t eos_icon_usb_msc;
 /* App 图标编译进 Flash(resources/images/icon/eos_icon_spotify.c) */
 extern const lv_image_dsc_t eos_icon_spotify;
 #endif
+#include "apps/eqsolver/eos_eqsolver.h"
 #include "eos_service_storage.h"
 #include "eos_app_header.h"
 #include "eos_mem.h"
@@ -116,6 +117,7 @@ const char *eos_native_app_id_list[EOS_NATIVE_APP_LAST] = {
 #if defined(CONFIG_PROFMONITOR_APP_ENABLE) && CONFIG_PROFMONITOR_APP_ENABLE
     "com.cantomk6.profmonitor",
 #endif
+    "com.cantomk6.eqsolver",
 };
 
 const char *eos_native_app_icon_list[EOS_NATIVE_APP_LAST] = {
@@ -131,6 +133,7 @@ const char *eos_native_app_icon_list[EOS_NATIVE_APP_LAST] = {
 #if defined(CONFIG_PROFMONITOR_APP_ENABLE) && CONFIG_PROFMONITOR_APP_ENABLE
     EOS_IMG_PROFMONITOR,
 #endif
+    EOS_IMG_EQSOLVER,
 };
 
 const eos_sys_app_entry_t eos_native_app_entry_list[EOS_NATIVE_APP_LAST] = {
@@ -146,6 +149,7 @@ const eos_sys_app_entry_t eos_native_app_entry_list[EOS_NATIVE_APP_LAST] = {
 #if defined(CONFIG_PROFMONITOR_APP_ENABLE) && CONFIG_PROFMONITOR_APP_ENABLE
     eos_profmonitor_enter,
 #endif
+    eos_eqsolver_enter,
 };
 
 static void _app_list_on_resueme(eos_activity_t *a);
