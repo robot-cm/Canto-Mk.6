@@ -7,9 +7,9 @@
 // crashed on-device (jerry assert code=120), so we roll our own.
 // EVENT_CLICKED broken in this fork -> use EVENT_PRESSED.
 
-var activity = eos.activity.current();
-var view = eos.activity.getView(activity);
-eos.activity.setTitle(activity, "Texthub");
+var activity = cos.activity.current();
+var view = cos.activity.getView(activity);
+cos.activity.setTitle(activity, "Texthub");
 
 var BG = 0x0E0E14;
 var WHITE = 0xFFFFFF;
@@ -153,12 +153,12 @@ var files = [];
 function scan(dir, depth) {
     if (depth > MAX_DEPTH) return;
     var names = [];
-    try { names = eos.fs.list(dir); } catch (e) { return; }   // missing dir
+    try { names = cos.fs.list(dir); } catch (e) { return; }   // missing dir
     for (var i = 0; i < names.length; i++) {
         var p = dir + "/" + names[i];
         if (isTextFile(names[i])) { files.push(p); continue; }
         try {
-            var sub = eos.fs.list(p);        // dir -> array, file -> throw
+            var sub = cos.fs.list(p);        // dir -> array, file -> throw
             if (sub) scan(p, depth + 1);
         } catch (e2) { /* regular file */ }
     }
@@ -237,14 +237,14 @@ function load(i) {
     var t = new lv.timer(function () {          // async read -> UI shows loading first
         var p = files[idx];
         var sz = 0;
-        try { sz = eos.fs.size(p); } catch (e) {}
+        try { sz = cos.fs.size(p); } catch (e) {}
         if (sz > MAX_BYTES) {
             body.setText("File too large: " + Math.floor(sz / 1024) + "KB\n(cap " + (MAX_BYTES / 1024) + "KB)");
             fadeIn();
             return;
         }
         var raw = undefined;
-        try { raw = eos.fs.read(p); } catch (e) {}
+        try { raw = cos.fs.read(p); } catch (e) {}
         if (!raw) {
             body.setText(sz === 0 ? "Empty file: " + basename(p) : "Read error: " + basename(p));
             fadeIn();

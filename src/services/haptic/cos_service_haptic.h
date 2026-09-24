@@ -1,10 +1,10 @@
 /**
- * @file eos_service_haptic.h
+ * @file cos_service_haptic.h
  * @brief Haptic service
  */
 
-#ifndef EOS_SERVICE_HAPTIC_H
-#define EOS_SERVICE_HAPTIC_H
+#ifndef COS_SERVICE_HAPTIC_H
+#define COS_SERVICE_HAPTIC_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,7 +13,7 @@ extern "C" {
 /* Includes ---------------------------------------------------*/
 #include <stdint.h>
 #include <stdbool.h>
-#include "eos_dev_vibrator.h"
+#include "cos_dev_vibrator.h"
 
 /* Public macros ----------------------------------------------*/
 
@@ -21,40 +21,40 @@ extern "C" {
 
 typedef enum
 {
-    EOS_HAPTIC_STRENGTH_OFF = 0,
-    EOS_HAPTIC_STRENGTH_NORMAL = 128,
-    EOS_HAPTIC_STRENGTH_INTENSE = 255,
-} eos_haptic_strength_t;
+    COS_HAPTIC_STRENGTH_OFF = 0,
+    COS_HAPTIC_STRENGTH_NORMAL = 128,
+    COS_HAPTIC_STRENGTH_INTENSE = 255,
+} cos_haptic_strength_t;
 
 /* Public function prototypes --------------------------------*/
 
 /**
  * @brief Short and light tick vibration
  */
-void eos_haptic_tick(void);
+void cos_haptic_tick(void);
 
 /**
  * @brief Slightly stronger and longer vibration
  */
-void eos_haptic_buzz(void);
+void cos_haptic_buzz(void);
 
 /**
  * @brief Strongest and longest vibration
  */
-void eos_haptic_vibrate_long(void);
+void cos_haptic_vibrate_long(void);
 
 /**
  * @brief Haptic service initialization
  */
-void eos_service_haptic_init(void);
+void cos_service_haptic_init(void);
 
 /**
  * @brief Set global haptic strength
  */
-void eos_haptic_set_strength(eos_haptic_strength_t s);
+void cos_haptic_set_strength(cos_haptic_strength_t s);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_SERVICE_HAPTIC_H */
+#endif /* COS_SERVICE_HAPTIC_H */

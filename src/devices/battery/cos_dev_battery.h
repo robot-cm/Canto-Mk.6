@@ -1,17 +1,17 @@
 /**
- * @file eos_dev_battery.h
+ * @file cos_dev_battery.h
  * @brief Battery device abstraction layer
  *
  * This module provides the device layer interface for battery hardware.
- * The battery service (eos_service_battery) depends on this interface
+ * The battery service (cos_service_battery) depends on this interface
  * to communicate with battery hardware without direct hardware access.
  *
  * @note Application layer should NOT access this module directly.
- *       Use eos_service_battery API instead.
+ *       Use cos_service_battery API instead.
  */
 
-#ifndef EOS_DEV_BATTERY_H
-#define EOS_DEV_BATTERY_H
+#ifndef COS_DEV_BATTERY_H
+#define COS_DEV_BATTERY_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,15 +20,15 @@ extern "C" {
 /* Includes ---------------------------------------------------*/
 #include <stdint.h>
 #include <stdbool.h>
-#include "eos_error.h"
+#include "cos_error.h"
 
 /* Public macros ----------------------------------------------*/
 
-#define EOS_BATTERY_CAPACITY_UNDEFINED (UINT32_MAX)
+#define COS_BATTERY_CAPACITY_UNDEFINED (UINT32_MAX)
 
 /* Public typedefs --------------------------------------------*/
 
-typedef uint32_t eos_charge_mAh_t;
+typedef uint32_t cos_charge_mAh_t;
 
 /**
  * @brief Battery device operation callbacks
@@ -39,13 +39,13 @@ typedef uint32_t eos_charge_mAh_t;
 typedef struct
 {
     void (*request_update)(void); /**< Request battery data update */
-} eos_battery_dev_ops_t;
+} cos_battery_dev_ops_t;
 
 typedef struct
 {
-    eos_battery_dev_ops_t ops; /**< Battery device operation callbacks */
-    eos_charge_mAh_t design_capacity; /**< Battery design capacity in mAh */
-} eos_dev_battery_t;
+    cos_battery_dev_ops_t ops; /**< Battery device operation callbacks */
+    cos_charge_mAh_t design_capacity; /**< Battery design capacity in mAh */
+} cos_dev_battery_t;
 
 /* Public function prototypes --------------------------------*/
 
@@ -60,7 +60,7 @@ typedef struct
  * @param design_capacity_mah Battery design capacity in mAh
  * @return None
  */
-void eos_dev_battery_register(const eos_battery_dev_ops_t *ops, eos_charge_mAh_t design_capacity);
+void cos_dev_battery_register(const cos_battery_dev_ops_t *ops, cos_charge_mAh_t design_capacity);
 
 /**
  * @brief Get battery device operations
@@ -69,10 +69,10 @@ void eos_dev_battery_register(const eos_battery_dev_ops_t *ops, eos_charge_mAh_t
  *
  * @return Pointer to battery device operations, or NULL if not registered
  */
-eos_dev_battery_t *eos_dev_battery_get_instance(void);
+cos_dev_battery_t *cos_dev_battery_get_instance(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_DEV_BATTERY_H */
+#endif /* COS_DEV_BATTERY_H */

@@ -1,4 +1,4 @@
-// _autotest.js — headless 门禁：mock lv/eos 加载 main.js，
+// _autotest.js — headless 门禁：mock lv/cos 加载 main.js，
 // 驱动 Boot 转场 + 自动玩 20 整局（含三转场 + retry + 超时），任何 Jerry error = fail。
 // 另做"被调用函数 vs 已定义"静态扫描（secondary net）。
 const fs = require('fs');
@@ -7,7 +7,7 @@ const vm = require('vm');
 
 const SRC = path.join(__dirname, 'main.js');
 
-// ---------- mock lv / eos ----------
+// ---------- mock lv / cos ----------
 const timers = [];
 const breachLogs = [];
 
@@ -65,7 +65,7 @@ const lv = {
     TEXT_ALIGN_CENTER: 2, TEXT_ALIGN_LEFT: 0,
     LABEL_LONG_CLIP: 4, LABEL_LONG_WRAP: 0,
 };
-const eos = {
+const cos = {
     console: { log: function (msg) { if (typeof msg === 'string' && msg.indexOf('[breach') === 0) breachLogs.push(msg); } },
     activity: {
         current() { return mkStub(); },
@@ -76,7 +76,7 @@ const eos = {
 };
 
 // ---------- run main.js ----------
-const ctx = { lv, eos, Math, String, Number, Object, Array, JSON, Boolean, console, parseInt, parseFloat, isNaN, parseInt, undefined };
+const ctx = { lv, cos, Math, String, Number, Object, Array, JSON, Boolean, console, parseInt, parseFloat, isNaN, parseInt, undefined };
 vm.createContext(ctx);
 let loadErr = null;
 try {
@@ -137,7 +137,7 @@ while ((m = reVar.exec(src))) declared.add(m[1]);
 const called = new Set();
 const reCall = /(^|[^.\w$])([A-Za-z_$][\w$]*)\s*\(/g;
 while ((m = reCall.exec(src))) called.add(m[2]);
-const builtins = new Set(['if', 'for', 'while', 'switch', 'catch', 'function', 'return', 'typeof', 'new', 'do', 'else', 'Math', 'String', 'Number', 'Object', 'Array', 'JSON', 'Boolean', 'parseInt', 'parseFloat', 'isNaN', 'setTimeout', 'clearTimeout', 'require', 'console', 'Date', 'Error', 'lv', 'eos', 'R', 'safeTimer', 'cb', 'e', 't', 'r', 'c', 'i', 'j', 'k', 's', 'n', 'p', 'g', 'm', 'L', 'st', 'res', 'seq', 'path', 'cell', 'guard', 'ps', 'idx', 'rc', 'lc', 'ci', 'free', 'pick', 'last', 'pc', 'cc', 'z', 'nf', 'ok', 'okk', 'same', 'tt', 'rng', 'gm', 'ti', 'nums', 'lit', 'full', 'o', 'b', 'l', 'tl', 'so', 'ft', 'tw', 'pt', 'ct', 'v', 'x', 'y', 'w', 'h', 'd', 'a', 'buf', 'set']);
+const builtins = new Set(['if', 'for', 'while', 'switch', 'catch', 'function', 'return', 'typeof', 'new', 'do', 'else', 'Math', 'String', 'Number', 'Object', 'Array', 'JSON', 'Boolean', 'parseInt', 'parseFloat', 'isNaN', 'setTimeout', 'clearTimeout', 'require', 'console', 'Date', 'Error', 'lv', 'cos', 'R', 'safeTimer', 'cb', 'e', 't', 'r', 'c', 'i', 'j', 'k', 's', 'n', 'p', 'g', 'm', 'L', 'st', 'res', 'seq', 'path', 'cell', 'guard', 'ps', 'idx', 'rc', 'lc', 'ci', 'free', 'pick', 'last', 'pc', 'cc', 'z', 'nf', 'ok', 'okk', 'same', 'tt', 'rng', 'gm', 'ti', 'nums', 'lit', 'full', 'o', 'b', 'l', 'tl', 'so', 'ft', 'tw', 'pt', 'ct', 'v', 'x', 'y', 'w', 'h', 'd', 'a', 'buf', 'set']);
 const undefinedCalls = [];
 for (const c of called) {
     if (builtins.has(c)) continue;

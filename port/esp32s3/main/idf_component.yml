@@ -5,7 +5,7 @@
 # (不是裸名 `tinyusb` —— 之前 MAIN_REQUIRES 用裸名导致"找不到组件")。
 #
 # 该组件只提供 TinyUSB 协议栈;USB 描述符 / tusb_config.h 由本项目
-# (port/esp32s3/main/) 提供,见 eos_usb_msc_board.h / drv.c 的引用。
+# (port/esp32s3/main/) 提供,见 cos_usb_msc_board.h / drv.c 的引用。
 #
 # 构建前若未联网拉取,运行:
 #   cd port/esp32s3 && idf.py reconfigure

@@ -1,27 +1,27 @@
 /**
- * @file eos_test_permission.c
+ * @file cos_test_permission.c
  * @brief Comprehensive permission system test module
  */
 
-#include "eos_test_permission.h"
-#include "eos_config.h"
-#if EOS_ENABLE_TEST_APP
+#include "cos_test_permission.h"
+#include "cos_config.h"
+#if COS_ENABLE_TEST_APP
 
 /* Includes ---------------------------------------------------*/
 #include <string.h>
 #include <stdio.h>
-#include "eos_activity.h"
-#include "eos_app_header.h"
-#include "eos_crown.h"
-#include "eos_service_permission.h"
-#include "eos_log.h"
-#include "eos_basic_widgets.h"
-#include "eos_lang.h"
+#include "cos_activity.h"
+#include "cos_app_header.h"
+#include "cos_crown.h"
+#include "cos_service_permission.h"
+#include "cos_log.h"
+#include "cos_basic_widgets.h"
+#include "cos_lang.h"
 #include "lvgl.h"
-#include "eos_test_framework.h"
+#include "cos_test_framework.h"
 
 /* Macros and Definitions -------------------------------------*/
-#define EOS_LOG_TAG "PermTest"
+#define COS_LOG_TAG "PermTest"
 #define TEST_APP_ID_1 "com.test.app1"
 #define TEST_APP_ID_2 "com.test.app2"
 
@@ -48,7 +48,7 @@ static void _update_result(const char *text)
     {
         lv_label_set_text(_ctx.result_label, text);
     }
-    EOS_LOG_I("%s", text);
+    COS_LOG_I("%s", text);
 }
 
 static void _record_test(const char *name, bool passed, const char *details)
@@ -63,7 +63,7 @@ static void _record_test(const char *name, bool passed, const char *details)
         _ctx.stats.failed_tests++;
     }
 
-    eos_test_record(name, passed, details);
+    cos_test_record(name, passed, details);
 
     if (_ctx.list)
     {
@@ -90,9 +90,9 @@ static bool _test_default_state_denied(void)
     const char *app_id = "com.test.unique.default";
 
     /* Get permission state before setting anything */
-    eos_perm_state_t state = eos_permission_get(app_id, EOS_PERM_CATEGORY_LOCATION);
+    cos_perm_state_t state = cos_permission_get(app_id, COS_PERM_CATEGORY_LOCATION);
 
-    bool passed = (state == EOS_PERM_STATE_DENIED);
+    bool passed = (state == COS_PERM_STATE_DENIED);
     _record_test("Default State is DENIED",
                  passed,
                  passed ? "New app permissions default to DENIED" : "Default state incorrect");
@@ -107,7 +107,7 @@ static bool _test_set_and_get(void)
     const char *app_id = TEST_APP_ID_1;
 
     /* Set location permission to ALLOW_ALWAYS */
-    bool set_ok = eos_permission_set(app_id, EOS_PERM_CATEGORY_LOCATION, EOS_PERM_STATE_ALLOW_ALWAYS);
+    bool set_ok = cos_permission_set(app_id, COS_PERM_CATEGORY_LOCATION, COS_PERM_STATE_ALLOW_ALWAYS);
     if (!set_ok)
     {
         _record_test("Set Permission", false, "Failed to set permission");
@@ -115,8 +115,8 @@ static bool _test_set_and_get(void)
     }
 
     /* Read it back */
-    eos_perm_state_t state = eos_permission_get(app_id, EOS_PERM_CATEGORY_LOCATION);
-    bool passed = (state == EOS_PERM_STATE_ALLOW_ALWAYS);
+    cos_perm_state_t state = cos_permission_get(app_id, COS_PERM_CATEGORY_LOCATION);
+    bool passed = (state == COS_PERM_STATE_ALLOW_ALWAYS);
     _record_test("Set and Get Permission",
                  passed,
                  passed ? "Permission state persisted correctly" : "State mismatch after set");
@@ -131,23 +131,23 @@ static bool _test_all_states(void)
     const char *app_id = "com.test.states";
     bool all_passed = true;
 
-    eos_perm_state_t test_states[] = {EOS_PERM_STATE_DENIED,
-                                      EOS_PERM_STATE_ALLOW_ONCE,
-                                      EOS_PERM_STATE_ALLOW_FOREGROUND,
-                                      EOS_PERM_STATE_ALLOW_ALWAYS};
+    cos_perm_state_t test_states[] = {COS_PERM_STATE_DENIED,
+                                      COS_PERM_STATE_ALLOW_ONCE,
+                                      COS_PERM_STATE_ALLOW_FOREGROUND,
+                                      COS_PERM_STATE_ALLOW_ALWAYS};
 
     const char *state_names[] = {"DENIED", "ALLOW_ONCE", "ALLOW_FOREGROUND", "ALLOW_ALWAYS"};
 
     for (int i = 0; i < 4; i++)
     {
-        bool ok = eos_permission_set(app_id, EOS_PERM_CATEGORY_SENSOR, test_states[i]);
+        bool ok = cos_permission_set(app_id, COS_PERM_CATEGORY_SENSOR, test_states[i]);
         if (!ok)
         {
             all_passed = false;
             break;
         }
 
-        eos_perm_state_t read_back = eos_permission_get(app_id, EOS_PERM_CATEGORY_SENSOR);
+        cos_perm_state_t read_back = cos_permission_get(app_id, COS_PERM_CATEGORY_SENSOR);
         if (read_back != test_states[i])
         {
             all_passed = false;
@@ -171,12 +171,12 @@ static bool _test_all_states(void)
 static bool _test_app_isolation(void)
 {
     /* Set permission for app1 */
-    eos_permission_set(TEST_APP_ID_1, EOS_PERM_CATEGORY_NOTIFICATION, EOS_PERM_STATE_ALLOW_ALWAYS);
+    cos_permission_set(TEST_APP_ID_1, COS_PERM_CATEGORY_NOTIFICATION, COS_PERM_STATE_ALLOW_ALWAYS);
 
     /* App2 should still have default DENIED */
-    eos_perm_state_t app2_state = eos_permission_get(TEST_APP_ID_2, EOS_PERM_CATEGORY_NOTIFICATION);
+    cos_perm_state_t app2_state = cos_permission_get(TEST_APP_ID_2, COS_PERM_CATEGORY_NOTIFICATION);
 
-    bool passed = (app2_state == EOS_PERM_STATE_DENIED);
+    bool passed = (app2_state == COS_PERM_STATE_DENIED);
     _record_test("App Isolation",
                  passed,
                  passed ? "Different apps have independent permission stores" : "App isolation violated");
@@ -190,16 +190,16 @@ static bool _test_category_independence(void)
 {
     const char *app_id = "com.test.categories";
 
-    eos_permission_set(app_id, EOS_PERM_CATEGORY_LOCATION, EOS_PERM_STATE_ALLOW_ALWAYS);
-    eos_permission_set(app_id, EOS_PERM_CATEGORY_STORAGE, EOS_PERM_STATE_DENIED);
-    eos_permission_set(app_id, EOS_PERM_CATEGORY_AUDIO, EOS_PERM_STATE_ALLOW_FOREGROUND);
+    cos_permission_set(app_id, COS_PERM_CATEGORY_LOCATION, COS_PERM_STATE_ALLOW_ALWAYS);
+    cos_permission_set(app_id, COS_PERM_CATEGORY_STORAGE, COS_PERM_STATE_DENIED);
+    cos_permission_set(app_id, COS_PERM_CATEGORY_AUDIO, COS_PERM_STATE_ALLOW_FOREGROUND);
 
-    eos_perm_state_t loc = eos_permission_get(app_id, EOS_PERM_CATEGORY_LOCATION);
-    eos_perm_state_t sto = eos_permission_get(app_id, EOS_PERM_CATEGORY_STORAGE);
-    eos_perm_state_t aud = eos_permission_get(app_id, EOS_PERM_CATEGORY_AUDIO);
+    cos_perm_state_t loc = cos_permission_get(app_id, COS_PERM_CATEGORY_LOCATION);
+    cos_perm_state_t sto = cos_permission_get(app_id, COS_PERM_CATEGORY_STORAGE);
+    cos_perm_state_t aud = cos_permission_get(app_id, COS_PERM_CATEGORY_AUDIO);
 
     bool passed =
-        (loc == EOS_PERM_STATE_ALLOW_ALWAYS && sto == EOS_PERM_STATE_DENIED && aud == EOS_PERM_STATE_ALLOW_FOREGROUND);
+        (loc == COS_PERM_STATE_ALLOW_ALWAYS && sto == COS_PERM_STATE_DENIED && aud == COS_PERM_STATE_ALLOW_FOREGROUND);
     _record_test("Category Independence",
                  passed,
                  passed ? "Each category has independent state" : "Categories not independent");
@@ -214,26 +214,26 @@ static bool _test_revoke_all(void)
     const char *app_id = "com.test.revoke";
 
     /* Set multiple permissions */
-    eos_permission_set(app_id, EOS_PERM_CATEGORY_LOCATION, EOS_PERM_STATE_ALLOW_ALWAYS);
-    eos_permission_set(app_id, EOS_PERM_CATEGORY_BLUETOOTH, EOS_PERM_STATE_ALLOW_FOREGROUND);
-    eos_permission_set(app_id, EOS_PERM_CATEGORY_CONTACTS, EOS_PERM_STATE_ALLOW_ONCE);
+    cos_permission_set(app_id, COS_PERM_CATEGORY_LOCATION, COS_PERM_STATE_ALLOW_ALWAYS);
+    cos_permission_set(app_id, COS_PERM_CATEGORY_BLUETOOTH, COS_PERM_STATE_ALLOW_FOREGROUND);
+    cos_permission_set(app_id, COS_PERM_CATEGORY_CONTACTS, COS_PERM_STATE_ALLOW_ONCE);
 
     /* Verify they were set */
-    if (eos_permission_get(app_id, EOS_PERM_CATEGORY_LOCATION) != EOS_PERM_STATE_ALLOW_ALWAYS
-        || eos_permission_get(app_id, EOS_PERM_CATEGORY_BLUETOOTH) != EOS_PERM_STATE_ALLOW_FOREGROUND
-        || eos_permission_get(app_id, EOS_PERM_CATEGORY_CONTACTS) != EOS_PERM_STATE_ALLOW_ONCE)
+    if (cos_permission_get(app_id, COS_PERM_CATEGORY_LOCATION) != COS_PERM_STATE_ALLOW_ALWAYS
+        || cos_permission_get(app_id, COS_PERM_CATEGORY_BLUETOOTH) != COS_PERM_STATE_ALLOW_FOREGROUND
+        || cos_permission_get(app_id, COS_PERM_CATEGORY_CONTACTS) != COS_PERM_STATE_ALLOW_ONCE)
     {
         _record_test("Revoke All Permissions", false, "Pre-condition: failed to set permissions");
         return false;
     }
 
     /* Revoke all */
-    eos_permission_revoke_all(app_id);
+    cos_permission_revoke_all(app_id);
 
     /* Verify all are now DENIED */
-    bool loc_revoked = (eos_permission_get(app_id, EOS_PERM_CATEGORY_LOCATION) == EOS_PERM_STATE_DENIED);
-    bool bt_revoked = (eos_permission_get(app_id, EOS_PERM_CATEGORY_BLUETOOTH) == EOS_PERM_STATE_DENIED);
-    bool contacts_revoked = (eos_permission_get(app_id, EOS_PERM_CATEGORY_CONTACTS) == EOS_PERM_STATE_DENIED);
+    bool loc_revoked = (cos_permission_get(app_id, COS_PERM_CATEGORY_LOCATION) == COS_PERM_STATE_DENIED);
+    bool bt_revoked = (cos_permission_get(app_id, COS_PERM_CATEGORY_BLUETOOTH) == COS_PERM_STATE_DENIED);
+    bool contacts_revoked = (cos_permission_get(app_id, COS_PERM_CATEGORY_CONTACTS) == COS_PERM_STATE_DENIED);
 
     bool passed = (loc_revoked && bt_revoked && contacts_revoked);
     _record_test("Revoke All Permissions",
@@ -252,23 +252,23 @@ static bool _test_name_to_category(void)
     struct
     {
         const char *name;
-        eos_perm_category_t expected;
+        cos_perm_category_t expected;
     } cases[] = {
-        {"location", EOS_PERM_CATEGORY_LOCATION},
-        {"sensor", EOS_PERM_CATEGORY_SENSOR},
-        {"notification", EOS_PERM_CATEGORY_NOTIFICATION},
-        {"storage", EOS_PERM_CATEGORY_STORAGE},
-        {"bluetooth", EOS_PERM_CATEGORY_BLUETOOTH},
-        {"audio", EOS_PERM_CATEGORY_AUDIO},
-        {"health", EOS_PERM_CATEGORY_HEALTH},
-        {"contacts", EOS_PERM_CATEGORY_CONTACTS},
-        {"calendar", EOS_PERM_CATEGORY_CALENDAR},
+        {"location", COS_PERM_CATEGORY_LOCATION},
+        {"sensor", COS_PERM_CATEGORY_SENSOR},
+        {"notification", COS_PERM_CATEGORY_NOTIFICATION},
+        {"storage", COS_PERM_CATEGORY_STORAGE},
+        {"bluetooth", COS_PERM_CATEGORY_BLUETOOTH},
+        {"audio", COS_PERM_CATEGORY_AUDIO},
+        {"health", COS_PERM_CATEGORY_HEALTH},
+        {"contacts", COS_PERM_CATEGORY_CONTACTS},
+        {"calendar", COS_PERM_CATEGORY_CALENDAR},
     };
 
     int num_cases = sizeof(cases) / sizeof(cases[0]);
     for (int i = 0; i < num_cases; i++)
     {
-        eos_perm_category_t result = eos_permission_name_to_category(cases[i].name);
+        cos_perm_category_t result = cos_permission_name_to_category(cases[i].name);
         if (result != cases[i].expected)
         {
             all_passed = false;
@@ -277,8 +277,8 @@ static bool _test_name_to_category(void)
     }
 
     /* Also test unknown name returns COUNT */
-    eos_perm_category_t unknown = eos_permission_name_to_category("nonexistent_perm");
-    if (unknown != EOS_PERM_CATEGORY_COUNT)
+    cos_perm_category_t unknown = cos_permission_name_to_category("nonexistent_perm");
+    if (unknown != COS_PERM_CATEGORY_COUNT)
     {
         all_passed = false;
     }
@@ -301,24 +301,24 @@ static bool _test_category_key(void)
 
     struct
     {
-        eos_perm_category_t cat;
+        cos_perm_category_t cat;
         const char *expected_key;
     } cases[] = {
-        {EOS_PERM_CATEGORY_LOCATION, "location"},
-        {EOS_PERM_CATEGORY_SENSOR, "sensor"},
-        {EOS_PERM_CATEGORY_NOTIFICATION, "notification"},
-        {EOS_PERM_CATEGORY_STORAGE, "storage"},
-        {EOS_PERM_CATEGORY_BLUETOOTH, "bluetooth"},
-        {EOS_PERM_CATEGORY_AUDIO, "audio"},
-        {EOS_PERM_CATEGORY_HEALTH, "health"},
-        {EOS_PERM_CATEGORY_CONTACTS, "contacts"},
-        {EOS_PERM_CATEGORY_CALENDAR, "calendar"},
+        {COS_PERM_CATEGORY_LOCATION, "location"},
+        {COS_PERM_CATEGORY_SENSOR, "sensor"},
+        {COS_PERM_CATEGORY_NOTIFICATION, "notification"},
+        {COS_PERM_CATEGORY_STORAGE, "storage"},
+        {COS_PERM_CATEGORY_BLUETOOTH, "bluetooth"},
+        {COS_PERM_CATEGORY_AUDIO, "audio"},
+        {COS_PERM_CATEGORY_HEALTH, "health"},
+        {COS_PERM_CATEGORY_CONTACTS, "contacts"},
+        {COS_PERM_CATEGORY_CALENDAR, "calendar"},
     };
 
     int num_cases = sizeof(cases) / sizeof(cases[0]);
     for (int i = 0; i < num_cases; i++)
     {
-        const char *key = eos_permission_category_key(cases[i].cat);
+        const char *key = cos_permission_category_key(cases[i].cat);
         if (!key || strcmp(key, cases[i].expected_key) != 0)
         {
             all_passed = false;
@@ -327,7 +327,7 @@ static bool _test_category_key(void)
     }
 
     /* Invalid category should return NULL */
-    const char *invalid_key = eos_permission_category_key(EOS_PERM_CATEGORY_COUNT);
+    const char *invalid_key = cos_permission_category_key(COS_PERM_CATEGORY_COUNT);
     if (invalid_key != NULL)
     {
         all_passed = false;
@@ -350,46 +350,46 @@ static bool _test_null_safety(void)
     bool all_passed = true;
 
     /* Get with NULL app_id should return DENIED */
-    eos_perm_state_t null_app = eos_permission_get(NULL, EOS_PERM_CATEGORY_LOCATION);
-    if (null_app != EOS_PERM_STATE_DENIED)
+    cos_perm_state_t null_app = cos_permission_get(NULL, COS_PERM_CATEGORY_LOCATION);
+    if (null_app != COS_PERM_STATE_DENIED)
     {
         all_passed = false;
     }
 
     /* Get with invalid category should return DENIED */
-    eos_perm_state_t invalid_cat = eos_permission_get(TEST_APP_ID_1, EOS_PERM_CATEGORY_COUNT);
-    if (invalid_cat != EOS_PERM_STATE_DENIED)
+    cos_perm_state_t invalid_cat = cos_permission_get(TEST_APP_ID_1, COS_PERM_CATEGORY_COUNT);
+    if (invalid_cat != COS_PERM_STATE_DENIED)
     {
         all_passed = false;
     }
 
     /* Set with NULL app_id should return false */
-    bool null_set = eos_permission_set(NULL, EOS_PERM_CATEGORY_LOCATION, EOS_PERM_STATE_ALLOW_ALWAYS);
+    bool null_set = cos_permission_set(NULL, COS_PERM_CATEGORY_LOCATION, COS_PERM_STATE_ALLOW_ALWAYS);
     if (null_set != false)
     {
         all_passed = false;
     }
 
     /* Set with invalid category should return false */
-    bool invalid_cat_set = eos_permission_set(TEST_APP_ID_1, EOS_PERM_CATEGORY_COUNT, EOS_PERM_STATE_ALLOW_ALWAYS);
+    bool invalid_cat_set = cos_permission_set(TEST_APP_ID_1, COS_PERM_CATEGORY_COUNT, COS_PERM_STATE_ALLOW_ALWAYS);
     if (invalid_cat_set != false)
     {
         all_passed = false;
     }
 
     /* Set with invalid state should return false */
-    bool invalid_state_set = eos_permission_set(TEST_APP_ID_1, EOS_PERM_CATEGORY_LOCATION, (eos_perm_state_t)99);
+    bool invalid_state_set = cos_permission_set(TEST_APP_ID_1, COS_PERM_CATEGORY_LOCATION, (cos_perm_state_t)99);
     if (invalid_state_set != false)
     {
         all_passed = false;
     }
 
     /* Revoke with NULL should not crash */
-    eos_permission_revoke_all(NULL);
+    cos_permission_revoke_all(NULL);
 
     /* Name conversion with NULL should return COUNT */
-    eos_perm_category_t null_name = eos_permission_name_to_category(NULL);
-    if (null_name != EOS_PERM_CATEGORY_COUNT)
+    cos_perm_category_t null_name = cos_permission_name_to_category(NULL);
+    if (null_name != COS_PERM_CATEGORY_COUNT)
     {
         all_passed = false;
     }
@@ -411,13 +411,13 @@ static bool _test_state_overwrite(void)
     const char *app_id = "com.test.overwrite";
 
     /* Set initial state */
-    eos_permission_set(app_id, EOS_PERM_CATEGORY_HEALTH, EOS_PERM_STATE_ALLOW_ALWAYS);
+    cos_permission_set(app_id, COS_PERM_CATEGORY_HEALTH, COS_PERM_STATE_ALLOW_ALWAYS);
 
     /* Overwrite with different state */
-    eos_permission_set(app_id, EOS_PERM_CATEGORY_HEALTH, EOS_PERM_STATE_DENIED);
+    cos_permission_set(app_id, COS_PERM_CATEGORY_HEALTH, COS_PERM_STATE_DENIED);
 
-    eos_perm_state_t final = eos_permission_get(app_id, EOS_PERM_CATEGORY_HEALTH);
-    bool passed = (final == EOS_PERM_STATE_DENIED);
+    cos_perm_state_t final = cos_permission_get(app_id, COS_PERM_CATEGORY_HEALTH);
+    bool passed = (final == COS_PERM_STATE_DENIED);
     _record_test("State Overwrite", passed, passed ? "Permission state can be overwritten" : "Overwrite failed");
     return passed;
 }
@@ -429,11 +429,11 @@ static bool _test_all_categories_valid(void)
 {
     bool all_passed = true;
 
-    for (int i = 0; i < EOS_PERM_CATEGORY_COUNT; i++)
+    for (int i = 0; i < COS_PERM_CATEGORY_COUNT; i++)
     {
-        const char *key = eos_permission_category_key((eos_perm_category_t)i);
-        const char *name = eos_permission_category_name((eos_perm_category_t)i);
-        const char *desc = eos_permission_category_desc((eos_perm_category_t)i);
+        const char *key = cos_permission_category_key((cos_perm_category_t)i);
+        const char *name = cos_permission_category_name((cos_perm_category_t)i);
+        const char *desc = cos_permission_category_desc((cos_perm_category_t)i);
 
         if (!key || !name || !desc)
         {
@@ -446,7 +446,7 @@ static bool _test_all_categories_valid(void)
     snprintf(details,
              sizeof(details),
              "Checked %d categories%s",
-             EOS_PERM_CATEGORY_COUNT,
+             COS_PERM_CATEGORY_COUNT,
              all_passed ? ", all valid" : ", some invalid");
     _record_test("All Categories Valid", all_passed, details);
     return all_passed;
@@ -458,7 +458,7 @@ static bool _test_all_categories_valid(void)
 static bool _test_revoke_nonexistent(void)
 {
     /* Should not crash */
-    eos_permission_revoke_all("com.test.does.not.exist");
+    cos_permission_revoke_all("com.test.does.not.exist");
 
     _record_test("Revoke Non-existent App", true, "Revoking non-existent app handled gracefully");
     return true;
@@ -499,13 +499,13 @@ static void _run_advanced_tests(void)
 static void _cleanup_test_data(void)
 {
     /* Clean up test artifacts so tests are repeatable */
-    eos_permission_revoke_all(TEST_APP_ID_1);
-    eos_permission_revoke_all(TEST_APP_ID_2);
-    eos_permission_revoke_all("com.test.unique.default");
-    eos_permission_revoke_all("com.test.states");
-    eos_permission_revoke_all("com.test.categories");
-    eos_permission_revoke_all("com.test.revoke");
-    eos_permission_revoke_all("com.test.overwrite");
+    cos_permission_revoke_all(TEST_APP_ID_1);
+    cos_permission_revoke_all(TEST_APP_ID_2);
+    cos_permission_revoke_all("com.test.unique.default");
+    cos_permission_revoke_all("com.test.states");
+    cos_permission_revoke_all("com.test.categories");
+    cos_permission_revoke_all("com.test.revoke");
+    cos_permission_revoke_all("com.test.overwrite");
 }
 
 /* ---- UI Callbacks ---- */
@@ -553,29 +553,29 @@ static void _test_category_cb(lv_event_t *e)
 
 /* ---- Activity Entry Point ---- */
 
-static eos_activity_lifecycle_t s_perm_test_activity_lifecycle = {
+static cos_activity_lifecycle_t s_perm_test_activity_lifecycle = {
     .on_enter = NULL,
     .on_destroy = NULL,
     .on_pause = NULL,
     .on_resume = NULL,
 };
 
-void eos_test_permission_start(void)
+void cos_test_permission_start(void)
 {
-    eos_activity_t *activity = eos_activity_create(&s_perm_test_activity_lifecycle);
+    cos_activity_t *activity = cos_activity_create(&s_perm_test_activity_lifecycle);
     if (!activity)
     {
         return;
     }
 
-    lv_obj_t *view = eos_activity_get_view(activity);
+    lv_obj_t *view = cos_activity_get_view(activity);
     if (!view)
     {
         return;
     }
 
-    eos_activity_set_title(activity, "Permission Tests");
-    eos_activity_set_type(activity, EOS_ACTIVITY_TYPE_APP);
+    cos_activity_set_title(activity, "Permission Tests");
+    cos_activity_set_type(activity, COS_ACTIVITY_TYPE_APP);
 
     _ctx.container = lv_obj_create(view);
     lv_obj_set_size(_ctx.container, lv_pct(100), lv_pct(100));
@@ -586,7 +586,7 @@ void eos_test_permission_start(void)
     lv_obj_t *cat_list = lv_list_create(_ctx.container);
     lv_obj_set_size(cat_list, lv_pct(100), lv_pct(35));
     lv_obj_set_flex_grow(cat_list, 1);
-    eos_crown_encoder_set_target_obj(cat_list);
+    cos_crown_encoder_set_target_obj(cat_list);
 
     const char *categories[] = {"Basic Tests", "Isolation Tests", "Advanced Tests", "Run All Tests"};
 
@@ -608,23 +608,23 @@ void eos_test_permission_start(void)
     lv_obj_set_style_text_align(_ctx.result_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_size(_ctx.result_label, lv_pct(100), LV_SIZE_CONTENT);
 
-    eos_activity_enter(activity);
+    cos_activity_enter(activity);
 }
 
-void eos_test_permission_register_tests(void)
+void cos_test_permission_register_tests(void)
 {
-    eos_test_register("Permission: default state DENIED", _test_default_state_denied);
-    eos_test_register("Permission: set and get", _test_set_and_get);
-    eos_test_register("Permission: all grant states", _test_all_states);
-    eos_test_register("Permission: app isolation", _test_app_isolation);
-    eos_test_register("Permission: category independence", _test_category_independence);
-    eos_test_register("Permission: revoke all", _test_revoke_all);
-    eos_test_register("Permission: name to category", _test_name_to_category);
-    eos_test_register("Permission: category key", _test_category_key);
-    eos_test_register("Permission: null safety", _test_null_safety);
-    eos_test_register("Permission: state overwrite", _test_state_overwrite);
-    eos_test_register("Permission: all categories valid", _test_all_categories_valid);
-    eos_test_register("Permission: revoke nonexistent", _test_revoke_nonexistent);
+    cos_test_register("Permission: default state DENIED", _test_default_state_denied);
+    cos_test_register("Permission: set and get", _test_set_and_get);
+    cos_test_register("Permission: all grant states", _test_all_states);
+    cos_test_register("Permission: app isolation", _test_app_isolation);
+    cos_test_register("Permission: category independence", _test_category_independence);
+    cos_test_register("Permission: revoke all", _test_revoke_all);
+    cos_test_register("Permission: name to category", _test_name_to_category);
+    cos_test_register("Permission: category key", _test_category_key);
+    cos_test_register("Permission: null safety", _test_null_safety);
+    cos_test_register("Permission: state overwrite", _test_state_overwrite);
+    cos_test_register("Permission: all categories valid", _test_all_categories_valid);
+    cos_test_register("Permission: revoke nonexistent", _test_revoke_nonexistent);
 }
 
-#endif /* EOS_ENABLE_TEST_APP */
+#endif /* COS_ENABLE_TEST_APP */

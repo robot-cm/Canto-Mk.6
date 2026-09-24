@@ -1,5 +1,5 @@
 /**
- * @file eos_dev_touch_chsc6x.c
+ * @file cos_dev_touch_chsc6x.c
  * @brief CHSC6X 电容触摸驱动(板级 port 层)
  *
  * 协议依据(AGENTS.md 第28节优先级 #2 Seeed 官方源码):
@@ -15,7 +15,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "eos_dev_touch_chsc6x.h"
+#include "cos_dev_touch_chsc6x.h"
 
 #include "board_xiao_esp32s3_round.h"
 
@@ -31,7 +31,7 @@ static const char *TAG = "CHSC6X";
 /* ════════════════════════════════════════════════════════════════
  *  触摸读取:INT 检查 + I2C 直读 5 字节 + 解析
  * ════════════════════════════════════════════════════════════════ */
-bool eos_dev_touch_chsc6x_read(int32_t *x, int32_t *y)
+bool cos_dev_touch_chsc6x_read(int32_t *x, int32_t *y)
 {
     /* 1. INT 引脚(低有效)先判,高电平直接无触摸 */
     if (gpio_get_level(BOARD_TOUCH_INT_PIN) == 1) {
@@ -73,7 +73,7 @@ static void _read_cb(lv_indev_t *indev, lv_indev_data_t *data)
 {
     (void)indev;
     int32_t x = 0, y = 0;
-    if (eos_dev_touch_chsc6x_read(&x, &y)) {
+    if (cos_dev_touch_chsc6x_read(&x, &y)) {
         data->point.x = x;
         data->point.y = y;
         data->state = LV_INDEV_STATE_PRESSED;
@@ -86,9 +86,9 @@ static void _read_cb(lv_indev_t *indev, lv_indev_data_t *data)
  *  初始化:创建 LVGL POINTER indev
  *  LVGL 9 的 lv_indev_create() 自动创建 read timer 并 enable,
  *  read_cb 随 lv_timer_handler() 周期调用。
- *  Core 侧 eos_touch_get_indev() 通过遍历找到本 indev → 旋钮/手势可用
+ *  Core 侧 cos_touch_get_indev() 通过遍历找到本 indev → 旋钮/手势可用
  * ════════════════════════════════════════════════════════════════ */
-esp_err_t eos_dev_touch_chsc6x_init(void)
+esp_err_t cos_dev_touch_chsc6x_init(void)
 {
     lv_indev_t *indev = lv_indev_create();
     if (!indev) {

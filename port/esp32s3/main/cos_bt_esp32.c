@@ -1,10 +1,10 @@
 /**
- * @file eos_bt_esp32.c
+ * @file cos_bt_esp32.c
  * @brief ESP32-S3 Bluetooth radio backend: NimBLE GAP advertising
  *
- * Strong implementation of eos_net_bt_backend_set_enabled() (declared in
- * eos_port.h), overriding the weak stub in src/port/eos_port.c. The Bluetooth
- * service (src/services/network/eos_net_bt.c) calls it whenever the radio is
+ * Strong implementation of cos_net_bt_backend_set_enabled() (declared in
+ * cos_port.h), overriding the weak stub in src/port/cos_port.c. The Bluetooth
+ * service (src/services/network/cos_net_bt.c) calls it whenever the radio is
  * toggled, so the device advertises itself over BLE and becomes discoverable
  * by phones as the configured name (default "Canto Mk.6").
  *
@@ -28,26 +28,26 @@
 /* ── 编译期可选:Bt 未使能时跳过整个 NimBLE 后端 ──────────────
  * 默认 sdkconfig(CONFIG_BT_ENABLED=n)下 esp_bt.h / NimBLE 头不可用,
  * 本文件必须能整体跳过;menuconfig 开启 BT 后自动恢复真实现。
- * 关闭分支:同签名空实现,main.c 的无条件调用与 eos_net_bt.c 的
+ * 关闭分支:同签名空实现,main.c 的无条件调用与 cos_net_bt.c 的
  * 强/弱后端关系均不受影响。 */
 #if !defined(CONFIG_BT_ENABLED) || !CONFIG_BT_ENABLED
 
-#include "eos_core.h"
+#include "cos_core.h"
 
-void eos_bt_esp32_early_init(void)
+void cos_bt_esp32_early_init(void)
 {
 }
 
-eos_result_t eos_net_bt_backend_set_enabled(bool enabled, const char *name)
+cos_result_t cos_net_bt_backend_set_enabled(bool enabled, const char *name)
 {
     (void)enabled;
     (void)name;
-    return EOS_OK;
+    return COS_OK;
 }
 
-eos_result_t eos_net_bt_backend_power_down(void)
+cos_result_t cos_net_bt_backend_power_down(void)
 {
-    return EOS_OK;
+    return COS_OK;
 }
 
 #else /* CONFIG_BT_ENABLED=y:真实现 */
@@ -60,18 +60,18 @@ eos_result_t eos_net_bt_backend_power_down(void)
 #include "host/util/util.h"
 #include "services/gap/ble_svc_gap.h"
 
-#include "eos_core.h"
+#include "cos_core.h"
 
 /* Macros and Definitions -------------------------------------*/
-#define EOS_BT_ESP_TAG "NetBtEsp"
-#define EOS_BT_NAME_MAX 32
-#define EOS_BT_INIT_STACK 4096
+#define COS_BT_ESP_TAG "NetBtEsp"
+#define COS_BT_NAME_MAX 32
+#define COS_BT_INIT_STACK 4096
 
 /* Variables --------------------------------------------------*/
 static bool s_initialized = false;
 static bool s_synced = false;  /* NimBLE host synced with controller */
 static bool s_enabled = false; /* radio requested on */
-static char s_name[EOS_BT_NAME_MAX + 1] = {0};
+static char s_name[COS_BT_NAME_MAX + 1] = {0};
 
 /* Function Implementations -----------------------------------*/
 static void _start_advertising(void);
@@ -92,7 +92,7 @@ static void _host_task(void *param)
  * BLE controller 需要大块 internal|DMA 连续内存(em 表 / TX-RX buffer)。
  * 若在系统运行很久后(内部 RAM 已碎片化,largest 只有几 KB)才初始化,
  * nimble_port_init() 会因 ESP_ERR_NO_MEM 失败——所以必须在 app_main
- * 早期 internal RAM 尚连续时调用(eos_bt_esp32_early_init),开关只控制广播。
+ * 早期 internal RAM 尚连续时调用(cos_bt_esp32_early_init),开关只控制广播。
  *
  * 失败时做清理(esp_bt_controller_deinit):残留的 ROM/固件状态会与
  * WiFi coex 冲突(打开 WiFi 时卡死 → TG1WDT 复位)。
@@ -108,7 +108,7 @@ static esp_err_t _bt_do_init(void)
     size_t l_i    = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
     size_t f_id   = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
     size_t l_id   = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
-    ESP_LOGI(EOS_BT_ESP_TAG,
+    ESP_LOGI(COS_BT_ESP_TAG,
              "controller init: INT free=%u largest=%u | INT|DMA free=%u largest=%u",
              (unsigned)f_i, (unsigned)l_i, (unsigned)f_id, (unsigned)l_id);
 
@@ -119,13 +119,13 @@ static esp_err_t _bt_do_init(void)
         size_t la_i  = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
         size_t fa_id = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
         size_t la_id = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
-        ESP_LOGE(EOS_BT_ESP_TAG, "nimble_port_init failed: %s "
+        ESP_LOGE(COS_BT_ESP_TAG, "nimble_port_init failed: %s "
                  "(INT free=%u largest=%u | INT|DMA free=%u largest=%u)",
                  esp_err_to_name(ret), (unsigned)fa_i, (unsigned)la_i,
                  (unsigned)fa_id, (unsigned)la_id);
         esp_err_t derr = esp_bt_controller_deinit();
         if (derr != ESP_OK)
-            ESP_LOGW(EOS_BT_ESP_TAG, "controller deinit after failed init: %s",
+            ESP_LOGW(COS_BT_ESP_TAG, "controller deinit after failed init: %s",
                      esp_err_to_name(derr));
         return ret;
     }
@@ -140,9 +140,9 @@ static esp_err_t _bt_do_init(void)
     return ESP_OK;
 }
 
-/* 提前初始化入口:由 app_main 在 eos_init() 之前(internal RAM 连续时)调用。
+/* 提前初始化入口:由 app_main 在 cos_init() 之前(internal RAM 连续时)调用。
  * 失败不致命:s_initialized 保持 false,用户打开蓝牙开关时 _init_task 会再试。 */
-void eos_bt_esp32_early_init(void)
+void cos_bt_esp32_early_init(void)
 {
     if (s_initialized)
         return;
@@ -150,16 +150,16 @@ void eos_bt_esp32_early_init(void)
     esp_err_t ret = _bt_do_init();
     if (ret != ESP_OK)
     {
-        ESP_LOGW(EOS_BT_ESP_TAG, "early init deferred (%s); will retry on switch toggle",
+        ESP_LOGW(COS_BT_ESP_TAG, "early init deferred (%s); will retry on switch toggle",
                  esp_err_to_name(ret));
         return;
     }
-    ESP_LOGI(EOS_BT_ESP_TAG,
+    ESP_LOGI(COS_BT_ESP_TAG,
              "early init OK: stack ready, advertising waits for the radio switch");
 }
 
 /* Low-priority init task: nimble_port_init() blocks until the controller is
- * ready, so it must not run on the LVGL/UI thread (eos_port.h constraint).
+ * ready, so it must not run on the LVGL/UI thread (cos_port.h constraint).
  * Kept as fallback when the early init was skipped or failed. */
 static void _init_task(void *param)
 {
@@ -181,7 +181,7 @@ static int _gap_event(struct ble_gap_event *event, void *arg)
     case BLE_GAP_EVENT_CONNECT:
         if (event->connect.status == 0)
         {
-            ESP_LOGI(EOS_BT_ESP_TAG, "connected");
+            ESP_LOGI(COS_BT_ESP_TAG, "connected");
         }
         else
         {
@@ -189,7 +189,7 @@ static int _gap_event(struct ble_gap_event *event, void *arg)
         }
         break;
     case BLE_GAP_EVENT_DISCONNECT:
-        ESP_LOGI(EOS_BT_ESP_TAG, "disconnected, re-advertising");
+        ESP_LOGI(COS_BT_ESP_TAG, "disconnected, re-advertising");
         _start_advertising();
         break;
     case BLE_GAP_EVENT_ADV_COMPLETE:
@@ -217,7 +217,7 @@ static void _start_advertising(void)
     int rc = ble_gap_adv_set_fields(&fields);
     if (rc != 0)
     {
-        ESP_LOGE(EOS_BT_ESP_TAG, "adv_set_fields failed: %d", rc);
+        ESP_LOGE(COS_BT_ESP_TAG, "adv_set_fields failed: %d", rc);
         return;
     }
 
@@ -232,11 +232,11 @@ static void _start_advertising(void)
                            &adv_params, _gap_event, NULL);
     if (rc != 0)
     {
-        ESP_LOGE(EOS_BT_ESP_TAG, "adv_start failed: %d", rc);
+        ESP_LOGE(COS_BT_ESP_TAG, "adv_start failed: %d", rc);
     }
     else
     {
-        ESP_LOGI(EOS_BT_ESP_TAG, "advertising as \"%s\"", s_name);
+        ESP_LOGI(COS_BT_ESP_TAG, "advertising as \"%s\"", s_name);
     }
 }
 
@@ -247,7 +247,7 @@ static void _on_sync(void)
     s_synced = (ble_hs_id_infer_auto(0, &addr_type) == 0);
     if (!s_synced)
     {
-        ESP_LOGW(EOS_BT_ESP_TAG, "could not infer own address");
+        ESP_LOGW(COS_BT_ESP_TAG, "could not infer own address");
         return;
     }
     if (s_enabled)
@@ -259,15 +259,15 @@ static void _on_sync(void)
 static void _on_reset(int reason)
 {
     s_synced = false;
-    ESP_LOGW(EOS_BT_ESP_TAG, "nimble reset, reason=%d", reason);
+    ESP_LOGW(COS_BT_ESP_TAG, "nimble reset, reason=%d", reason);
 }
 
-eos_result_t eos_net_bt_backend_set_enabled(bool enabled, const char *name)
+cos_result_t cos_net_bt_backend_set_enabled(bool enabled, const char *name)
 {
     if (name && name[0])
     {
-        strncpy(s_name, name, EOS_BT_NAME_MAX);
-        s_name[EOS_BT_NAME_MAX] = '\0';
+        strncpy(s_name, name, COS_BT_NAME_MAX);
+        s_name[COS_BT_NAME_MAX] = '\0';
         /* early init 时 GAP 服务可能已注册:adv fields 用 s_name,但 GAP
          * Service 的 device-name 属性需单独同步,否则手机读到的名字是旧的 */
         if (s_initialized)
@@ -281,8 +281,8 @@ eos_result_t eos_net_bt_backend_set_enabled(bool enabled, const char *name)
         {
             ble_gap_adv_stop();
         }
-        ESP_LOGI(EOS_BT_ESP_TAG, "radio off");
-        return EOS_OK;
+        ESP_LOGI(COS_BT_ESP_TAG, "radio off");
+        return COS_OK;
     }
 
     s_enabled = true;
@@ -291,12 +291,12 @@ eos_result_t eos_net_bt_backend_set_enabled(bool enabled, const char *name)
     {
         /* Kick off protocol stack init on a low-priority task. Advertising
          * starts automatically in _on_sync() once the host is ready. */
-        BaseType_t ok = xTaskCreate(_init_task, "eos_bt_init", EOS_BT_INIT_STACK,
+        BaseType_t ok = xTaskCreate(_init_task, "cos_bt_init", COS_BT_INIT_STACK,
                                     NULL, 1, NULL);
         if (ok != pdPASS)
         {
             s_enabled = false;
-            return EOS_ERR_NET_BT;
+            return COS_ERR_NET_BT;
         }
     }
     else if (s_synced)
@@ -307,14 +307,14 @@ eos_result_t eos_net_bt_backend_set_enabled(bool enabled, const char *name)
     }
     /* If the stack is still syncing, _on_sync() will start advertising. */
 
-    return EOS_OK;
+    return COS_OK;
 }
 
-eos_result_t eos_net_bt_backend_power_down(void)
+cos_result_t cos_net_bt_backend_power_down(void)
 {
     s_enabled = false;
     if (!s_initialized)
-        return EOS_OK;
+        return COS_OK;
 
     if (s_synced)
         ble_gap_adv_stop();
@@ -325,21 +325,21 @@ eos_result_t eos_net_bt_backend_power_down(void)
     int stop_ret = nimble_port_stop();
     if (stop_ret != 0)
     {
-        ESP_LOGE(EOS_BT_ESP_TAG, "nimble_port_stop failed: %d", stop_ret);
-        return EOS_ERR_NET_BT;
+        ESP_LOGE(COS_BT_ESP_TAG, "nimble_port_stop failed: %d", stop_ret);
+        return COS_ERR_NET_BT;
     }
     esp_err_t deinit_ret = nimble_port_deinit();
     if (deinit_ret != ESP_OK)
     {
-        ESP_LOGE(EOS_BT_ESP_TAG, "nimble_port_deinit failed: %s",
+        ESP_LOGE(COS_BT_ESP_TAG, "nimble_port_deinit failed: %s",
                  esp_err_to_name(deinit_ret));
-        return EOS_ERR_NET_BT;
+        return COS_ERR_NET_BT;
     }
 
     s_initialized = false;
     s_synced = false;
-    ESP_LOGI(EOS_BT_ESP_TAG, "BLE controller deinitialized for power save");
-    return EOS_OK;
+    ESP_LOGI(COS_BT_ESP_TAG, "BLE controller deinitialized for power save");
+    return COS_OK;
 }
 
 #endif /* CONFIG_BT_ENABLED */

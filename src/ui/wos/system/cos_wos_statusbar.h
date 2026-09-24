@@ -1,5 +1,5 @@
 /**
- * @file eos_wos_statusbar.h
+ * @file cos_wos_statusbar.h
  * @brief WOS top info bar — always-on thin info strip at the top.
  *
  * Lives on the statusbar overlay layer, above the app page and notifications.
@@ -8,8 +8,8 @@
  *   - "M/D Wed <batt>%" (date + weekday + battery)
  * Transparent and small — never covers page content.
  */
-#ifndef EOS_WOS_STATUSBAR_H
-#define EOS_WOS_STATUSBAR_H
+#ifndef COS_WOS_STATUSBAR_H
+#define COS_WOS_STATUSBAR_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,7 +19,7 @@ extern "C" {
 
 /**
  * @brief Initialize the top info bar (creates it on the statusbar layer).
- * @note Call after eos_overlay_layer_init().
+ * @note Call after cos_overlay_layer_init().
  */
 void wos_statusbar_init(void);
 
@@ -27,4 +27,4 @@ void wos_statusbar_init(void);
 }
 #endif
 
-#endif /* EOS_WOS_STATUSBAR_H */
+#endif /* COS_WOS_STATUSBAR_H */

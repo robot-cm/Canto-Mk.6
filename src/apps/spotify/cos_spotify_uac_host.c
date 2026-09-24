@@ -1,5 +1,5 @@
 /**
- * @file eos_spotify_uac_host.c
+ * @file cos_spotify_uac_host.c
  * @brief USB Audio Class (UAC) Host 类驱动 —— TinyUSB 0.21 未内置,本 App 自带。
  *
  * ── 为什么需要本文件 ──────────────────────────────────────────
@@ -23,14 +23,14 @@
  *
  *   不支持的组合(如 UAC2.0、非 PCM 格式、24-bit)会在 open() 阶段
  *   返回 0 长度,USBH 核心会继续尝试其它驱动,最终 App 显示
- *   EOS_SPOTIFY_ERR_NOT_AUDIO。
+ *   COS_SPOTIFY_ERR_NOT_AUDIO。
  *
  * ── 线程模型 ─────────────────────────────────────────────────
  *   所有回调(open/set_config/xfer_cb/close)都在 TinyUSB Host 任务上下文执行
- *   (即 tuh_task 所在任务)。音频推送经 eos_spotify_uac_host_write() 从
+ *   (即 tuh_task 所在任务)。音频推送经 cos_spotify_uac_host_write() 从
  *   LVGL 定时器上下文发起,通过 usbh_edpt_claim/release 与回调互斥。
  */
-#include "eos_spotify_uac_host.h"
+#include "cos_spotify_uac_host.h"
 
 #if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
 
@@ -39,8 +39,8 @@
 #include "tusb.h"
 #include "host/usbh_pvt.h"
 
-#define EOS_LOG_TAG "SpotifyUACH"
-#include "eos_log.h"
+#define COS_LOG_TAG "SpotifyUACH"
+#include "cos_log.h"
 
 /* ── UAC 描述符常量 ───────────────────────────────────────── */
 /* 注意:TinyUSB 0.21 的 tusb_types.h 只定义到 TUSB_CLASS_AUDIO,
@@ -87,7 +87,7 @@ typedef struct
     volatile bool streaming;
 
     /* 等时传输缓冲(内部 DMA 安全)。等时端点要求每次 xfer 一块连续缓冲。 */
-    uint8_t  tx_buf[EOS_SPOTIFY_UAC_TX_BUF_SIZE] __attribute__((aligned(4)));
+    uint8_t  tx_buf[COS_SPOTIFY_UAC_TX_BUF_SIZE] __attribute__((aligned(4)));
     volatile bool tx_busy;    /* 上一块尚未送完              */
 } uac_host_state_t;
 
@@ -98,23 +98,23 @@ static bool s_driver_inited = false;
 
 /* ── 对外查询 ─────────────────────────────────────────────── */
 
-bool eos_spotify_uac_host_ready(void)
+bool cos_spotify_uac_host_ready(void)
 {
     return s_uac.in_use && s_uac.ep_out != 0;
 }
 
-bool eos_spotify_uac_host_connected(void)
+bool cos_spotify_uac_host_connected(void)
 {
     /* 设备仍在总线上即视为连接 */
     return s_uac.in_use;
 }
 
-uint32_t eos_spotify_uac_host_sample_rate(void)
+uint32_t cos_spotify_uac_host_sample_rate(void)
 {
     return s_uac.sample_rate;
 }
 
-uint8_t eos_spotify_uac_host_channels(void)
+uint8_t cos_spotify_uac_host_channels(void)
 {
     return s_uac.channels;
 }
@@ -145,7 +145,7 @@ static uint16_t _parse_ac_interface(const uint8_t *p_desc, uint16_t max_len)
         if (btype == TUSB_DESC_CS_INTERFACE)
         {
             uint8_t subtype = p[2];
-            EOS_LOG_I("UAC: AC CS subtype=0x%02X len=%u", subtype, blen);
+            COS_LOG_I("UAC: AC CS subtype=0x%02X len=%u", subtype, blen);
             (void)subtype;
         }
         consumed += blen;
@@ -186,7 +186,7 @@ static uint16_t _parse_as_interface(const uint8_t *p_desc, uint16_t max_len, uin
                  * [6]=bBitResolution [7]=bSamFreqType ... */
                 *out_channels = p[4];
                 *out_bits = p[6];
-                EOS_LOG_I("UAC: FormatType I ch=%u subframe=%u bits=%u",
+                COS_LOG_I("UAC: FormatType I ch=%u subframe=%u bits=%u",
                           (unsigned)p[4], (unsigned)p[5], (unsigned)p[6]);
             }
         }
@@ -249,7 +249,7 @@ static uint32_t _pick_sample_rate(const uint8_t *samfreq, uint8_t count, uint8_t
 
 static bool _uac_init(void)
 {
-    EOS_LOG_I("UAC host driver: init");
+    COS_LOG_I("UAC host driver: init");
     memset(&s_uac, 0, sizeof(s_uac));
     s_driver_inited = true;
     return true;
@@ -257,7 +257,7 @@ static bool _uac_init(void)
 
 static bool _uac_deinit(void)
 {
-    EOS_LOG_I("UAC host driver: deinit");
+    COS_LOG_I("UAC host driver: deinit");
     memset(&s_uac, 0, sizeof(s_uac));
     s_driver_inited = false;
     return true;
@@ -283,7 +283,7 @@ static uint16_t _uac_open(uint8_t rhport, uint8_t dev_addr,
         return 0;
     }
 
-    EOS_LOG_I("UAC: open AC itf=%u alt=%u", itf_desc->bInterfaceNumber, itf_desc->bAlternateSetting);
+    COS_LOG_I("UAC: open AC itf=%u alt=%u", itf_desc->bInterfaceNumber, itf_desc->bAlternateSetting);
 
     const uint8_t *p = (const uint8_t *)itf_desc + sizeof(tusb_desc_interface_t);
     uint16_t consumed = sizeof(tusb_desc_interface_t);
@@ -361,7 +361,7 @@ static uint16_t _uac_open(uint8_t rhport, uint8_t dev_addr,
                                     ((ep->bmAttributes.usage & 0x03) << 4));
                 ep_mps = ep->wMaxPacketSize;
                 ep_interval = ep->bInterval;
-                EOS_LOG_I("UAC: iso OUT ep=0x%02X mps=%u attr=0x%02X",
+                COS_LOG_I("UAC: iso OUT ep=0x%02X mps=%u attr=0x%02X",
                           ep_out, ep_mps, ep_attr);
             }
             consumed += blen;
@@ -400,7 +400,7 @@ static uint16_t _uac_open(uint8_t rhport, uint8_t dev_addr,
                     {
                         sample_rate = sr;
                     }
-                    EOS_LOG_I("UAC: fmt ch=%u bits=%u samfreqType=%u rate=%lu",
+                    COS_LOG_I("UAC: fmt ch=%u bits=%u samfreqType=%u rate=%lu",
                               channels, bits, stype, (unsigned long)sample_rate);
                 }
                 consumed += ftlen;
@@ -419,13 +419,13 @@ static uint16_t _uac_open(uint8_t rhport, uint8_t dev_addr,
     /* 校验:必须有等时 OUT 端点、16bit PCM、有可用采样率 */
     if (ep_out == 0 || ep_mps == 0 || bits != 16 || sample_rate == 0)
     {
-        EOS_LOG_W("UAC: unsupported (ep=0x%02X bits=%u rate=%lu) -> reject",
+        COS_LOG_W("UAC: unsupported (ep=0x%02X bits=%u rate=%lu) -> reject",
                   ep_out, bits, (unsigned long)sample_rate);
         return 0;
     }
     if (channels != 1 && channels != 2)
     {
-        EOS_LOG_W("UAC: unsupported channels=%u -> reject", channels);
+        COS_LOG_W("UAC: unsupported channels=%u -> reject", channels);
         return 0;
     }
 
@@ -441,7 +441,7 @@ static uint16_t _uac_open(uint8_t rhport, uint8_t dev_addr,
     s_uac.as_itf = as_itf;
     s_uac.as_alt = as_alt;
 
-    EOS_LOG_I("UAC: accepted dev=%u ep=0x%02X %lu Hz %u ch %u bit",
+    COS_LOG_I("UAC: accepted dev=%u ep=0x%02X %lu Hz %u ch %u bit",
               dev_addr, ep_out, (unsigned long)sample_rate, channels, bits);
 
     return consumed;
@@ -467,13 +467,13 @@ static bool _uac_set_config(uint8_t dev_addr, uint8_t itf_num)
                                     (uintptr_t)&res);
         if (!ok || res != XFER_RESULT_SUCCESS)
         {
-            EOS_LOG_W("UAC: set_interface(itf=%u alt=%u) failed (%d)",
+            COS_LOG_W("UAC: set_interface(itf=%u alt=%u) failed (%d)",
                       s_uac.as_itf, s_uac.as_alt, (int)res);
             /* 不致命:部分耳机 alt=0 即含数据端点 */
         }
         else
         {
-            EOS_LOG_I("UAC: AS itf=%u alt=%u activated", s_uac.as_itf, s_uac.as_alt);
+            COS_LOG_I("UAC: AS itf=%u alt=%u activated", s_uac.as_itf, s_uac.as_alt);
         }
     }
 
@@ -491,11 +491,11 @@ static bool _uac_set_config(uint8_t dev_addr, uint8_t itf_num)
 
     if (!tuh_edpt_open(dev_addr, &ep_desc))
     {
-        EOS_LOG_E("UAC: tuh_edpt_open(ep=0x%02X) failed", s_uac.ep_out);
+        COS_LOG_E("UAC: tuh_edpt_open(ep=0x%02X) failed", s_uac.ep_out);
         return false;
     }
 
-    EOS_LOG_I("UAC: endpoint opened, ready");
+    COS_LOG_I("UAC: endpoint opened, ready");
     return true;
 }
 
@@ -514,7 +514,7 @@ static bool _uac_xfer_cb(uint8_t dev_addr, uint8_t ep_addr, xfer_result_t result
 
 static void _uac_close(uint8_t dev_addr)
 {
-    EOS_LOG_I("UAC: close dev=%u", dev_addr);
+    COS_LOG_I("UAC: close dev=%u", dev_addr);
     if (s_uac.dev_addr == dev_addr)
     {
         memset(&s_uac, 0, sizeof(s_uac));
@@ -542,7 +542,7 @@ usbh_class_driver_t const *usbh_app_driver_get_cb(uint8_t *driver_count)
 
 /* ── 音频推送 ─────────────────────────────────────────────── */
 
-int32_t eos_spotify_uac_host_write(const void *pcm, uint32_t bytes)
+int32_t cos_spotify_uac_host_write(const void *pcm, uint32_t bytes)
 {
     if (!s_uac.in_use || s_uac.ep_out == 0 || pcm == NULL || bytes == 0)
     {
@@ -598,7 +598,7 @@ int32_t eos_spotify_uac_host_write(const void *pcm, uint32_t bytes)
     return (int32_t)n;
 }
 
-void eos_spotify_uac_host_stream(bool on)
+void cos_spotify_uac_host_stream(bool on)
 {
     s_uac.streaming = on;
     if (!on)

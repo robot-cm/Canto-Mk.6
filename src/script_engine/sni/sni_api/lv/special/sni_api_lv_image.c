@@ -9,18 +9,18 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
-#include "eos_image.h"
-#include "eos_mem.h"
-#include "eos_port.h"
+#include "cos_image.h"
+#include "cos_mem.h"
+#include "cos_port.h"
 #include "lvgl.h"
 #include "script_engine_core.h"
 #include "sni_api_export.h"
 #include "sni_type_bridge.h"
 #include "sni_types.h"
-#include "eos_log.h"
-#include "eos_watchface.h"
-#include "eos_app.h"
-#include "eos_service_storage.h"
+#include "cos_log.h"
+#include "cos_watchface.h"
+#include "cos_app.h"
+#include "cos_service_storage.h"
 
 /* Function Implementations -----------------------------------*/
 
@@ -35,13 +35,13 @@ static bool sni_image_get_script_root(char *out_path, size_t out_size)
 
     if (script_engine_get_current_script_type() == SCRIPT_TYPE_APPLICATION)
     {
-        snprintf(out_path, out_size, EOS_APP_INSTALLED_DIR "%s", script_id);
+        snprintf(out_path, out_size, COS_APP_INSTALLED_DIR "%s", script_id);
         return true;
     }
 
     if (script_engine_get_current_script_type() == SCRIPT_TYPE_WATCHFACE)
     {
-        snprintf(out_path, out_size, EOS_WATCHFACE_INSTALLED_DIR "%s", script_id);
+        snprintf(out_path, out_size, COS_WATCHFACE_INSTALLED_DIR "%s", script_id);
         return true;
     }
 
@@ -99,7 +99,7 @@ static char *sni_image_dup_string(const char *src)
         return NULL;
     }
 
-    ret = eos_malloc(strlen(src) + 1);
+    ret = cos_malloc(strlen(src) + 1);
     if (!ret)
     {
         return NULL;
@@ -191,8 +191,8 @@ static bool sni_image_normalize_absolute_path(const char *input, char *output, s
 
 static char *sni_image_resolve_under_root(const char *root_dir, const char *candidate)
 {
-    char root_real[EOS_FS_PATH_MAX];
-    char candidate_real[EOS_FS_PATH_MAX];
+    char root_real[COS_FS_PATH_MAX];
+    char candidate_real[COS_FS_PATH_MAX];
 
     if (!root_dir || !candidate)
     {
@@ -205,14 +205,14 @@ static char *sni_image_resolve_under_root(const char *root_dir, const char *cand
         return NULL;
     }
 
-    if (!eos_storage_is_file(candidate_real))
+    if (!cos_storage_is_file(candidate_real))
     {
         return NULL;
     }
 
     if (!sni_image_is_within_root(root_real, candidate_real))
     {
-        EOS_LOG_W("Reject image src outside script root: %s", candidate_real);
+        COS_LOG_W("Reject image src outside script root: %s", candidate_real);
         return NULL;
     }
 
@@ -221,8 +221,8 @@ static char *sni_image_resolve_under_root(const char *root_dir, const char *cand
 
 static char *sni_image_resolve_asset_path(const char *src)
 {
-    char root_dir[EOS_FS_PATH_MAX];
-    char candidate[EOS_FS_PATH_MAX + EOS_FS_NAME_MAX];
+    char root_dir[COS_FS_PATH_MAX];
+    char candidate[COS_FS_PATH_MAX + COS_FS_NAME_MAX];
 
     if (!src || src[0] == '\0')
     {
@@ -236,7 +236,7 @@ static char *sni_image_resolve_asset_path(const char *src)
 
     if (sni_image_has_parent_ref(src))
     {
-        EOS_LOG_W("Reject image src with parent traversal: %s", src);
+        COS_LOG_W("Reject image src with parent traversal: %s", src);
         return NULL;
     }
 
@@ -244,20 +244,20 @@ static char *sni_image_resolve_asset_path(const char *src)
     {
         /* P0.5 相册: 放行 /sdcard/ 前缀的只读图片加载（ALBUM 目录照片），
          * 其余绝对路径仍受 script-root 白名单约束。
-         * NOTE: 返回给 LVGL 的路径必须带 FS 盘符前缀（EOS_LVGL_FS_LETTER 'Z'），
+         * NOTE: 返回给 LVGL 的路径必须带 FS 盘符前缀（COS_LVGL_FS_LETTER 'Z'），
          * 否则 lv_image 无法路由到 fs 驱动，解码静默失败（Round 37d 实证：
-         * getSrc 字符串正确但渲染空白）。eos_storage_is_file 用原始 EOS 路径校验。 */
+         * getSrc 字符串正确但渲染空白）。cos_storage_is_file 用原始 COS 路径校验。 */
         if (strncmp(src, "/sdcard/", 8) == 0)
         {
             if (sni_image_has_parent_ref(src))
                 return NULL;
-            if (!eos_storage_is_file(src))
+            if (!cos_storage_is_file(src))
                 return NULL;
             size_t need = strlen(src) + 3;   /* 'Z' + ':' + path + NUL */
-            char *allowed = (char *)eos_malloc(need);
+            char *allowed = (char *)cos_malloc(need);
             if (!allowed)
                 return NULL;
-            snprintf(allowed, need, "%c:%s", EOS_LVGL_FS_LETTER, src);
+            snprintf(allowed, need, "%c:%s", COS_LVGL_FS_LETTER, src);
             return allowed;
         }
         return sni_image_resolve_under_root(root_dir, src);
@@ -319,13 +319,13 @@ static void sni_imagebutton_free_store(sni_imagebutton_src_store_t *store)
         {
             if (store->paths[state][slot])
             {
-                eos_free(store->paths[state][slot]);
+                cos_free(store->paths[state][slot]);
                 store->paths[state][slot] = NULL;
             }
         }
     }
 
-    eos_free(store);
+    cos_free(store);
 }
 
 static void sni_imagebutton_detach_store(lv_obj_t *obj)
@@ -363,7 +363,7 @@ static sni_imagebutton_src_store_t *sni_imagebutton_ensure_store(lv_obj_t *obj)
     if (store)
         return store;
 
-    store = eos_malloc_zeroed(sizeof(*store));
+    store = cos_malloc_zeroed(sizeof(*store));
     if (!store)
         return NULL;
 
@@ -384,7 +384,7 @@ static void sni_imagebutton_replace_owned_src(lv_obj_t *obj,
     if (state < 0 || state >= LV_IMAGEBUTTON_STATE_NUM)
     {
         if (owned_path)
-            eos_free(owned_path);
+            cos_free(owned_path);
         return;
     }
 
@@ -398,13 +398,13 @@ static void sni_imagebutton_replace_owned_src(lv_obj_t *obj,
     if (!store)
     {
         if (owned_path)
-            eos_free(owned_path);
+            cos_free(owned_path);
         return;
     }
 
     if (store->paths[state][slot])
     {
-        eos_free(store->paths[state][slot]);
+        cos_free(store->paths[state][slot]);
         store->paths[state][slot] = NULL;
     }
 
@@ -430,7 +430,7 @@ static bool sni_image_js_to_src(const jerry_value_t value, const void **out_src,
             return false;
 
         *out_owned_path = sni_image_resolve_asset_path(raw_src);
-        eos_free((void *)raw_src);
+        cos_free((void *)raw_src);
 
         if (!*out_owned_path)
             return false;
@@ -496,15 +496,15 @@ jerry_value_t sni_api_lv_image_set_src(const jerry_call_info_t *call_info_p,
         if (resolved_path)
         {
             lv_image_set_src(self_obj, resolved_path);
-            eos_free(resolved_path);
+            cos_free(resolved_path);
         }
         else
         {
-            eos_free((void *)raw_src);
+            cos_free((void *)raw_src);
             return sni_api_throw_error("Image src must stay within current script directory");
         }
 
-        eos_free((void *)raw_src);
+        cos_free((void *)raw_src);
         return jerry_undefined();
     }
 
@@ -522,7 +522,7 @@ jerry_value_t sni_api_lv_image_set_src(const jerry_call_info_t *call_info_p,
         sni_type_t actual_type = SNI_T_UNKNOWN;
         if (sni_tb_js2c_any_handle(args_p[0], &arg_src_ptr, &actual_type))
         {
-            EOS_LOG_W("lv_image_set_src fallback handle type=%d ptr=%p", actual_type, arg_src_ptr);
+            COS_LOG_W("lv_image_set_src fallback handle type=%d ptr=%p", actual_type, arg_src_ptr);
             lv_image_set_src(self_obj, arg_src_ptr);
             return jerry_undefined();
         }
@@ -570,22 +570,22 @@ jerry_value_t sni_api_lv_imagebutton_set_src(const jerry_call_info_t *call_info_
         || !sni_image_js_to_src(args_p[3], &src_right, &owned_right))
     {
         if (owned_left)
-            eos_free(owned_left);
+            cos_free(owned_left);
         if (owned_mid)
-            eos_free(owned_mid);
+            cos_free(owned_mid);
         if (owned_right)
-            eos_free(owned_right);
+            cos_free(owned_right);
         return sni_api_throw_error("Failed to convert argument");
     }
 
     if ((owned_left || owned_mid || owned_right) && !sni_imagebutton_ensure_store(self_obj))
     {
         if (owned_left)
-            eos_free(owned_left);
+            cos_free(owned_left);
         if (owned_mid)
-            eos_free(owned_mid);
+            cos_free(owned_mid);
         if (owned_right)
-            eos_free(owned_right);
+            cos_free(owned_right);
         return sni_api_throw_error("Out of memory");
     }
 

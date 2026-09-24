@@ -1,37 +1,37 @@
 /**
- * @file eos_card_pager.c
+ * @file cos_card_pager.c
  * @brief Card pager
  */
 
-#include "eos_card_pager.h"
+#include "cos_card_pager.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define EOS_LOG_DISABLE
-#define EOS_LOG_TAG "CardPager"
-#include "eos_log.h"
-#include "eos_config.h"
-#include "eos_theme.h"
-#include "eos_event.h"
-#include "eos_port.h"
-#include "eos_mem.h"
+#define COS_LOG_DISABLE
+#define COS_LOG_TAG "CardPager"
+#include "cos_log.h"
+#include "cos_config.h"
+#include "cos_theme.h"
+#include "cos_event.h"
+#include "cos_port.h"
+#include "cos_mem.h"
 
 /* Macros and Definitions -------------------------------------*/
 #define _CP_GET_DIR (cp->dir)
-#define _IF_DIR_EQUAL_VER (_CP_GET_DIR == EOS_CARD_PAGER_DIR_VER)
+#define _IF_DIR_EQUAL_VER (_CP_GET_DIR == COS_CARD_PAGER_DIR_VER)
 #define _INDICATOR_DOT_WIDTH 12
 #define _INDICATOR_DOT_HEIGHT _INDICATOR_DOT_WIDTH
-#define _INDICATOR_ACTIVE_COLOR EOS_COLOR_WHITE
-#define _INDICATOR_INACTIVE_COLOR EOS_COLOR_DARK_GREY_2
+#define _INDICATOR_ACTIVE_COLOR COS_COLOR_WHITE
+#define _INDICATOR_INACTIVE_COLOR COS_COLOR_DARK_GREY_2
 #define _PAGE_MARGIN 20
 /* Variables --------------------------------------------------*/
 
 /* Function Implementations -----------------------------------*/
-static void _page_switch_handler(eos_card_pager_t *cp);
-static void _bring_pages_to_front(eos_card_pager_t *cp);
-static void _rebuild_sw(eos_card_pager_t *cp);
+static void _page_switch_handler(cos_card_pager_t *cp);
+static void _bring_pages_to_front(cos_card_pager_t *cp);
+static void _rebuild_sw(cos_card_pager_t *cp);
 static inline void _set_indicator_active(lv_obj_t *indicator)
 {
     lv_obj_set_style_bg_color(indicator, _INDICATOR_ACTIVE_COLOR, 0);
@@ -42,15 +42,15 @@ static inline void _set_indicator_inactive(lv_obj_t *indicator)
     lv_obj_set_style_bg_color(indicator, _INDICATOR_INACTIVE_COLOR, 0);
 }
 
-static inline void _notify_page_changed(eos_card_pager_t *cp)
+static inline void _notify_page_changed(cos_card_pager_t *cp)
 {
     if (cp->page_changed_cb)
         cp->page_changed_cb(cp, cp->current_page_index, cp->page_changed_user_data);
 }
 
-static void _update_z_order(eos_card_pager_t *cp)
+static void _update_z_order(cos_card_pager_t *cp)
 {
-    EOS_CHECK_PTR_RETURN(cp);
+    COS_CHECK_PTR_RETURN(cp);
 
     /* z-order bottom -> top: background, touch area (below pages so taps on
      * page content win the hit test), pages, indicator. */
@@ -58,12 +58,12 @@ static void _update_z_order(eos_card_pager_t *cp)
 
     if (cp->sw)
     {
-        lv_obj_t *touch_obj = eos_slide_widget_get_touch_obj(cp->sw);
+        lv_obj_t *touch_obj = cos_slide_widget_get_touch_obj(cp->sw);
         if (touch_obj && lv_obj_is_valid(touch_obj))
             lv_obj_move_foreground(touch_obj);
     }
 
-    lv_obj_t *cur_page = eos_card_pager_get_page(cp, cp->current_page_index);
+    lv_obj_t *cur_page = cos_card_pager_get_page(cp, cp->current_page_index);
     if (cur_page)
         lv_obj_move_foreground(cur_page);
 
@@ -71,23 +71,23 @@ static void _update_z_order(eos_card_pager_t *cp)
         lv_obj_move_foreground(cp->indicator_container);
 }
 
-static void _bring_pages_to_front(eos_card_pager_t *cp)
+static void _bring_pages_to_front(cos_card_pager_t *cp)
 {
-    EOS_CHECK_PTR_RETURN(cp);
+    COS_CHECK_PTR_RETURN(cp);
 
     uint8_t cur = cp->current_page_index;
     uint8_t last = cp->page_count > 0 ? cp->page_count - 1 : 0;
     uint8_t prev_index = (cur == 0) ? (cp->loop ? last : cur) : (cur - 1);
     uint8_t next_index = (cur == last) ? (cp->loop ? 0 : cur) : (cur + 1);
 
-    lv_obj_t *prev_page = eos_card_pager_get_page(cp, prev_index);
-    lv_obj_t *next_page = eos_card_pager_get_page(cp, next_index);
-    lv_obj_t *cur_page = eos_card_pager_get_page(cp, cur);
+    lv_obj_t *prev_page = cos_card_pager_get_page(cp, prev_index);
+    lv_obj_t *next_page = cos_card_pager_get_page(cp, next_index);
+    lv_obj_t *cur_page = cos_card_pager_get_page(cp, cur);
 
     /* Touch area stays below the pages (see _update_z_order). */
     if (cp->sw)
     {
-        lv_obj_t *touch_obj = eos_slide_widget_get_touch_obj(cp->sw);
+        lv_obj_t *touch_obj = cos_slide_widget_get_touch_obj(cp->sw);
         if (touch_obj && lv_obj_is_valid(touch_obj))
             lv_obj_move_foreground(touch_obj);
     }
@@ -105,13 +105,13 @@ static void _bring_pages_to_front(eos_card_pager_t *cp)
 
 static void _on_threshold_reached_cb(lv_event_t *e)
 {
-    eos_card_pager_t *cp = (eos_card_pager_t *)lv_event_get_user_data(e);
-    eos_slide_widget_state_t state = eos_slide_widget_get_state(cp->sw);
+    cos_card_pager_t *cp = (cos_card_pager_t *)lv_event_get_user_data(e);
+    cos_slide_widget_state_t state = cos_slide_widget_get_state(cp->sw);
 
-    if (state == EOS_SLIDE_WIDGET_STATE_THRESHOLD)
+    if (state == COS_SLIDE_WIDGET_STATE_THRESHOLD)
     {
         uint8_t prev_index = cp->current_page_index;
-        lv_coord_t displacement = eos_slide_widget_get_displacement(cp->sw);
+        lv_coord_t displacement = cos_slide_widget_get_displacement(cp->sw);
 
         if (displacement > 0)
         {
@@ -134,16 +134,16 @@ static void _on_threshold_reached_cb(lv_event_t *e)
 
         if (cp->current_page_index == prev_index)
         {
-            lv_obj_t *cur_page = eos_card_pager_get_page(cp, cp->current_page_index);
+            lv_obj_t *cur_page = cos_card_pager_get_page(cp, cp->current_page_index);
             if (cur_page)
                 lv_obj_set_pos(cur_page, 0, 0);
             _page_switch_handler(cp);
             return;
         }
 
-        lv_obj_t *indicator = eos_card_pager_get_indicator(cp, prev_index);
+        lv_obj_t *indicator = cos_card_pager_get_indicator(cp, prev_index);
         _set_indicator_inactive(indicator);
-        indicator = eos_card_pager_get_indicator(cp, cp->current_page_index);
+        indicator = cos_card_pager_get_indicator(cp, cp->current_page_index);
         _set_indicator_active(indicator);
 
         _page_switch_handler(cp);
@@ -152,36 +152,36 @@ static void _on_threshold_reached_cb(lv_event_t *e)
     }
 }
 
-static void _page_switch_handler(eos_card_pager_t *cp)
+static void _page_switch_handler(cos_card_pager_t *cp)
 {
-    EOS_LOG_I("Curent page index: %d / %d (loop=%d)", cp->current_page_index, cp->page_count, cp->loop);
+    COS_LOG_I("Curent page index: %d / %d (loop=%d)", cp->current_page_index, cp->page_count, cp->loop);
 
     if (cp->page_count == 0)
         return;
 
     if (cp->page_count == 1)
     {
-        eos_slide_widget_set_target_obj(cp->sw, eos_card_pager_get_page(cp, 0));
-        eos_slide_widget_set_threshold(cp->sw, EOS_THRESHOLD_INFINITE);
-        eos_slide_widget_set_range(cp->sw, 0, 0);
+        cos_slide_widget_set_target_obj(cp->sw, cos_card_pager_get_page(cp, 0));
+        cos_slide_widget_set_threshold(cp->sw, COS_THRESHOLD_INFINITE);
+        cos_slide_widget_set_range(cp->sw, 0, 0);
         return;
     }
 
-    bool vertical = (cp->dir == EOS_CARD_PAGER_DIR_VER);
-    lv_coord_t base_offset = vertical ? EOS_DISPLAY_HEIGHT : EOS_DISPLAY_WIDTH;
+    bool vertical = (cp->dir == COS_CARD_PAGER_DIR_VER);
+    lv_coord_t base_offset = vertical ? COS_DISPLAY_HEIGHT : COS_DISPLAY_WIDTH;
 
     uint8_t cur = cp->current_page_index;
     uint8_t last = cp->page_count - 1;
     uint8_t prev_index = (cur == 0) ? (cp->loop ? last : cur) : (cur - 1);
     uint8_t next_index = (cur == last) ? (cp->loop ? 0 : cur) : (cur + 1);
 
-    lv_obj_t *cur_page = eos_card_pager_get_page(cp, cur);
-    lv_obj_t *prev_page = eos_card_pager_get_page(cp, prev_index);
-    lv_obj_t *next_page = eos_card_pager_get_page(cp, next_index);
+    lv_obj_t *cur_page = cos_card_pager_get_page(cp, cur);
+    lv_obj_t *prev_page = cos_card_pager_get_page(cp, prev_index);
+    lv_obj_t *next_page = cos_card_pager_get_page(cp, next_index);
 
-    eos_slide_widget_set_target_obj(cp->sw, cur_page);
-    eos_slide_widget_set_range(cp->sw, 0, base_offset);
-    eos_slide_widget_set_threshold(cp->sw, EOS_THRESHOLD_30);
+    cos_slide_widget_set_target_obj(cp->sw, cur_page);
+    cos_slide_widget_set_range(cp->sw, 0, base_offset);
+    cos_slide_widget_set_threshold(cp->sw, COS_THRESHOLD_30);
 
     if (cur_page)
         lv_obj_set_pos(cur_page, 0, 0);
@@ -204,17 +204,17 @@ static void _page_switch_handler(eos_card_pager_t *cp)
 
     _bring_pages_to_front(cp);
 
-    EOS_LOG_I("Slide config: current=%p, prev=%p, next=%p", cur_page, prev_page, next_page);
+    COS_LOG_I("Slide config: current=%p, prev=%p, next=%p", cur_page, prev_page, next_page);
 }
 
-eos_card_pager_node_t *eos_card_pager_get_node(eos_card_pager_t *cp, uint8_t page_index)
+cos_card_pager_node_t *cos_card_pager_get_node(cos_card_pager_t *cp, uint8_t page_index)
 {
-    EOS_CHECK_PTR_RETURN_VAL(cp && cp->page_list_head, NULL);
+    COS_CHECK_PTR_RETURN_VAL(cp && cp->page_list_head, NULL);
 
     if (page_index >= cp->page_count)
         return NULL;
 
-    eos_card_pager_node_t *cur = cp->page_list_head;
+    cos_card_pager_node_t *cur = cp->page_list_head;
     for (uint8_t i = 0; i < page_index; i++)
     {
         cur = cur->next;
@@ -222,37 +222,37 @@ eos_card_pager_node_t *eos_card_pager_get_node(eos_card_pager_t *cp, uint8_t pag
     return cur ? cur : NULL;
 }
 
-lv_obj_t *eos_card_pager_get_indicator(eos_card_pager_t *cp, uint8_t page_index)
+lv_obj_t *cos_card_pager_get_indicator(cos_card_pager_t *cp, uint8_t page_index)
 {
-    eos_card_pager_node_t *cur = eos_card_pager_get_node(cp, page_index);
+    cos_card_pager_node_t *cur = cos_card_pager_get_node(cp, page_index);
     return cur ? cur->indicator : NULL;
 }
 
-lv_obj_t *eos_card_pager_get_page(eos_card_pager_t *cp, uint8_t page_index)
+lv_obj_t *cos_card_pager_get_page(cos_card_pager_t *cp, uint8_t page_index)
 {
-    eos_card_pager_node_t *cur = eos_card_pager_get_node(cp, page_index);
+    cos_card_pager_node_t *cur = cos_card_pager_get_node(cp, page_index);
     return cur ? cur->page : NULL;
 }
 
 static void _page_init(lv_obj_t *page)
 {
     lv_obj_remove_style_all(page);
-    lv_obj_set_size(page, EOS_DISPLAY_WIDTH, EOS_DISPLAY_HEIGHT);
-    lv_obj_set_style_bg_color(page, EOS_COLOR_WHITE, 0);
+    lv_obj_set_size(page, COS_DISPLAY_WIDTH, COS_DISPLAY_HEIGHT);
+    lv_obj_set_style_bg_color(page, COS_COLOR_WHITE, 0);
     lv_obj_set_style_bg_opa(page, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(page, EOS_DISPLAY_RADIUS, 0);
+    lv_obj_set_style_radius(page, COS_DISPLAY_RADIUS, 0);
     /* Pages must NOT be clickable: the full-screen touch area below them
      * handles swipe gestures, while taps on page content (e.g. app icons)
      * must reach those children instead of being swallowed by the page. */
     lv_obj_remove_flag(page, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
 }
 
-lv_obj_t *eos_card_pager_create_page(eos_card_pager_t *cp)
+lv_obj_t *cos_card_pager_create_page(cos_card_pager_t *cp)
 {
-    EOS_CHECK_PTR_RETURN_VAL(cp, NULL);
+    COS_CHECK_PTR_RETURN_VAL(cp, NULL);
 
-    eos_card_pager_node_t *node = eos_malloc_zeroed(sizeof(eos_card_pager_node_t));
-    EOS_CHECK_PTR_RETURN_VAL(node, NULL);
+    cos_card_pager_node_t *node = cos_malloc_zeroed(sizeof(cos_card_pager_node_t));
+    COS_CHECK_PTR_RETURN_VAL(node, NULL);
 
     lv_obj_t *page = lv_obj_create(cp->container);
     _page_init(page);
@@ -276,18 +276,18 @@ lv_obj_t *eos_card_pager_create_page(eos_card_pager_t *cp)
     }
     else
     {
-        eos_card_pager_node_t *cur = cp->page_list_head;
+        cos_card_pager_node_t *cur = cp->page_list_head;
         while (cur->next)
             cur = cur->next;
         cur->next = node;
         node->prev = cur;
-        if (cp->dir == EOS_CARD_PAGER_DIR_VER)
+        if (cp->dir == COS_CARD_PAGER_DIR_VER)
         {
-            lv_obj_set_pos(page, 0, EOS_DISPLAY_HEIGHT);
+            lv_obj_set_pos(page, 0, COS_DISPLAY_HEIGHT);
         }
         else
         {
-            lv_obj_set_pos(page, EOS_DISPLAY_WIDTH, 0);
+            lv_obj_set_pos(page, COS_DISPLAY_WIDTH, 0);
         }
         cp->page_count++;
     }
@@ -298,18 +298,18 @@ lv_obj_t *eos_card_pager_create_page(eos_card_pager_t *cp)
     _rebuild_sw(cp);
     _page_switch_handler(cp);
 
-    EOS_LOG_I("Page created: [%p]\nPage count: %d", page, cp->page_count);
+    COS_LOG_I("Page created: [%p]\nPage count: %d", page, cp->page_count);
     lv_obj_move_foreground(cp->indicator_container);
     return page;
 }
 
-bool eos_card_pager_remove_page(eos_card_pager_t *cp, uint8_t page_index)
+bool cos_card_pager_remove_page(cos_card_pager_t *cp, uint8_t page_index)
 {
-    EOS_CHECK_PTR_RETURN_VAL(cp && cp->page_list_head, false);
+    COS_CHECK_PTR_RETURN_VAL(cp && cp->page_list_head, false);
     if (page_index >= cp->page_count)
         return false;
 
-    eos_card_pager_node_t *cur = cp->page_list_head;
+    cos_card_pager_node_t *cur = cp->page_list_head;
     for (uint8_t i = 0; i < page_index; i++)
         cur = cur->next;
 
@@ -328,41 +328,41 @@ bool eos_card_pager_remove_page(eos_card_pager_t *cp, uint8_t page_index)
         lv_obj_delete_async(cur->page);
     if (cur->indicator)
         lv_obj_delete_async(cur->indicator);
-    eos_free(cur);
+    cos_free(cur);
 
     cp->page_count--;
     return true;
 }
 
-void eos_card_pager_set_loop(eos_card_pager_t *cp, bool loop)
+void cos_card_pager_set_loop(cos_card_pager_t *cp, bool loop)
 {
-    EOS_CHECK_PTR_RETURN(cp);
+    COS_CHECK_PTR_RETURN(cp);
     cp->loop = loop;
     _page_switch_handler(cp);
 }
 
-bool eos_card_pager_move_node(eos_card_pager_t *cp, uint8_t from_index, uint8_t to_index)
+bool cos_card_pager_move_node(cos_card_pager_t *cp, uint8_t from_index, uint8_t to_index)
 {
-    EOS_LOG_I("Move Node");
-    EOS_CHECK_PTR_RETURN_VAL(cp && cp->page_list_head, false);
+    COS_LOG_I("Move Node");
+    COS_CHECK_PTR_RETURN_VAL(cp && cp->page_list_head, false);
     if (from_index >= cp->page_count || to_index >= cp->page_count)
     {
-        EOS_LOG_W("Invalid index: from=%d, to=%d (count=%d)", from_index, to_index, cp->page_count);
+        COS_LOG_W("Invalid index: from=%d, to=%d (count=%d)", from_index, to_index, cp->page_count);
         return false;
     }
 
     if (from_index == to_index)
     {
-        EOS_LOG_I("Node already in position %d", from_index);
+        COS_LOG_I("Node already in position %d", from_index);
         return true;
     }
 
-    eos_card_pager_node_t *from = eos_card_pager_get_node(cp, from_index);
+    cos_card_pager_node_t *from = cos_card_pager_get_node(cp, from_index);
     if (!from)
         return false;
 
-    eos_card_pager_node_t *to = eos_card_pager_get_node(cp, to_index);
-    EOS_LOG_D("To color: 0x%06X", lv_obj_get_style_bg_color(to->page, 0));
+    cos_card_pager_node_t *to = cos_card_pager_get_node(cp, to_index);
+    COS_LOG_D("To color: 0x%06X", lv_obj_get_style_bg_color(to->page, 0));
     if (!to)
         return false;
 
@@ -389,10 +389,10 @@ bool eos_card_pager_move_node(eos_card_pager_t *cp, uint8_t from_index, uint8_t 
     else if (from_index > cp->current_page_index && to_index <= cp->current_page_index)
         cp->current_page_index++;
 
-    EOS_LOG_D("Current page index: %d", cp->current_page_index);
+    COS_LOG_D("Current page index: %d", cp->current_page_index);
 
     uint8_t idx = 0;
-    for (eos_card_pager_node_t *it = cp->page_list_head; it; it = it->next, idx++)
+    for (cos_card_pager_node_t *it = cp->page_list_head; it; it = it->next, idx++)
     {
         if (it->indicator && cp->indicator_container)
         {
@@ -402,56 +402,56 @@ bool eos_card_pager_move_node(eos_card_pager_t *cp, uint8_t from_index, uint8_t 
 
     _page_switch_handler(cp);
 
-    lv_obj_t *cur_page_obj = eos_card_pager_get_page(cp, cp->current_page_index);
+    lv_obj_t *cur_page_obj = cos_card_pager_get_page(cp, cp->current_page_index);
     lv_obj_set_pos(cur_page_obj, 0, 0);
     _update_z_order(cp);
 
     _notify_page_changed(cp);
 
-    EOS_LOG_I("Moved node: from %d -> %d", from_index, to_index);
+    COS_LOG_I("Moved node: from %d -> %d", from_index, to_index);
     return true;
 }
 
-void eos_card_pager_move_page(eos_card_pager_t *cp, uint8_t page_index)
+void cos_card_pager_move_page(cos_card_pager_t *cp, uint8_t page_index)
 {
-    EOS_CHECK_PTR_RETURN(cp);
+    COS_CHECK_PTR_RETURN(cp);
     if (page_index >= cp->page_count)
     {
-        EOS_LOG_W("Invalid page index: %d (max=%d)", page_index, cp->page_count - 1);
+        COS_LOG_W("Invalid page index: %d (max=%d)", page_index, cp->page_count - 1);
         return;
     }
 
     if (cp->current_page_index == page_index)
     {
-        EOS_LOG_I("Already at page %d", page_index);
+        COS_LOG_I("Already at page %d", page_index);
         return;
     }
 
     uint8_t prev_index = cp->current_page_index;
     cp->current_page_index = page_index;
 
-    lv_obj_t *indicator = eos_card_pager_get_indicator(cp, prev_index);
+    lv_obj_t *indicator = cos_card_pager_get_indicator(cp, prev_index);
     if (indicator)
         lv_obj_set_style_bg_color(indicator, _INDICATOR_INACTIVE_COLOR, 0);
 
-    indicator = eos_card_pager_get_indicator(cp, page_index);
+    indicator = cos_card_pager_get_indicator(cp, page_index);
     if (indicator)
         lv_obj_set_style_bg_color(indicator, _INDICATOR_ACTIVE_COLOR, 0);
 
     _page_switch_handler(cp);
 
-    lv_obj_t *cur_page_obj = eos_card_pager_get_page(cp, page_index);
+    lv_obj_t *cur_page_obj = cos_card_pager_get_page(cp, page_index);
     lv_obj_set_pos(cur_page_obj, 0, 0);
     _update_z_order(cp);
 
     _notify_page_changed(cp);
 
-    EOS_LOG_I("Page moved to %d / %d", page_index + 1, cp->page_count);
+    COS_LOG_I("Page moved to %d / %d", page_index + 1, cp->page_count);
 }
 
-void eos_card_pager_set_page_changed_cb(eos_card_pager_t *cp, eos_card_pager_page_changed_cb_t cb, void *user_data)
+void cos_card_pager_set_page_changed_cb(cos_card_pager_t *cp, cos_card_pager_page_changed_cb_t cb, void *user_data)
 {
-    EOS_CHECK_PTR_RETURN(cp);
+    COS_CHECK_PTR_RETURN(cp);
 
     cp->page_changed_cb = cb;
     cp->page_changed_user_data = user_data;
@@ -459,10 +459,10 @@ void eos_card_pager_set_page_changed_cb(eos_card_pager_t *cp, eos_card_pager_pag
 
 static void _on_slide_pressed_cb(lv_event_t *e)
 {
-    eos_card_pager_t *cp = (eos_card_pager_t *)lv_event_get_user_data(e);
+    cos_card_pager_t *cp = (cos_card_pager_t *)lv_event_get_user_data(e);
     /* UAF guard: the slide widget may have been destroyed (e.g. all pages
      * removed & rebuilt); cp->sw is cleared via the destroy notification. */
-    EOS_CHECK_PTR_RETURN(cp && cp->sw);
+    COS_CHECK_PTR_RETURN(cp && cp->sw);
     if (cp->indicator_container && lv_obj_is_valid(cp->indicator_container))
     {
         lv_obj_move_foreground(cp->indicator_container);
@@ -473,17 +473,17 @@ static void _on_slide_pressed_cb(lv_event_t *e)
 
 static void _on_slide_moving_cb(lv_event_t *e)
 {
-    eos_card_pager_t *cp = (eos_card_pager_t *)lv_event_get_user_data(e);
-    EOS_CHECK_PTR_RETURN(cp && cp->sw);
+    cos_card_pager_t *cp = (cos_card_pager_t *)lv_event_get_user_data(e);
+    COS_CHECK_PTR_RETURN(cp && cp->sw);
 
-    eos_card_pager_node_t *cur_node = eos_card_pager_get_node(cp, cp->current_page_index);
-    EOS_CHECK_PTR_RETURN(cur_node && cur_node->page);
+    cos_card_pager_node_t *cur_node = cos_card_pager_get_node(cp, cp->current_page_index);
+    COS_CHECK_PTR_RETURN(cur_node && cur_node->page);
 
     lv_obj_t *cur_obj = cur_node->page;
     lv_coord_t cur_pos = (lv_coord_t)(intptr_t)lv_event_get_param(e);
 
-    bool vertical = (cp->dir == EOS_CARD_PAGER_DIR_VER);
-    lv_coord_t base_offset = vertical ? EOS_DISPLAY_HEIGHT : EOS_DISPLAY_WIDTH;
+    bool vertical = (cp->dir == COS_CARD_PAGER_DIR_VER);
+    lv_coord_t base_offset = vertical ? COS_DISPLAY_HEIGHT : COS_DISPLAY_WIDTH;
 
     uint8_t cur = cp->current_page_index;
     uint8_t last = cp->page_count - 1;
@@ -493,12 +493,12 @@ static void _on_slide_moving_cb(lv_event_t *e)
     uint8_t prev_index = (cur == 0) ? last : (cur - 1);
     uint8_t next_index = (cur == last) ? 0 : (cur + 1);
 
-    lv_obj_t *prev_page = has_prev ? eos_card_pager_get_page(cp, prev_index) : NULL;
-    lv_obj_t *next_page = has_next ? eos_card_pager_get_page(cp, next_index) : NULL;
+    lv_obj_t *prev_page = has_prev ? cos_card_pager_get_page(cp, prev_index) : NULL;
+    lv_obj_t *next_page = has_next ? cos_card_pager_get_page(cp, next_index) : NULL;
 
     if (cur_pos == 0)
     {
-        eos_slide_widget_set_threshold(cp->sw, EOS_THRESHOLD_30);
+        cos_slide_widget_set_threshold(cp->sw, COS_THRESHOLD_30);
         if (prev_page && prev_page != cur_obj)
         {
             if (vertical)
@@ -521,7 +521,7 @@ static void _on_slide_moving_cb(lv_event_t *e)
     {
         if (!has_prev)
         {
-            eos_slide_widget_set_threshold(cp->sw, EOS_THRESHOLD_INFINITE);
+            cos_slide_widget_set_threshold(cp->sw, COS_THRESHOLD_INFINITE);
             lv_coord_t damped = cur_pos / 3;
             if (vertical)
                 lv_obj_set_y(cur_obj, damped);
@@ -530,7 +530,7 @@ static void _on_slide_moving_cb(lv_event_t *e)
             return;
         }
 
-        eos_slide_widget_set_threshold(cp->sw, EOS_THRESHOLD_30);
+        cos_slide_widget_set_threshold(cp->sw, COS_THRESHOLD_30);
         if (prev_page && prev_page != cur_obj)
         {
             if (vertical)
@@ -543,7 +543,7 @@ static void _on_slide_moving_cb(lv_event_t *e)
     {
         if (!has_next)
         {
-            eos_slide_widget_set_threshold(cp->sw, EOS_THRESHOLD_INFINITE);
+            cos_slide_widget_set_threshold(cp->sw, COS_THRESHOLD_INFINITE);
             lv_coord_t damped = cur_pos / 3;
             if (vertical)
                 lv_obj_set_y(cur_obj, damped);
@@ -552,7 +552,7 @@ static void _on_slide_moving_cb(lv_event_t *e)
             return;
         }
 
-        eos_slide_widget_set_threshold(cp->sw, EOS_THRESHOLD_30);
+        cos_slide_widget_set_threshold(cp->sw, COS_THRESHOLD_30);
         if (next_page && next_page != cur_obj)
         {
             if (vertical)
@@ -576,16 +576,16 @@ static void _on_slide_moving_cb(lv_event_t *e)
 
 static void _on_slide_reverted_cb(lv_event_t *e)
 {
-    eos_card_pager_t *cp = (eos_card_pager_t *)lv_event_get_user_data(e);
-    lv_obj_t *cur_page = eos_card_pager_get_page(cp, cp->current_page_index);
+    cos_card_pager_t *cp = (cos_card_pager_t *)lv_event_get_user_data(e);
+    lv_obj_t *cur_page = cos_card_pager_get_page(cp, cp->current_page_index);
     lv_obj_set_pos(cur_page, 0, 0);
     _page_switch_handler(cp);
 }
 
-static void _slide_widget_deleted_cb(eos_slide_widget_t *sw, void *user_data)
+static void _slide_widget_deleted_cb(cos_slide_widget_t *sw, void *user_data)
 {
     (void)sw;
-    eos_card_pager_t *cp = (eos_card_pager_t *)user_data;
+    cos_card_pager_t *cp = (cos_card_pager_t *)user_data;
     if (cp)
     {
         cp->sw = NULL;
@@ -594,44 +594,44 @@ static void _slide_widget_deleted_cb(eos_slide_widget_t *sw, void *user_data)
 
 /* Rebuild the slide widget after the old one was destroyed together with its
  * target page (e.g. all pages removed & recreated). */
-static void _rebuild_sw(eos_card_pager_t *cp)
+static void _rebuild_sw(cos_card_pager_t *cp)
 {
-    EOS_CHECK_PTR_RETURN(cp);
+    COS_CHECK_PTR_RETURN(cp);
     if (cp->sw || !cp->touch_area)
     {
         return;
     }
-    lv_obj_t *page = eos_card_pager_get_page(cp, 0);
+    lv_obj_t *page = cos_card_pager_get_page(cp, 0);
     if (!page)
     {
-        page = eos_card_pager_get_page(cp, cp->current_page_index);
+        page = cos_card_pager_get_page(cp, cp->current_page_index);
     }
     if (!page)
     {
         return;
     }
-    bool vertical = (cp->dir == EOS_CARD_PAGER_DIR_VER);
-    cp->sw = eos_slide_widget_create_with_touch(cp->touch_area,
+    bool vertical = (cp->dir == COS_CARD_PAGER_DIR_VER);
+    cp->sw = cos_slide_widget_create_with_touch(cp->touch_area,
                                                 page,
-                                                vertical ? EOS_SLIDE_DIR_VER : EOS_SLIDE_DIR_HOR,
-                                                vertical ? EOS_DISPLAY_HEIGHT : EOS_DISPLAY_WIDTH,
-                                                EOS_THRESHOLD_30);
+                                                vertical ? COS_SLIDE_DIR_VER : COS_SLIDE_DIR_HOR,
+                                                vertical ? COS_DISPLAY_HEIGHT : COS_DISPLAY_WIDTH,
+                                                COS_THRESHOLD_30);
     if (!cp->sw)
     {
         return;
     }
-    eos_slide_widget_set_bidirectional(cp->sw, true);
-    eos_slide_widget_set_range(cp->sw, 0, vertical ? EOS_DISPLAY_HEIGHT : EOS_DISPLAY_WIDTH);
-    eos_slide_widget_add_event_cb_reached_threshold(cp->sw, _on_threshold_reached_cb, cp);
-    eos_slide_widget_add_event_cb_moving(cp->sw, _on_slide_moving_cb, cp);
-    eos_slide_widget_add_event_cb_reverted(cp->sw, _on_slide_reverted_cb, cp);
-    eos_slide_widget_set_delete_notify(cp->sw, _slide_widget_deleted_cb, cp);
+    cos_slide_widget_set_bidirectional(cp->sw, true);
+    cos_slide_widget_set_range(cp->sw, 0, vertical ? COS_DISPLAY_HEIGHT : COS_DISPLAY_WIDTH);
+    cos_slide_widget_add_event_cb_reached_threshold(cp->sw, _on_threshold_reached_cb, cp);
+    cos_slide_widget_add_event_cb_moving(cp->sw, _on_slide_moving_cb, cp);
+    cos_slide_widget_add_event_cb_reverted(cp->sw, _on_slide_reverted_cb, cp);
+    cos_slide_widget_set_delete_notify(cp->sw, _slide_widget_deleted_cb, cp);
 }
 
 static void _container_delete_cb(lv_event_t *e)
 {
-    eos_card_pager_t *cp = (eos_card_pager_t *)lv_event_get_user_data(e);
-    EOS_CHECK_PTR_RETURN(cp);
+    cos_card_pager_t *cp = (cos_card_pager_t *)lv_event_get_user_data(e);
+    COS_CHECK_PTR_RETURN(cp);
 
     /* Detach the press handler from the touch area before cp is freed so a
      * later touch can never reach a freed card_pager (UAF). */
@@ -641,54 +641,54 @@ static void _container_delete_cb(lv_event_t *e)
     }
     cp->sw = NULL;
 
-    eos_card_pager_node_t *node = cp->page_list_head;
+    cos_card_pager_node_t *node = cp->page_list_head;
     while (node)
     {
-        eos_card_pager_node_t *next = node->next;
-        eos_free(node);
+        cos_card_pager_node_t *next = node->next;
+        cos_free(node);
         node = next;
     }
     cp->page_list_head = NULL;
 
-    eos_free(cp);
+    cos_free(cp);
 }
 
-eos_card_pager_t *eos_card_pager_create(lv_obj_t *parent, eos_card_pager_dir_t dir)
+cos_card_pager_t *cos_card_pager_create(lv_obj_t *parent, cos_card_pager_dir_t dir)
 {
-    eos_card_pager_t *cp = eos_malloc_zeroed(sizeof(eos_card_pager_t));
-    EOS_CHECK_PTR_RETURN_VAL(cp && parent, NULL);
+    cos_card_pager_t *cp = cos_malloc_zeroed(sizeof(cos_card_pager_t));
+    COS_CHECK_PTR_RETURN_VAL(cp && parent, NULL);
 
     cp->container = lv_obj_create(parent);
     lv_obj_remove_style_all(cp->container);
-    lv_obj_set_size(cp->container, EOS_DISPLAY_WIDTH, EOS_DISPLAY_HEIGHT);
+    lv_obj_set_size(cp->container, COS_DISPLAY_WIDTH, COS_DISPLAY_HEIGHT);
     lv_obj_remove_flag(cp->container, LV_OBJ_FLAG_SCROLLABLE);
     cp->dir = dir;
     cp->loop = false;
     cp->background = lv_obj_create(cp->container);
     _page_init(cp->background);
-    lv_obj_set_size(cp->background, EOS_DISPLAY_WIDTH, EOS_DISPLAY_HEIGHT);
+    lv_obj_set_size(cp->background, COS_DISPLAY_WIDTH, COS_DISPLAY_HEIGHT);
     lv_obj_set_pos(cp->background, 0, 0);
     lv_obj_set_style_bg_opa(cp->background, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(cp->background, EOS_COLOR_BLACK, 0);
+    lv_obj_set_style_bg_color(cp->background, COS_COLOR_BLACK, 0);
 
     lv_obj_t *indicator_container = lv_obj_create(cp->container);
     lv_obj_remove_style_all(indicator_container);
     lv_obj_remove_flag(indicator_container, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
     cp->indicator_container = indicator_container;
-    eos_card_pager_create_page(cp);
+    cos_card_pager_create_page(cp);
 
     lv_obj_t *touch_area = lv_obj_create(cp->container);
     lv_obj_remove_style_all(touch_area);
-    lv_obj_set_size(touch_area, EOS_DISPLAY_WIDTH, EOS_DISPLAY_HEIGHT);
+    lv_obj_set_size(touch_area, COS_DISPLAY_WIDTH, COS_DISPLAY_HEIGHT);
     lv_obj_set_pos(touch_area, 0, 0);
     lv_obj_set_style_bg_opa(touch_area, LV_OPA_TRANSP, 0);
     lv_obj_remove_flag(touch_area, LV_OBJ_FLAG_SCROLLABLE);
 
     switch (dir)
     {
-        case EOS_CARD_PAGER_DIR_VER:
+        case COS_CARD_PAGER_DIR_VER:
         {
-            lv_obj_set_size(indicator_container, LV_SIZE_CONTENT, EOS_DISPLAY_HEIGHT);
+            lv_obj_set_size(indicator_container, LV_SIZE_CONTENT, COS_DISPLAY_HEIGHT);
             lv_obj_align(indicator_container, LV_ALIGN_RIGHT_MID, 0, 0);
             lv_obj_set_style_bg_opa(indicator_container, LV_OPA_TRANSP, 0);
             lv_obj_set_style_pad_all(indicator_container, 0, 0);
@@ -700,9 +700,9 @@ eos_card_pager_t *eos_card_pager_create(lv_obj_t *parent, eos_card_pager_dir_t d
             lv_obj_remove_flag(indicator_container, LV_OBJ_FLAG_SCROLLABLE);
             break;
         }
-        case EOS_CARD_PAGER_DIR_HOR:
+        case COS_CARD_PAGER_DIR_HOR:
         {
-            lv_obj_set_size(indicator_container, EOS_DISPLAY_WIDTH, LV_SIZE_CONTENT);
+            lv_obj_set_size(indicator_container, COS_DISPLAY_WIDTH, LV_SIZE_CONTENT);
             lv_obj_align(indicator_container, LV_ALIGN_BOTTOM_MID, 0, 0);
             lv_obj_set_style_bg_opa(indicator_container, LV_OPA_TRANSP, 0);
             lv_obj_set_style_pad_all(indicator_container, 0, 0);

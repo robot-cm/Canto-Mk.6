@@ -1,29 +1,29 @@
 /**
- * @file eos_lock_page.c
+ * @file cos_lock_page.c
  * @brief Apple Watch style lock screen with numeric keypad
  */
 
-#include "eos_lock_page.h"
+#include "cos_lock_page.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <string.h>
-#define EOS_LOG_TAG "LockPage"
-#include "eos_log.h"
+#define COS_LOG_TAG "LockPage"
+#include "cos_log.h"
 #include "lvgl.h"
-#include "eos_icon.h"
-#include "eos_theme.h"
-#include "eos_font.h"
-#include "eos_lang.h"
-#include "eos_config.h"
-#include "eos_service_config.h"
-#include "eos_mem.h"
-#include "eos_sha256.h"
-#include "eos_service_lock.h"
-#include "eos_service_time.h"
-#include "eos_service_haptic.h"
-#include "eos_overlay_layer.h"
-#include "eos_round_keyboard.h"
+#include "cos_icon.h"
+#include "cos_theme.h"
+#include "cos_font.h"
+#include "cos_lang.h"
+#include "cos_config.h"
+#include "cos_service_config.h"
+#include "cos_mem.h"
+#include "cos_sha256.h"
+#include "cos_service_lock.h"
+#include "cos_service_time.h"
+#include "cos_service_haptic.h"
+#include "cos_overlay_layer.h"
+#include "cos_round_keyboard.h"
 
 /* Macros and Definitions -------------------------------------*/
 #define LOCK_PAGE_MAGIC 0x4C4F434BU
@@ -66,36 +66,36 @@ static void _verify_password(_lock_page_ctx_t *ctx)
         digits = "";
 
     /* Hash entered text */
-    uint8_t hash[EOS_SHA256_DIGEST_SIZE];
-    eos_sha256((const uint8_t *)digits, strlen(digits), hash);
+    uint8_t hash[COS_SHA256_DIGEST_SIZE];
+    cos_sha256((const uint8_t *)digits, strlen(digits), hash);
 
-    char entered_hex[EOS_SHA256_HEX_STR_SIZE];
-    eos_sha256_to_hex(hash, entered_hex, sizeof(entered_hex));
+    char entered_hex[COS_SHA256_HEX_STR_SIZE];
+    cos_sha256_to_hex(hash, entered_hex, sizeof(entered_hex));
 
     /* Get stored hash from config */
-    char *stored_hash = eos_config_get_string(EOS_CONFIG_KEY_PASSWORD_HASH_STR, "");
+    char *stored_hash = cos_config_get_string(COS_CONFIG_KEY_PASSWORD_HASH_STR, "");
 
     if (stored_hash && strcmp(entered_hex, stored_hash) == 0)
     {
-        eos_free(stored_hash);
-        EOS_LOG_I("Password correct, dismissing lock screen");
-        eos_lock_screen_dismiss();
+        cos_free(stored_hash);
+        COS_LOG_I("Password correct, dismissing lock screen");
+        cos_lock_screen_dismiss();
         return;
     }
-    eos_free(stored_hash);
+    cos_free(stored_hash);
 
     /* Wrong password */
     ctx->failed_attempts++;
-    EOS_LOG_W("Wrong password, attempt %d", ctx->failed_attempts);
+    COS_LOG_W("Wrong password, attempt %d", ctx->failed_attempts);
 
     /* Haptic feedback */
-    eos_haptic_buzz();
+    cos_haptic_buzz();
 
     /* Change title to error */
     if (ctx->title_label && lv_obj_is_valid(ctx->title_label))
     {
-        eos_label_set_text_id(ctx->title_label, STR_ID_LOCK_SCREEN_WRONG_PASSCODE);
-        lv_obj_set_style_text_color(ctx->title_label, EOS_COLOR_RED, 0);
+        cos_label_set_text_id(ctx->title_label, STR_ID_LOCK_SCREEN_WRONG_PASSCODE);
+        lv_obj_set_style_text_color(ctx->title_label, COS_COLOR_RED, 0);
     }
 
     /* Shake animation on textarea */
@@ -145,8 +145,8 @@ static void _restore_title_async_cb(void *user_data)
     lv_obj_t *title = (lv_obj_t *)user_data;
     if (title && lv_obj_is_valid(title))
     {
-        eos_label_set_text_id(title, STR_ID_LOCK_SCREEN_ENTER_PASSCODE);
-        lv_obj_set_style_text_color(title, EOS_COLOR_TEXT_GREY, 0);
+        cos_label_set_text_id(title, STR_ID_LOCK_SCREEN_ENTER_PASSCODE);
+        lv_obj_set_style_text_color(title, COS_COLOR_TEXT_GREY, 0);
     }
 }
 
@@ -157,11 +157,11 @@ static void _style_password_textarea(lv_obj_t *textarea)
     lv_obj_set_style_bg_color(textarea, lv_color_black(), 0);
     lv_obj_set_style_border_width(textarea, 0, 0);
     lv_obj_set_style_pad_all(textarea, 0, 0);
-    lv_obj_set_style_text_color(textarea, EOS_COLOR_WHITE, 0);
+    lv_obj_set_style_text_color(textarea, COS_COLOR_WHITE, 0);
     lv_obj_set_style_bg_opa(textarea, LV_OPA_TRANSP, LV_PART_CURSOR | LV_STATE_FOCUSED);
     lv_obj_set_style_border_width(textarea, 1, LV_PART_CURSOR | LV_STATE_FOCUSED);
     lv_obj_set_style_border_side(textarea, LV_BORDER_SIDE_LEFT, LV_PART_CURSOR | LV_STATE_FOCUSED);
-    lv_obj_set_style_border_color(textarea, EOS_COLOR_BLUE, LV_PART_CURSOR | LV_STATE_FOCUSED);
+    lv_obj_set_style_border_color(textarea, COS_COLOR_BLUE, LV_PART_CURSOR | LV_STATE_FOCUSED);
     lv_obj_set_style_border_opa(textarea, LV_OPA_COVER, LV_PART_CURSOR | LV_STATE_FOCUSED);
     lv_obj_set_style_anim_duration(textarea, 400, LV_PART_CURSOR | LV_STATE_FOCUSED);
 }
@@ -196,18 +196,18 @@ static void _create_lock_ui(_lock_page_ctx_t *ctx, lv_obj_t *parent)
 
     /* Time label */
     lv_obj_t *time_label = lv_label_create(container);
-    eos_datetime_t now = eos_time_get();
+    cos_datetime_t now = cos_time_get();
     char time_str[16];
     snprintf(time_str, sizeof(time_str), "%02d:%02d", now.hour, now.min);
     lv_label_set_text(time_label, time_str);
-    lv_obj_set_style_text_color(time_label, EOS_COLOR_WHITE, 0);
-    eos_label_set_font_size(time_label, EOS_FONT_SIZE_LARGE);
+    lv_obj_set_style_text_color(time_label, COS_COLOR_WHITE, 0);
+    cos_label_set_font_size(time_label, COS_FONT_SIZE_LARGE);
 
     /* Title label */
     ctx->title_label = lv_label_create(container);
-    eos_label_set_text_id(ctx->title_label, STR_ID_LOCK_SCREEN_ENTER_PASSCODE);
-    lv_obj_set_style_text_color(ctx->title_label, EOS_COLOR_TEXT_GREY, 0);
-    eos_label_set_font_size(ctx->title_label, EOS_FONT_SIZE_MEDIUM);
+    cos_label_set_text_id(ctx->title_label, STR_ID_LOCK_SCREEN_ENTER_PASSCODE);
+    lv_obj_set_style_text_color(ctx->title_label, COS_COLOR_TEXT_GREY, 0);
+    cos_label_set_font_size(ctx->title_label, COS_FONT_SIZE_MEDIUM);
 
     /* Password textarea */
     ctx->textarea = lv_textarea_create(container);
@@ -221,8 +221,8 @@ static void _create_lock_ui(_lock_page_ctx_t *ctx, lv_obj_t *parent)
     lv_obj_add_event_cb(ctx->textarea, _on_textarea_ready, LV_EVENT_READY, ctx);
 
     /* Half-circle keyboard (same as WiFi password input) on the root */
-    ctx->keyboard = eos_round_keyboard_create(ctx->root);
-    eos_round_keyboard_set_textarea(ctx->keyboard, ctx->textarea);
+    ctx->keyboard = cos_round_keyboard_create(ctx->root);
+    cos_round_keyboard_set_textarea(ctx->keyboard, ctx->textarea);
 
     /* Focus the textarea and put the cursor at the end so input is ready */
     if (ctx->textarea && lv_obj_is_valid(ctx->textarea))
@@ -250,30 +250,30 @@ static void _destroy_lock_ui(_lock_page_ctx_t *ctx)
         ctx->root = NULL;
     }
 
-    eos_free(ctx);
+    cos_free(ctx);
 }
 
 /* ---- Public API ---- */
 
-void eos_lock_page_show(void)
+void cos_lock_page_show(void)
 {
     if (_ctx)
     {
-        EOS_LOG_W("Lock page already showing");
+        COS_LOG_W("Lock page already showing");
         return;
     }
 
-    _ctx = (_lock_page_ctx_t *)eos_malloc_zeroed(sizeof(_lock_page_ctx_t));
+    _ctx = (_lock_page_ctx_t *)cos_malloc_zeroed(sizeof(_lock_page_ctx_t));
     if (!_ctx)
     {
-        EOS_LOG_E("Failed to allocate lock page context");
+        COS_LOG_E("Failed to allocate lock page context");
         return;
     }
 
     _ctx->magic = LOCK_PAGE_MAGIC;
 
     /* Build UI on overlay layer — naturally above header_layer on lv_layer_top */
-    _create_lock_ui(_ctx, eos_overlay_get_overlay_layer());
+    _create_lock_ui(_ctx, cos_overlay_get_overlay_layer());
 
     /* Ensure top z-order within overlay layer */
     if (_ctx->root)
@@ -281,10 +281,10 @@ void eos_lock_page_show(void)
         lv_obj_move_foreground(_ctx->root);
     }
 
-    EOS_LOG_I("Lock screen shown (security barrier)");
+    COS_LOG_I("Lock screen shown (security barrier)");
 }
 
-void eos_lock_page_hide(void)
+void cos_lock_page_hide(void)
 {
     if (!_ctx)
     {
@@ -297,10 +297,10 @@ void eos_lock_page_hide(void)
     /* Header visibility is managed by the activity system — no manual restore needed.
      * The overlay_layer naturally covered the header_layer while the lock was active. */
 
-    EOS_LOG_I("Lock screen hidden");
+    COS_LOG_I("Lock screen hidden");
 }
 
-bool eos_lock_page_is_visible(void)
+bool cos_lock_page_is_visible(void)
 {
     return _ctx != NULL && _ctx->root != NULL && lv_obj_is_valid(_ctx->root);
 }

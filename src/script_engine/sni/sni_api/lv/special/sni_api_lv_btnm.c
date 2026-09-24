@@ -7,7 +7,7 @@
 
 /* Includes ---------------------------------------------------*/
 #include <string.h>
-#include "eos_mem.h"
+#include "cos_mem.h"
 #include "lvgl.h"
 #include "sni_api_export.h"
 #include "sni_type_bridge.h"
@@ -42,11 +42,11 @@ static void sni_btnm_free_map(const char **map, uint32_t map_size)
     {
         if (map[i])
         {
-            eos_free((void *)map[i]);
+            cos_free((void *)map[i]);
         }
     }
 
-    eos_free((void *)map);
+    cos_free((void *)map);
 }
 
 static void sni_btnm_release_ctx(lv_obj_t *obj)
@@ -65,7 +65,7 @@ static void sni_btnm_release_ctx(lv_obj_t *obj)
 
     cb->aux = NULL;
     sni_btnm_free_map(ctx->map, ctx->map_size);
-    eos_free(ctx);
+    cos_free(ctx);
 }
 
 static bool sni_btnm_store_map(lv_obj_t *obj, const char **map, uint32_t map_size, uint32_t button_count)
@@ -79,7 +79,7 @@ static bool sni_btnm_store_map(lv_obj_t *obj, const char **map, uint32_t map_siz
     sni_btnm_map_ctx_t *ctx = (sni_btnm_map_ctx_t *)cb->aux;
     if (!ctx)
     {
-        ctx = eos_malloc_zeroed(sizeof(sni_btnm_map_ctx_t));
+        ctx = cos_malloc_zeroed(sizeof(sni_btnm_map_ctx_t));
         if (!ctx)
         {
             return false;
@@ -111,7 +111,7 @@ static sni_btnm_map_ctx_t *sni_btnm_find_ctx(lv_obj_t *obj)
 static char *sni_btnm_dup_literal(const char *literal)
 {
     size_t len = strlen(literal);
-    char *out = eos_malloc(len + 1);
+    char *out = cos_malloc(len + 1);
 
     if (!out)
     {
@@ -133,7 +133,7 @@ static char *sni_btnm_dup_js_string(jerry_value_t js_value)
     }
 
     len = jerry_string_size(js_value, JERRY_ENCODING_UTF8);
-    out = eos_malloc(len + 1);
+    out = cos_malloc(len + 1);
     if (!out)
     {
         return NULL;
@@ -193,7 +193,7 @@ static bool sni_btnm_build_map_from_2d_array(jerry_value_t js_rows,
         }
     }
 
-    map = eos_malloc_zeroed(sizeof(char *) * (total_cells + 1));
+    map = cos_malloc_zeroed(sizeof(char *) * (total_cells + 1));
     if (!map)
     {
         return false;
@@ -215,7 +215,7 @@ static bool sni_btnm_build_map_from_2d_array(jerry_value_t js_rows,
             {
                 if (dup)
                 {
-                    eos_free(dup);
+                    cos_free(dup);
                 }
                 jerry_value_free(js_row);
                 sni_btnm_free_map(map, map_index);
@@ -270,7 +270,7 @@ static bool sni_btnm_build_ctrl_map(jerry_value_t js_ctrl, uint32_t expected_len
         return false;
     }
 
-    ctrl_map = eos_malloc(sizeof(lv_buttonmatrix_ctrl_t) * expected_len);
+    ctrl_map = cos_malloc(sizeof(lv_buttonmatrix_ctrl_t) * expected_len);
     if (!ctrl_map)
     {
         return false;
@@ -283,7 +283,7 @@ static bool sni_btnm_build_ctrl_map(jerry_value_t js_ctrl, uint32_t expected_len
         if (!jerry_value_is_number(js_val))
         {
             jerry_value_free(js_val);
-            eos_free(ctrl_map);
+            cos_free(ctrl_map);
             return false;
         }
 
@@ -441,6 +441,6 @@ jerry_value_t sni_api_lv_buttonmatrix_set_ctrl_map(const jerry_call_info_t *call
     }
 
     lv_buttonmatrix_set_ctrl_map(self_obj, ctrl_map);
-    eos_free(ctrl_map);
+    cos_free(ctrl_map);
     return jerry_undefined();
 }

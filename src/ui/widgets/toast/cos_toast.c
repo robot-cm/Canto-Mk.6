@@ -1,20 +1,20 @@
 /**
- * @file eos_toast.c
+ * @file cos_toast.c
  * @brief Temporary message toast
  */
 
-#include "eos_toast.h"
+#include "cos_toast.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
-#define EOS_LOG_TAG "Toast"
-#include "eos_log.h"
-#include "eos_theme.h"
-#include "eos_image.h"
-#include "eos_config.h"
-#include "eos_anim.h"
-#include "eos_cqueue.h"
+#define COS_LOG_TAG "Toast"
+#include "cos_log.h"
+#include "cos_theme.h"
+#include "cos_image.h"
+#include "cos_config.h"
+#include "cos_anim.h"
+#include "cos_cqueue.h"
 
 /* Macros and Definitions -------------------------------------*/
 #define _TOAST_PAD_ALL 12
@@ -24,7 +24,7 @@
 
 #define _LABEL_MARGIN_LEFT 12
 #define _SCREEN_PAD_ALL 10
-#define _LABEL_MAX_WIDTH EOS_DISPLAY_WIDTH - _ICON_WIDTH - _TOAST_PAD_ALL * 2 - _LABEL_MARGIN_LEFT - _SCREEN_PAD_ALL * 2
+#define _LABEL_MAX_WIDTH COS_DISPLAY_WIDTH - _ICON_WIDTH - _TOAST_PAD_ALL * 2 - _LABEL_MARGIN_LEFT - _SCREEN_PAD_ALL * 2
 
 #define _TOAST_ANIM_DURATION 300
 #define _TOAST_MARGIN_TOP 35
@@ -34,7 +34,7 @@
 
 #define _TOAST_LABEL_MAX_LENGTH 128
 /* Variables --------------------------------------------------*/
-static eos_cqueue_t *anim_cq = NULL;
+static cos_cqueue_t *anim_cq = NULL;
 static bool is_toast_playing = false;
 /* Function Implementations -----------------------------------*/
 static void _play_move_anim(lv_obj_t *toast);
@@ -53,9 +53,9 @@ static void _anim_move_end_cb(lv_anim_t *a)
 static void _toast_move_back_completed_cb(lv_anim_t *a)
 {
     // Start next animation
-    if (eos_cqueue_get_size(anim_cq) > 0)
+    if (cos_cqueue_get_size(anim_cq) > 0)
     {
-        lv_obj_t *next_toast = eos_cqueue_dequeue(anim_cq);
+        lv_obj_t *next_toast = cos_cqueue_dequeue(anim_cq);
         if (next_toast && lv_obj_is_valid(next_toast))
             _play_move_anim(next_toast);
     }
@@ -71,7 +71,7 @@ static void _toast_start_move_back_cb(lv_anim_t *a)
     if (toast && lv_obj_is_valid(toast))
     {
         uint32_t duration = (uint32_t)lv_obj_get_user_data(toast);
-        eos_lite_anim_move_ver_start(toast,
+        cos_lite_anim_move_ver_start(toast,
                                      _TOAST_MARGIN_TOP,
                                      -lv_obj_get_height(toast),
                                      _TOAST_ANIM_DURATION,
@@ -86,7 +86,7 @@ static void _play_move_anim(lv_obj_t *toast)
     if (!(toast && lv_obj_is_valid(toast)))
         return;
     // Animate into screen
-    eos_lite_anim_move_ver_start(toast,
+    cos_lite_anim_move_ver_start(toast,
                                  -lv_obj_get_height(toast),
                                  _TOAST_MARGIN_TOP,
                                  _TOAST_ANIM_DURATION,
@@ -99,7 +99,7 @@ static lv_obj_t *_toast_create_container(void)
 {
     lv_obj_t *toast = lv_button_create(lv_layer_sys());
     lv_obj_set_size(toast, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_color(toast, EOS_COLOR_DARK_GREY_2, 0);
+    lv_obj_set_style_bg_color(toast, COS_COLOR_DARK_GREY_2, 0);
     lv_obj_set_style_bg_opa(toast, LV_OPA_COVER, 0);
     lv_obj_set_style_pad_all(toast, _TOAST_PAD_ALL, 0);
     lv_obj_set_style_radius(toast, LV_RADIUS_CIRCLE, 0);
@@ -123,7 +123,7 @@ static lv_obj_t *_toast_finalize(lv_obj_t *toast, const char *message)
     // Create label
     lv_obj_t *label = lv_label_create(mask);
     lv_label_set_long_mode(label, LV_LABEL_LONG_CLIP);
-    lv_obj_set_style_text_color(label, EOS_COLOR_WHITE, 0);
+    lv_obj_set_style_text_color(label, COS_COLOR_WHITE, 0);
 
     // Measure text
     lv_point_t size;
@@ -162,12 +162,12 @@ static lv_obj_t *_toast_finalize(lv_obj_t *toast, const char *message)
     {
         duration = _TOAST_SHOW_DURATION;
     }
-    EOS_LOG_D("Toast will show for %d ms", duration);
+    COS_LOG_D("Toast will show for %d ms", duration);
     lv_obj_set_user_data(toast, (void *)(intptr_t)duration);
     if (is_toast_playing)
     {
-        if (!eos_cqueue_enqueue(anim_cq, toast))
-            EOS_LOG_E("Toast enqueue failed");
+        if (!cos_cqueue_enqueue(anim_cq, toast))
+            COS_LOG_E("Toast enqueue failed");
     }
     else
     {
@@ -178,20 +178,20 @@ static lv_obj_t *_toast_finalize(lv_obj_t *toast, const char *message)
     return toast;
 }
 
-lv_obj_t *eos_toast_show(const char *icon_src, const char *message)
+lv_obj_t *cos_toast_show(const char *icon_src, const char *message)
 {
     lv_obj_t *toast = _toast_create_container();
 
     // Create icon
     lv_obj_t *icon = lv_image_create(toast);
     lv_image_set_src(icon, icon_src);
-    eos_img_set_size(icon, _ICON_WIDTH, _ICON_HEIGHT);
+    cos_img_set_size(icon, _ICON_WIDTH, _ICON_HEIGHT);
 
     lv_obj_add_flag(icon, LV_OBJ_FLAG_EVENT_BUBBLE);
     return _toast_finalize(toast, message);
 }
 
-lv_obj_t *eos_toast_show_char_icon(const char *icon_char, lv_color_t icon_color, const char *message)
+lv_obj_t *cos_toast_show_char_icon(const char *icon_char, lv_color_t icon_color, const char *message)
 {
     lv_obj_t *toast = _toast_create_container();
 
@@ -214,7 +214,7 @@ lv_obj_t *eos_toast_show_char_icon(const char *icon_char, lv_color_t icon_color,
     return _toast_finalize(toast, message);
 }
 
-lv_obj_t *eos_toast_show_fmt(const char *icon_src, const char *fmt, ...)
+lv_obj_t *cos_toast_show_fmt(const char *icon_src, const char *fmt, ...)
 {
     char buf[_TOAST_LABEL_MAX_LENGTH];
     va_list args;
@@ -222,10 +222,10 @@ lv_obj_t *eos_toast_show_fmt(const char *icon_src, const char *fmt, ...)
     vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
 
-    return eos_toast_show(icon_src, buf);
+    return cos_toast_show(icon_src, buf);
 }
 
-void eos_toast_init(void)
+void cos_toast_init(void)
 {
-    anim_cq = eos_cqueue_create(4);
+    anim_cq = cos_cqueue_create(4);
 }

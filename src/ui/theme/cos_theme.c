@@ -1,31 +1,31 @@
 /**
- * @file eos_theme.c
+ * @file cos_theme.c
  * @brief Theme colors
  */
 
-#include "eos_theme.h"
+#include "cos_theme.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
-#define EOS_LOG_DISABLE
-#define EOS_LOG_TAG "ThemeSystem"
-#include "eos_log.h"
+#define COS_LOG_DISABLE
+#define COS_LOG_TAG "ThemeSystem"
+#include "cos_log.h"
 #include "lvgl_private.h"
-#include "eos_font.h"
-#include "eos_crown.h"
+#include "cos_font.h"
+#include "cos_crown.h"
 /* Macros and Definitions -------------------------------------*/
 #define _DEBOUNCE_PERIOD 200
 /************************** Text **************************/
-#define TEXT_COLOR EOS_COLOR_WHITE
+#define TEXT_COLOR COS_COLOR_WHITE
 /************************** View **************************/
-#define VIEW_BG_COLOR EOS_COLOR_BLACK
+#define VIEW_BG_COLOR COS_COLOR_BLACK
 /************************** List **************************/
-#define LIST_BG_COLOR EOS_COLOR_BLACK
+#define LIST_BG_COLOR COS_COLOR_BLACK
 /************************** Switch **************************/
-#define SWITCH_BG_COLOR EOS_COLOR_TEXT_GREY
+#define SWITCH_BG_COLOR COS_COLOR_TEXT_GREY
 /************************** Slider **************************/
-#define SLIDER_MAIN_COLOR EOS_COLOR_TEXT_GREY
+#define SLIDER_MAIN_COLOR COS_COLOR_TEXT_GREY
 #define SLIDER_BG_COLOR lv_color_hex(0x262737)
 
 /* Variables --------------------------------------------------*/
@@ -68,7 +68,7 @@ static void _object_clicked_cb(lv_event_t *e)
 void _init_style_button(void)
 {
     lv_style_init(&style_button);
-    lv_style_set_bg_color(&style_button, EOS_THEME_SECONDARY_COLOR);
+    lv_style_set_bg_color(&style_button, COS_THEME_SECONDARY_COLOR);
     lv_style_set_radius(&style_button, LV_RADIUS_CIRCLE);
 }
 
@@ -77,7 +77,7 @@ void _init_style_view(void)
     lv_style_init(&style_view);
     lv_style_set_bg_color(&style_view, VIEW_BG_COLOR);
     lv_style_set_bg_opa(&style_view, LV_OPA_COVER);
-    lv_style_set_size(&style_view, EOS_DISPLAY_WIDTH, EOS_DISPLAY_HEIGHT);
+    lv_style_set_size(&style_view, COS_DISPLAY_WIDTH, COS_DISPLAY_HEIGHT);
     lv_style_set_x(&style_view, 0);
     lv_style_set_y(&style_view, 0);
     lv_style_set_border_width(&style_view, 0);
@@ -93,7 +93,7 @@ void _init_style_label(void)
 void _init_style_switch(void)
 {
     lv_style_init(&style_switch_main);
-    lv_style_set_bg_color(&style_switch_main, EOS_COLOR_GREY);
+    lv_style_set_bg_color(&style_switch_main, COS_COLOR_GREY);
 
     lv_style_init(&style_switch_indicator);
     lv_style_set_bg_color(&style_switch_indicator, SWITCH_BG_COLOR);
@@ -127,7 +127,7 @@ void _init_style_slider(void)
     lv_style_init(&style_slider_knob);
     lv_style_set_bg_opa(&style_slider_knob, LV_OPA_COVER);
     lv_style_set_bg_color(&style_slider_knob, SLIDER_MAIN_COLOR);
-    lv_style_set_border_color(&style_slider_knob, EOS_COLOR_WHITE);
+    lv_style_set_border_color(&style_slider_knob, COS_COLOR_WHITE);
     lv_style_set_border_width(&style_slider_knob, 4);
     lv_style_set_radius(&style_slider_knob, LV_RADIUS_CIRCLE);
     lv_style_set_pad_all(&style_slider_knob, 6);
@@ -140,10 +140,10 @@ void _init_style_slider(void)
 void _init_style_roller(void)
 {
     lv_style_init(&style_roller_main);
-    lv_style_set_bg_color(&style_roller_main, EOS_COLOR_BLACK);
-    lv_style_set_border_color(&style_roller_main, EOS_COLOR_DARK_GREY_1);
+    lv_style_set_bg_color(&style_roller_main, COS_COLOR_BLACK);
+    lv_style_set_border_color(&style_roller_main, COS_COLOR_DARK_GREY_1);
     lv_style_set_radius(&style_roller_main, 20);
-    lv_style_set_text_color(&style_roller_main, EOS_COLOR_DARK_GREY_2);
+    lv_style_set_text_color(&style_roller_main, COS_COLOR_DARK_GREY_2);
 
     lv_style_init(&style_roller_selected);
     lv_style_set_bg_opa(&style_roller_selected, LV_OPA_TRANSP);
@@ -171,7 +171,7 @@ static void _theme_apply_cb(lv_theme_t *th, lv_obj_t *obj)
     else if (lv_obj_check_type(obj, &lv_list_class))
     {
         lv_obj_add_style(obj, &style_list, 0);
-        eos_crown_encoder_set_target_obj(obj);
+        cos_crown_encoder_set_target_obj(obj);
     }
     /************************** SWITCH **************************/
     else if (lv_obj_check_type(obj, &lv_switch_class))
@@ -197,17 +197,17 @@ static void _theme_apply_cb(lv_theme_t *th, lv_obj_t *obj)
     }
 }
 
-lv_style_t *eos_theme_get_view_style(void)
+lv_style_t *cos_theme_get_view_style(void)
 {
     return &style_view;
 }
 
-lv_style_t *eos_theme_get_label_style(void)
+lv_style_t *cos_theme_get_label_style(void)
 {
     return &style_label;
 }
 
-void eos_theme_set(lv_color_t primary_color, lv_color_t secondary_color, lv_font_t *font)
+void cos_theme_set(lv_color_t primary_color, lv_color_t secondary_color, lv_font_t *font)
 {
     global_font = font;
 

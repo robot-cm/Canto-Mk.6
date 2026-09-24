@@ -1,5 +1,5 @@
 /**
- * @file eos_texthub.h
+ * @file cos_texthub.h
  * @brief Texthub - native C text reader (.txt/.md) for /sdcard/texthub/
  *
  * Replaces the old JS app (apps/texthub) which OOM-crashed the JerryScript
@@ -15,8 +15,8 @@
  *     "idx/total" indicator. English only.
  */
 
-#ifndef EOS_TEXTHUB_H
-#define EOS_TEXTHUB_H
+#ifndef COS_TEXTHUB_H
+#define COS_TEXTHUB_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,10 +25,10 @@ extern "C" {
 /**
  * @brief Enter the Texthub app (native app entry, called by App List).
  */
-void eos_texthub_enter(void);
+void cos_texthub_enter(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_TEXTHUB_H */
+#endif /* COS_TEXTHUB_H */

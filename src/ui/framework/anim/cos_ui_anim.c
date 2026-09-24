@@ -1,8 +1,8 @@
 /**
- * @file eos_ui_anim.c
+ * @file cos_ui_anim.c
  * @brief Easing math + LVGL page transition bindings.
  */
-#include "eos_ui_anim.h"
+#include "cos_ui_anim.h"
 #include "lvgl.h"
 #include <math.h>
 
@@ -13,9 +13,9 @@ static float clamp01(float t)
     return t;
 }
 
-float eos_ease_linear(float t)        { return clamp01(t); }
+float cos_ease_linear(float t)        { return clamp01(t); }
 
-float eos_ease_in_out_cubic(float t)
+float cos_ease_in_out_cubic(float t)
 {
     t = clamp01(t);
     return (t < 0.5f)
@@ -23,13 +23,13 @@ float eos_ease_in_out_cubic(float t)
          : (1.0f - powf(-2.0f * t + 2.0f, 3.0f) / 2.0f);
 }
 
-float eos_ease_out_cubic(float t)
+float cos_ease_out_cubic(float t)
 {
     t = clamp01(t);
     return 1.0f - powf(1.0f - t, 3.0f);
 }
 
-float eos_ease_out_back(float t)
+float cos_ease_out_back(float t)
 {
     t = clamp01(t);
     const float c1 = 1.70158f;
@@ -37,7 +37,7 @@ float eos_ease_out_back(float t)
     return 1.0f + c3 * powf(t - 1.0f, 3.0f) + c1 * powf(t - 1.0f, 2.0f);
 }
 
-float eos_ease_out_bounce(float t)
+float cos_ease_out_bounce(float t)
 {
     t = clamp01(t);
     const float n1 = 7.5625f;
@@ -48,7 +48,7 @@ float eos_ease_out_bounce(float t)
     else                     { t -= 2.625f / d1; return n1 * t * t + 0.984375f; }
 }
 
-float eos_ease_map(float from, float to, float t, float (*ease)(float))
+float cos_ease_map(float from, float to, float t, float (*ease)(float))
 {
     return from + (to - from) * ease(clamp01(t));
 }
@@ -64,7 +64,7 @@ static void _scale_cb(void *var, int32_t v)
     lv_obj_set_style_transform_scale((lv_obj_t *)var, v, 0);
 }
 
-void eos_anim_page_close(void *old_obj, unsigned int duration_ms)
+void cos_anim_page_close(void *old_obj, unsigned int duration_ms)
 {
     if (!old_obj) return;
     lv_anim_t a;
@@ -87,7 +87,7 @@ void eos_anim_page_close(void *old_obj, unsigned int duration_ms)
     lv_anim_start(&b);
 }
 
-void eos_anim_add_fade_scale(lv_anim_timeline_t *at, void *obj,
+void cos_anim_add_fade_scale(lv_anim_timeline_t *at, void *obj,
                              int from_opa, int to_opa,
                              int from_scale, int to_scale,
                              unsigned int delay_ms, unsigned int duration_ms)
@@ -113,7 +113,7 @@ void eos_anim_add_fade_scale(lv_anim_timeline_t *at, void *obj,
     lv_anim_timeline_add(at, delay_ms, &b);
 }
 
-void eos_anim_page_open(void *new_obj, unsigned int duration_ms)
+void cos_anim_page_open(void *new_obj, unsigned int duration_ms)
 {
     if (!new_obj) return;
     lv_anim_t a;

@@ -1,10 +1,10 @@
 /**
- * @file eos_wos_notification.h
+ * @file cos_wos_notification.h
  * @brief WOS notification layer — one glass card slides in from the top,
  *        auto-dismisses after a few seconds.
  */
-#ifndef EOS_WOS_NOTIFICATION_H
-#define EOS_WOS_NOTIFICATION_H
+#ifndef COS_WOS_NOTIFICATION_H
+#define COS_WOS_NOTIFICATION_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,7 +14,7 @@ extern "C" {
 
 /**
  * @brief Initialize the notification layer.
- * @note Call after eos_overlay_layer_init().
+ * @note Call after cos_overlay_layer_init().
  */
 void wos_notification_init(void);
 
@@ -35,4 +35,4 @@ void wos_notification_dismiss(void);
 }
 #endif
 
-#endif /* EOS_WOS_NOTIFICATION_H */
+#endif /* COS_WOS_NOTIFICATION_H */

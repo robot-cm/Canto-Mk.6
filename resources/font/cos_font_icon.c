@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 22 px
  * Bpp: 4
- * Opts: --font /home/erashaperavm/下载/ElenixOS-fork/third_party/RemixIcon/fonts/remixicon.ttf --symbols  --font /home/erashaperavm/下载/ElenixOS-fork/third_party/lvgl/scripts/built_in_font/FontAwesome5-Solid+Brands+Regular.woff --symbols  --size 22 --bpp 4 --format lvgl --lv-font-name eos_font_icon -o /home/erashaperavm/下载/ElenixOS-fork/resources/font/eos_font_icon.c
+ * Opts: --font /home/erashaperavm/下载/CantoMk6-fork/third_party/RemixIcon/fonts/remixicon.ttf --symbols  --font /home/erashaperavm/下载/CantoMk6-fork/third_party/lvgl/scripts/built_in_font/FontAwesome5-Solid+Brands+Regular.woff --symbols  --size 22 --bpp 4 --format lvgl --lv-font-name cos_font_icon -o /home/erashaperavm/下载/CantoMk6-fork/resources/font/cos_font_icon.c
  ******************************************************************************/
 
 #ifdef LV_LVGL_H_INCLUDE_SIMPLE
@@ -10,11 +10,11 @@
 #include "lvgl/lvgl.h"
 #endif
 
-#ifndef EOS_FONT_ICON
-#define EOS_FONT_ICON 1
+#ifndef COS_FONT_ICON
+#define COS_FONT_ICON 1
 #endif
 
-#if EOS_FONT_ICON
+#if COS_FONT_ICON
 
 /*-----------------
  *    BITMAPS
@@ -1908,9 +1908,9 @@ static lv_font_fmt_txt_dsc_t font_dsc = {
 
 /*Initialize a public general font descriptor*/
 #if LVGL_VERSION_MAJOR >= 8
-const lv_font_t eos_font_icon = {
+const lv_font_t cos_font_icon = {
 #else
-lv_font_t eos_font_icon = {
+lv_font_t cos_font_icon = {
 #endif
     .get_glyph_dsc = lv_font_get_glyph_dsc_fmt_txt,    /*Function pointer to get glyph's data*/
     .get_glyph_bitmap = lv_font_get_bitmap_fmt_txt,    /*Function pointer to get glyph's bitmap*/
@@ -1932,5 +1932,5 @@ lv_font_t eos_font_icon = {
 
 
 
-#endif /*#if EOS_FONT_ICON*/
+#endif /*#if COS_FONT_ICON*/
 

@@ -1,11 +1,11 @@
 /**
- * @file eos_physics.c
+ * @file cos_physics.c
  * @brief Inertial scroller implementation (friction + spring + bounce).
  */
-#include "eos_physics.h"
+#include "cos_physics.h"
 #include <math.h>
 
-void eos_scroller_init(eos_scroller_t *s, float min, float max)
+void cos_scroller_init(cos_scroller_t *s, float min, float max)
 {
     s->pos = min;
     s->vel = 0.0f;
@@ -17,7 +17,7 @@ void eos_scroller_init(eos_scroller_t *s, float min, float max)
     s->dragging = false;
 }
 
-void eos_scroller_set_params(eos_scroller_t *s, float decay,
+void cos_scroller_set_params(cos_scroller_t *s, float decay,
                              float spring_k, float spring_c)
 {
     s->decay = decay;
@@ -25,21 +25,21 @@ void eos_scroller_set_params(eos_scroller_t *s, float decay,
     s->spring_c = spring_c;
 }
 
-void eos_scroller_drag(eos_scroller_t *s, float delta, float dt)
+void cos_scroller_drag(cos_scroller_t *s, float delta, float dt)
 {
     s->dragging = true;
     s->pos += delta;
     s->vel = (dt > 1e-4f) ? (delta / dt) : 0.0f;
 }
 
-void eos_scroller_release(eos_scroller_t *s)
+void cos_scroller_release(cos_scroller_t *s)
 {
     s->dragging = false;
     if (s->vel > 4000.0f)  s->vel = 4000.0f;
     if (s->vel < -4000.0f) s->vel = -4000.0f;
 }
 
-void eos_scroller_step(eos_scroller_t *s, float dt)
+void cos_scroller_step(cos_scroller_t *s, float dt)
 {
     if (s->dragging || dt <= 0.0f) return;
 
@@ -62,7 +62,7 @@ void eos_scroller_step(eos_scroller_t *s, float dt)
     }
 }
 
-bool eos_scroller_is_resting(const eos_scroller_t *s)
+bool cos_scroller_is_resting(const cos_scroller_t *s)
 {
     if (s->dragging) return false;
     return (fabsf(s->vel) < 0.5f) && (s->pos >= s->min) && (s->pos <= s->max);

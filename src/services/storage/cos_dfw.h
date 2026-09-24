@@ -1,14 +1,14 @@
 /**
- * @file eos_dfw.h
+ * @file cos_dfw.h
  * @brief Deferred File Writer
  */
 
-#ifndef EOS_DFW_H
-#define EOS_DFW_H
+#ifndef COS_DFW_H
+#define COS_DFW_H
 
-#include "eos_config.h"
+#include "cos_config.h"
 
-#if EOS_DFW_ENABLE
+#if COS_DFW_ENABLE
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,7 +28,7 @@ extern "C" {
 /**
  * @brief Synchronize buffer to file system
  */
-void eos_dfw_sync(void);
+void cos_dfw_sync(void);
 
 /**
  * @brief Write data
@@ -41,10 +41,10 @@ void eos_dfw_sync(void);
  * @param path Target file path
  * @param data Data
  * @param data_size Data size
- * @return true Task has been added to queue, will be written to file when `eos_dfw_sync()` is called next time
+ * @return true Task has been added to queue, will be written to file when `cos_dfw_sync()` is called next time
  * @return false Failed
  */
-bool eos_dfw_write(const char *path, const uint8_t *data, size_t data_size);
+bool cos_dfw_write(const char *path, const uint8_t *data, size_t data_size);
 
 /**
  * @brief Read file data
@@ -52,16 +52,16 @@ bool eos_dfw_write(const char *path, const uint8_t *data, size_t data_size);
  * @return uint8_t* Returns file content on success, returns NULL on failure
  * @note Need to manually free the read data pointer
  */
-uint8_t *eos_dfw_read(const char *path);
+uint8_t *cos_dfw_read(const char *path);
 
 /**
  * @brief Initialize deferred file writer
  */
-void eos_dfw_init(void);
+void cos_dfw_init(void);
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_DFW_ENABLE */
+#endif /* COS_DFW_ENABLE */
 
-#endif /* EOS_DFW_H */
+#endif /* COS_DFW_H */

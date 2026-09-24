@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 生成 22px 中文子集字体(GB2312 全量 6763 字 + 常用全角标点),
-作为 eos_font_jbm_22 的 fallback,供 texthub 等 APP 渲染中文文本。
+作为 cos_font_jbm_22 的 fallback,供 texthub 等 APP 渲染中文文本。
 
-产物:resources/font/eos_font_han_sans_22.c (LVGL RLE 压缩,约几百 KB)
+产物:resources/font/cos_font_han_sans_22.c (LVGL RLE 压缩,约几百 KB)
 依赖:node + lv_font_conv 模块(用户机已有,如 ESP32Watch 项目 node_modules)
 """
 import os
@@ -18,7 +18,7 @@ if not os.path.exists(LV_FONT_CONV):
     LV_FONT_CONV = "/home/erashaperavm/.cache/qf_fontgen/node_modules/lv_font_conv/lv_font_conv.js"
 
 SRC_OTF = os.path.join(ROOT, "third_party/lvgl/scripts/built_in_font/SourceHanSansSC-Normal.otf")
-OUT_C = os.path.join(ROOT, "resources/font/eos_font_han_sans_22.c")
+OUT_C = os.path.join(ROOT, "resources/font/cos_font_han_sans_22.c")
 
 
 def gb2312_chars():
@@ -48,7 +48,7 @@ def main():
         "--format", "lvgl",
         "--font", os.path.abspath(SRC_OTF),
         "--symbols", all_chars,
-        "--lv-font-name", "eos_font_han_sans_22",
+        "--lv-font-name", "cos_font_han_sans_22",
         "-o", os.path.abspath(OUT_C),
     ]
     print("running lv_font_conv ...")

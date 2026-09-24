@@ -100,7 +100,7 @@ ENC_MIN = 512                   # floor for the pre-encode long edge (px)
 BUDGET_DEFAULT = 1.2            # max pre-encode bytes vs the input file size
 LV_BIN_HEADER = 12              # LVGL bin header bytes
 
-# Double-tap zoom contract, mirroring src/apps/album/eos_album.c:
+# Double-tap zoom contract, mirroring src/apps/album/cos_album.c:
 #   ALBUM_IMG_MAX (fit box)  : the whole photo lives in a 150px box
 #   tile mode                : 1 pre-encoded px == 1 screen px
 #   => magnification = pre-encode long edge / FIT_BOX_PX

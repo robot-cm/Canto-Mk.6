@@ -18,7 +18,7 @@
 #include "sni_api_export.h"
 #include "sni_callback_runtime.h"
 #include "sni_api_lv_special.h"
-#include "eos_log.h"
+#include "cos_log.h"
 /* Macros and Definitions -------------------------------------*/
 #define LV_API_NAME "lv"
 /* Variables --------------------------------------------------*/
@@ -20890,7 +20890,7 @@ const sni_method_desc_t lv_class_methods_obj[] = {
     {.name = "removeFromSubject", .handler = sni_api_lv_obj_remove_from_subject},
     {.name = "moveForeground", .handler = sni_api_lv_obj_move_foreground},
     {.name = "moveBackground", .handler = sni_api_lv_obj_move_background},
-    {.name = "setFontSize", .handler = sni_api_eos_label_set_font_size},
+    {.name = "setFontSize", .handler = sni_api_cos_label_set_font_size},
     {.name = NULL, .handler = NULL},
 };
 
@@ -22769,11 +22769,11 @@ void sni_api_lv_init(void)
     lv_api_obj = sni_api_build(lv_api_classes);
     if (!jerry_value_is_object(lv_api_obj))
     {
-        EOS_LOG_E("Failed to build LV API object");
+        COS_LOG_E("Failed to build LV API object");
     }
     if (!sni_api_register_constants(lv_root_constants, lv_api_obj))
     {
-        EOS_LOG_E("Failed to register LV root constants");
+        COS_LOG_E("Failed to register LV root constants");
     }
 }
 
@@ -22782,6 +22782,6 @@ void sni_api_lv_mount(jerry_value_t realm)
     bool result = sni_api_mount(realm, lv_api_obj, LV_API_NAME);
     if (!result)
     {
-        EOS_LOG_E("Failed to mount LVGL API");
+        COS_LOG_E("Failed to mount LVGL API");
     }
 }

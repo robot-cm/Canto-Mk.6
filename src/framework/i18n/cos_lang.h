@@ -1,10 +1,10 @@
 /**
- * @file eos_lang.h
+ * @file cos_lang.h
  * @brief Multi-language system
  */
 
-#ifndef EOS_LANG_H
-#define EOS_LANG_H
+#ifndef COS_LANG_H
+#define COS_LANG_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -94,7 +94,7 @@ typedef enum
     STR_ID_SETTINGS_GENERAL_LANGUAGE,
     STR_ID_SETTINGS_GENERAL_DEVICE_INFO,
     STR_ID_SETTINGS_GENERAL_DEVICE_NAME,
-    STR_ID_SETTINGS_GENERAL_EOS_VER,
+    STR_ID_SETTINGS_GENERAL_COS_VER,
     STR_ID_SETTINGS_GENERAL_MARKETING_NAME,
     STR_ID_SETTINGS_GENERAL_MODEL_NUMBER,
     STR_ID_SETTINGS_GENERAL_LEGAL_INFO,
@@ -175,60 +175,60 @@ typedef enum
 /**
  * @brief Initialize language system
  */
-void eos_lang_init(void);
+void cos_lang_init(void);
 /**
  * @brief Set current language
  * @param lang Target language type `language_id_t`
  * @warning Language system must be initialized first
  */
-void eos_lang_set_current_id(language_id_t lang);
+void cos_lang_set_current_id(language_id_t lang);
 /**
  * @brief Get current language type
  * @return language_id_t Language type
  */
-language_id_t eos_lang_get_current_id(void);
+language_id_t cos_lang_get_current_id(void);
 /**
  * @brief Parse language ID from language name
  * @param language_name Language name (e.g., "English")
  * @return language_id_t Language type
  */
-language_id_t eos_lang_parse_name(const char *language_name);
+language_id_t cos_lang_parse_name(const char *language_name);
 /**
  * @brief Get language name corresponding to specified language ID
  * @param lang Language type
  * @return const char* Language name
  */
-const char *eos_lang_get_name(language_id_t lang);
+const char *cos_lang_get_name(language_id_t lang);
 /**
  * @brief Get current language name
  * @return const char* Language name
  */
-const char *eos_lang_get_current_name(void);
+const char *cos_lang_get_current_name(void);
 /**
  * @brief Get text in current language
  * @param id String ID
  * @return const char* String
  */
-const char *eos_lang_get_text(lang_string_id_t id);
+const char *cos_lang_get_text(lang_string_id_t id);
 /**
  * @brief Compatible old interface: Get language type from language string
  */
-language_id_t eos_lang_get_current_id_with_str(const char *language_str);
+language_id_t cos_lang_get_current_id_with_str(const char *language_str);
 /**
  * @brief Set label string by string ID
  * @param label Label object
  * @param str_id String ID
  */
-void eos_label_set_text_id(lv_obj_t *label, lang_string_id_t str_id);
+void cos_label_set_text_id(lv_obj_t *label, lang_string_id_t str_id);
 /**
  * @brief Support formatted strings
  * @param label
  * @param fmt
- * @return eos_label_lang_fmt_t*
+ * @return cos_label_lang_fmt_t*
  */
-void eos_label_set_text_fmt(lv_obj_t *label, const char *fmt, ...);
+void cos_label_set_text_fmt(lv_obj_t *label, const char *fmt, ...);
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_LANG_H */
+#endif /* COS_LANG_H */

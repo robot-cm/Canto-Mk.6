@@ -1,12 +1,12 @@
 /**
- * @file eos_wos_layout.h
+ * @file cos_wos_layout.h
  * @brief WOS layout helpers — flex / grid / glass-card containers.
  *
  * Pages are built with these helpers instead of hard-coded coordinates
  * (see design doc §5). Only small alignment offsets are allowed.
  */
-#ifndef EOS_WOS_LAYOUT_H
-#define EOS_WOS_LAYOUT_H
+#ifndef COS_WOS_LAYOUT_H
+#define COS_WOS_LAYOUT_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,7 +45,7 @@ void wos_flex_grow(lv_obj_t *obj);
 /**
  * @brief Reserve the round-display safe area on a page root: positions the
  *        root over the full screen and lets flex content stay inside the
- *        inscribed circle (uses EOS_PROFILE_240C safe values).
+ *        inscribed circle (uses COS_PROFILE_240C safe values).
  * @param root Page root container (created by wos_column)
  * @note The root itself must NOT be round-clipped (transform anims break
  *       under clip_corner); clipping is applied one level above instead.
@@ -56,4 +56,4 @@ void wos_make_safe_area(lv_obj_t *root);
 }
 #endif
 
-#endif /* EOS_WOS_LAYOUT_H */
+#endif /* COS_WOS_LAYOUT_H */

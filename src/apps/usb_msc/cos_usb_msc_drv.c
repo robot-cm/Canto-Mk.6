@@ -1,5 +1,5 @@
 /**
- * @file eos_usb_msc_drv.c
+ * @file cos_usb_msc_drv.c
  * @brief USB MSC 底层驱动实现(TinyUSB MSC + SD 裸扇区)。
  *
  * 交付批次:①底层驱动层。
@@ -11,7 +11,7 @@
  *     经 sdmmc_read_sectors()/sdmmc_write_sectors() 访问 SD(带 SDMMC 内部锁),
  *     不与 LCD SPI 中断、触摸中断冲突。
  */
-#include "eos_usb_msc_drv.h"
+#include "cos_usb_msc_drv.h"
 
 #if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
 
@@ -22,7 +22,7 @@
 #include "esp_memory_utils.h"
 #include "sdmmc_cmd.h"
 
-#include "eos_usb_msc_board.h"
+#include "cos_usb_msc_board.h"
 
 /* ── 方案 B:USB 口动态接管(USJ 控制台 ⇄ USB-OTG/MSC) ─────────────
  * ESP32-S3 上 USB-Serial-JTAG(调试控制台)与 USB-OTG(TinyUSB)复用同一个
@@ -51,7 +51,7 @@
 #define TAG "UsbMscDrv"
 
 /* SD 扇区固定 512B(FATFS/MSC 一致) */
-#define EOS_USB_MSC_SECTOR_SIZE 512
+#define COS_USB_MSC_SECTOR_SIZE 512
 
 static sdmmc_card_t *s_card = NULL;          /* 当前绑定的 SD 卡句柄 */
 static uint32_t      s_block_count = 0;      /* 暴露给 PC 的 512B 扇区总数 */
@@ -68,9 +68,9 @@ static usb_phy_handle_t s_phy_hdl = NULL;     /* USB-OTG 内部 PHY 句柄(接�
  * 的枚举请求 → Ubuntu 识别不到 → tud_mounted() 始终 false → 4s 后 204。
  * 约束(见 device/usbd.h):tud_rhport_init()/tud_deinit() 必须与 tud_task()
  * 处于同一任务上下文,因此 tusb_init()/tud_deinit() 都放在本任务内执行。 */
-#define EOS_USB_MSC_TUSB_TASK_STACK   6144   /* 内含 dcd_init/esp_intr_alloc 与 MSC 回调 */
-#define EOS_USB_MSC_TUSB_TASK_PRIO    5
-#define EOS_USB_MSC_TUSB_IDLE_MS      20     /* 空闲时最多阻塞 20ms,之后回查退出标志 */
+#define COS_USB_MSC_TUSB_TASK_STACK   6144   /* 内含 dcd_init/esp_intr_alloc 与 MSC 回调 */
+#define COS_USB_MSC_TUSB_TASK_PRIO    5
+#define COS_USB_MSC_TUSB_IDLE_MS      20     /* 空闲时最多阻塞 20ms,之后回查退出标志 */
 
 static TaskHandle_t  s_tusb_task = NULL;      /* 事件泵任务句柄(0/NULL = 未运行) */
 static volatile bool s_tusb_run  = false;     /* 事件泵循环退出标志 */
@@ -92,7 +92,7 @@ static void _tusb_task(void *arg)
 
     while (s_tusb_run) {
         /* 有事件立即处理;空闲时最多阻塞 20ms,以便 end() 能及时让本任务退出 */
-        tud_task_ext(EOS_USB_MSC_TUSB_IDLE_MS, false);
+        tud_task_ext(COS_USB_MSC_TUSB_IDLE_MS, false);
     }
 
     /* 收尾同样在本任务内(与 init/tud_task 同上下文) */
@@ -104,32 +104,32 @@ static void _tusb_task(void *arg)
 
 /* ── 探测 ─────────────────────────────────────────────────── */
 
-bool eos_usb_msc_drv_sd_available(void)
+bool cos_usb_msc_drv_sd_available(void)
 {
     return board_sd_is_real() && (board_sd_get_card() != NULL);
 }
 
-bool eos_usb_msc_drv_jtag_connected(void)
+bool cos_usb_msc_drv_jtag_connected(void)
 {
     return board_usb_serial_jtag_connected();
 }
 
-const char *eos_usb_msc_strerror(eos_usb_msc_err_t e)
+const char *cos_usb_msc_strerror(cos_usb_msc_err_t e)
 {
     switch (e) {
-        case EOS_USB_MSC_OK:
+        case COS_USB_MSC_OK:
             return "OK";
-        case EOS_USB_MSC_ERR_NO_SD:
+        case COS_USB_MSC_ERR_NO_SD:
             return "No SD card detected.";
-        case EOS_USB_MSC_ERR_JTAG_BUSY:
+        case COS_USB_MSC_ERR_JTAG_BUSY:
             return "USB port busy: debug console in use.";
-        case EOS_USB_MSC_ERR_TUSB_INIT:
+        case COS_USB_MSC_ERR_TUSB_INIT:
             return "Failed to start USB stack.";
-        case EOS_USB_MSC_ERR_NOT_ENUM:
+        case COS_USB_MSC_ERR_NOT_ENUM:
             return "No PC detected. Check the USB cable.";
-        case EOS_USB_MSC_ERR_UNMOUNT:
+        case COS_USB_MSC_ERR_UNMOUNT:
             return "Failed to release the SD card.";
-        case EOS_USB_MSC_ERR_REMOUNT:
+        case COS_USB_MSC_ERR_REMOUNT:
             return "Failed to re-mount the SD card.";
         default:
             return "Unknown error.";
@@ -166,15 +166,15 @@ static int32_t _xfer(bool write, uint32_t lba, uint32_t offset, void *buffer, ui
 
     while (done < bufsize) {
         uint32_t byte_abs = offset + done;
-        uint32_t cur_lba = lba + (byte_abs / EOS_USB_MSC_SECTOR_SIZE);
-        uint32_t cur_off = byte_abs % EOS_USB_MSC_SECTOR_SIZE;
-        uint32_t chunk = EOS_USB_MSC_SECTOR_SIZE - cur_off;
+        uint32_t cur_lba = lba + (byte_abs / COS_USB_MSC_SECTOR_SIZE);
+        uint32_t cur_off = byte_abs % COS_USB_MSC_SECTOR_SIZE;
+        uint32_t chunk = COS_USB_MSC_SECTOR_SIZE - cur_off;
         if (chunk > (bufsize - done)) {
             chunk = bufsize - done;
         }
 
         /* 快路径:整扇区 + 目标可直接 DMA → 零拷贝 */
-        if (cur_off == 0u && chunk == EOS_USB_MSC_SECTOR_SIZE && _dma_ok(p + done)) {
+        if (cur_off == 0u && chunk == COS_USB_MSC_SECTOR_SIZE && _dma_ok(p + done)) {
             esp_err_t e = write ? sdmmc_write_sectors(s_card, p + done, cur_lba, 1)
                                 : sdmmc_read_sectors(s_card, p + done, cur_lba, 1);
             if (e != ESP_OK) {
@@ -237,7 +237,7 @@ void tud_msc_capacity_cb(uint8_t lun, uint32_t *block_count, uint16_t *block_siz
         *block_count = s_block_count;
     }
     if (block_size) {
-        *block_size = EOS_USB_MSC_SECTOR_SIZE;
+        *block_size = COS_USB_MSC_SECTOR_SIZE;
     }
 }
 
@@ -303,19 +303,19 @@ int32_t tud_msc_scsi_cb(uint8_t lun, uint8_t const scsi_cmd[16], void *buffer, u
 
 /* ── 会话开始 / 结束 ──────────────────────────────────────── */
 
-eos_usb_msc_err_t eos_usb_msc_drv_begin(void)
+cos_usb_msc_err_t cos_usb_msc_drv_begin(void)
 {
     if (s_active) {
-        return EOS_USB_MSC_OK;
+        return COS_USB_MSC_OK;
     }
 
     if (!board_sd_is_real()) {
-        return EOS_USB_MSC_ERR_NO_SD;
+        return COS_USB_MSC_ERR_NO_SD;
     }
 
     s_card = board_sd_get_card();
     if (s_card == NULL) {
-        return EOS_USB_MSC_ERR_NO_SD;
+        return COS_USB_MSC_ERR_NO_SD;
     }
 
     /* 1) 容量:在 board_sd_release() 之前读,不依赖"释放后 card 仍有效"这一前提。
@@ -324,18 +324,18 @@ eos_usb_msc_err_t eos_usb_msc_drv_begin(void)
     if (s_block_count == 0u) {
         ESP_LOGE(TAG, "invalid card capacity");
         s_card = NULL;
-        return EOS_USB_MSC_ERR_NO_SD;
+        return COS_USB_MSC_ERR_NO_SD;
     }
 
     /* 2) 准备 DMA 安全的中转缓冲(内部 RAM,1 扇区)。
      *    同样放在 release 之前:失败时无需回滚已卸载的 FATFS */
     if (s_bounce == NULL) {
-        s_bounce = (uint8_t *)heap_caps_malloc(EOS_USB_MSC_SECTOR_SIZE,
+        s_bounce = (uint8_t *)heap_caps_malloc(COS_USB_MSC_SECTOR_SIZE,
                                                MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
         if (s_bounce == NULL) {
             ESP_LOGE(TAG, "bounce buffer alloc failed");
             s_card = NULL;
-            return EOS_USB_MSC_ERR_TUSB_INIT;
+            return COS_USB_MSC_ERR_TUSB_INIT;
         }
     }
 
@@ -345,7 +345,7 @@ eos_usb_msc_err_t eos_usb_msc_drv_begin(void)
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "board_sd_release failed: %s", esp_err_to_name(err));
         s_card = NULL;
-        return EOS_USB_MSC_ERR_UNMOUNT;
+        return COS_USB_MSC_ERR_UNMOUNT;
     }
     s_sd_released = true;
 
@@ -370,15 +370,15 @@ eos_usb_msc_err_t eos_usb_msc_drv_begin(void)
         board_sd_acquire();
         s_sd_released = false;
         s_card = NULL;
-        return EOS_USB_MSC_ERR_TUSB_INIT;
+        return COS_USB_MSC_ERR_TUSB_INIT;
     }
 
     /* 5b) 起 TinyUSB 设备栈任务(tusb_init + tud_task 必须同任务上下文)。
      *     枚举完全由该任务内的 tud_task_ext() 驱动,缺它则永远 204。 */
     s_tusb_init = 0;
     s_tusb_run  = true;
-    if (xTaskCreate(_tusb_task, "eos_tusb", EOS_USB_MSC_TUSB_TASK_STACK, NULL,
-                    EOS_USB_MSC_TUSB_TASK_PRIO, &s_tusb_task) != pdPASS) {
+    if (xTaskCreate(_tusb_task, "cos_tusb", COS_USB_MSC_TUSB_TASK_STACK, NULL,
+                    COS_USB_MSC_TUSB_TASK_PRIO, &s_tusb_task) != pdPASS) {
         ESP_LOGE(TAG, "create tusb task failed");
         s_tusb_run = false;
         usb_del_phy(s_phy_hdl);
@@ -387,7 +387,7 @@ eos_usb_msc_err_t eos_usb_msc_drv_begin(void)
         board_sd_acquire();
         s_sd_released = false;
         s_card = NULL;
-        return EOS_USB_MSC_ERR_TUSB_INIT;
+        return COS_USB_MSC_ERR_TUSB_INIT;
     }
 
     /* 等任务内的 tusb_init() 出结果(正常 <10ms),保留原有的错误上报语义 */
@@ -410,22 +410,22 @@ eos_usb_msc_err_t eos_usb_msc_drv_begin(void)
         board_sd_acquire();
         s_sd_released = false;
         s_card = NULL;
-        return EOS_USB_MSC_ERR_TUSB_INIT;
+        return COS_USB_MSC_ERR_TUSB_INIT;
     }
 
     ESP_LOGI(TAG, "MSC started, %u sectors (%u MB)",
              (unsigned)s_block_count, (unsigned)((uint64_t)s_block_count * 512u / (1024u * 1024u)));
-    return EOS_USB_MSC_OK;
+    return COS_USB_MSC_OK;
 }
 
-bool eos_usb_msc_drv_mounted(void)
+bool cos_usb_msc_drv_mounted(void)
 {
     return s_active && tud_mounted();
 }
 
-eos_usb_msc_err_t eos_usb_msc_drv_end(void)
+cos_usb_msc_err_t cos_usb_msc_drv_end(void)
 {
-    eos_usb_msc_err_t ret = EOS_USB_MSC_OK;
+    cos_usb_msc_err_t ret = COS_USB_MSC_OK;
 
     if (s_active) {
         /* 先断开事件通路,再让事件泵任务自行收尾退出。
@@ -461,7 +461,7 @@ eos_usb_msc_err_t eos_usb_msc_drv_end(void)
         esp_err_t err = board_sd_acquire();
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "board_sd_acquire failed: %s", esp_err_to_name(err));
-            ret = EOS_USB_MSC_ERR_REMOUNT;
+            ret = COS_USB_MSC_ERR_REMOUNT;
         }
         s_sd_released = false;
     }

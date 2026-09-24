@@ -1,5 +1,5 @@
 /**
- * @file eos_spotify_mp3.c
+ * @file cos_spotify_mp3.c
  * @brief minimp3 封装:把 SD 上的 MP3 流喂给 minimp3 得到交错 16-bit PCM。
  *
  * ── 为什么用 minimp3 ─────────────────────────────────────────
@@ -11,14 +11,14 @@
  *   minimp3 是"推流式"解码:调用方把一段 MP3 字节交给
  *   mp3dec_decode_frame(),它返回可解出的样点数。
  *   本封装负责:
- *     · 维护一个 4KB 的读缓冲,从 eos_storage_file_* 拉数据;
+ *     · 维护一个 4KB 的读缓冲,从 cos_storage_file_* 拉数据;
  *     · 处理"一帧跨缓冲区"的情况(保留未消费尾部);
  *     · 输出交错 int16 PCM。
  *
  * ── 内存 ────────────────────────────────────────────────────
  *   mp3dec_t 约 5.5KB(PSRAM 优先);读缓冲 4KB(DMA 内部 RAM)。
  */
-#include "eos_spotify_mp3.h"
+#include "cos_spotify_mp3.h"
 
 #if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
 
@@ -28,10 +28,10 @@
 
 #include "esp_heap_caps.h"
 
-#define EOS_LOG_TAG "SpotifyMP3"
-#include "eos_log.h"
+#define COS_LOG_TAG "SpotifyMP3"
+#include "cos_log.h"
 
-#include "eos_mem.h"
+#include "cos_mem.h"
 
 /* minimp3 实现编译在本文件内(单头文件 + 实现宏) */
 #define MINIMP3_IMPLEMENTATION
@@ -43,10 +43,10 @@
 
 #define MP3_READ_CHUNK   (4 * 1024)
 
-struct eos_spotify_mp3_s
+struct cos_spotify_mp3_s
 {
     mp3dec_t        dec;
-    eos_file_t      fp;
+    cos_file_t      fp;
     uint32_t        file_size;
 
     uint8_t        *buf;         /* 读缓冲 */
@@ -58,20 +58,20 @@ struct eos_spotify_mp3_s
     uint32_t        sample_rate;
     uint8_t         channels;
     uint32_t        duration_ms;
-    bool            eos;
+    bool            cos;
 
     uint32_t        frames_decoded;
 };
 
 /* 从 SD 把缓冲填满(尽量)。返回新增字节数。 */
-static uint32_t _fill(eos_spotify_mp3_t *m)
+static uint32_t _fill(cos_spotify_mp3_t *m)
 {
     if (m->eof || m->buf_len >= m->buf_size)
     {
         return 0;
     }
     uint32_t space = m->buf_size - m->buf_len;
-    ssize_t rd = eos_storage_file_read(m->fp, m->buf + m->buf_len, space);
+    ssize_t rd = cos_storage_file_read(m->fp, m->buf + m->buf_len, space);
     if (rd <= 0)
     {
         m->eof = true;
@@ -82,7 +82,7 @@ static uint32_t _fill(eos_spotify_mp3_t *m)
 }
 
 /* 丢弃前 n 字节,把剩余数据搬到缓冲开头并尽量补满。 */
-static void _consume(eos_spotify_mp3_t *m, uint32_t n)
+static void _consume(cos_spotify_mp3_t *m, uint32_t n)
 {
     if (n > m->buf_len)
     {
@@ -99,17 +99,17 @@ static void _consume(eos_spotify_mp3_t *m, uint32_t n)
 
 /* ── 对外 API ─────────────────────────────────────────────── */
 
-eos_spotify_mp3_t *eos_spotify_mp3_create(void)
+cos_spotify_mp3_t *cos_spotify_mp3_create(void)
 {
-    eos_spotify_mp3_t *m = (eos_spotify_mp3_t *)heap_caps_malloc(
-        sizeof(eos_spotify_mp3_t), MALLOC_CAP_SPIRAM);
+    cos_spotify_mp3_t *m = (cos_spotify_mp3_t *)heap_caps_malloc(
+        sizeof(cos_spotify_mp3_t), MALLOC_CAP_SPIRAM);
     if (m == NULL)
     {
-        m = (eos_spotify_mp3_t *)eos_malloc(sizeof(eos_spotify_mp3_t));
+        m = (cos_spotify_mp3_t *)cos_malloc(sizeof(cos_spotify_mp3_t));
     }
     if (m == NULL)
     {
-        EOS_LOG_E("mp3: decoder alloc failed (%u B)", (unsigned)sizeof(eos_spotify_mp3_t));
+        COS_LOG_E("mp3: decoder alloc failed (%u B)", (unsigned)sizeof(cos_spotify_mp3_t));
         return NULL;
     }
     memset(m, 0, sizeof(*m));
@@ -119,21 +119,21 @@ eos_spotify_mp3_t *eos_spotify_mp3_create(void)
                                          MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
     if (m->buf == NULL)
     {
-        m->buf = (uint8_t *)eos_malloc(m->buf_size);
+        m->buf = (uint8_t *)cos_malloc(m->buf_size);
     }
     if (m->buf == NULL)
     {
-        EOS_LOG_E("mp3: read buf alloc failed");
-        eos_free(m);
+        COS_LOG_E("mp3: read buf alloc failed");
+        cos_free(m);
         return NULL;
     }
 
-    m->fp = EOS_FILE_INVALID;
+    m->fp = COS_FILE_INVALID;
     mp3dec_init(&m->dec);
     return m;
 }
 
-void eos_spotify_mp3_destroy(eos_spotify_mp3_t *m)
+void cos_spotify_mp3_destroy(cos_spotify_mp3_t *m)
 {
     if (m == NULL)
     {
@@ -141,14 +141,14 @@ void eos_spotify_mp3_destroy(eos_spotify_mp3_t *m)
     }
     if (m->buf)
     {
-        eos_free(m->buf);
+        cos_free(m->buf);
     }
-    eos_free(m);
+    cos_free(m);
 }
 
-bool eos_spotify_mp3_open(eos_spotify_mp3_t *m, eos_file_t fp, uint32_t file_size)
+bool cos_spotify_mp3_open(cos_spotify_mp3_t *m, cos_file_t fp, uint32_t file_size)
 {
-    if (m == NULL || fp == EOS_FILE_INVALID)
+    if (m == NULL || fp == COS_FILE_INVALID)
     {
         return false;
     }
@@ -157,7 +157,7 @@ bool eos_spotify_mp3_open(eos_spotify_mp3_t *m, eos_file_t fp, uint32_t file_siz
     m->buf_len = 0;
     m->file_off = 0;
     m->eof = false;
-    m->eos = false;
+    m->cos = false;
     m->frames_decoded = 0;
     m->sample_rate = 0;
     m->channels = 0;
@@ -165,14 +165,14 @@ bool eos_spotify_mp3_open(eos_spotify_mp3_t *m, eos_file_t fp, uint32_t file_siz
 
     mp3dec_init(&m->dec);
 
-    if (eos_storage_file_seek(fp, 0) != EOS_OK)
+    if (cos_storage_file_seek(fp, 0) != COS_OK)
     {
         return false;
     }
     _fill(m);
     if (m->buf_len < 4)
     {
-        EOS_LOG_W("mp3: file too small");
+        COS_LOG_W("mp3: file too small");
         return false;
     }
 
@@ -186,7 +186,7 @@ bool eos_spotify_mp3_open(eos_spotify_mp3_t *m, eos_file_t fp, uint32_t file_siz
                                           probe, &info);
         if (info.hz == 0 || info.channels == 0)
         {
-            EOS_LOG_W("mp3: not a valid MP3 stream");
+            COS_LOG_W("mp3: not a valid MP3 stream");
             return false;
         }
         m->sample_rate = (uint32_t)info.hz;
@@ -198,14 +198,14 @@ bool eos_spotify_mp3_open(eos_spotify_mp3_t *m, eos_file_t fp, uint32_t file_siz
             uint64_t br = (uint64_t)info.bitrate_kbps * 1000u;
             m->duration_ms = (uint32_t)(((uint64_t)file_size * 8u * 1000u) / br);
         }
-        EOS_LOG_I("mp3: %d Hz %d ch %d kbps layer=%d, ~%lu ms%s",
+        COS_LOG_I("mp3: %d Hz %d ch %d kbps layer=%d, ~%lu ms%s",
                   info.hz, info.channels, info.bitrate_kbps, info.layer,
                   (unsigned long)m->duration_ms,
                   samples > 0 ? "" : " (resync needed)");
     }
 
     /* 重置到文件开头,正式解码从第 0 字节开始 */
-    if (eos_storage_file_seek(fp, 0) != EOS_OK)
+    if (cos_storage_file_seek(fp, 0) != COS_OK)
     {
         return false;
     }
@@ -217,10 +217,10 @@ bool eos_spotify_mp3_open(eos_spotify_mp3_t *m, eos_file_t fp, uint32_t file_siz
     return true;
 }
 
-int eos_spotify_mp3_read_frame(eos_spotify_mp3_t *m, int16_t *pcm, int max_frames,
+int cos_spotify_mp3_read_frame(cos_spotify_mp3_t *m, int16_t *pcm, int max_frames,
                                int *out_frames, uint32_t *out_rate, uint8_t *out_ch)
 {
-    if (m == NULL || pcm == NULL || m->eos)
+    if (m == NULL || pcm == NULL || m->cos)
     {
         return -1;
     }
@@ -236,7 +236,7 @@ int eos_spotify_mp3_read_frame(eos_spotify_mp3_t *m, int16_t *pcm, int max_frame
     }
     if (m->buf_len < 4)
     {
-        m->eos = true;
+        m->cos = true;
         return -1;
     }
 
@@ -250,7 +250,7 @@ int eos_spotify_mp3_read_frame(eos_spotify_mp3_t *m, int16_t *pcm, int max_frame
         /* 无法同步:丢弃 1 字节重试,否则判定文件尾 */
         if (m->eof && m->buf_len < 1600)
         {
-            m->eos = true;
+            m->cos = true;
             return -1;
         }
         _consume(m, 1);
@@ -310,34 +310,34 @@ int eos_spotify_mp3_read_frame(eos_spotify_mp3_t *m, int16_t *pcm, int max_frame
 
     if (m->eof && m->buf_len == 0)
     {
-        m->eos = true;
+        m->cos = true;
     }
     return samples > 0 ? 0 : 0;   /* 0 样本不算错误,继续下一帧 */
 }
 
-uint32_t eos_spotify_mp3_sample_rate(const eos_spotify_mp3_t *m)
+uint32_t cos_spotify_mp3_sample_rate(const cos_spotify_mp3_t *m)
 {
     return m ? m->sample_rate : 0;
 }
 
-uint8_t eos_spotify_mp3_channels(const eos_spotify_mp3_t *m)
+uint8_t cos_spotify_mp3_channels(const cos_spotify_mp3_t *m)
 {
     return m ? m->channels : 0;
 }
 
-uint32_t eos_spotify_mp3_duration_ms(const eos_spotify_mp3_t *m)
+uint32_t cos_spotify_mp3_duration_ms(const cos_spotify_mp3_t *m)
 {
     return m ? m->duration_ms : 0;
 }
 
-bool eos_spotify_mp3_eos(const eos_spotify_mp3_t *m)
+bool cos_spotify_mp3_cos(const cos_spotify_mp3_t *m)
 {
-    return m ? m->eos : true;
+    return m ? m->cos : true;
 }
 
-void eos_spotify_mp3_seek_ms(eos_spotify_mp3_t *m, uint32_t ms)
+void cos_spotify_mp3_seek_ms(cos_spotify_mp3_t *m, uint32_t ms)
 {
-    if (m == NULL || m->fp == EOS_FILE_INVALID || m->sample_rate == 0)
+    if (m == NULL || m->fp == COS_FILE_INVALID || m->sample_rate == 0)
     {
         return;
     }
@@ -353,17 +353,17 @@ void eos_spotify_mp3_seek_ms(eos_spotify_mp3_t *m, uint32_t ms)
         target = m->file_size ? m->file_size - 1 : 0;
     }
 
-    if (eos_storage_file_seek(m->fp, target) != EOS_OK)
+    if (cos_storage_file_seek(m->fp, target) != COS_OK)
     {
         return;
     }
     m->buf_len = 0;
     m->file_off = target;
     m->eof = false;
-    m->eos = false;
+    m->cos = false;
     mp3dec_init(&m->dec);
     _fill(m);
-    EOS_LOG_I("mp3: seek -> %lu ms (off=%lu)", (unsigned long)ms, (unsigned long)target);
+    COS_LOG_I("mp3: seek -> %lu ms (off=%lu)", (unsigned long)ms, (unsigned long)target);
 }
 
 #endif /* CONFIG_USB_UAC_APP_ENABLE */

@@ -1,10 +1,10 @@
 /**
- * @file eos_bubble_grid.h
+ * @file cos_bubble_grid.h
  * @brief Bubble grid
  */
 
-#ifndef EOS_BUBBLE_GRID_H
-#define EOS_BUBBLE_GRID_H
+#ifndef COS_BUBBLE_GRID_H
+#define COS_BUBBLE_GRID_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,7 +22,7 @@ typedef struct
 {
     uint32_t index;
     void *icon_user_data;
-} eos_bubble_click_event_t;
+} cos_bubble_click_event_t;
 
 typedef struct
 {
@@ -56,7 +56,7 @@ typedef struct
     uint16_t y_ratchet_pull_permille; /**< Snap attraction while dragging within valid range. */
     uint16_t y_ratchet_snap_permille; /**< Snap attraction after release near target step. */
     int16_t y_ratchet_dead_px; /**< Dead-zone threshold in pixels for spring-vs-snap mode. */
-} eos_bubble_config_t;
+} cos_bubble_config_t;
 
 /* Public function prototypes --------------------------------*/
 
@@ -64,14 +64,14 @@ typedef struct
  * @brief Fill config with built-in default values.
  * @param config The configuration to initialize.
  */
-void eos_bubble_init_config(eos_bubble_config_t *config);
+void cos_bubble_init_config(cos_bubble_config_t *config);
 
 /**
  * @brief Create a watch bubble component.
  * @param parent The parent object.
  * @return Returns the component root object.
  */
-lv_obj_t *eos_bubble_create(lv_obj_t *parent);
+lv_obj_t *cos_bubble_create(lv_obj_t *parent);
 
 /**
  * @brief Set icon source for one bubble index.
@@ -79,7 +79,7 @@ lv_obj_t *eos_bubble_create(lv_obj_t *parent);
  * @param index The bubble index.
  * @param src The icon source.
  */
-void eos_bubble_set_icon_src(lv_obj_t *obj, uint32_t index, const void *src);
+void cos_bubble_set_icon_src(lv_obj_t *obj, uint32_t index, const void *src);
 
 /**
  * @brief Set user data for one bubble index.
@@ -87,21 +87,21 @@ void eos_bubble_set_icon_src(lv_obj_t *obj, uint32_t index, const void *src);
  * @param index The bubble index.
  * @param user_data The user data.
  */
-void eos_bubble_set_icon_user_data(lv_obj_t *obj, uint32_t index, void *user_data);
+void cos_bubble_set_icon_user_data(lv_obj_t *obj, uint32_t index, void *user_data);
 
 /**
  * @brief Dynamically update drag/scale/ratchet physics config.
  * @param obj The watch bubble component.
  * @param config The new configuration.
  */
-void eos_bubble_set_config(lv_obj_t *obj, const eos_bubble_config_t *config);
+void cos_bubble_set_config(lv_obj_t *obj, const cos_bubble_config_t *config);
 
 /**
  * @brief Get current drag/scale/ratchet physics config.
  * @param obj The watch bubble component.
  * @param config Output buffer to receive current configuration.
  */
-void eos_bubble_get_config(lv_obj_t *obj, eos_bubble_config_t *config);
+void cos_bubble_get_config(lv_obj_t *obj, cos_bubble_config_t *config);
 
 /**
  * @brief Set bubble background color for one icon index.
@@ -110,7 +110,7 @@ void eos_bubble_get_config(lv_obj_t *obj, eos_bubble_config_t *config);
  * @param index The bubble index.
  * @param color The background color.
  */
-void eos_bubble_set_icon_color(lv_obj_t *obj, uint32_t index, lv_color_t color);
+void cos_bubble_set_icon_color(lv_obj_t *obj, uint32_t index, lv_color_t color);
 
 /**
  * @brief Get bubble object by icon index.
@@ -118,10 +118,10 @@ void eos_bubble_set_icon_color(lv_obj_t *obj, uint32_t index, lv_color_t color);
  * @param index Bubble index.
  * @return Returns the bubble object of the index, or NULL if unavailable.
  */
-lv_obj_t *eos_bubble_get_icon_obj(lv_obj_t *obj, uint32_t index);
+lv_obj_t *cos_bubble_get_icon_obj(lv_obj_t *obj, uint32_t index);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_BUBBLE_GRID_H */
+#endif /* COS_BUBBLE_GRID_H */

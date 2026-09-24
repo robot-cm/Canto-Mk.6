@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include "sni_type_bridge.h"
 #include "sni_api_lv.h"
-#include "sni_api_eos.h"
+#include "sni_api_cos.h"
 #include "sni_api_ui.h"
 /* Macros and Definitions -------------------------------------*/
 
@@ -23,13 +23,13 @@ void sni_init(void)
     // Initialize type bridge
     sni_tb_init();
     sni_api_lv_init();
-    sni_api_eos_init();
+    sni_api_cos_init();
     sni_api_ui_init();
 }
 
 void sni_mount(jerry_value_t js_realm)
 {
     sni_api_lv_mount(js_realm);
-    sni_api_eos_mount(js_realm);
+    sni_api_cos_mount(js_realm);
     sni_api_ui_mount(js_realm);
 }

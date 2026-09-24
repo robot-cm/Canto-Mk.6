@@ -1,5 +1,5 @@
 /**
- * @file eos_sim_hw_mock.c
+ * @file cos_sim_hw_mock.c
  * @brief Simulator hardware mock — fake device OPS for time/battery/power/sensors.
  *
  * The real board-level drivers live in the ESP-IDF firmware and are not part
@@ -8,34 +8,34 @@
  * "Battery device not valid"). This file registers plausible fakes so those
  * services run normally on the PC.
  *
- * Compiled ONLY when EOS_SIMULATOR is defined.
+ * Compiled ONLY when COS_SIMULATOR is defined.
  */
 
-#include "eos_config.h" /* __has_include -> eos_platform_config.h -> EOS_SIMULATOR */
-#include "eos_sim_hw_mock.h"
+#include "cos_config.h" /* __has_include -> cos_platform_config.h -> COS_SIMULATOR */
+#include "cos_sim_hw_mock.h"
 
-#ifdef EOS_SIMULATOR
+#ifdef COS_SIMULATOR
 
-#include "eos_log.h"
-#include "eos_dev_time.h"
-#include "eos_dev_battery.h"
-#include "eos_dev_power.h"
-#include "eos_dev_sensor.h"
-#include "eos_service_battery.h"
+#include "cos_log.h"
+#include "cos_dev_time.h"
+#include "cos_dev_battery.h"
+#include "cos_dev_power.h"
+#include "cos_dev_sensor.h"
+#include "cos_service_battery.h"
 
 #include <time.h>
 
-#define EOS_LOG_TAG "SimHW"
+#define COS_LOG_TAG "SimHW"
 
 /* ------------------------------------------------------------------ */
 /* Time — fall back to the host system clock.                          */
 /* ------------------------------------------------------------------ */
-static eos_datetime_t _mock_time_get_datetime(void)
+static cos_datetime_t _mock_time_get_datetime(void)
 {
     time_t t = time(NULL);
     struct tm *lt = localtime(&t);
 
-    eos_datetime_t dt;
+    cos_datetime_t dt;
     dt.year   = (uint16_t)(lt->tm_year + 1900);
     dt.month  = (uint8_t)(lt->tm_mon + 1);
     dt.day    = (uint8_t)lt->tm_mday;
@@ -47,7 +47,7 @@ static eos_datetime_t _mock_time_get_datetime(void)
     return dt;
 }
 
-static const eos_dev_time_ops_t _mock_time_ops = {
+static const cos_dev_time_ops_t _mock_time_ops = {
     .get_datetime = _mock_time_get_datetime,
 };
 
@@ -56,15 +56,15 @@ static const eos_dev_time_ops_t _mock_time_ops = {
 /* ------------------------------------------------------------------ */
 static void _mock_battery_request_update(void)
 {
-    eos_battery_raw_t raw;
+    cos_battery_raw_t raw;
     raw.percent    = 80;
     raw.voltage_mv = 3800;
     raw.current_ma = -120; /* negative = charging */
     raw.charging   = true;
-    eos_battery_report_raw(&raw);
+    cos_battery_report_raw(&raw);
 }
 
-static const eos_battery_dev_ops_t _mock_battery_ops = {
+static const cos_battery_dev_ops_t _mock_battery_ops = {
     .request_update = _mock_battery_request_update,
 };
 
@@ -73,11 +73,11 @@ static const eos_battery_dev_ops_t _mock_battery_ops = {
 /* ------------------------------------------------------------------ */
 static int _mock_power_set(dev_power_state_t state)
 {
-    EOS_LOG_D("set_power state=%d (no-op on simulator)", (int)state);
+    COS_LOG_D("set_power state=%d (no-op on simulator)", (int)state);
     return 0;
 }
 
-static const eos_dev_power_ops_t _mock_power_ops = {
+static const cos_dev_power_ops_t _mock_power_ops = {
     .set_power = _mock_power_set,
 };
 
@@ -85,14 +85,14 @@ static const eos_dev_power_ops_t _mock_power_ops = {
 /* Sensors — minimal pass-through OPS; no data is produced (no real    */
 /* sensor), but registering them keeps the sensor service happy.       */
 /* ------------------------------------------------------------------ */
-static void _mock_sensor_init(eos_dev_sensor_t *dev)   { (void)dev; }
-static void _mock_sensor_deinit(eos_dev_sensor_t *dev) { (void)dev; }
-static void _mock_sensor_enable(eos_dev_sensor_t *dev) { (void)dev; }
-static void _mock_sensor_disable(eos_dev_sensor_t *dev){ (void)dev; }
-static void _mock_sensor_set_rate(eos_dev_sensor_t *dev, uint32_t hz) { (void)dev; (void)hz; }
-static void _mock_sensor_get_rate(eos_dev_sensor_t *dev, uint32_t *hz) { if (hz) *hz = 25; (void)dev; }
+static void _mock_sensor_init(cos_dev_sensor_t *dev)   { (void)dev; }
+static void _mock_sensor_deinit(cos_dev_sensor_t *dev) { (void)dev; }
+static void _mock_sensor_enable(cos_dev_sensor_t *dev) { (void)dev; }
+static void _mock_sensor_disable(cos_dev_sensor_t *dev){ (void)dev; }
+static void _mock_sensor_set_rate(cos_dev_sensor_t *dev, uint32_t hz) { (void)dev; (void)hz; }
+static void _mock_sensor_get_rate(cos_dev_sensor_t *dev, uint32_t *hz) { if (hz) *hz = 25; (void)dev; }
 
-static const eos_dev_sensor_ops_t _mock_sensor_ops = {
+static const cos_dev_sensor_ops_t _mock_sensor_ops = {
     .init               = _mock_sensor_init,
     .deinit             = _mock_sensor_deinit,
     .enable             = _mock_sensor_enable,
@@ -107,14 +107,14 @@ static const eos_dev_sensor_ops_t _mock_sensor_ops = {
 /* ------------------------------------------------------------------ */
 /* Entry point — register everything.                                  */
 /* ------------------------------------------------------------------ */
-void eos_sim_hw_mock_init(void)
+void cos_sim_hw_mock_init(void)
 {
-    eos_dev_time_register(&_mock_time_ops);
-    eos_dev_battery_register(&_mock_battery_ops, 300);
-    eos_dev_power_register(&_mock_power_ops);
-    eos_dev_sensor_register("sim_acce", EOS_SENSOR_TYPE_ACCE, &_mock_sensor_ops);
-    eos_dev_sensor_register("sim_hr", EOS_SENSOR_TYPE_HR, &_mock_sensor_ops);
-    EOS_LOG_I("simulator hardware mock registered (time/battery/power/sensor)");
+    cos_dev_time_register(&_mock_time_ops);
+    cos_dev_battery_register(&_mock_battery_ops, 300);
+    cos_dev_power_register(&_mock_power_ops);
+    cos_dev_sensor_register("sim_acce", COS_SENSOR_TYPE_ACCE, &_mock_sensor_ops);
+    cos_dev_sensor_register("sim_hr", COS_SENSOR_TYPE_HR, &_mock_sensor_ops);
+    COS_LOG_I("simulator hardware mock registered (time/battery/power/sensor)");
 }
 
-#endif /* EOS_SIMULATOR */
+#endif /* COS_SIMULATOR */

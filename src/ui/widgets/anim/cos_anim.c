@@ -1,20 +1,20 @@
 /**
- * @file eos_anim.c
+ * @file cos_anim.c
  * @brief Animation library
  */
 
-#include "eos_anim.h"
+#include "cos_anim.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
-// #define EOS_LOG_DISABLE
-#define EOS_LOG_TAG "Animation"
-#include "eos_log.h"
-#include "eos_theme.h"
-#include "eos_port.h"
-#include "eos_mem.h"
-#include "eos_overlay_layer.h"
+// #define COS_LOG_DISABLE
+#define COS_LOG_TAG "Animation"
+#include "cos_log.h"
+#include "cos_theme.h"
+#include "cos_port.h"
+#include "cos_mem.h"
+#include "cos_overlay_layer.h"
 
 /* Macros and Definitions -------------------------------------*/
 #define DEBUG_BLOCKER_VISIBLE 0
@@ -25,36 +25,36 @@ static bool is_blocker_show = false;
 
 /************************** 1. Basic Functionality **************************/
 
-void eos_anim_del(eos_anim_t *anim)
+void cos_anim_del(cos_anim_t *anim)
 {
     if (!anim)
         return;
 
     if (anim->anim_timeline)
     {
-        EOS_LOG_D("Timeline freed: [%p]", anim->anim_timeline);
+        COS_LOG_D("Timeline freed: [%p]", anim->anim_timeline);
         lv_anim_timeline_delete(anim->anim_timeline);
         anim->anim_timeline = NULL;
     }
 
     if (anim->auto_delete_obj && anim->tar_obj && lv_obj_is_valid(anim->tar_obj))
     {
-        EOS_LOG_D("Target obj freed [%p]", anim->tar_obj);
+        COS_LOG_D("Target obj freed [%p]", anim->tar_obj);
         lv_obj_delete_async(anim->tar_obj);
         anim->tar_obj = NULL;
     }
 
-    eos_free(anim);
-    EOS_LOG_D("Anim freed");
+    cos_free(anim);
+    COS_LOG_D("Anim freed");
 }
 
-void eos_anim_set_auto_delete(eos_anim_t *anim)
+void cos_anim_set_auto_delete(cos_anim_t *anim)
 {
-    EOS_CHECK_PTR_RETURN(anim);
+    COS_CHECK_PTR_RETURN(anim);
     anim->auto_delete_obj = true;
 }
 
-void eos_anim_add_cb(eos_anim_t *anim, eos_anim_cb_t user_cb, void *user_data)
+void cos_anim_add_cb(cos_anim_t *anim, cos_anim_cb_t user_cb, void *user_data)
 {
     if (!anim)
         return;
@@ -62,20 +62,20 @@ void eos_anim_add_cb(eos_anim_t *anim, eos_anim_cb_t user_cb, void *user_data)
     anim->user_data = user_data;
 }
 
-void *eos_anim_get_user_data(eos_anim_t *anim)
+void *cos_anim_get_user_data(cos_anim_t *anim)
 {
     return anim ? anim->user_data : NULL;
 }
 
-void eos_anim_blocker_show(void)
+void cos_anim_blocker_show(void)
 {
     if (is_blocker_show)
         return;
 
-    blocker = lv_obj_create(eos_overlay_get_snapshot_layer());
+    blocker = lv_obj_create(cos_overlay_get_snapshot_layer());
     lv_obj_remove_style_all(blocker); // Remove style, keep transparent
 #if DEBUG_BLOCKER_VISIBLE
-    lv_obj_set_style_bg_color(blocker, EOS_COLOR_MINT, 0);
+    lv_obj_set_style_bg_color(blocker, COS_COLOR_MINT, 0);
     lv_obj_set_style_bg_opa(blocker, LV_OPA_40, 0);
 #endif
     lv_obj_set_size(blocker, LV_PCT(100), LV_PCT(100));
@@ -83,7 +83,7 @@ void eos_anim_blocker_show(void)
     is_blocker_show = true;
 }
 
-void eos_anim_blocker_hide(void)
+void cos_anim_blocker_hide(void)
 {
     if (is_blocker_show)
     {
@@ -152,15 +152,15 @@ static void _set_opa_layered_cb(void *var, int32_t v)
 
 static void _free_anim_later(lv_timer_t *t)
 {
-    eos_anim_t *anim = lv_timer_get_user_data(t);
-    eos_anim_del(anim);
+    cos_anim_t *anim = lv_timer_get_user_data(t);
+    cos_anim_del(anim);
 }
 /**
  * @brief Animation completion callback, calls user function and automatically cleans up resources
  */
-static void _eos_anim_ready_cb(lv_anim_t *a)
+static void _cos_anim_ready_cb(lv_anim_t *a)
 {
-    eos_anim_t *anim = lv_anim_get_user_data(a);
+    cos_anim_t *anim = lv_anim_get_user_data(a);
     anim->anim_completed_count++;
 
     if (anim->anim_completed_count == anim->anim_count)
@@ -173,7 +173,7 @@ static void _eos_anim_ready_cb(lv_anim_t *a)
         lv_timer_t *t = lv_timer_create(_free_anim_later, 10, anim);
         lv_timer_set_repeat_count(t, 1);
     }
-    eos_anim_blocker_hide();
+    cos_anim_blocker_hide();
 }
 
 /************************** 4. Animation Initialization Functions **************************/
@@ -186,7 +186,7 @@ static void _init_width_anim(lv_anim_t *a,
                              int32_t start,
                              int32_t end,
                              uint32_t duration,
-                             eos_anim_t *ctx)
+                             cos_anim_t *ctx)
 {
     lv_anim_init(a);
     lv_anim_set_var(a, obj);
@@ -196,7 +196,7 @@ static void _init_width_anim(lv_anim_t *a,
     lv_anim_set_duration(a, duration);
     if (!ctx)
         return;
-    lv_anim_set_completed_cb(a, _eos_anim_ready_cb);
+    lv_anim_set_completed_cb(a, _cos_anim_ready_cb);
     lv_anim_set_user_data(a, ctx);
 }
 /**
@@ -207,7 +207,7 @@ static void _init_height_anim(lv_anim_t *a,
                               int32_t start,
                               int32_t end,
                               uint32_t duration,
-                              eos_anim_t *ctx)
+                              cos_anim_t *ctx)
 {
     lv_anim_init(a);
     lv_anim_set_var(a, obj);
@@ -217,14 +217,14 @@ static void _init_height_anim(lv_anim_t *a,
     lv_anim_set_duration(a, duration);
     if (!ctx)
         return;
-    lv_anim_set_completed_cb(a, _eos_anim_ready_cb);
+    lv_anim_set_completed_cb(a, _cos_anim_ready_cb);
     lv_anim_set_user_data(a, ctx);
 }
 
 /**
  * @brief Internal function: Initialize X position animation
  */
-static void _init_x_anim(lv_anim_t *a, lv_obj_t *obj, int32_t start, int32_t end, uint32_t duration, eos_anim_t *ctx)
+static void _init_x_anim(lv_anim_t *a, lv_obj_t *obj, int32_t start, int32_t end, uint32_t duration, cos_anim_t *ctx)
 {
     lv_anim_init(a);
     lv_anim_set_var(a, obj);
@@ -234,14 +234,14 @@ static void _init_x_anim(lv_anim_t *a, lv_obj_t *obj, int32_t start, int32_t end
     lv_anim_set_duration(a, duration);
     if (!ctx)
         return;
-    lv_anim_set_completed_cb(a, _eos_anim_ready_cb);
+    lv_anim_set_completed_cb(a, _cos_anim_ready_cb);
     lv_anim_set_user_data(a, ctx);
 }
 
 /**
  * @brief Internal function: Initialize Y position animation
  */
-static void _init_y_anim(lv_anim_t *a, lv_obj_t *obj, int32_t start, int32_t end, uint32_t duration, eos_anim_t *ctx)
+static void _init_y_anim(lv_anim_t *a, lv_obj_t *obj, int32_t start, int32_t end, uint32_t duration, cos_anim_t *ctx)
 {
     lv_anim_init(a);
     lv_anim_set_var(a, obj);
@@ -251,7 +251,7 @@ static void _init_y_anim(lv_anim_t *a, lv_obj_t *obj, int32_t start, int32_t end
     lv_anim_set_duration(a, duration);
     if (!ctx)
         return;
-    lv_anim_set_completed_cb(a, _eos_anim_ready_cb);
+    lv_anim_set_completed_cb(a, _cos_anim_ready_cb);
     lv_anim_set_user_data(a, ctx);
 }
 
@@ -263,7 +263,7 @@ static void _init_scale_anim(lv_anim_t *a,
                              int32_t start,
                              int32_t end,
                              uint32_t duration,
-                             eos_anim_t *ctx)
+                             cos_anim_t *ctx)
 {
     lv_anim_init(a);
     lv_anim_set_var(a, obj);
@@ -273,14 +273,14 @@ static void _init_scale_anim(lv_anim_t *a,
     lv_anim_set_duration(a, duration);
     if (!ctx)
         return;
-    lv_anim_set_completed_cb(a, _eos_anim_ready_cb);
+    lv_anim_set_completed_cb(a, _cos_anim_ready_cb);
     lv_anim_set_user_data(a, ctx);
 }
 
 /**
  * @brief Internal function: Initialize opacity animation
  */
-static void _init_opa_anim(lv_anim_t *a, lv_obj_t *obj, int32_t start, int32_t end, uint32_t duration, eos_anim_t *ctx)
+static void _init_opa_anim(lv_anim_t *a, lv_obj_t *obj, int32_t start, int32_t end, uint32_t duration, cos_anim_t *ctx)
 {
     lv_anim_init(a);
     lv_anim_set_var(a, obj);
@@ -290,7 +290,7 @@ static void _init_opa_anim(lv_anim_t *a, lv_obj_t *obj, int32_t start, int32_t e
     lv_anim_set_duration(a, duration);
     if (!ctx)
         return;
-    lv_anim_set_completed_cb(a, _eos_anim_ready_cb);
+    lv_anim_set_completed_cb(a, _cos_anim_ready_cb);
     lv_anim_set_user_data(a, ctx);
 }
 
@@ -302,7 +302,7 @@ static void _init_opa_layered_anim(lv_anim_t *a,
                                    int32_t start,
                                    int32_t end,
                                    uint32_t duration,
-                                   eos_anim_t *ctx)
+                                   cos_anim_t *ctx)
 {
     lv_anim_init(a);
     lv_anim_set_var(a, obj);
@@ -312,14 +312,14 @@ static void _init_opa_layered_anim(lv_anim_t *a,
     lv_anim_set_duration(a, duration);
     if (!ctx)
         return;
-    lv_anim_set_completed_cb(a, _eos_anim_ready_cb);
+    lv_anim_set_completed_cb(a, _cos_anim_ready_cb);
     lv_anim_set_user_data(a, ctx);
 }
 
 /************************** 5. Animation Creation and Start **************************/
 
 // Scale animation group
-eos_anim_t *eos_anim_scale_create(lv_obj_t *tar_obj,
+cos_anim_t *cos_anim_scale_create(lv_obj_t *tar_obj,
                                   int32_t w_start,
                                   int32_t w_end,
                                   int32_t h_start,
@@ -330,12 +330,12 @@ eos_anim_t *eos_anim_scale_create(lv_obj_t *tar_obj,
     if (!tar_obj || duration == 0)
         return NULL;
 
-    eos_anim_t *anim = eos_malloc(sizeof(eos_anim_t));
+    cos_anim_t *anim = cos_malloc(sizeof(cos_anim_t));
     if (!anim)
         return NULL;
 
     // Basic initialization
-    anim->type = EOS_ANIM_SCALE;
+    anim->type = COS_ANIM_SCALE;
     anim->anim_count = 0;
     anim->anim_completed_count = 0;
     anim->user_cb = NULL;
@@ -345,7 +345,7 @@ eos_anim_t *eos_anim_scale_create(lv_obj_t *tar_obj,
     anim->anim_timeline = lv_anim_timeline_create();
     if (!anim->anim_timeline)
     {
-        eos_free(anim);
+        cos_free(anim);
         return NULL;
     }
 
@@ -357,12 +357,12 @@ eos_anim_t *eos_anim_scale_create(lv_obj_t *tar_obj,
     _init_height_anim(&anim->anim.scale.a_height, tar_obj, h_start, h_end, duration, anim);
     anim->anim_count++;
 
-    EOS_LOG_I("Scale anim created: anim[%p] obj[%p]", anim, anim->tar_obj);
+    COS_LOG_I("Scale anim created: anim[%p] obj[%p]", anim, anim->tar_obj);
 
     return anim;
 }
 
-void eos_anim_scale_start(lv_obj_t *tar_obj,
+void cos_anim_scale_start(lv_obj_t *tar_obj,
                           int32_t w_start,
                           int32_t w_end,
                           int32_t h_start,
@@ -370,18 +370,18 @@ void eos_anim_scale_start(lv_obj_t *tar_obj,
                           uint32_t duration,
                           bool auto_delete)
 {
-    eos_anim_t *anim = eos_anim_scale_create(tar_obj, w_start, w_end, h_start, h_end, duration, auto_delete);
+    cos_anim_t *anim = cos_anim_scale_create(tar_obj, w_start, w_end, h_start, h_end, duration, auto_delete);
     if (!anim)
         return;
 
-    if (!eos_anim_start(anim))
+    if (!cos_anim_start(anim))
     {
-        eos_anim_del(anim);
+        cos_anim_del(anim);
     }
 }
 
 // Transform scale animation group
-eos_anim_t *eos_anim_transform_scale_create(lv_obj_t *tar_obj,
+cos_anim_t *cos_anim_transform_scale_create(lv_obj_t *tar_obj,
                                             int32_t scale_start,
                                             int32_t scale_end,
                                             uint32_t duration,
@@ -390,12 +390,12 @@ eos_anim_t *eos_anim_transform_scale_create(lv_obj_t *tar_obj,
     if (!tar_obj || duration == 0)
         return NULL;
 
-    eos_anim_t *anim = eos_malloc(sizeof(eos_anim_t));
+    cos_anim_t *anim = cos_malloc(sizeof(cos_anim_t));
     if (!anim)
         return NULL;
 
     // Basic initialization
-    anim->type = EOS_ANIM_TRANSFORM_SCALE;
+    anim->type = COS_ANIM_TRANSFORM_SCALE;
     anim->anim_count = 0;
     anim->anim_completed_count = 0;
     anim->user_cb = NULL;
@@ -405,7 +405,7 @@ eos_anim_t *eos_anim_transform_scale_create(lv_obj_t *tar_obj,
     anim->anim_timeline = lv_anim_timeline_create();
     if (!anim->anim_timeline)
     {
-        eos_free(anim);
+        cos_free(anim);
         return NULL;
     }
 
@@ -413,28 +413,28 @@ eos_anim_t *eos_anim_transform_scale_create(lv_obj_t *tar_obj,
     _init_scale_anim(&anim->anim.transform_scale.a_scale, tar_obj, scale_start, scale_end, duration, anim);
     anim->anim_count++;
 
-    EOS_LOG_I("Transform Scale anim created: anim[%p] obj[%p]", anim, anim->tar_obj);
+    COS_LOG_I("Transform Scale anim created: anim[%p] obj[%p]", anim, anim->tar_obj);
 
     return anim;
 }
 
-void eos_anim_transform_scale_start(lv_obj_t *tar_obj,
+void cos_anim_transform_scale_start(lv_obj_t *tar_obj,
                                     int32_t scale_start,
                                     int32_t scale_end,
                                     uint32_t duration,
                                     bool auto_delete)
 {
-    eos_anim_t *anim = eos_anim_transform_scale_create(tar_obj, scale_start, scale_end, duration, auto_delete);
+    cos_anim_t *anim = cos_anim_transform_scale_create(tar_obj, scale_start, scale_end, duration, auto_delete);
     if (!anim)
         return;
 
-    if (!eos_anim_start(anim))
+    if (!cos_anim_start(anim))
     {
-        eos_anim_del(anim);
+        cos_anim_del(anim);
     }
 }
 
-void eos_anim_transform_scale_start_ex(lv_obj_t *tar_obj,
+void cos_anim_transform_scale_start_ex(lv_obj_t *tar_obj,
                                        int32_t scale_start,
                                        int32_t scale_end,
                                        uint32_t duration,
@@ -445,14 +445,14 @@ void eos_anim_transform_scale_start_ex(lv_obj_t *tar_obj,
     if (!tar_obj)
         return;
 
-    eos_anim_t *anim = eos_anim_transform_scale_create(tar_obj, scale_start, scale_end, duration, auto_delete);
+    cos_anim_t *anim = cos_anim_transform_scale_create(tar_obj, scale_start, scale_end, duration, auto_delete);
     if (!anim)
         return;
 
     // Set advanced parameters
     if (playback_time > 0)
     {
-        EOS_LOG_D("Playback: %d", playback_time);
+        COS_LOG_D("Playback: %d", playback_time);
         lv_anim_set_playback_time(&anim->anim.transform_scale.a_scale, playback_time);
     }
     if (repeat_count > 0)
@@ -460,14 +460,14 @@ void eos_anim_transform_scale_start_ex(lv_obj_t *tar_obj,
         lv_anim_set_repeat_count(&anim->anim.transform_scale.a_scale, repeat_count);
     }
 
-    if (!eos_anim_start(anim))
+    if (!cos_anim_start(anim))
     {
-        eos_anim_del(anim);
+        cos_anim_del(anim);
     }
 }
 
 // Move animation group
-eos_anim_t *eos_anim_move_create(lv_obj_t *tar_obj,
+cos_anim_t *cos_anim_move_create(lv_obj_t *tar_obj,
                                  int32_t start_x,
                                  int32_t start_y,
                                  int32_t end_x,
@@ -478,13 +478,13 @@ eos_anim_t *eos_anim_move_create(lv_obj_t *tar_obj,
     if (!tar_obj || duration == 0)
         return NULL;
 
-    eos_anim_t *anim = eos_malloc(sizeof(eos_anim_t));
-    EOS_LOG_D("MOVE alloc size(%d) ptr[%p]", sizeof(eos_anim_t), anim);
+    cos_anim_t *anim = cos_malloc(sizeof(cos_anim_t));
+    COS_LOG_D("MOVE alloc size(%d) ptr[%p]", sizeof(cos_anim_t), anim);
     if (!anim)
         return NULL;
 
     // Basic initialization
-    anim->type = EOS_ANIM_MOVE;
+    anim->type = COS_ANIM_MOVE;
     anim->anim_count = 0;
     anim->anim_completed_count = 0;
     anim->user_cb = NULL;
@@ -494,7 +494,7 @@ eos_anim_t *eos_anim_move_create(lv_obj_t *tar_obj,
     anim->anim_timeline = lv_anim_timeline_create();
     if (!anim->anim_timeline)
     {
-        eos_free(anim);
+        cos_free(anim);
         return NULL;
     }
 
@@ -523,16 +523,16 @@ eos_anim_t *eos_anim_move_create(lv_obj_t *tar_obj,
     if (anim->anim_count == 0)
     {
         lv_anim_timeline_delete(anim->anim_timeline);
-        eos_free(anim);
+        cos_free(anim);
         return NULL;
     }
 
-    EOS_LOG_I("Move anim created: anim[%p] obj[%p]", anim, anim->tar_obj);
+    COS_LOG_I("Move anim created: anim[%p] obj[%p]", anim, anim->tar_obj);
 
     return anim;
 }
 
-void eos_anim_move_start(lv_obj_t *tar_obj,
+void cos_anim_move_start(lv_obj_t *tar_obj,
                          int32_t start_x,
                          int32_t start_y,
                          int32_t end_x,
@@ -540,19 +540,19 @@ void eos_anim_move_start(lv_obj_t *tar_obj,
                          uint32_t duration,
                          bool auto_delete)
 {
-    eos_anim_t *anim = eos_anim_move_create(tar_obj, start_x, start_y, end_x, end_y, duration, auto_delete);
+    cos_anim_t *anim = cos_anim_move_create(tar_obj, start_x, start_y, end_x, end_y, duration, auto_delete);
     if (!anim)
         return;
 
-    if (!eos_anim_start(anim))
+    if (!cos_anim_start(anim))
     {
-        EOS_LOG_D("Delete anim: %p", anim);
-        eos_anim_del(anim);
+        COS_LOG_D("Delete anim: %p", anim);
+        cos_anim_del(anim);
     }
 }
 
 // Opacity animation group
-eos_anim_t *eos_anim_fade_create(lv_obj_t *tar_obj,
+cos_anim_t *cos_anim_fade_create(lv_obj_t *tar_obj,
                                  int32_t opa_start,
                                  int32_t opa_end,
                                  uint32_t duration,
@@ -561,12 +561,12 @@ eos_anim_t *eos_anim_fade_create(lv_obj_t *tar_obj,
     if (!tar_obj || duration == 0)
         return NULL;
 
-    eos_anim_t *anim = eos_malloc(sizeof(eos_anim_t));
-    EOS_LOG_D("FADE alloc size(%d) ptr[%p]", sizeof(eos_anim_t), anim);
+    cos_anim_t *anim = cos_malloc(sizeof(cos_anim_t));
+    COS_LOG_D("FADE alloc size(%d) ptr[%p]", sizeof(cos_anim_t), anim);
     if (!anim)
         return NULL;
 
-    anim->type = EOS_ANIM_FADE;
+    anim->type = COS_ANIM_FADE;
     anim->anim_count = 0;
     anim->anim_completed_count = 0;
     anim->user_cb = NULL;
@@ -577,7 +577,7 @@ eos_anim_t *eos_anim_fade_create(lv_obj_t *tar_obj,
     anim->cfg.fade.layered = true;
     if (!anim->anim_timeline)
     {
-        eos_free(anim);
+        cos_free(anim);
         return NULL;
     }
 
@@ -593,27 +593,27 @@ eos_anim_t *eos_anim_fade_create(lv_obj_t *tar_obj,
     anim->anim_count++;
     lv_anim_set_user_data(&anim->anim.fade.a_opa, anim);
 
-    EOS_LOG_I("Fade anim created: anim[%p] obj[%p]", anim, anim->tar_obj);
+    COS_LOG_I("Fade anim created: anim[%p] obj[%p]", anim, anim->tar_obj);
 
     return anim;
 }
 
-void eos_anim_fade_start(lv_obj_t *tar_obj, int32_t opa_start, int32_t opa_end, uint32_t duration, bool auto_delete)
+void cos_anim_fade_start(lv_obj_t *tar_obj, int32_t opa_start, int32_t opa_end, uint32_t duration, bool auto_delete)
 {
-    eos_anim_t *anim = eos_anim_fade_create(tar_obj, opa_start, opa_end, duration, auto_delete);
+    cos_anim_t *anim = cos_anim_fade_create(tar_obj, opa_start, opa_end, duration, auto_delete);
     if (!anim)
         return;
 
-    if (!eos_anim_start(anim))
+    if (!cos_anim_start(anim))
     {
-        eos_anim_del(anim);
+        cos_anim_del(anim);
     }
 }
 
-void eos_anim_fade_set_layered(eos_anim_t *a, bool layered)
+void cos_anim_fade_set_layered(cos_anim_t *a, bool layered)
 {
-    EOS_CHECK_PTR_RETURN(a);
-    if (a->type == EOS_ANIM_FADE)
+    COS_CHECK_PTR_RETURN(a);
+    if (a->type == COS_ANIM_FADE)
     {
         a->cfg.fade.layered = layered;
         if (layered)
@@ -629,7 +629,7 @@ void eos_anim_fade_set_layered(eos_anim_t *a, bool layered)
 
 /************************** Lightweight Animation Functions **************************/
 
-void eos_lite_anim_move_hor_start(lv_obj_t *target_obj,
+void cos_lite_anim_move_hor_start(lv_obj_t *target_obj,
                                   int32_t start,
                                   int32_t end,
                                   uint32_t duration,
@@ -647,7 +647,7 @@ void eos_lite_anim_move_hor_start(lv_obj_t *target_obj,
     lv_anim_start(&a);
 }
 
-void eos_lite_anim_move_ver_start(lv_obj_t *target_obj,
+void cos_lite_anim_move_ver_start(lv_obj_t *target_obj,
                                   int32_t start,
                                   int32_t end,
                                   uint32_t duration,
@@ -665,7 +665,7 @@ void eos_lite_anim_move_ver_start(lv_obj_t *target_obj,
     lv_anim_start(&a);
 }
 
-void eos_lite_anim_scale_w_start(lv_obj_t *target_obj,
+void cos_lite_anim_scale_w_start(lv_obj_t *target_obj,
                                  int32_t start,
                                  int32_t end,
                                  uint32_t duration,
@@ -683,7 +683,7 @@ void eos_lite_anim_scale_w_start(lv_obj_t *target_obj,
     lv_anim_start(&a);
 }
 
-void eos_lite_anim_scale_h_start(lv_obj_t *target_obj,
+void cos_lite_anim_scale_h_start(lv_obj_t *target_obj,
                                  int32_t start,
                                  int32_t end,
                                  uint32_t duration,
@@ -701,7 +701,7 @@ void eos_lite_anim_scale_h_start(lv_obj_t *target_obj,
     lv_anim_start(&a);
 }
 
-void eos_lite_anim_transform_scale_start(lv_obj_t *target_obj,
+void cos_lite_anim_transform_scale_start(lv_obj_t *target_obj,
                                          int32_t start,
                                          int32_t end,
                                          uint32_t duration,
@@ -719,7 +719,7 @@ void eos_lite_anim_transform_scale_start(lv_obj_t *target_obj,
     lv_anim_start(&a);
 }
 
-void eos_lite_anim_fade_start(lv_obj_t *target_obj,
+void cos_lite_anim_fade_start(lv_obj_t *target_obj,
                               int32_t start,
                               int32_t end,
                               uint32_t duration,
@@ -737,7 +737,7 @@ void eos_lite_anim_fade_start(lv_obj_t *target_obj,
     lv_anim_start(&a);
 }
 
-void eos_lite_anim_fade_layered_start(lv_obj_t *target_obj,
+void cos_lite_anim_fade_layered_start(lv_obj_t *target_obj,
                                       int32_t start,
                                       int32_t end,
                                       uint32_t duration,
@@ -757,30 +757,30 @@ void eos_lite_anim_fade_layered_start(lv_obj_t *target_obj,
 
 /************************** Animation Start **************************/
 
-bool eos_anim_start(eos_anim_t *anim)
+bool cos_anim_start(cos_anim_t *anim)
 {
     if (!anim || !anim->anim_timeline)
         return false;
 
-    eos_anim_blocker_show();
+    cos_anim_blocker_show();
 
     // Add all sub-animations to timeline
     switch (anim->type)
     {
-        case EOS_ANIM_SCALE:
+        case COS_ANIM_SCALE:
             lv_anim_timeline_add(anim->anim_timeline, 0, &anim->anim.scale.a_width);
             lv_anim_timeline_add(anim->anim_timeline, 0, &anim->anim.scale.a_height);
             break;
-        case EOS_ANIM_FADE:
+        case COS_ANIM_FADE:
             lv_anim_timeline_add(anim->anim_timeline, 0, &anim->anim.fade.a_opa);
             break;
-        case EOS_ANIM_MOVE:
+        case COS_ANIM_MOVE:
             if (!anim->cfg.move.disable_x)
                 lv_anim_timeline_add(anim->anim_timeline, 0, &anim->anim.move.a_x);
             if (!anim->cfg.move.disable_y)
                 lv_anim_timeline_add(anim->anim_timeline, 0, &anim->anim.move.a_y);
             break;
-        case EOS_ANIM_TRANSFORM_SCALE:
+        case COS_ANIM_TRANSFORM_SCALE:
             lv_anim_start(&anim->anim.transform_scale.a_scale);
             return true;
         default:

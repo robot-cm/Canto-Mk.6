@@ -1,10 +1,10 @@
 /**
- * @file eos_eqsolver_solver.c
+ * @file cos_eqsolver_solver.c
  * @brief Equation system solver implementation.
  */
 
-#include "eos_eqsolver_parser.h"
-#include "eos_eqsolver_solver.h"
+#include "cos_eqsolver_parser.h"
+#include "cos_eqsolver_solver.h"
 
 #include <math.h>
 #include <stdarg.h>
@@ -1436,7 +1436,7 @@ static int _solve_univariate_ineq(eq_node_t *root, char var, char relop,
     return 0;
 }
 
-int eos_eqsolve(const char *eqs[], int n_eqs, char *out, size_t out_size)
+int cos_eqsolve(const char *eqs[], int n_eqs, char *out, size_t out_size)
 {
     out[0] = '\0';
     if (n_eqs <= 0)

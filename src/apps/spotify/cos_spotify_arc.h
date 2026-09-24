@@ -1,5 +1,5 @@
 /**
- * @file eos_spotify_arc.h
+ * @file cos_spotify_arc.h
  * @brief 弧形调节控件(音量 / 播放速度),专为 240×240 圆屏设计。
  *
  * 交付批次:Batch 4。
@@ -23,8 +23,8 @@
  *     · 滑动用 lv_arc 的 value_changed 事件(拖动即触发)
  *   lv_arc 的 touch 拖动天然给出角度 → 数值映射,避免自行做极坐标换算。
  */
-#ifndef EOS_SPOTIFY_ARC_H
-#define EOS_SPOTIFY_ARC_H
+#ifndef COS_SPOTIFY_ARC_H
+#define COS_SPOTIFY_ARC_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -38,18 +38,18 @@ extern "C" {
 #if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
 
 /** 弧角:120°。 */
-#define EOS_SPOTIFY_ARC_ANGLE   120
+#define COS_SPOTIFY_ARC_ANGLE   120
 
 /** 长按进入调节的时长(ms)。 */
-#define EOS_SPOTIFY_ARC_HOLD_EDIT_MS   1000
+#define COS_SPOTIFY_ARC_HOLD_EDIT_MS   1000
 
 /** 长按复位的时长(ms)。 */
-#define EOS_SPOTIFY_ARC_HOLD_RESET_MS  3000
+#define COS_SPOTIFY_ARC_HOLD_RESET_MS  3000
 
 /** 数值变化回调(参数为归一化后的实际值)。 */
-typedef void (*eos_spotify_arc_cb_t)(void *user, float value);
+typedef void (*cos_spotify_arc_cb_t)(void *user, float value);
 
-typedef struct eos_spotify_arc_s eos_spotify_arc_t;
+typedef struct cos_spotify_arc_s cos_spotify_arc_t;
 
 /**
  * @brief 创建弧控件。
@@ -61,31 +61,31 @@ typedef struct eos_spotify_arc_s eos_spotify_arc_t;
  * @param on_change   数值变化回调
  * @param user        回调上下文
  */
-eos_spotify_arc_t *eos_spotify_arc_create(lv_obj_t *parent, bool right_side,
+cos_spotify_arc_t *cos_spotify_arc_create(lv_obj_t *parent, bool right_side,
                                          float min_value, float max_value,
                                          float def_value,
-                                         eos_spotify_arc_cb_t on_change, void *user);
+                                         cos_spotify_arc_cb_t on_change, void *user);
 
 /** @brief 销毁弧控件(含内部定时器)。 */
-void eos_spotify_arc_destroy(eos_spotify_arc_t *arc);
+void cos_spotify_arc_destroy(cos_spotify_arc_t *arc);
 
 /**
  * @brief 周期性调用(由 App 的 lv_timer 驱动),负责长按计时。
  * @note 必须在 UI 任务上下文调用。
  */
-void eos_spotify_arc_tick(eos_spotify_arc_t *arc);
+void cos_spotify_arc_tick(cos_spotify_arc_t *arc);
 
 /** @brief 以程序方式设置数值(不触发回调)。 */
-void eos_spotify_arc_set_value(eos_spotify_arc_t *arc, float value);
+void cos_spotify_arc_set_value(cos_spotify_arc_t *arc, float value);
 
 /** @brief 当前数值。 */
-float eos_spotify_arc_get_value(const eos_spotify_arc_t *arc);
+float cos_spotify_arc_get_value(const cos_spotify_arc_t *arc);
 
 /** @brief 复位到默认值(与长按 3s 等效)。 */
-void eos_spotify_arc_reset(eos_spotify_arc_t *arc);
+void cos_spotify_arc_reset(cos_spotify_arc_t *arc);
 
 /** @brief 该弧控件下方的 LVGL 对象(供布局/调试)。 */
-lv_obj_t *eos_spotify_arc_obj(const eos_spotify_arc_t *arc);
+lv_obj_t *cos_spotify_arc_obj(const cos_spotify_arc_t *arc);
 
 #endif /* CONFIG_USB_UAC_APP_ENABLE */
 
@@ -93,4 +93,4 @@ lv_obj_t *eos_spotify_arc_obj(const eos_spotify_arc_t *arc);
 }
 #endif
 
-#endif /* EOS_SPOTIFY_ARC_H */
+#endif /* COS_SPOTIFY_ARC_H */

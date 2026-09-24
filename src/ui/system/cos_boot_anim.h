@@ -1,5 +1,5 @@
 /**
- * @file eos_boot_anim.h
+ * @file cos_boot_anim.h
  * @brief Boot self-test animation (plays once at startup, non-blocking)
  *
  * Timeline (total 4.0s):
@@ -16,8 +16,8 @@
  *     so the watchface is never visible while the animation is still running.
  */
 
-#ifndef EOS_BOOT_ANIM_H
-#define EOS_BOOT_ANIM_H
+#ifndef COS_BOOT_ANIM_H
+#define COS_BOOT_ANIM_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,7 +26,7 @@ extern "C" {
 #include <stdbool.h>
 
 /** Called from an lv_timer context once the whole sequence has finished. */
-typedef void (*eos_boot_anim_done_cb_t)(void);
+typedef void (*cos_boot_anim_done_cb_t)(void);
 
 /**
  * @brief Start the boot self-test animation sequence.
@@ -38,16 +38,16 @@ typedef void (*eos_boot_anim_done_cb_t)(void);
  *       renders into the topmost LVGL layer and fully blocks the underlying
  *       screen until the final fade-out.
  */
-void eos_boot_anim_start(eos_boot_anim_done_cb_t done_cb);
+void cos_boot_anim_start(cos_boot_anim_done_cb_t done_cb);
 
 /**
  * @brief Check whether the boot animation is still running.
  * @return true if the sequence is in progress
  */
-bool eos_boot_anim_running(void);
+bool cos_boot_anim_running(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_BOOT_ANIM_H */
+#endif /* COS_BOOT_ANIM_H */

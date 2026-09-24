@@ -1,6 +1,6 @@
 /**
- * @file eos_pinyin.c
- * @brief Compact pinyin dictionary (see eos_pinyin.h).
+ * @file cos_pinyin.c
+ * @brief Compact pinyin dictionary (see cos_pinyin.h).
  *
  * The dictionary below is a curated, compact set of common syllables and a
  * handful of frequent words. It is intentionally small to fit embedded
@@ -8,12 +8,12 @@
  * Multiple entries may share the same pinyin to offer character choices.
  */
 
-#include "eos_pinyin.h"
+#include "cos_pinyin.h"
 
 #include <string.h>
 
 /* The dictionary. Order is irrelevant; lookup is linear. */
-static const eos_pinyin_entry_t s_dict[] = {
+static const cos_pinyin_entry_t s_dict[] = {
     /* ---- single syllables (common characters) ---- */
     {"a",      "啊"}, {"ai",     "爱"}, {"an",     "安"}, {"ang",    "昂"},
     {"ao",     "奥"}, {"ba",     "八"}, {"bai",    "白"}, {"ban",    "办"},
@@ -125,12 +125,12 @@ static const eos_pinyin_entry_t s_dict[] = {
 
 static int s_dict_size = (int)(sizeof(s_dict) / sizeof(s_dict[0]));
 
-int eos_pinyin_dict_size(void)
+int cos_pinyin_dict_size(void)
 {
     return s_dict_size;
 }
 
-int eos_pinyin_lookup(const char *py, const char **out, int max_out, int *out_count)
+int cos_pinyin_lookup(const char *py, const char **out, int max_out, int *out_count)
 {
     int total = 0;
     if (out_count)

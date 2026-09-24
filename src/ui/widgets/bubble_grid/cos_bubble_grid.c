@@ -1,16 +1,16 @@
 /**
- * @file eos_bubble_grid.c
+ * @file cos_bubble_grid.c
  * @brief Bubble grid
  */
 
-#include "eos_bubble_grid.h"
+#include "cos_bubble_grid.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include "lvgl.h"
 #include "lvgl/src/misc/lv_ll.h"
-#include "eos_image.h"
+#include "cos_image.h"
 /* Macros and Definitions -------------------------------------*/
 
 #define FX_SHIFT 8 /* Fixed-point fractional bits. */
@@ -72,8 +72,8 @@ typedef struct
     bool pointer_is_down;
     bool dispatching_custom_click;
     bool pending_click_valid;
-    eos_bubble_click_event_t pending_click;
-    eos_bubble_config_t config;
+    cos_bubble_click_event_t pending_click;
+    cos_bubble_config_t config;
     bool needs_refresh;
 
 #if WATCH_BUBBLE_DEMO_SHOW_CORE_MASK || WATCH_BUBBLE_DEMO_SHOW_FRINGE_MASK || WATCH_BUBBLE_DEMO_SHOW_RADIUS_MASK
@@ -84,14 +84,14 @@ typedef struct
 #endif
 
     lv_timer_t *bubble_tick_timer;
-} eos_bubble_grid_t;
+} cos_bubble_grid_t;
 
 /* Variables --------------------------------------------------*/
 
 /* Function Implementations -----------------------------------*/
 
-static void refresh_icon_objects(eos_bubble_grid_t *wb);
-static void update_demo_overlays(eos_bubble_grid_t *wb);
+static void refresh_icon_objects(cos_bubble_grid_t *wb);
+static void update_demo_overlays(cos_bubble_grid_t *wb);
 static void apply_image_cover_scale(icon_node_t *node, lv_obj_t *image_obj, int32_t target_w, int32_t target_h);
 
 #if WATCH_BUBBLE_DEMO_SHOW_CORE_MASK || WATCH_BUBBLE_DEMO_SHOW_FRINGE_MASK || WATCH_BUBBLE_DEMO_SHOW_RADIUS_MASK
@@ -201,7 +201,7 @@ static int32_t fx_sqrt_u64(uint64_t value)
     return (int32_t)x;
 }
 
-static int32_t get_view_w_fx(const eos_bubble_grid_t *wb)
+static int32_t get_view_w_fx(const cos_bubble_grid_t *wb)
 {
     int32_t w = (wb != NULL && wb->container != NULL) ? lv_obj_get_width(wb->container) : 0;
     if (w < 1)
@@ -209,7 +209,7 @@ static int32_t get_view_w_fx(const eos_bubble_grid_t *wb)
     return FX_FROM_INT(w);
 }
 
-static int32_t get_view_h_fx(const eos_bubble_grid_t *wb)
+static int32_t get_view_h_fx(const cos_bubble_grid_t *wb)
 {
     int32_t h = (wb != NULL && wb->container != NULL) ? lv_obj_get_height(wb->container) : 0;
     if (h < 1)
@@ -217,7 +217,7 @@ static int32_t get_view_h_fx(const eos_bubble_grid_t *wb)
     return FX_FROM_INT(h);
 }
 
-static void init_default_config(eos_bubble_config_t *cfg)
+static void init_default_config(cos_bubble_config_t *cfg)
 {
     if (cfg == NULL)
         return;
@@ -254,7 +254,7 @@ static void init_default_config(eos_bubble_config_t *cfg)
     cfg->y_ratchet_dead_px = 118;
 }
 
-static void sanitize_config(eos_bubble_config_t *cfg)
+static void sanitize_config(cos_bubble_config_t *cfg)
 {
     if (cfg == NULL)
         return;
@@ -310,68 +310,68 @@ static inline int32_t cfg_px(int16_t v)
     return FX_FROM_INT(v);
 }
 
-static inline int32_t cfg_bubble_size_fx(const eos_bubble_grid_t *wb)
+static inline int32_t cfg_bubble_size_fx(const cos_bubble_grid_t *wb)
 {
     return cfg_px(wb->config.bubble_size_px);
 }
 
-static inline int32_t cfg_row_pitch_x_fx(const eos_bubble_grid_t *wb)
+static inline int32_t cfg_row_pitch_x_fx(const cos_bubble_grid_t *wb)
 {
     return cfg_px(wb->config.row_pitch_x_px);
 }
 
-static inline int32_t cfg_row_pitch_y_fx(const eos_bubble_grid_t *wb)
+static inline int32_t cfg_row_pitch_y_fx(const cos_bubble_grid_t *wb)
 {
     return cfg_px(wb->config.row_pitch_y_px);
 }
 
-static inline int32_t cfg_x_radius_fx(const eos_bubble_grid_t *wb)
+static inline int32_t cfg_x_radius_fx(const cos_bubble_grid_t *wb)
 {
     return cfg_px(wb->config.x_radius_px);
 }
 
-static inline int32_t cfg_y_radius_fx(const eos_bubble_grid_t *wb)
+static inline int32_t cfg_y_radius_fx(const cos_bubble_grid_t *wb)
 {
     return cfg_px(wb->config.y_radius_px);
 }
 
-static inline int32_t cfg_corner_radius_fx(const eos_bubble_grid_t *wb)
+static inline int32_t cfg_corner_radius_fx(const cos_bubble_grid_t *wb)
 {
     return cfg_px(wb->config.corner_radius_px);
 }
 
-static inline int32_t cfg_press_neighbor_pull_fx(const eos_bubble_grid_t *wb)
+static inline int32_t cfg_press_neighbor_pull_fx(const cos_bubble_grid_t *wb)
 {
     return cfg_px(wb->config.press_neighbor_pull_px);
 }
 
-static inline int32_t cfg_press_neighbor_radius_fx(const eos_bubble_grid_t *wb)
+static inline int32_t cfg_press_neighbor_radius_fx(const cos_bubble_grid_t *wb)
 {
     return cfg_px(wb->config.press_neighbor_radius_px);
 }
 
-static inline int32_t cfg_press_scale_fx(const eos_bubble_grid_t *wb)
+static inline int32_t cfg_press_scale_fx(const cos_bubble_grid_t *wb)
 {
     return cfg_permille(wb->config.press_scale_permille);
 }
 
-static inline int32_t cfg_press_anim_in_speed_fx(const eos_bubble_grid_t *wb)
+static inline int32_t cfg_press_anim_in_speed_fx(const cos_bubble_grid_t *wb)
 {
     return cfg_permille(wb->config.press_anim_in_speed_permille);
 }
 
-static inline int32_t cfg_press_anim_out_speed_fx(const eos_bubble_grid_t *wb)
+static inline int32_t cfg_press_anim_out_speed_fx(const cos_bubble_grid_t *wb)
 {
     return cfg_permille(wb->config.press_anim_out_speed_permille);
 }
 
-static void mark_refresh(eos_bubble_grid_t *wb)
+static void mark_refresh(cos_bubble_grid_t *wb)
 {
     if (wb != NULL)
         wb->needs_refresh = true;
 }
 
-static void refresh_if_needed(eos_bubble_grid_t *wb)
+static void refresh_if_needed(cos_bubble_grid_t *wb)
 {
     if (wb == NULL || !wb->needs_refresh)
         return;
@@ -379,20 +379,20 @@ static void refresh_if_needed(eos_bubble_grid_t *wb)
     wb->needs_refresh = false;
 }
 
-static eos_bubble_grid_t *get_instance(lv_obj_t *obj)
+static cos_bubble_grid_t *get_instance(lv_obj_t *obj)
 {
     if (obj == NULL)
         return NULL;
-    return (eos_bubble_grid_t *)lv_obj_get_user_data(obj);
+    return (cos_bubble_grid_t *)lv_obj_get_user_data(obj);
 }
 
 static bool is_component_obj(lv_obj_t *obj)
 {
-    eos_bubble_grid_t *wb = get_instance(obj);
+    cos_bubble_grid_t *wb = get_instance(obj);
     return wb != NULL && wb->container == obj;
 }
 
-static icon_node_t *get_icon_node_by_index(eos_bubble_grid_t *wb, uint32_t index)
+static icon_node_t *get_icon_node_by_index(cos_bubble_grid_t *wb, uint32_t index)
 {
     if (wb == NULL || !wb->icon_ll_ready)
         return NULL;
@@ -427,7 +427,7 @@ static void index_to_row_col(uint32_t index, int32_t *out_row, int32_t *out_col)
     }
 }
 
-static icon_node_t *ensure_icon_node_by_index(eos_bubble_grid_t *wb, uint32_t index)
+static icon_node_t *ensure_icon_node_by_index(cos_bubble_grid_t *wb, uint32_t index)
 {
     if (wb == NULL || !wb->icon_ll_ready)
         return NULL;
@@ -479,7 +479,7 @@ static icon_node_t *ensure_icon_node_by_index(eos_bubble_grid_t *wb, uint32_t in
     return get_icon_node_by_index(wb, index);
 }
 
-static void clear_icon_list(eos_bubble_grid_t *wb)
+static void clear_icon_list(cos_bubble_grid_t *wb)
 {
     if (wb == NULL || !wb->icon_ll_ready)
         return;
@@ -500,7 +500,7 @@ static void clear_icon_list(eos_bubble_grid_t *wb)
     }
 }
 
-static void update_active_row_center(eos_bubble_grid_t *wb)
+static void update_active_row_center(cos_bubble_grid_t *wb)
 {
     bool has_active = false;
     int32_t min_row = 0;
@@ -531,7 +531,7 @@ static void update_active_row_center(eos_bubble_grid_t *wb)
     wb->row_center = has_active ? (((min_row + max_row) * FX_ONE) / 2) : wb->default_row_center;
 }
 
-static void row_layout_to_pixel(eos_bubble_grid_t *wb, int32_t row, int32_t col, int32_t *x, int32_t *y)
+static void row_layout_to_pixel(cos_bubble_grid_t *wb, int32_t row, int32_t col, int32_t *x, int32_t *y)
 {
     int32_t bubble_count = (row % 2 == 0) ? 3 : 4;
     int32_t row_half_span = ((bubble_count - 1) * FX_ONE) / 2;
@@ -540,7 +540,7 @@ static void row_layout_to_pixel(eos_bubble_grid_t *wb, int32_t row, int32_t col,
     *y = fx_mul((row * FX_ONE) - wb->row_center, cfg_row_pitch_y_fx(wb));
 }
 
-static int32_t calc_distance_to_edge(const eos_bubble_grid_t *wb, int32_t x, int32_t y)
+static int32_t calc_distance_to_edge(const cos_bubble_grid_t *wb, int32_t x, int32_t y)
 {
     int32_t fringe_width = cfg_px(wb->config.fringe_width_px);
     int32_t x_radius = cfg_x_radius_fx(wb);
@@ -580,7 +580,7 @@ static int32_t calc_distance_to_edge(const eos_bubble_grid_t *wb, int32_t x, int
     return LV_MAX(dx - x_radius, dy - y_radius);
 }
 
-static int32_t calc_scale(const eos_bubble_grid_t *wb, int32_t distance_from_edge)
+static int32_t calc_scale(const cos_bubble_grid_t *wb, int32_t distance_from_edge)
 {
     int32_t max_scale = cfg_permille(wb->config.max_scale_permille);
     int32_t min_scale = cfg_permille(wb->config.min_scale_permille);
@@ -619,7 +619,7 @@ static void apply_boundary_compaction(int32_t *coord, int32_t radius, int32_t fr
     *coord = sign * compact_abs_coord;
 }
 
-static void apply_compact_translation(const eos_bubble_grid_t *wb, int32_t *x, int32_t *y, int32_t distance_from_edge)
+static void apply_compact_translation(const cos_bubble_grid_t *wb, int32_t *x, int32_t *y, int32_t distance_from_edge)
 {
     const int32_t min_scale = cfg_permille(wb->config.min_scale_permille);
     const int32_t fringe_width = cfg_px(wb->config.fringe_width_px);
@@ -691,7 +691,7 @@ static void apply_compact_translation(const eos_bubble_grid_t *wb, int32_t *x, i
     *y += ty;
 }
 
-static void update_demo_overlays(eos_bubble_grid_t *wb)
+static void update_demo_overlays(cos_bubble_grid_t *wb)
 {
     if (wb == NULL || wb->container == NULL)
         return;
@@ -786,7 +786,7 @@ static void update_demo_overlays(eos_bubble_grid_t *wb)
 #endif
 }
 
-static bool calc_icon_visual(eos_bubble_grid_t *wb,
+static bool calc_icon_visual(cos_bubble_grid_t *wb,
                              const icon_node_t *icon,
                              int32_t *out_x,
                              int32_t *out_y,
@@ -839,7 +839,7 @@ static bool calc_icon_visual(eos_bubble_grid_t *wb,
     return true;
 }
 
-static int hit_test_icon_index(eos_bubble_grid_t *wb, int32_t px, int32_t py)
+static int hit_test_icon_index(cos_bubble_grid_t *wb, int32_t px, int32_t py)
 {
     if (wb == NULL || wb->container == NULL)
         return -1;
@@ -882,7 +882,7 @@ static int hit_test_icon_index(eos_bubble_grid_t *wb, int32_t px, int32_t py)
     return hit;
 }
 
-static bool get_offset_y_settle_limits(eos_bubble_grid_t *wb, int32_t *out_min_allowed, int32_t *out_max_allowed)
+static bool get_offset_y_settle_limits(cos_bubble_grid_t *wb, int32_t *out_min_allowed, int32_t *out_max_allowed)
 {
     if (wb == NULL)
         return false;
@@ -936,7 +936,7 @@ static bool get_offset_y_settle_limits(eos_bubble_grid_t *wb, int32_t *out_min_a
     return true;
 }
 
-static bool get_offset_y_drag_limits(eos_bubble_grid_t *wb, int32_t *out_min_allowed, int32_t *out_max_allowed)
+static bool get_offset_y_drag_limits(cos_bubble_grid_t *wb, int32_t *out_min_allowed, int32_t *out_max_allowed)
 {
     int32_t settle_min, settle_max;
     if (!get_offset_y_settle_limits(wb, &settle_min, &settle_max))
@@ -951,7 +951,7 @@ static bool get_offset_y_drag_limits(eos_bubble_grid_t *wb, int32_t *out_min_all
     return true;
 }
 
-static int32_t clamp_to_settle_limits(eos_bubble_grid_t *wb, int32_t candidate_offset_y)
+static int32_t clamp_to_settle_limits(cos_bubble_grid_t *wb, int32_t candidate_offset_y)
 {
     int32_t min_allowed, max_allowed;
     if (!get_offset_y_settle_limits(wb, &min_allowed, &max_allowed))
@@ -959,14 +959,14 @@ static int32_t clamp_to_settle_limits(eos_bubble_grid_t *wb, int32_t candidate_o
     return fx_clamp(candidate_offset_y, min_allowed, max_allowed);
 }
 
-static int32_t snap_offset_y_to_ratch(eos_bubble_grid_t *wb, int32_t candidate_offset_y)
+static int32_t snap_offset_y_to_ratch(cos_bubble_grid_t *wb, int32_t candidate_offset_y)
 {
     int32_t snapped = fx_round_to_step(candidate_offset_y, cfg_px(wb->config.y_ratchet_step_px));
     snapped = clamp_to_settle_limits(wb, snapped);
     return snapped;
 }
 
-static int32_t apply_drag_resistance_y(eos_bubble_grid_t *wb, int32_t candidate_offset_y)
+static int32_t apply_drag_resistance_y(cos_bubble_grid_t *wb, int32_t candidate_offset_y)
 {
     int32_t min_allowed, max_allowed;
     if (!get_offset_y_drag_limits(wb, &min_allowed, &max_allowed))
@@ -997,7 +997,7 @@ static int32_t apply_drag_resistance_y(eos_bubble_grid_t *wb, int32_t candidate_
     return max_allowed + compressed;
 }
 
-static void refresh_icon_objects(eos_bubble_grid_t *wb)
+static void refresh_icon_objects(cos_bubble_grid_t *wb)
 {
     if (wb == NULL || wb->container == NULL)
         return;
@@ -1099,7 +1099,7 @@ static void refresh_icon_objects(eos_bubble_grid_t *wb)
     wb->needs_refresh = false;
 }
 
-static void init_icon_slots(eos_bubble_grid_t *wb)
+static void init_icon_slots(cos_bubble_grid_t *wb)
 {
     if (wb == NULL)
         return;
@@ -1115,7 +1115,7 @@ static void init_icon_slots(eos_bubble_grid_t *wb)
     wb->default_row_center = 0;
 }
 
-static void create_icon_object(eos_bubble_grid_t *wb, icon_node_t *node)
+static void create_icon_object(cos_bubble_grid_t *wb, icon_node_t *node)
 {
     if (wb == NULL || node == NULL)
         return;
@@ -1177,7 +1177,7 @@ static void apply_image_cover_scale(icon_node_t *node, lv_obj_t *image_obj, int3
 static void pressed_event(lv_event_t *e)
 {
     lv_obj_t *obj = lv_event_get_current_target(e);
-    eos_bubble_grid_t *wb = get_instance(obj);
+    cos_bubble_grid_t *wb = get_instance(obj);
     if (wb == NULL)
         return;
 
@@ -1201,7 +1201,7 @@ static void pressed_event(lv_event_t *e)
 static void drag_event(lv_event_t *e)
 {
     lv_obj_t *obj = lv_event_get_current_target(e);
-    eos_bubble_grid_t *wb = get_instance(obj);
+    cos_bubble_grid_t *wb = get_instance(obj);
     if (wb == NULL)
         return;
 
@@ -1239,7 +1239,7 @@ static void drag_event(lv_event_t *e)
 static void released_event(lv_event_t *e)
 {
     lv_obj_t *obj = lv_event_get_current_target(e);
-    eos_bubble_grid_t *wb = get_instance(obj);
+    cos_bubble_grid_t *wb = get_instance(obj);
     if (wb == NULL)
         return;
 
@@ -1281,7 +1281,7 @@ static void released_event(lv_event_t *e)
 static void clicked_event(lv_event_t *e)
 {
     lv_obj_t *obj = lv_event_get_current_target(e);
-    eos_bubble_grid_t *wb = get_instance(obj);
+    cos_bubble_grid_t *wb = get_instance(obj);
     if (wb == NULL)
         return;
 
@@ -1296,7 +1296,7 @@ static void clicked_event(lv_event_t *e)
         return;
     }
 
-    eos_bubble_click_event_t event_data = wb->pending_click;
+    cos_bubble_click_event_t event_data = wb->pending_click;
     wb->pending_click_valid = false;
     wb->dispatching_custom_click = true;
 
@@ -1309,7 +1309,7 @@ static void clicked_event(lv_event_t *e)
 
 static void bubble_tick_timer(lv_timer_t *t)
 {
-    eos_bubble_grid_t *wb = lv_timer_get_user_data(t);
+    cos_bubble_grid_t *wb = lv_timer_get_user_data(t);
     if (wb == NULL || wb->container == NULL)
         return;
 
@@ -1431,7 +1431,7 @@ static void bubble_tick_timer(lv_timer_t *t)
 static void delete_event(lv_event_t *e)
 {
     lv_obj_t *obj = lv_event_get_current_target(e);
-    eos_bubble_grid_t *wb = get_instance(obj);
+    cos_bubble_grid_t *wb = get_instance(obj);
     if (wb == NULL)
         return;
 
@@ -1449,7 +1449,7 @@ static void delete_event(lv_event_t *e)
 static void size_changed_event(lv_event_t *e)
 {
     lv_obj_t *obj = lv_event_get_current_target(e);
-    eos_bubble_grid_t *wb = get_instance(obj);
+    cos_bubble_grid_t *wb = get_instance(obj);
     if (wb == NULL)
         return;
 
@@ -1457,13 +1457,13 @@ static void size_changed_event(lv_event_t *e)
     refresh_if_needed(wb);
 }
 
-lv_obj_t *eos_bubble_create(lv_obj_t *parent)
+lv_obj_t *cos_bubble_create(lv_obj_t *parent)
 {
     lv_obj_t *container = lv_obj_create(parent);
     if (container == NULL)
         return NULL;
 
-    eos_bubble_grid_t *wb = lv_malloc(sizeof(eos_bubble_grid_t));
+    cos_bubble_grid_t *wb = lv_malloc(sizeof(cos_bubble_grid_t));
     if (wb == NULL)
     {
         lv_obj_delete(container);
@@ -1507,12 +1507,12 @@ lv_obj_t *eos_bubble_create(lv_obj_t *parent)
     return container;
 }
 
-void eos_bubble_set_icon_src(lv_obj_t *obj, uint32_t index, const void *src)
+void cos_bubble_set_icon_src(lv_obj_t *obj, uint32_t index, const void *src)
 {
     if (!is_component_obj(obj))
         return;
 
-    eos_bubble_grid_t *wb = get_instance(obj);
+    cos_bubble_grid_t *wb = get_instance(obj);
     if (wb == NULL)
         return;
 
@@ -1562,12 +1562,12 @@ void eos_bubble_set_icon_src(lv_obj_t *obj, uint32_t index, const void *src)
     refresh_if_needed(wb);
 }
 
-void eos_bubble_set_icon_user_data(lv_obj_t *obj, uint32_t index, void *user_data)
+void cos_bubble_set_icon_user_data(lv_obj_t *obj, uint32_t index, void *user_data)
 {
     if (!is_component_obj(obj))
         return;
 
-    eos_bubble_grid_t *wb = get_instance(obj);
+    cos_bubble_grid_t *wb = get_instance(obj);
     if (wb == NULL)
         return;
 
@@ -1579,17 +1579,17 @@ void eos_bubble_set_icon_user_data(lv_obj_t *obj, uint32_t index, void *user_dat
     node->user_data = user_data;
 }
 
-void eos_bubble_init_config(eos_bubble_config_t *config)
+void cos_bubble_init_config(cos_bubble_config_t *config)
 {
     init_default_config(config);
 }
 
-void eos_bubble_set_config(lv_obj_t *obj, const eos_bubble_config_t *config)
+void cos_bubble_set_config(lv_obj_t *obj, const cos_bubble_config_t *config)
 {
     if (!is_component_obj(obj) || config == NULL)
         return;
 
-    eos_bubble_grid_t *wb = get_instance(obj);
+    cos_bubble_grid_t *wb = get_instance(obj);
     if (wb == NULL)
         return;
 
@@ -1612,12 +1612,12 @@ void eos_bubble_set_config(lv_obj_t *obj, const eos_bubble_config_t *config)
     refresh_if_needed(wb);
 }
 
-void eos_bubble_set_icon_color(lv_obj_t *obj, uint32_t index, lv_color_t color)
+void cos_bubble_set_icon_color(lv_obj_t *obj, uint32_t index, lv_color_t color)
 {
     if (!is_component_obj(obj))
         return;
 
-    eos_bubble_grid_t *wb = get_instance(obj);
+    cos_bubble_grid_t *wb = get_instance(obj);
     if (wb == NULL)
         return;
 
@@ -1633,24 +1633,24 @@ void eos_bubble_set_icon_color(lv_obj_t *obj, uint32_t index, lv_color_t color)
     refresh_if_needed(wb);
 }
 
-void eos_bubble_get_config(lv_obj_t *obj, eos_bubble_config_t *config)
+void cos_bubble_get_config(lv_obj_t *obj, cos_bubble_config_t *config)
 {
     if (!is_component_obj(obj) || config == NULL)
         return;
 
-    eos_bubble_grid_t *wb = get_instance(obj);
+    cos_bubble_grid_t *wb = get_instance(obj);
     if (wb == NULL)
         return;
 
     *config = wb->config;
 }
 
-lv_obj_t *eos_bubble_get_icon_obj(lv_obj_t *obj, uint32_t index)
+lv_obj_t *cos_bubble_get_icon_obj(lv_obj_t *obj, uint32_t index)
 {
     if (!is_component_obj(obj))
         return NULL;
 
-    eos_bubble_grid_t *wb = get_instance(obj);
+    cos_bubble_grid_t *wb = get_instance(obj);
     if (wb == NULL)
         return NULL;
 

@@ -25,8 +25,8 @@ extern "C" {
 
 /* ── 角色总开关 ── */
 #define CFG_TUD_ENABLED 1
-/* Host 由 EOS_USB_UAC_APP_ENABLE 控制:TinyUSB 0.21 无内置 UAC Host,
- * 本仓 App 自带 audio host 驱动(见 src/apps/spotify/eos_spotify_uac_host.c),
+/* Host 由 COS_USB_UAC_APP_ENABLE 控制:TinyUSB 0.21 无内置 UAC Host,
+ * 本仓 App 自带 audio host 驱动(见 src/apps/spotify/cos_spotify_uac_host.c),
  * 因此这里只需打开 USBH 核心,不需要 CFG_TUH_AUDIO。 */
 #if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
 #define CFG_TUH_ENABLED 1

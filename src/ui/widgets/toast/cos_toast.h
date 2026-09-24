@@ -1,10 +1,10 @@
 /**
- * @file eos_toast.h
+ * @file cos_toast.h
  * @brief Temporary message toast
  */
 
-#ifndef EOS_TOAST_H
-#define EOS_TOAST_H
+#ifndef COS_TOAST_H
+#define COS_TOAST_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,7 +27,7 @@ extern "C" {
  * @param message Message content
  * @return lv_obj_t* Returns the created Toast object pointer
  */
-lv_obj_t *eos_toast_show(const char *icon_src, const char *message);
+lv_obj_t *cos_toast_show(const char *icon_src, const char *message);
 
 /**
  * @brief Show a Toast message with character icon color support
@@ -36,17 +36,17 @@ lv_obj_t *eos_toast_show(const char *icon_src, const char *message);
  * @param message Message content
  * @return lv_obj_t* Returns the created Toast object pointer
  */
-lv_obj_t *eos_toast_show_char_icon(const char *icon_char, lv_color_t icon_color, const char *message);
+lv_obj_t *cos_toast_show_char_icon(const char *icon_char, lv_color_t icon_color, const char *message);
 /**
  * @brief Toast message with formatted string support
  */
-lv_obj_t *eos_toast_show_fmt(const char *icon_src, const char *fmt, ...);
+lv_obj_t *cos_toast_show_fmt(const char *icon_src, const char *fmt, ...);
 /**
  * @brief Initialize Toast system
  */
-void eos_toast_init(void);
+void cos_toast_init(void);
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_TOAST_H */
+#endif /* COS_TOAST_H */

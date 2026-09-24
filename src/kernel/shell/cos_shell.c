@@ -1,9 +1,9 @@
 /**
- * @file eos_shell.c
+ * @file cos_shell.c
  * @brief Canto Mk.6 low-level Shell implementation (Core subsystem)
  */
 
-#include "eos_shell.h"
+#include "cos_shell.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
@@ -13,34 +13,34 @@
 #include <time.h>
 #include <ctype.h>
 
-#include "eos_config.h"
-#include "eos_log.h"
-#include "eos_mem.h"
-#include "eos_core.h"
-#include "eos_app.h"
-#include "eos_app_list.h"
-#include "eos_service_storage.h"
-#include "eos_storage_paths.h"
-#include "eos_version.h"
-#include "eos_net_proxy.h"
-#include "eos_net_wifi.h"
-#include "eos_net_bt.h"
-#include "eos_activity.h"
+#include "cos_config.h"
+#include "cos_log.h"
+#include "cos_mem.h"
+#include "cos_core.h"
+#include "cos_app.h"
+#include "cos_app_list.h"
+#include "cos_service_storage.h"
+#include "cos_storage_paths.h"
+#include "cos_version.h"
+#include "cos_net_proxy.h"
+#include "cos_net_wifi.h"
+#include "cos_net_bt.h"
+#include "cos_activity.h"
 #include "spm.h"
-#include "eos_service_config.h"
-#include "eos_service_time.h"
-#include "eos_service_pm.h"
-#include "eos_service_power_save.h"
-#include "eos_service_beast_mode.h"
-#include "ui/wos/eos_wos.h"
-#include "ui/launcher/eos_launcher.h"
-#include "services/plugin/eos_plugin_manager.h"
-#include "services/ime/eos_pinyin.h"
-#include "framework/watchface/eos_watchface.h"
-#include "eos_service_display.h"
-#include "eos_service_cc_snapshot.h" /* cc:控制中心设置快照诊断 */
+#include "cos_service_config.h"
+#include "cos_service_time.h"
+#include "cos_service_pm.h"
+#include "cos_service_power_save.h"
+#include "cos_service_beast_mode.h"
+#include "ui/wos/cos_wos.h"
+#include "ui/launcher/cos_launcher.h"
+#include "services/plugin/cos_plugin_manager.h"
+#include "services/ime/cos_pinyin.h"
+#include "framework/watchface/cos_watchface.h"
+#include "cos_service_display.h"
+#include "cos_service_cc_snapshot.h" /* cc:控制中心设置快照诊断 */
 #include "lvgl.h"
-#ifdef EOS_PLATFORM_ESP32
+#ifdef COS_PLATFORM_ESP32
 #include "esp_spiffs.h"    /* cmd_sd: SPIFFS 兜底时的容量统计 */
 #include "esp_pm.h"        /* power status: DFS / Light-sleep 诊断 */
 #include "esp_heap_caps.h" /* cmd_prof: heap_caps 内存池统计 */
@@ -49,46 +49,46 @@
 #include "freertos/task.h" /* cmd_prof: uxTaskGetSystemState 采样 */
 #endif
 
-#define EOS_LOG_TAG "Shell"
-#include "eos_log.h"
+#define COS_LOG_TAG "Shell"
+#include "cos_log.h"
 
 /* Macros and Definitions -------------------------------------*/
-#define EOS_SHELL_LINE_MAX   256
-#define EOS_SHELL_ARG_MAX    16
+#define COS_SHELL_LINE_MAX   256
+#define COS_SHELL_ARG_MAX    16
 
 /* Variables --------------------------------------------------*/
 static bool _inited = false;
-static eos_shell_reboot_cb_t _reboot_cb = NULL;
+static cos_shell_reboot_cb_t _reboot_cb = NULL;
 
 /* Forward declarations --------------------------------------*/
-typedef void (*eos_shell_cmd_fn_t)(eos_shell_output_cb_t out, void *user,
+typedef void (*cos_shell_cmd_fn_t)(cos_shell_output_cb_t out, void *user,
                                    int argc, char **argv);
 
-static void cmd_help(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_version(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_mem(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_memlog(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_psram(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_flash(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_sd(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_rtc(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_time(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_display(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_touch(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_wifi(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_bt(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_proxy(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_apps(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_app(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_log(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_reboot(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_plugin(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_ime(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_launcher(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_power(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_wos(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_prof(eos_shell_output_cb_t out, void *user, int argc, char **argv);
-static void cmd_cc(eos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_help(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_version(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_mem(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_memlog(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_psram(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_flash(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_sd(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_rtc(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_time(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_display(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_touch(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_wifi(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_bt(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_proxy(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_apps(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_app(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_log(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_reboot(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_plugin(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_ime(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_launcher(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_power(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_wos(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_prof(cos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_cc(cos_shell_output_cb_t out, void *user, int argc, char **argv);
 
 static void shell_log_cb(const char *line, void *user);
 
@@ -96,16 +96,16 @@ typedef struct
 {
     const char *name;
     const char *help;
-    eos_shell_cmd_fn_t fn;
-} eos_shell_cmd_t;
+    cos_shell_cmd_fn_t fn;
+} cos_shell_cmd_t;
 
 /* Helpers ----------------------------------------------------*/
 
-static void sh_out(eos_shell_output_cb_t out, void *user, const char *fmt, ...)
+static void sh_out(cos_shell_output_cb_t out, void *user, const char *fmt, ...)
 {
     if (!out)
         return;
-    static char buf[EOS_SHELL_LINE_MAX];
+    static char buf[COS_SHELL_LINE_MAX];
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(buf, sizeof(buf), fmt, ap);
@@ -115,9 +115,9 @@ static void sh_out(eos_shell_output_cb_t out, void *user, const char *fmt, ...)
 
 /* Command handlers ------------------------------------------*/
 
-static void cmd_help(eos_shell_output_cb_t out, void *user, int argc, char **argv);
+static void cmd_help(cos_shell_output_cb_t out, void *user, int argc, char **argv);
 
-static const eos_shell_cmd_t s_cmds[] =
+static const cos_shell_cmd_t s_cmds[] =
 {
     {"help",    "list available commands",                 cmd_help},
     {"version", "show firmware version",                   cmd_version},
@@ -148,7 +148,7 @@ static const eos_shell_cmd_t s_cmds[] =
     {"cc",      "cc <show|save|load>  (/sdcard/history/cc settings snapshot)", cmd_cc},
 };
 
-static void cmd_launcher(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_launcher(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     if (argc >= 2 && strcmp(argv[1], "mode") == 0 && argc >= 3)
     {
@@ -158,44 +158,44 @@ static void cmd_launcher(eos_shell_output_cb_t out, void *user, int argc, char *
             sh_out(out, user, "error: mode must be 'v1' or 'v2'");
             return;
         }
-        eos_config_set_string(EOS_CONFIG_KEY_LAUNCHER_MODE, m);
+        cos_config_set_string(COS_CONFIG_KEY_LAUNCHER_MODE, m);
         sh_out(out, user, "launcher mode -> %s (applies on next open)", m);
         /* If a Launcher page is currently shown, swap it live. */
-        eos_activity_t *cur = eos_activity_get_current();
-        if (cur && eos_activity_get_type(cur) == EOS_ACTIVITY_TYPE_APP_LIST)
+        cos_activity_t *cur = cos_activity_get_current();
+        if (cur && cos_activity_get_type(cur) == COS_ACTIVITY_TYPE_APP_LIST)
         {
-            eos_activity_back_to_watchface();
-            eos_launcher_enter();
+            cos_activity_back_to_watchface();
+            cos_launcher_enter();
             sh_out(out, user, "  re-opened with %s", m);
         }
         return;
     }
-    char *mode = eos_config_get_string(EOS_CONFIG_KEY_LAUNCHER_MODE, "v2");
+    char *mode = cos_config_get_string(COS_CONFIG_KEY_LAUNCHER_MODE, "v2");
     sh_out(out, user, "usage: launcher mode <v1|v2>");
     sh_out(out, user, "  current mode: %s", mode ? mode : "v2");
-    if (mode) eos_free(mode);
+    if (mode) cos_free(mode);
 }
 
-static void cmd_help(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_help(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     (void)argc;
     (void)argv;
-    sh_out(out, user, "ElenixOS Shell - available commands:");
+    sh_out(out, user, "CantoMk6 Shell - available commands:");
     for (size_t i = 0; i < sizeof(s_cmds) / sizeof(s_cmds[0]); i++)
     {
         sh_out(out, user, "  %-8s %s", s_cmds[i].name, s_cmds[i].help);
     }
 }
 
-static void cmd_version(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_version(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     (void)argc;
     (void)argv;
-    sh_out(out, user, "ElenixOS v" ELENIX_OS_VERSION_FULL);
-    sh_out(out, user, "api level: %d", (int)ELENIX_OS_API_LEVEL);
+    sh_out(out, user, "CantoMk6 v" CANTOMK6_OS_VERSION_FULL);
+    sh_out(out, user, "api level: %d", (int)CANTOMK6_OS_API_LEVEL);
 }
 
-static void cmd_mem(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_mem(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     (void)argc;
     (void)argv;
@@ -204,7 +204,7 @@ static void cmd_mem(eos_shell_output_cb_t out, void *user, int argc, char **argv
     sh_out(out, user, "    free / used / largest-free-block / minimum-free-heap");
 }
 
-static void cmd_psram(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_psram(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     (void)argc;
     (void)argv;
@@ -216,14 +216,14 @@ static void cmd_psram(eos_shell_output_cb_t out, void *user, int argc, char **ar
 /* cc - control-center settings snapshot on the SD card
  * (/sdcard/history/cc/settings.txt: brightness / bt / wifi / power mode).
  * Useful to verify what deep sleep will restore, and to force a save/load. */
-static void cmd_cc(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_cc(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     const char *sub = (argc > 1 && argv[1]) ? argv[1] : "show";
 
     if (strcmp(sub, "show") == 0)
     {
         char buf[320];
-        eos_cc_snapshot_dump(buf, sizeof(buf));
+        cos_cc_snapshot_dump(buf, sizeof(buf));
         /* dump() is multi-line: emit it line by line through the shell sink */
         char *save = NULL;
         for (char *line = strtok_r(buf, "\n", &save); line;
@@ -235,14 +235,14 @@ static void cmd_cc(eos_shell_output_cb_t out, void *user, int argc, char **argv)
     }
     if (strcmp(sub, "save") == 0)
     {
-        eos_result_t r = eos_cc_snapshot_capture_now();
-        sh_out(out, user, "cc snapshot save: %s", r == EOS_OK ? "ok" : "failed");
+        cos_result_t r = cos_cc_snapshot_capture_now();
+        sh_out(out, user, "cc snapshot save: %s", r == COS_OK ? "ok" : "failed");
         return;
     }
     if (strcmp(sub, "load") == 0)
     {
-        eos_result_t r = eos_cc_snapshot_restore_now();
-        sh_out(out, user, "cc snapshot load: %s", r == EOS_OK ? "ok" : "no snapshot");
+        cos_result_t r = cos_cc_snapshot_restore_now();
+        sh_out(out, user, "cc snapshot load: %s", r == COS_OK ? "ok" : "no snapshot");
         return;
     }
     sh_out(out, user, "usage: cc <show|save|load>");
@@ -250,11 +250,11 @@ static void cmd_cc(eos_shell_output_cb_t out, void *user, int argc, char **argv)
 
 /* prof - simple performance monitor: SRAM / PSRAM / DMA utilization and
  * dual-core CPU usage sampled from FreeRTOS run-time stats over 100ms. */
-static void cmd_prof(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_prof(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     (void)argc;
     (void)argv;
-#ifdef EOS_PLATFORM_ESP32
+#ifdef COS_PLATFORM_ESP32
     /* ---- memory pools ---- */
     static const struct
     {
@@ -289,16 +289,16 @@ static void cmd_prof(eos_shell_output_cb_t out, void *user, int argc, char **arg
     {
         return;
     }
-    TaskStatus_t *arr = (TaskStatus_t *)eos_malloc(n * sizeof(TaskStatus_t));
+    TaskStatus_t *arr = (TaskStatus_t *)cos_malloc(n * sizeof(TaskStatus_t));
     if (!arr)
     {
         sh_out(out, user, "  CPU: sample failed (no memory)");
         return;
     }
-    uint32_t *run_a = (uint32_t *)eos_malloc(n * sizeof(uint32_t));
+    uint32_t *run_a = (uint32_t *)cos_malloc(n * sizeof(uint32_t));
     if (!run_a)
     {
-        eos_free(arr);
+        cos_free(arr);
         sh_out(out, user, "  CPU: sample failed (no memory)");
         return;
     }
@@ -330,8 +330,8 @@ static void cmd_prof(eos_shell_output_cb_t out, void *user, int argc, char **arg
     if (dt == 0)
     {
         sh_out(out, user, "  CPU: run-time counter not ticking");
-        eos_free(run_a);
-        eos_free(arr);
+        cos_free(run_a);
+        cos_free(arr);
         return;
     }
 
@@ -383,8 +383,8 @@ static void cmd_prof(eos_shell_output_cb_t out, void *user, int argc, char **arg
         shown++;
     }
 
-    eos_free(run_a);
-    eos_free(arr);
+    cos_free(run_a);
+    cos_free(arr);
 #else
     sh_out(out, user, "[prof] performance monitor: N/A on simulator toolchain");
     sh_out(out, user, "  On real ESP32-S3 this reports SRAM / PSRAM / DMA usage and");
@@ -392,9 +392,9 @@ static void cmd_prof(eos_shell_output_cb_t out, void *user, int argc, char **arg
 #endif
 }
 
-static void cmd_memlog(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_memlog(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
-#if EOS_SIMULATOR
+#if COS_SIMULATOR
     (void)argc;
     (void)argv;
     sh_out(out, user, "[memlog] periodic memory report is only available on real ESP32-S3");
@@ -404,7 +404,7 @@ static void cmd_memlog(eos_shell_output_cb_t out, void *user, int argc, char **a
     {
         if (strcmp(argv[1], "off") == 0 || strcmp(argv[1], "0") == 0)
         {
-            eos_mem_report_set_interval(0);
+            cos_mem_report_set_interval(0);
             sh_out(out, user, "[memlog] periodic memory report disabled");
             return;
         }
@@ -415,11 +415,11 @@ static void cmd_memlog(eos_shell_output_cb_t out, void *user, int argc, char **a
             sh_out(out, user, "usage: memlog <seconds>   (1-3600, or 'off' to disable)");
             return;
         }
-        eos_mem_report_set_interval((uint32_t)sec);
+        cos_mem_report_set_interval((uint32_t)sec);
         sh_out(out, user, "[memlog] report every %lds (see serial monitor: [MemReport])", sec);
         return;
     }
-    uint32_t cur = eos_mem_report_get_interval();
+    uint32_t cur = cos_mem_report_get_interval();
     if (cur == 0)
         sh_out(out, user, "[memlog] periodic memory report: disabled");
     else
@@ -431,7 +431,7 @@ static void cmd_memlog(eos_shell_output_cb_t out, void *user, int argc, char **a
 #endif
 }
 
-static void cmd_flash(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_flash(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     (void)argc;
     (void)argv;
@@ -439,14 +439,14 @@ static void cmd_flash(eos_shell_output_cb_t out, void *user, int argc, char **ar
     sh_out(out, user, "  On real hardware: bootloader / partition / core / services / sys-res / reserved");
 }
 
-static void cmd_sd(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_sd(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     (void)argc;
     (void)argv;
-    bool mounted = eos_storage_is_dir(EOS_SYS_ROOT_DIR);
-    sh_out(out, user, "[sd] storage root: %s", EOS_SYS_ROOT_DIR);
+    bool mounted = cos_storage_is_dir(COS_SYS_ROOT_DIR);
+    sh_out(out, user, "[sd] storage root: %s", COS_SYS_ROOT_DIR);
     sh_out(out, user, "  mounted : %s", mounted ? "yes" : "no");
-#ifdef EOS_PLATFORM_ESP32
+#ifdef COS_PLATFORM_ESP32
     {
         /* 真机:SDSPI 真 SD 优先挂载,无卡回退 SPIFFS(见 port/esp32s3/main.c) */
         bool spiffs_fallback = esp_spiffs_mounted("spiffs");
@@ -468,30 +468,30 @@ static void cmd_sd(eos_shell_output_cb_t out, void *user, int argc, char **argv)
     sh_out(out, user, "  fs      : %s", "host/POSIX (simulator)");
     sh_out(out, user, "  capacity/free: N/A on simulator");
 #endif
-    sh_out(out, user, "  app dir : %s", EOS_APP_INSTALLED_DIR);
+    sh_out(out, user, "  app dir : %s", COS_APP_INSTALLED_DIR);
     sh_out(out, user, "  eapk src: /sdcard/apps (scanned at boot, auto install)");
 }
 
-static const char *_time_source_name(eos_time_source_t s)
+static const char *_time_source_name(cos_time_source_t s)
 {
     switch (s)
     {
-    case EOS_TIME_SOURCE_RTC:     return "RTC";
-    case EOS_TIME_SOURCE_BACKUP:  return "backup";
-    case EOS_TIME_SOURCE_COMPILE: return "build-time";
+    case COS_TIME_SOURCE_RTC:     return "RTC";
+    case COS_TIME_SOURCE_BACKUP:  return "backup";
+    case COS_TIME_SOURCE_COMPILE: return "build-time";
     default:                      return "none";
     }
 }
 
-static void cmd_rtc(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_rtc(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     (void)argc;
     (void)argv;
-    eos_datetime_t now = eos_time_get();
-    eos_datetime_t rtc = eos_time_get_rtc();
+    cos_datetime_t now = cos_time_get();
+    cos_datetime_t rtc = cos_time_get_rtc();
     sh_out(out, user, "[time] %04d-%02d-%02d %02d:%02d:%02d (system, source=%s)",
            now.year, now.month, now.day, now.hour, now.min, now.sec,
-           _time_source_name(eos_time_get_source()));
+           _time_source_name(cos_time_get_source()));
     sh_out(out, user, "[rtc ] %04d-%02d-%02d %02d:%02d:%02d (BM8563 raw)",
            rtc.year, rtc.month, rtc.day, rtc.hour, rtc.min, rtc.sec);
     if (rtc.year == 0) {
@@ -499,14 +499,14 @@ static void cmd_rtc(eos_shell_output_cb_t out, void *user, int argc, char **argv
     }
 }
 
-static void cmd_time(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_time(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     if (argc < 2)
     {
-        eos_datetime_t now = eos_time_get();
+        cos_datetime_t now = cos_time_get();
         sh_out(out, user, "%04d-%02d-%02d %02d:%02d:%02d (system, source=%s)",
                now.year, now.month, now.day, now.hour, now.min, now.sec,
-               _time_source_name(eos_time_get_source()));
+               _time_source_name(cos_time_get_source()));
         sh_out(out, user, "usage: time | time set <YYYY-MM-DD HH:MM:SS> | time unix <sec> | time ntp");
         return;
     }
@@ -518,7 +518,7 @@ static void cmd_time(eos_shell_output_cb_t out, void *user, int argc, char **arg
             sh_out(out, user, "usage: time set <YYYY-MM-DD HH:MM:SS>");
             return;
         }
-        eos_datetime_t dt;
+        cos_datetime_t dt;
         memset(&dt, 0, sizeof(dt));
         int y = 0, mo = 0, d = 0, h = 0, mi = 0, s = 0;
         if (sscanf(argv[2], "%d-%d-%d", &y, &mo, &d) != 3 ||
@@ -533,7 +533,7 @@ static void cmd_time(eos_shell_output_cb_t out, void *user, int argc, char **arg
         dt.hour  = (uint8_t)h;
         dt.min   = (uint8_t)mi;
         dt.sec   = (uint8_t)s;
-        if (eos_time_set(dt) == EOS_OK)
+        if (cos_time_set(dt) == COS_OK)
         {
             sh_out(out, user, "time set OK (RTC + backup + libc)");
         }
@@ -552,7 +552,7 @@ static void cmd_time(eos_shell_output_cb_t out, void *user, int argc, char **arg
             return;
         }
         uint32_t ts = (uint32_t)strtoul(argv[2], NULL, 10);
-        if (eos_time_set_unix(ts) == EOS_OK)
+        if (cos_time_set_unix(ts) == COS_OK)
         {
             sh_out(out, user, "time set OK (unix %u)", (unsigned)ts);
         }
@@ -565,8 +565,8 @@ static void cmd_time(eos_shell_output_cb_t out, void *user, int argc, char **arg
 
     if (strcmp(argv[1], "ntp") == 0)
     {
-#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
-        eos_time_ntp_force_sync();
+#if !defined(COS_SIMULATOR) || COS_SIMULATOR == 0
+        cos_time_ntp_force_sync();
         sh_out(out, user, "time: NTP re-sync triggered (watch serial log)");
 #else
         sh_out(out, user, "time: NTP not available on simulator");
@@ -577,7 +577,7 @@ static void cmd_time(eos_shell_output_cb_t out, void *user, int argc, char **arg
     sh_out(out, user, "usage: time | time set <YYYY-MM-DD HH:MM:SS> | time unix <sec> | time ntp");
 }
 
-static void cmd_power(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_power(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     if (argc < 2)
     {
@@ -587,25 +587,25 @@ static void cmd_power(eos_shell_output_cb_t out, void *user, int argc, char **ar
     if (strcmp(argv[1], "status") == 0)
     {
         const char *s = "unknown";
-        switch (eos_pm_get_state())
+        switch (cos_pm_get_state())
         {
-        case EOS_PM_DISPLAY_ON:  s = "DISPLAY_ON"; break;
-        case EOS_PM_DISPLAY_AOD: s = "DISPLAY_AOD"; break;
-        case EOS_PM_SLEEP:       s = "SLEEP"; break;
-        case EOS_PM_DEEP_SLEEP:  s = "DEEP_SLEEP"; break;
+        case COS_PM_DISPLAY_ON:  s = "DISPLAY_ON"; break;
+        case COS_PM_DISPLAY_AOD: s = "DISPLAY_AOD"; break;
+        case COS_PM_SLEEP:       s = "SLEEP"; break;
+        case COS_PM_DEEP_SLEEP:  s = "DEEP_SLEEP"; break;
         default: break;
         }
         sh_out(out, user, "[power] state : %s", s);
         /* 省电模式(可触摸唤醒的深度省电:DFS + 自动 Light-sleep) */
         sh_out(out, user, "[power] power-save : %s",
-               eos_power_save_is_active() ? "ACTIVE" : "inactive");
+               cos_power_save_is_active() ? "ACTIVE" : "inactive");
         /* 性能模式(锁 240MHz 全速,与省电互斥;两者都关 = 智能模式) */
         sh_out(out, user, "[power] beast-mode : %s",
-               eos_beast_mode_is_active() ? "ACTIVE" : "inactive");
+               cos_beast_mode_is_active() ? "ACTIVE" : "inactive");
         sh_out(out, user, "[power] wifi : %s | bt : %s",
-               eos_net_wifi_is_enabled() ? "on" : "off",
-               eos_net_bt_is_enabled() ? "on" : "off");
-#ifdef EOS_PLATFORM_ESP32
+               cos_net_wifi_is_enabled() ? "on" : "off",
+               cos_net_bt_is_enabled() ? "on" : "off");
+#ifdef COS_PLATFORM_ESP32
         /* DFS / 自动 Light-sleep 实际配置(esp_pm_configure 的真实结果) */
         esp_pm_config_t cfg;
         memset(&cfg, 0, sizeof(cfg));
@@ -632,15 +632,15 @@ static void cmd_power(eos_shell_output_cb_t out, void *user, int argc, char **ar
         if (argc >= 3)
             sec = (uint32_t)atoi(argv[2]);
         sh_out(out, user, "[power] deep-sleep requested (auto-wake=%u s)", (unsigned)sec);
-        eos_pm_deep_sleep_request(sec);
+        cos_pm_deep_sleep_request(sec);
     }
     else if (strcmp(argv[1], "standby") == 0)
     {
         sh_out(out, user,
                "[power] entering L2 standby deep sleep (minimal clock + 5-tap to boot)");
-#ifdef EOS_PLATFORM_ESP32
-        extern void eos_board_enter_standby_deep_sleep(void);
-        eos_board_enter_standby_deep_sleep();
+#ifdef COS_PLATFORM_ESP32
+        extern void cos_board_enter_standby_deep_sleep(void);
+        cos_board_enter_standby_deep_sleep();
         sh_out(out, user, "[power] (unexpected) returned from deep sleep");
 #else
         sh_out(out, user,
@@ -649,7 +649,7 @@ static void cmd_power(eos_shell_output_cb_t out, void *user, int argc, char **ar
     }
     else if (strcmp(argv[1], "wake") == 0)
     {
-        eos_pm_wake_up();
+        cos_pm_wake_up();
         sh_out(out, user, "[power] wake requested");
     }
     else
@@ -658,7 +658,7 @@ static void cmd_power(eos_shell_output_cb_t out, void *user, int argc, char **ar
     }
 }
 
-static void cmd_wos(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_wos(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     if (argc < 2)
     {
@@ -672,7 +672,7 @@ static void cmd_wos(eos_shell_output_cb_t out, void *user, int argc, char **argv
         int i;
         for (i = 0; i < n; i++)
         {
-            const eos_wos_app_desc_t *d = wos_app_manager_registered(i);
+            const cos_wos_app_desc_t *d = wos_app_manager_registered(i);
             if (d)
                 sh_out(out, user, "  %s  (%s)", d->id, d->name ? d->name : "");
         }
@@ -712,7 +712,7 @@ static void cmd_wos(eos_shell_output_cb_t out, void *user, int argc, char **argv
     }
 }
 
-static void cmd_display(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_display(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     /* display brightness <0-100> — instant A/B test of the PWM backlight.
      * No animation (duration=0) so this is safe from any task context. */
@@ -720,13 +720,13 @@ static void cmd_display(eos_shell_output_cb_t out, void *user, int argc, char **
     {
         char *end = NULL;
         long v = strtol(argv[2], &end, 10);
-        if (end == argv[2] || v < EOS_DISPLAY_BRIGHTNESS_MIN || v > EOS_DISPLAY_BRIGHTNESS_MAX)
+        if (end == argv[2] || v < COS_DISPLAY_BRIGHTNESS_MIN || v > COS_DISPLAY_BRIGHTNESS_MAX)
         {
             sh_out(out, user, "error: brightness must be %d..%d (got '%s')",
-                   EOS_DISPLAY_BRIGHTNESS_MIN, EOS_DISPLAY_BRIGHTNESS_MAX, argv[2]);
+                   COS_DISPLAY_BRIGHTNESS_MIN, COS_DISPLAY_BRIGHTNESS_MAX, argv[2]);
             return;
         }
-        eos_display_set_brightness((uint8_t)v, EOS_DISPLAY_DURATION_OFF, false);
+        cos_display_set_brightness((uint8_t)v, COS_DISPLAY_DURATION_OFF, false);
         sh_out(out, user, "[display] brightness set to %ld (instant)", v);
         sh_out(out, user, "  -> if screen does NOT change, PWM is not reaching the backlight");
         return;
@@ -745,8 +745,8 @@ static void cmd_display(eos_shell_output_cb_t out, void *user, int argc, char **
             sh_out(out, user, "error: bltest must be 0 or 1 (got '%s')", argv[2]);
             return;
         }
-        eos_result_t err = eos_display_bltest(v == 1);
-        if (err != EOS_OK)
+        cos_result_t err = cos_display_bltest(v == 1);
+        if (err != COS_OK)
         {
             sh_out(out, user, "error: bltest not supported by this board driver (%d)", (int)err);
             return;
@@ -758,8 +758,8 @@ static void cmd_display(eos_shell_output_cb_t out, void *user, int argc, char **
     }
 
     lv_display_t *d = lv_display_get_default();
-    int w = EOS_DISPLAY_WIDTH;
-    int h = EOS_DISPLAY_HEIGHT;
+    int w = COS_DISPLAY_WIDTH;
+    int h = COS_DISPLAY_HEIGHT;
     if (d)
     {
         /* Prefer the live value; fall back to the configured constant. */
@@ -775,11 +775,11 @@ static void cmd_display(eos_shell_output_cb_t out, void *user, int argc, char **
     sh_out(out, user, "  renderer    : LVGL %d.%d.%d",
            (int)LVGL_VERSION_MAJOR, (int)LVGL_VERSION_MINOR, (int)LVGL_VERSION_PATCH);
     sh_out(out, user, "  brightness  : %d (range %d..%d)",
-           eos_display_get_brightness(), EOS_DISPLAY_BRIGHTNESS_MIN, EOS_DISPLAY_BRIGHTNESS_MAX);
+           cos_display_get_brightness(), COS_DISPLAY_BRIGHTNESS_MIN, COS_DISPLAY_BRIGHTNESS_MAX);
     sh_out(out, user, "  usage       : display brightness <0-100> | display bltest <0|1>");
 }
 
-static void cmd_touch(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_touch(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     (void)argc;
     (void)argv;
@@ -806,22 +806,22 @@ static void cmd_touch(eos_shell_output_cb_t out, void *user, int argc, char **ar
         sh_out(out, user, "  (none)");
 }
 
-static void cmd_wifi(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_wifi(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     if (argc < 2)
     {
         /* default: status */
         sh_out(out, user, "[wifi] Wi-Fi service (Core system service)");
-        sh_out(out, user, "  Enabled : %s", eos_net_wifi_is_enabled() ? "yes" : "no");
-        sh_out(out, user, "  State   : %s", eos_net_wifi_state_str(eos_net_wifi_state()));
-        char ip[EOS_NET_WIFI_IP_MAX];
-        if (eos_net_wifi_get_ip(ip, sizeof(ip)) == EOS_OK)
+        sh_out(out, user, "  Enabled : %s", cos_net_wifi_is_enabled() ? "yes" : "no");
+        sh_out(out, user, "  State   : %s", cos_net_wifi_state_str(cos_net_wifi_state()));
+        char ip[COS_NET_WIFI_IP_MAX];
+        if (cos_net_wifi_get_ip(ip, sizeof(ip)) == COS_OK)
             sh_out(out, user, "  IP      : %s", ip);
         else
             sh_out(out, user, "  IP      : (not connected)");
-        sh_out(out, user, "  SSID    : %s", eos_net_wifi_connected_ssid()[0]
-                                 ? eos_net_wifi_connected_ssid() : "(none)");
-        sh_out(out, user, "  RSSI    : %d dBm", eos_net_wifi_rssi());
+        sh_out(out, user, "  SSID    : %s", cos_net_wifi_connected_ssid()[0]
+                                 ? cos_net_wifi_connected_ssid() : "(none)");
+        sh_out(out, user, "  RSSI    : %d dBm", cos_net_wifi_rssi());
         return;
     }
     const char *sub = argv[1];
@@ -833,20 +833,20 @@ static void cmd_wifi(eos_shell_output_cb_t out, void *user, int argc, char **arg
     }
     else if (strcmp(sub, "enable") == 0)
     {
-        eos_net_wifi_set_enabled(true);
+        cos_net_wifi_set_enabled(true);
         sh_out(out, user, "[wifi] enabled");
     }
     else if (strcmp(sub, "disable") == 0)
     {
-        eos_net_wifi_set_enabled(false);
+        cos_net_wifi_set_enabled(false);
         sh_out(out, user, "[wifi] disabled");
     }
     else if (strcmp(sub, "scan") == 0)
     {
-        eos_wifi_ap_t aps[EOS_NET_WIFI_SCAN_MAX];
+        cos_wifi_ap_t aps[COS_NET_WIFI_SCAN_MAX];
         uint32_t n = 0;
-        eos_result_t r = eos_net_wifi_scan(aps, EOS_NET_WIFI_SCAN_MAX, &n);
-        if (r != EOS_OK)
+        cos_result_t r = cos_net_wifi_scan(aps, COS_NET_WIFI_SCAN_MAX, &n);
+        if (r != COS_OK)
         {
             sh_out(out, user, "[wifi] scan failed: %d (radio enabled?)", r);
             return;
@@ -854,8 +854,8 @@ static void cmd_wifi(eos_shell_output_cb_t out, void *user, int argc, char **arg
         sh_out(out, user, "[wifi] found %u AP(s):", n);
         for (uint32_t i = 0; i < n; i++)
         {
-            const char *sec = (aps[i].auth == EOS_WIFI_AUTH_OPEN) ? "open"
-                             : (aps[i].auth == EOS_WIFI_AUTH_WPA3) ? "WPA3" : "WPA/WPA2";
+            const char *sec = (aps[i].auth == COS_WIFI_AUTH_OPEN) ? "open"
+                             : (aps[i].auth == COS_WIFI_AUTH_WPA3) ? "WPA3" : "WPA/WPA2";
             sh_out(out, user, "  %2u. %-16s rssi=%4d ch=%2u %s",
                    i, aps[i].ssid, aps[i].rssi, aps[i].channel, sec);
         }
@@ -865,13 +865,13 @@ static void cmd_wifi(eos_shell_output_cb_t out, void *user, int argc, char **arg
         const char *ssid = (argc >= 3) ? argv[2] : NULL;
         const char *pass = (argc >= 4) ? argv[3] : NULL;
         sh_out(out, user, "[wifi] connecting to %s ...", ssid ? ssid : "(saved)");
-        eos_result_t r = eos_net_wifi_connect(ssid, pass);
-        if (r == EOS_OK)
+        cos_result_t r = cos_net_wifi_connect(ssid, pass);
+        if (r == COS_OK)
         {
-            char ip[EOS_NET_WIFI_IP_MAX];
-            eos_net_wifi_get_ip(ip, sizeof(ip));
+            char ip[COS_NET_WIFI_IP_MAX];
+            cos_net_wifi_get_ip(ip, sizeof(ip));
             sh_out(out, user, "[wifi] connected: %s (IP %s, RSSI %d dBm)",
-                   eos_net_wifi_connected_ssid(), ip, eos_net_wifi_rssi());
+                   cos_net_wifi_connected_ssid(), ip, cos_net_wifi_rssi());
         }
         else
         {
@@ -880,7 +880,7 @@ static void cmd_wifi(eos_shell_output_cb_t out, void *user, int argc, char **arg
     }
     else if (strcmp(sub, "disconnect") == 0)
     {
-        eos_net_wifi_disconnect();
+        cos_net_wifi_disconnect();
         sh_out(out, user, "[wifi] disconnected");
     }
     else if (strcmp(sub, "set") == 0)
@@ -894,18 +894,18 @@ static void cmd_wifi(eos_shell_output_cb_t out, void *user, int argc, char **arg
         const char *val = argv[3];
         if (strcmp(what, "ssid") == 0)
         {
-            eos_net_wifi_set_credentials(val, NULL);
+            cos_net_wifi_set_credentials(val, NULL);
             sh_out(out, user, "[wifi] ssid = %s", val);
         }
         else if (strcmp(what, "pass") == 0)
         {
-            eos_net_wifi_set_credentials(NULL, val);
+            cos_net_wifi_set_credentials(NULL, val);
             sh_out(out, user, "[wifi] password = **** (hidden, not logged)");
         }
         else if (strcmp(what, "auto") == 0)
         {
             bool a = (strcmp(val, "on") == 0 || strcmp(val, "1") == 0);
-            eos_config_set_bool(EOS_NET_WIFI_KEY_AUTO, a);
+            cos_config_set_bool(COS_NET_WIFI_KEY_AUTO, a);
             sh_out(out, user, "[wifi] auto_connect = %s", a ? "on" : "off");
         }
         else
@@ -915,7 +915,7 @@ static void cmd_wifi(eos_shell_output_cb_t out, void *user, int argc, char **arg
     }
     else if (strcmp(sub, "save") == 0)
     {
-        eos_net_wifi_save();
+        cos_net_wifi_save();
         sh_out(out, user, "[wifi] config saved (password stored silently)");
     }
     else
@@ -924,16 +924,16 @@ static void cmd_wifi(eos_shell_output_cb_t out, void *user, int argc, char **arg
     }
 }
 
-static void cmd_bt(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_bt(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     if (argc < 2)
     {
         sh_out(out, user, "[bt] Bluetooth service (Core system service)");
-        sh_out(out, user, "  Enabled : %s", eos_net_bt_is_enabled() ? "yes" : "no");
-        sh_out(out, user, "  State   : %s", eos_net_bt_state_str(eos_net_bt_state()));
-        char *n = eos_config_get_string(EOS_NET_BT_KEY_NAME, "ElenixOS");
-        sh_out(out, user, "  Name    : %s", n ? n : "ElenixOS");
-        if (n) eos_free(n);
+        sh_out(out, user, "  Enabled : %s", cos_net_bt_is_enabled() ? "yes" : "no");
+        sh_out(out, user, "  State   : %s", cos_net_bt_state_str(cos_net_bt_state()));
+        char *n = cos_config_get_string(COS_NET_BT_KEY_NAME, "CantoMk6");
+        sh_out(out, user, "  Name    : %s", n ? n : "CantoMk6");
+        if (n) cos_free(n);
         return;
     }
     const char *sub = argv[1];
@@ -944,21 +944,21 @@ static void cmd_bt(eos_shell_output_cb_t out, void *user, int argc, char **argv)
     }
     else if (strcmp(sub, "enable") == 0)
     {
-        /* routes through port hook -> eos_net_bt_set_enabled(true) */
-        eos_bluetooth_enable();
+        /* routes through port hook -> cos_net_bt_set_enabled(true) */
+        cos_bluetooth_enable();
         sh_out(out, user, "[bt] enabled");
     }
     else if (strcmp(sub, "disable") == 0)
     {
-        eos_bluetooth_disable();
+        cos_bluetooth_disable();
         sh_out(out, user, "[bt] disabled");
     }
     else if (strcmp(sub, "scan") == 0)
     {
-        eos_bt_device_t devs[EOS_NET_BT_SCAN_MAX];
+        cos_bt_device_t devs[COS_NET_BT_SCAN_MAX];
         uint32_t n = 0;
-        eos_result_t r = eos_net_bt_scan(devs, EOS_NET_BT_SCAN_MAX, &n);
-        if (r != EOS_OK)
+        cos_result_t r = cos_net_bt_scan(devs, COS_NET_BT_SCAN_MAX, &n);
+        if (r != COS_OK)
         {
             sh_out(out, user, "[bt] scan failed: %d (radio enabled?)", r);
             return;
@@ -966,7 +966,7 @@ static void cmd_bt(eos_shell_output_cb_t out, void *user, int argc, char **argv)
         sh_out(out, user, "[bt] found %u device(s):", n);
         for (uint32_t i = 0; i < n; i++)
         {
-            const char *t = (devs[i].type == EOS_BT_DEV_CLASSIC) ? "BR/EDR" : "LE";
+            const char *t = (devs[i].type == COS_BT_DEV_CLASSIC) ? "BR/EDR" : "LE";
             sh_out(out, user, "  %2u. %-16s %s rssi=%4d %s", i, devs[i].name,
                    devs[i].addr, devs[i].rssi, t);
         }
@@ -979,26 +979,26 @@ static void cmd_bt(eos_shell_output_cb_t out, void *user, int argc, char **argv)
             return;
         }
         sh_out(out, user, "[bt] connecting to %s ...", argv[2]);
-        eos_result_t r = eos_net_bt_connect(argv[2]);
-        sh_out(out, user, r == EOS_OK ? "[bt] connected & paired" : "[bt] connect failed: %d");
+        cos_result_t r = cos_net_bt_connect(argv[2]);
+        sh_out(out, user, r == COS_OK ? "[bt] connected & paired" : "[bt] connect failed: %d");
     }
     else if (strcmp(sub, "disconnect") == 0)
     {
-        eos_net_bt_disconnect();
+        cos_net_bt_disconnect();
         sh_out(out, user, "[bt] disconnected");
     }
     else if (strcmp(sub, "paired") == 0)
     {
-        eos_bt_device_t devs[EOS_NET_BT_SCAN_MAX];
+        cos_bt_device_t devs[COS_NET_BT_SCAN_MAX];
         uint32_t n = 0;
-        eos_net_bt_get_paired(devs, EOS_NET_BT_SCAN_MAX, &n);
+        cos_net_bt_get_paired(devs, COS_NET_BT_SCAN_MAX, &n);
         sh_out(out, user, "[bt] paired %u device(s):", n);
         for (uint32_t i = 0; i < n; i++)
             sh_out(out, user, "  %2u. %-16s %s", i, devs[i].name, devs[i].addr);
     }
     else if (strcmp(sub, "save") == 0)
     {
-        eos_net_bt_save();
+        cos_net_bt_save();
         sh_out(out, user, "[bt] config saved");
     }
     else
@@ -1007,19 +1007,19 @@ static void cmd_bt(eos_shell_output_cb_t out, void *user, int argc, char **argv)
     }
 }
 
-static void _proxy_status(eos_shell_output_cb_t out, void *user)
+static void _proxy_status(cos_shell_output_cb_t out, void *user)
 {
     char srv[64];
-    eos_net_proxy_server_str(srv, sizeof(srv));
+    cos_net_proxy_server_str(srv, sizeof(srv));
     sh_out(out, user, "[proxy] SOCKS5 client (Core system service)");
-    sh_out(out, user, "  Enabled : %s", eos_net_proxy_is_enabled() ? "yes" : "no");
+    sh_out(out, user, "  Enabled : %s", cos_net_proxy_is_enabled() ? "yes" : "no");
     sh_out(out, user, "  Server  : %s", srv);
-    sh_out(out, user, "  Auth    : %s", eos_net_proxy_auth_configured() ? "configured" : "none");
-    sh_out(out, user, "  Status  : %s", eos_net_proxy_status_str(eos_net_proxy_status()));
+    sh_out(out, user, "  Auth    : %s", cos_net_proxy_auth_configured() ? "configured" : "none");
+    sh_out(out, user, "  Status  : %s", cos_net_proxy_status_str(cos_net_proxy_status()));
     sh_out(out, user, "  (password is NEVER shown in shell output)");
 }
 
-static void cmd_proxy(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_proxy(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     if (argc < 2)
     {
@@ -1034,12 +1034,12 @@ static void cmd_proxy(eos_shell_output_cb_t out, void *user, int argc, char **ar
     }
     else if (strcmp(sub, "enable") == 0)
     {
-        eos_net_proxy_set_enabled(true);
+        cos_net_proxy_set_enabled(true);
         sh_out(out, user, "[proxy] enabled");
     }
     else if (strcmp(sub, "disable") == 0)
     {
-        eos_net_proxy_set_enabled(false);
+        cos_net_proxy_set_enabled(false);
         sh_out(out, user, "[proxy] disabled");
     }
     else if (strcmp(sub, "set") == 0)
@@ -1053,23 +1053,23 @@ static void cmd_proxy(eos_shell_output_cb_t out, void *user, int argc, char **ar
         const char *val = argv[3];
         if (strcmp(what, "host") == 0)
         {
-            eos_net_proxy_set_server(val, eos_net_proxy_port());
+            cos_net_proxy_set_server(val, cos_net_proxy_port());
             sh_out(out, user, "[proxy] host = %s", val);
         }
         else if (strcmp(what, "port") == 0)
         {
             int p = atoi(val);
-            eos_net_proxy_set_server(eos_net_proxy_host(), (uint16_t)p);
+            cos_net_proxy_set_server(cos_net_proxy_host(), (uint16_t)p);
             sh_out(out, user, "[proxy] port = %d", p);
         }
         else if (strcmp(what, "user") == 0)
         {
-            eos_net_proxy_set_credentials(val, NULL);
+            cos_net_proxy_set_credentials(val, NULL);
             sh_out(out, user, "[proxy] username = %s", val);
         }
         else if (strcmp(what, "pass") == 0)
         {
-            eos_net_proxy_set_credentials(NULL, val);
+            cos_net_proxy_set_credentials(NULL, val);
             sh_out(out, user, "[proxy] password = **** (hidden, not logged)");
         }
         else
@@ -1079,7 +1079,7 @@ static void cmd_proxy(eos_shell_output_cb_t out, void *user, int argc, char **ar
     }
     else if (strcmp(sub, "save") == 0)
     {
-        eos_net_proxy_save();
+        cos_net_proxy_save();
         sh_out(out, user, "[proxy] config saved to system config");
     }
     else if (strcmp(sub, "connect") == 0)
@@ -1092,14 +1092,14 @@ static void cmd_proxy(eos_shell_output_cb_t out, void *user, int argc, char **ar
         const char *th = argv[2];
         int tp = atoi(argv[3]);
         char srv[64];
-        eos_net_proxy_server_str(srv, sizeof(srv));
+        cos_net_proxy_server_str(srv, sizeof(srv));
         sh_out(out, user, "[proxy] dialing %s:%d via SOCKS5 %s ...", th, tp, srv);
-        eos_net_proxy_tunnel_t *t = NULL;
-        eos_result_t r = eos_net_proxy_dial(th, (uint16_t)tp, &t);
-        if (r == EOS_OK)
+        cos_net_proxy_tunnel_t *t = NULL;
+        cos_result_t r = cos_net_proxy_dial(th, (uint16_t)tp, &t);
+        if (r == COS_OK)
         {
             sh_out(out, user, "[proxy] CONNECT success (SOCKS5 handshake OK)");
-            eos_net_proxy_tunnel_close(t);
+            cos_net_proxy_tunnel_close(t);
             sh_out(out, user, "[proxy] tunnel closed");
         }
         else
@@ -1113,22 +1113,22 @@ static void cmd_proxy(eos_shell_output_cb_t out, void *user, int argc, char **ar
     }
 }
 
-static void cmd_apps(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_apps(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     (void)argc;
     (void)argv;
-    uint32_t n = eos_app_get_installed();
+    uint32_t n = cos_app_get_installed();
     sh_out(out, user, "[apps] installed: %u", n);
     for (uint32_t i = 0; i < n; i++)
     {
-        const char *id = eos_app_list_get_id(i);
+        const char *id = cos_app_list_get_id(i);
         sh_out(out, user, "  %u: %s", i, id ? id : "(null)");
     }
     if (n == 0)
         sh_out(out, user, "  (no apps installed)");
 }
 
-static void cmd_app(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_app(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     if (argc < 2)
     {
@@ -1152,11 +1152,11 @@ static void cmd_app(eos_shell_output_cb_t out, void *user, int argc, char **argv
 
     if (strcmp(sub, "info") == 0)
     {
-        bool installed = eos_app_list_contains(id);
+        bool installed = cos_app_list_contains(id);
         sh_out(out, user, "[app:%s] installed: %s", id, installed ? "yes" : "no");
-        char path[EOS_SHELL_LINE_MAX];
-        snprintf(path, sizeof(path), "%s%s/manifest.json", EOS_APP_INSTALLED_DIR, id);
-        cJSON *manifest = eos_storage_json_load(path);
+        char path[COS_SHELL_LINE_MAX];
+        snprintf(path, sizeof(path), "%s%s/manifest.json", COS_APP_INSTALLED_DIR, id);
+        cJSON *manifest = cos_storage_json_load(path);
         if (manifest)
         {
             cJSON *name = cJSON_GetObjectItemCaseSensitive(manifest, "name");
@@ -1179,17 +1179,17 @@ static void cmd_app(eos_shell_output_cb_t out, void *user, int argc, char **argv
 
     if (strcmp(sub, "start") == 0)
     {
-        if (!eos_app_list_contains(id))
+        if (!cos_app_list_contains(id))
         {
             sh_out(out, user, "app '%s' is not installed", id);
             return;
         }
-        if (eos_app_is_disabled(id))
+        if (cos_app_is_disabled(id))
         {
             sh_out(out, user, "app '%s' is disabled (use: app enable %s)", id, id);
             return;
         }
-        eos_result_t r = eos_app_launch_immediately(id);
+        cos_result_t r = cos_app_launch_immediately(id);
         sh_out(out, user, "app '%s' launch requested (result=%d)", id, (int)r);
         return;
     }
@@ -1198,28 +1198,28 @@ static void cmd_app(eos_shell_output_cb_t out, void *user, int argc, char **argv
     {
         /* Real install path: scan .eapk -> parse manifest -> unpack ->
          * register with the Plugin Manager -> refresh list -> post event. */
-        eos_result_t r = eos_app_install(id);
+        cos_result_t r = cos_app_install(id);
         sh_out(out, user, "app install '%s' (result=%d)", id, (int)r);
         return;
     }
 
     if (strcmp(sub, "stop") == 0 || strcmp(sub, "restart") == 0)
     {
-        /* Release the running foreground app. eos_activity_back() pops the
+        /* Release the running foreground app. cos_activity_back() pops the
          * app activity, whose on_destroy calls spm_app_stop() to free the
          * JerryScript realm + SNI context + timers. If a transition is still
          * mid-flight (e.g. headless --shell-test with no render loop), fall
          * back to stopping the script program directly so resources are freed. */
-        eos_result_t r = eos_activity_back();
-        if (r != EOS_OK)
+        cos_result_t r = cos_activity_back();
+        if (r != COS_OK)
         {
             spm_app_stop();
-            r = EOS_OK;
+            r = COS_OK;
         }
         sh_out(out, user, "app '%s' stop (result=%d)", id, (int)r);
         if (strcmp(sub, "restart") == 0)
         {
-            eos_result_t r2 = eos_app_launch_immediately(id);
+            cos_result_t r2 = cos_app_launch_immediately(id);
             sh_out(out, user, "app '%s' restart (result=%d)", id, (int)r2);
         }
         return;
@@ -1227,26 +1227,26 @@ static void cmd_app(eos_shell_output_cb_t out, void *user, int argc, char **argv
 
     if (strcmp(sub, "disable") == 0)
     {
-        eos_result_t r = eos_app_disable(id);
+        cos_result_t r = cos_app_disable(id);
         sh_out(out, user, "app '%s' disable (result=%d)", id, (int)r);
         return;
     }
 
     if (strcmp(sub, "enable") == 0)
     {
-        eos_result_t r = eos_app_enable(id);
+        cos_result_t r = cos_app_enable(id);
         sh_out(out, user, "app '%s' enable (result=%d)", id, (int)r);
         return;
     }
 
     if (strcmp(sub, "uninstall") == 0)
     {
-        if (!eos_app_list_contains(id))
+        if (!cos_app_list_contains(id))
         {
             sh_out(out, user, "app '%s' is not installed", id);
             return;
         }
-        eos_result_t r = eos_app_uninstall(id);
+        cos_result_t r = cos_app_uninstall(id);
         sh_out(out, user, "app '%s' uninstall (result=%d)", id, (int)r);
         return;
     }
@@ -1254,30 +1254,30 @@ static void cmd_app(eos_shell_output_cb_t out, void *user, int argc, char **argv
     sh_out(out, user, "unknown app subcommand: %s", sub);
 }
 
-static void cmd_log(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_log(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     if (argc >= 3 && strcmp(argv[1], "level") == 0)
     {
         const char *lv = argv[2];
-        eos_log_level_t lvl = EOS_LOG_LEVEL_DEBUG;
-        if (strcmp(lv, "debug") == 0)       lvl = EOS_LOG_LEVEL_DEBUG;
-        else if (strcmp(lv, "info") == 0)   lvl = EOS_LOG_LEVEL_INFO;
-        else if (strcmp(lv, "warn") == 0)   lvl = EOS_LOG_LEVEL_WARN;
-        else if (strcmp(lv, "error") == 0)  lvl = EOS_LOG_LEVEL_ERROR;
+        cos_log_level_t lvl = COS_LOG_LEVEL_DEBUG;
+        if (strcmp(lv, "debug") == 0)       lvl = COS_LOG_LEVEL_DEBUG;
+        else if (strcmp(lv, "info") == 0)   lvl = COS_LOG_LEVEL_INFO;
+        else if (strcmp(lv, "warn") == 0)   lvl = COS_LOG_LEVEL_WARN;
+        else if (strcmp(lv, "error") == 0)  lvl = COS_LOG_LEVEL_ERROR;
         else
         {
             sh_out(out, user, "unknown level '%s' (debug|info|warn|error)", lv);
             return;
         }
-        eos_log_set_min_level(lvl);
+        cos_log_set_min_level(lvl);
         sh_out(out, user, "log level set to %s", lv);
         return;
     }
     sh_out(out, user, "[log] current min level: %d (0=debug 1=info 2=warn 3=error)",
-           (int)eos_log_get_min_level());
+           (int)cos_log_get_min_level());
 }
 
-static void cmd_reboot(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_reboot(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     (void)argc;
     (void)argv;
@@ -1295,7 +1295,7 @@ static void cmd_reboot(eos_shell_output_cb_t out, void *user, int argc, char **a
 
 /* Dispatcher -------------------------------------------------*/
 
-int eos_shell_exec(const char *cmdline, eos_shell_output_cb_t out, void *user)
+int cos_shell_exec(const char *cmdline, cos_shell_output_cb_t out, void *user)
 {
     if (!_inited)
     {
@@ -1307,7 +1307,7 @@ int eos_shell_exec(const char *cmdline, eos_shell_output_cb_t out, void *user)
         return -1;
 
     /* Copy into a mutable buffer for tokenization. */
-    char buf[EOS_SHELL_LINE_MAX];
+    char buf[COS_SHELL_LINE_MAX];
     strncpy(buf, cmdline, sizeof(buf) - 1);
     buf[sizeof(buf) - 1] = '\0';
 
@@ -1318,10 +1318,10 @@ int eos_shell_exec(const char *cmdline, eos_shell_output_cb_t out, void *user)
     if (*p == '\0')
         return 0; /* empty line */
 
-    char *argv[EOS_SHELL_ARG_MAX];
+    char *argv[COS_SHELL_ARG_MAX];
     int argc = 0;
     char *tok = strtok(p, " \t\r\n");
-    while (tok && argc < EOS_SHELL_ARG_MAX)
+    while (tok && argc < COS_SHELL_ARG_MAX)
     {
         argv[argc++] = tok;
         tok = strtok(NULL, " \t\r\n");
@@ -1344,28 +1344,28 @@ int eos_shell_exec(const char *cmdline, eos_shell_output_cb_t out, void *user)
 
 /* Public API ------------------------------------------------*/
 
-void eos_shell_init(void)
+void cos_shell_init(void)
 {
     _inited = true;
 }
 
-void eos_shell_deinit(void)
+void cos_shell_deinit(void)
 {
     _inited = false;
     _reboot_cb = NULL;
 }
 
-void eos_shell_set_reboot_cb(eos_shell_reboot_cb_t cb)
+void cos_shell_set_reboot_cb(cos_shell_reboot_cb_t cb)
 {
     _reboot_cb = cb;
 }
 
-void eos_shell_exec_log(const char *cmdline)
+void cos_shell_exec_log(const char *cmdline)
 {
-    eos_shell_exec(cmdline, shell_log_cb, NULL);
+    cos_shell_exec(cmdline, shell_log_cb, NULL);
 }
 
-static void cmd_plugin(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_plugin(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     if (argc < 2)
     {
@@ -1376,31 +1376,31 @@ static void cmd_plugin(eos_shell_output_cb_t out, void *user, int argc, char **a
     if (strcmp(sub, "scan") == 0)
     {
         bool force = (argc >= 3 && strcmp(argv[2], "--force") == 0);
-        eos_plugin_scan_result_t res;
-        eos_plugin_manager_scan(force, &res);
+        cos_plugin_scan_result_t res;
+        cos_plugin_manager_scan(force, &res);
         sh_out(out, user, "plugin scan: scanned=%u installed=%u skipped=%u failed=%u",
                res.scanned, res.installed, res.skipped, res.failed);
         return;
     }
     if (strcmp(sub, "list") == 0)
     {
-        uint32_t n = eos_app_get_installed();
+        uint32_t n = cos_app_get_installed();
         sh_out(out, user, "installed apps: %u", n);
         for (uint32_t i = 0; i < n; i++)
         {
-            const char *id = eos_app_list_get_id(i);
+            const char *id = cos_app_list_get_id(i);
             if (!id)
                 continue;
-            const char *name = eos_app_get_name(id);
-            bool dis = eos_app_is_disabled(id);
+            const char *name = cos_app_get_name(id);
+            bool dis = cos_app_is_disabled(id);
             sh_out(out, user, "  %s  (%s)%s", id, name ? name : "?",
                   dis ? " [disabled]" : "");
         }
-        size_t wn = eos_watchface_list_size();
+        size_t wn = cos_watchface_list_size();
         sh_out(out, user, "installed watchfaces: %u", (unsigned)wn);
         for (size_t i = 0; i < wn; i++)
         {
-            const char *id = eos_watchface_list_get_id(i);
+            const char *id = cos_watchface_list_get_id(i);
             if (id)
                 sh_out(out, user, "  %s", id);
         }
@@ -1409,7 +1409,7 @@ static void cmd_plugin(eos_shell_output_cb_t out, void *user, int argc, char **a
     sh_out(out, user, "unknown subcommand: %s", sub);
 }
 
-static void cmd_ime(eos_shell_output_cb_t out, void *user, int argc, char **argv)
+static void cmd_ime(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
     if (argc < 2)
     {
@@ -1419,7 +1419,7 @@ static void cmd_ime(eos_shell_output_cb_t out, void *user, int argc, char **argv
     const char *py = argv[1];
     const char *cands[16];
     int n = 0;
-    int total = eos_pinyin_lookup(py, cands, 16, &n);
+    int total = cos_pinyin_lookup(py, cands, 16, &n);
     if (n == 0)
     {
         sh_out(out, user, "ime '%s': no candidates", py);
@@ -1434,5 +1434,5 @@ static void cmd_ime(eos_shell_output_cb_t out, void *user, int argc, char **argv
 static void shell_log_cb(const char *line, void *user)
 {
     (void)user;
-    EOS_LOG_I("%s", line);
+    COS_LOG_I("%s", line);
 }

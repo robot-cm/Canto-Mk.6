@@ -1,6 +1,6 @@
 /**
  * @file main.c
- * @brief ElenixOS ESP32-S3 板级入口(XIAO ESP32-S3 + Round Display)
+ * @brief CantoMk6 ESP32-S3 板级入口(XIAO ESP32-S3 + Round Display)
  *
  * 阶段:集成 GC9A01 真实驱动 + CHSC6X 真实触摸 + microSD(SDSPI 真 SD,
  * 优先挂载 /sdcard,无卡回退 SPIFFS;RTC 为 BM8563 真实驱动)。
@@ -9,7 +9,7 @@
  *   - CHSC6X 触摸:LVGL POINTER indev(read timer 自动轮询)
  *   - FreeRTOS 任务:ui_task 调 lv_timer_handler
  *   - Shell:USB-CDC stub(D6/D7 被屏占)
- *   - 调用 eos_init()
+ *   - 调用 cos_init()
  *
  * 依据:AGENTS.md 第29节修改流程 + 子报告1引脚表 + 子报告2方案A
  */
@@ -47,7 +47,7 @@
 #include "esp_vfs_fat.h"
 #include "esp_dma_utils.h" /* esp_dma_is_buffer_alignment_satisfied 诊断 */
 /* USB MSC App 的板级能力接口(SD 释放/恢复、卡句柄、JTAG 在线、PM 保持) */
-#include "eos_usb_msc_board.h"
+#include "cos_usb_msc_board.h"
 #if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
 #include "ff.h" /* f_mount/FRESULT:SD 重新挂载(MSC 退出恢复)用 */
 #endif
@@ -60,39 +60,39 @@
 /* LVGL 9.x */
 #include "lvgl.h"
 
-/* ElenixOS Core(平台无关) */
-#include "elenix_os.h"
-#include "eos_port.h"
-#include "kernel/scheduler/eos_dispatcher.h" /* eos_dispatch_tick() 异步回调队列 */
-#include "eos_dev_display.h"
-#include "eos_dev_display_gc9a01.h"
-#include "eos_dev_touch_chsc6x.h"
-#include "eos_dev_time.h"
-#include "eos_dev_rtc_bm8563.h"
-#include "eos_dev_battery.h"
-#include "eos_service_battery.h" /* eos_battery_raw_t / eos_battery_report_raw */
-#include "eos_dev_power.h"
-#include "eos_shell.h"
-#include "eos_shell_framework.h"
-#include "eos_service_config.h" /* eos_config_get_bool / EOS_CONFIG_KEY_DEV_MODE_BOOL */
-#include "eos_service_cc_snapshot.h" /* /sdcard/history/cc 四项设置快照 */
-#include "eos_service_pm.h"     /* eos_pm_get_state():L1 Light Sleep / L2 待机判定 */
-#include "framework/activity/eos_activity.h" /* L2 待机前快照当前 UI(恢复用) */
-#include "framework/app/eos_app_list.h"     /* eos_app_list_get_last_launch_app_id */
+/* CantoMk6 Core(平台无关) */
+#include "cantomk6_os.h"
+#include "cos_port.h"
+#include "kernel/scheduler/cos_dispatcher.h" /* cos_dispatch_tick() 异步回调队列 */
+#include "cos_dev_display.h"
+#include "cos_dev_display_gc9a01.h"
+#include "cos_dev_touch_chsc6x.h"
+#include "cos_dev_time.h"
+#include "cos_dev_rtc_bm8563.h"
+#include "cos_dev_battery.h"
+#include "cos_service_battery.h" /* cos_battery_raw_t / cos_battery_report_raw */
+#include "cos_dev_power.h"
+#include "cos_shell.h"
+#include "cos_shell_framework.h"
+#include "cos_service_config.h" /* cos_config_get_bool / COS_CONFIG_KEY_DEV_MODE_BOOL */
+#include "cos_service_cc_snapshot.h" /* /sdcard/history/cc 四项设置快照 */
+#include "cos_service_pm.h"     /* cos_pm_get_state():L1 Light Sleep / L2 待机判定 */
+#include "framework/activity/cos_activity.h" /* L2 待机前快照当前 UI(恢复用) */
+#include "framework/app/cos_app_list.h"     /* cos_app_list_get_last_launch_app_id */
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>   /* mkdir():/sdcard/history/deepsleep 历史目录 */
-#include "eos_dev_sensor.h"
+#include "cos_dev_sensor.h"
 
 static const char *TAG = "Board";
 
-/* eos_bt_esp32.c 导出:在 eos_init() 之前、internal RAM 尚连续时预初始化
- * NimBLE(controller 需 internal|DMA 大块连续内存,见 eos_bt_esp32.c 注释) */
-extern void eos_bt_esp32_early_init(void);
-#include "eos_net_wifi_esp32.h" /* eos_net_wifi_esp32_early_init():带内存门控 */
+/* cos_bt_esp32.c 导出:在 cos_init() 之前、internal RAM 尚连续时预初始化
+ * NimBLE(controller 需 internal|DMA 大块连续内存,见 cos_bt_esp32.c 注释) */
+extern void cos_bt_esp32_early_init(void);
+#include "cos_net_wifi_esp32.h" /* cos_net_wifi_esp32_early_init():带内存门控 */
 
-/* eos_init() 完成信号:ui_task 必须等 Core/UI 服务就绪后才开始 LVGL 渲染 */
-static SemaphoreHandle_t s_eos_ready = NULL;
+/* cos_init() 完成信号:ui_task 必须等 Core/UI 服务就绪后才开始 LVGL 渲染 */
+static SemaphoreHandle_t s_cos_ready = NULL;
 
 /* ════════════════════════════════════════════════════════════════
  *  电池驱动(真实):D0=GPIO1=ADC1_CH0 单次模式读电池电压
@@ -217,16 +217,16 @@ static void _battery_request_update(void)
     bool usb_in   = _board_vbus_present();
     bool charging = usb_in && (mv >= 0) && (mv < BOARD_BATTERY_FULL_MV);
 
-    eos_battery_raw_t raw = {
+    cos_battery_raw_t raw = {
         .percent    = (int8_t)percent,
         .voltage_mv = (int16_t)mv,
         .current_ma = -1,
         .charging   = charging,
     };
-    eos_battery_report_raw(&raw);
+    cos_battery_report_raw(&raw);
 }
 
-static const eos_battery_dev_ops_t s_board_battery_ops = {
+static const cos_battery_dev_ops_t s_board_battery_ops = {
     .request_update = _battery_request_update,
 };
 
@@ -316,10 +316,10 @@ static void board_standby_try_restore_ui(void);   /* 完整启动后恢复深睡
 static void ui_task(void *arg)
 {
     (void)arg;
-    /* 等待 eos_init() 完成(Core/UI 服务就绪)后才开始 LVGL 渲染
-     * (任务在 eos_init() 之前创建,见 app_main 中注释) */
-    if (s_eos_ready != NULL) {
-        xSemaphoreTake(s_eos_ready, portMAX_DELAY);
+    /* 等待 cos_init() 完成(Core/UI 服务就绪)后才开始 LVGL 渲染
+     * (任务在 cos_init() 之前创建,见 app_main 中注释) */
+    if (s_cos_ready != NULL) {
+        xSemaphoreTake(s_cos_ready, portMAX_DELAY);
     }
     ESP_LOGI(TAG, "ui_task started (LVGL %dx%d)", BOARD_GC9A01_WIDTH, BOARD_GC9A01_HEIGHT);
     const TickType_t period = pdMS_TO_TICKS(BOARD_LVGL_TIMER_PERIOD_MS);
@@ -338,9 +338,9 @@ static void ui_task(void *arg)
         int64_t now_us = esp_timer_get_time();
         lv_tick_inc((uint32_t)((now_us - last_tick_us) / 1000));
         last_tick_us = now_us;
-        /* 统一走 eos_main_loop():dispatch_tick + lv_timer_handler,并在开机动画
+        /* 统一走 cos_main_loop():dispatch_tick + lv_timer_handler,并在开机动画
          * 完成后于此初始化 activity controller(主界面延迟显示的关键入口)。 */
-        eos_main_loop();
+        cos_main_loop();
         /* 电池优化:软件熄屏(SLEEP)时在此单步硬件 Light Sleep,并在无触摸累计
          * 达 L2 阈值(默认 15min,省电模式收紧到 10min)后自动转 L2 待机
          * (Deep Sleep,极简时钟唤醒,不返回)。
@@ -359,7 +359,7 @@ static void ui_task(void *arg)
 static void input_task(void *arg)
 {
     (void)arg;
-    /* 触摸已由 LVGL POINTER indev 的 read timer 驱动(eos_dev_touch_chsc6x_init),
+    /* 触摸已由 LVGL POINTER indev 的 read timer 驱动(cos_dev_touch_chsc6x_init),
      * read_cb 随 lv_timer_handler() 在 ui_task 内执行,无需独立任务喂入。
      * 本任务保留,供未来按键/手势/传感器扩展。 */
     ESP_LOGI(TAG, "input_task started (touch via LVGL indev read timer)");
@@ -392,7 +392,7 @@ static void script_task(void *arg)
  *  Shell:USB-Serial-JTAG 交互式命令控制台
  *  依据子报告1:D6/D7 被 LCD 背光/触摸 INT 占用,UART 不可用;但板载
  *  USB-Serial-JTAG(idf.py monitor 日志口)是全双工的——读输入喂
- *  eos_shell_framework_feed(),命令输出写回该口,即可直接敲命令
+ *  cos_shell_framework_feed(),命令输出写回该口,即可直接敲命令
  *  (如 'display brightness 50')。CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
  *  已把 stdin/stdout 映射到该口,故用标准库 I/O 即可,零 GPIO 占用。
  * ════════════════════════════════════════════════════════════════ */
@@ -421,8 +421,8 @@ static TaskHandle_t s_shell_usb_task = NULL;
 static void shell_usb_line_handler(const char *line, void *user)
 {
     (void)user;
-    eos_shell_exec(line, shell_usb_out, NULL);
-    eos_shell_framework_prompt(shell_usb_echo, NULL);
+    cos_shell_exec(line, shell_usb_out, NULL);
+    cos_shell_framework_prompt(shell_usb_echo, NULL);
 }
 
 static void shell_usb_task(void *arg)
@@ -436,7 +436,7 @@ static void shell_usb_task(void *arg)
             vTaskDelay(pdMS_TO_TICKS(10)); /* 防断开时忙转 */
             continue;
         }
-        eos_shell_framework_feed((char)c, shell_usb_echo, shell_usb_line_handler, NULL);
+        cos_shell_framework_feed((char)c, shell_usb_echo, shell_usb_line_handler, NULL);
     }
 }
 
@@ -449,7 +449,7 @@ static void board_shell_usb_set_enabled(bool enabled, void *user)
             return; /* already running (idempotent) */
         /* 运行时开启:创建阻塞式 USB-Serial-JTAG 监听 task,用户可在 idf.py
          * monitor 里敲命令。shell 只读写 USB 口,不碰 flash 写 → 栈放 PSRAM,
-         * 别挤 internal RAM (eos_init 前 internal 必须为 ui_task 保留
+         * 别挤 internal RAM (cos_init 前 internal 必须为 ui_task 保留
          * 48KB+TCB 连续块)。 */
         BaseType_t r = xTaskCreatePinnedToCoreWithCaps(shell_usb_task, "shell_usb", 4096, NULL, 5,
                                                        &s_shell_usb_task, BOARD_TASK_INPUT_AFFINITY,
@@ -473,7 +473,7 @@ static void board_shell_usb_set_enabled(bool enabled, void *user)
 }
 
 /* DEV 开关默认值:跟随构建模式(Dev 构建开 / Release 构建关) */
-#if defined(EOS_BUILD_RELEASE) && EOS_BUILD_RELEASE
+#if defined(COS_BUILD_RELEASE) && COS_BUILD_RELEASE
 #define BOARD_DEV_MODE_BOOT_DEFAULT false
 #else
 #define BOARD_DEV_MODE_BOOT_DEFAULT true
@@ -481,26 +481,26 @@ static void board_shell_usb_set_enabled(bool enabled, void *user)
 
 static void board_shell_usb_cdc_start(void)
 {
-    eos_shell_framework_init();
+    cos_shell_framework_init();
     /* 运行时 DEV 开关(Control Center "DEV" 按钮):壳监听 task 由框架回调
      * 启停,串口日志级别随状态自动切换(ON->DEBUG, OFF->静默)。
      * 此处先按编译默认应用一次(确保 task 状态与框架一致);
      * 持久化配置在文件系统挂载后由 board_apply_dev_mode_config() 覆盖。 */
-    eos_shell_framework_set_console_ctl(board_shell_usb_set_enabled, NULL);
-    eos_shell_framework_set_console_enabled(BOARD_DEV_MODE_BOOT_DEFAULT);
+    cos_shell_framework_set_console_ctl(board_shell_usb_set_enabled, NULL);
+    cos_shell_framework_set_console_enabled(BOARD_DEV_MODE_BOOT_DEFAULT);
 }
 
 /* 文件系统就绪后应用持久化的 DEV 开关(Control Center 保存的 dev_mode) */
 static void board_apply_dev_mode_config(void)
 {
-    eos_shell_framework_set_console_enabled(
-        eos_config_get_bool(EOS_CONFIG_KEY_DEV_MODE_BOOL, BOARD_DEV_MODE_BOOT_DEFAULT));
+    cos_shell_framework_set_console_enabled(
+        cos_config_get_bool(COS_CONFIG_KEY_DEV_MODE_BOOL, BOARD_DEV_MODE_BOOT_DEFAULT));
 }
 
 /* ════════════════════════════════════════════════════════════════
  *  microSD 挂载(/sdcard)— 真 SD 优先,SPIFFS 兜底
  *  microSD 与 LCD 共用 SPI3 总线(SCK=D8/MOSI=D10/MISO=D9),SD CS=D2=GPIO3:
- *   - SPI bus 已由 eos_dev_display_gc9a01_init() 完成 spi_bus_initialize
+ *   - SPI bus 已由 cos_dev_display_gc9a01_init() 完成 spi_bus_initialize
  *     (main 第 3 步先于本函数执行),SD 通过 sdspi_host_init_device
  *     (内部 spi_bus_add_device) 挂到同一 bus,绝不重复初始化总线。
  *   - 互斥:ESP-IDF SPI master 的 bus lock(spi_bus_lock)保证 LCD 刷屏
@@ -755,8 +755,8 @@ static esp_err_t board_sd_mount(void)
 
 /* ════════════════════════════════════════════════════════════════
  *  文件系统挂载(/sdcard)— 真 SD 优先,SD 缺失时回退 SPIFFS
- *  eos_platform_config.h 定义 EOS_SYS_ROOT_DIR="/sdcard",
- *  eos_fs_realpath() 会把所有 POSIX 绝对路径(/.sys/... 等)
+ *  cos_platform_config.h 定义 COS_SYS_ROOT_DIR="/sdcard",
+ *  cos_fs_realpath() 会把所有 POSIX 绝对路径(/.sys/... 等)
  *  自动映射到 /sdcard 下,故挂载此处即可覆盖 config/state/资源。
  *  Plugin Manager 扫描 /sdcard/apps/ 下的 .eapk/.ewpk 自动安装。
  *  回退分支:SPIFFS 首次挂载失败会自动格式化(format_if_mount_failed)。
@@ -829,7 +829,7 @@ static esp_err_t board_fs_mount(void)
  *   (跳过 Boot Anim 快速恢复);否则 8s 后自动回 Deep Sleep。 */
 #define BOARD_L1_LS_PERIOD_US       (500 * 1000)      /* L1 Light Sleep 周期唤醒:500ms */
 #define BOARD_L1_ACT_GUARD_MS       600               /* 触摸后保持 CPU 清醒窗口(> PM 双击窗口 400ms) */
-#define BOARD_L2_IDLE_MS            (15 * 60 * 1000)  /* 熄屏累计无触摸 15min → L2 自动待机 Deep Sleep(省电模式经 eos_pm_set_l2_idle_ms 运行时收紧到 10min) */
+#define BOARD_L2_IDLE_MS            (15 * 60 * 1000)  /* 熄屏累计无触摸 15min → L2 自动待机 Deep Sleep(省电模式经 cos_pm_set_l2_idle_ms 运行时收紧到 10min) */
 #define BOARD_STANDBY_CLOCK_MS      8000              /* L2 长按唤醒后极简时钟窗口 8s;超时自动回 Deep Sleep */
 #define BOARD_CLOCK_TAP_GAP_MS      500               /* 极简时钟 5 击:相邻两击间隔上限,超限重新计数 */
 #define BOARD_CLOCK_TAPS_TO_BOOT    5                 /* 极简时钟内连续 5 击 → 真正唤醒主系统 */
@@ -879,16 +879,16 @@ RTC_DATA_ATTR static uint32_t s_poweroff_wakes       = 0;
 static int64_t s_l1_last_act_us = 0; /* 最后触摸/活动时刻(esp_timer us);超过 guard 才进 Light Sleep */
 
 /* L2 自动待机阈值(默认 15min,见 BOARD_L2_IDLE_MS)。省电模式可运行时收紧/
- * 恢复(见 eos_pm_set_l2_idle_ms)。普通 static:深睡重启后复位回默认值。 */
+ * 恢复(见 cos_pm_set_l2_idle_ms)。普通 static:深睡重启后复位回默认值。 */
 static uint32_t s_l2_idle_ms = BOARD_L2_IDLE_MS;
 
-/* 供上层(eos_service_power_save)经 extern 调用:查询/设置 L2 待机阈值。 */
-uint32_t eos_pm_get_l2_idle_ms(void)
+/* 供上层(cos_service_power_save)经 extern 调用:查询/设置 L2 待机阈值。 */
+uint32_t cos_pm_get_l2_idle_ms(void)
 {
     return s_l2_idle_ms;
 }
 
-void eos_pm_set_l2_idle_ms(uint32_t idle_ms)
+void cos_pm_set_l2_idle_ms(uint32_t idle_ms)
 {
     if (idle_ms < 1000)
     {
@@ -928,7 +928,7 @@ static void board_backlight_hold_release(void)
 
 /* 深睡(不返回):失败则保持黑屏死循环重试,【绝不返回】。
  * 若返回,PM 状态仍是 DEEP_SLEEP,系统黑屏运行,任何触摸都会触发
- * _indev_pressed_cb -> eos_pm_wake_up() 假唤醒,用户看到
+ * _indev_pressed_cb -> cos_pm_wake_up() 假唤醒,用户看到
  * "按下关机却立即亮回系统"(像重启)。 */
 static void _poweroff_sleep(uint64_t period_us)
 {
@@ -972,7 +972,7 @@ static void board_poweroff_enter_deep_sleep(void)
     /* 深睡前把控制中心四项设置(亮度/蓝牙/WiFi/电源模式)固化到 SD:
      * 深睡/关机是"整机断电"语义,延迟写(deferred writer)可能还没落卡。
      * 无真 SD 卡时空操作(回退 cfg.json),绝不阻塞关机流程。 */
-    eos_cc_snapshot_capture_now();
+    cos_cc_snapshot_capture_now();
 
     /* 背光保持低(防深睡浮空反亮) */
     board_backlight_low_hold();
@@ -988,8 +988,8 @@ static void board_poweroff_enter_deep_sleep(void)
      * 同步 SPI 发送安全,不会导致 esp_deep_sleep_start 失败。
      * 面板显示关闭(0x28 DISPOFF)仍保留:关面板刷新,防正常开机路径闪亮;
      * 面板常供电 + 无硬件 RST,寄存器状态跨深睡保持,开机 init(0x29)恢复。 */
-    eos_dev_display_gc9a01_fill_black();
-    eos_dev_display_gc9a01_display_off();
+    cos_dev_display_gc9a01_fill_black();
+    cos_dev_display_gc9a01_display_off();
 
     /* 保持 RTC 外设域供电:GPIO43 的 IO_MUX 复用配置位于 RTC 域。
      * 默认深睡 RTC_PERIPH 掉电 → 唤醒时 IO_MUX 复位成 UART0 TXD 默认
@@ -1064,7 +1064,7 @@ static void board_poweroff_poll(void)
     int32_t x = 0, y = 0;
     bool touched = false;
     for (int i = 0; i < 10 && !touched; i++) {
-        touched = eos_dev_touch_chsc6x_read(&x, &y);
+        touched = cos_dev_touch_chsc6x_read(&x, &y);
         if (!touched) vTaskDelay(pdMS_TO_TICKS(3));
     }
 
@@ -1113,7 +1113,7 @@ static void board_poweroff_poll(void)
  *  L2:Light Sleep 累计无触摸 15min → 自动待机 Deep Sleep。深睡期间
  *      GPIO44 无法唤醒(S3 仅 RTC GPIO0~21 可深睡唤醒),故复用关机骨架:
  *      8s/16s RTC 周期唤醒 → 读 CHSC6X 检测"长按"。长按被识别后不直接
- *      进主系统,而是先在 eos_init() 之前显示 8s "极简时钟"(纯 LVGL,
+ *      进主系统,而是先在 cos_init() 之前显示 8s "极简时钟"(纯 LVGL,
  *      时间读 RTC 设备,服务/JS/网络全未启动,极低开销);8s 内连续 5 击
  *      (相邻间隔 ≤500ms)→ 真正唤醒:清待机标志、跳过 Boot Anim、恢复
  *      深睡前使用的 App(/sdcard/history/deepsleep/latest_ui.txt 与
@@ -1126,18 +1126,18 @@ static void board_poweroff_poll(void)
 
 /* 前台若是 App(非表盘/启动器/锁屏等主界面),返回其可恢复 app id;
  * 否则返回 NULL(→ 恢复为表盘主界面)。仅作待机历史快照用。
- * 注意:运行期(ui_task)才能调用;极简时钟 gate 在 eos_init 之前,
+ * 注意:运行期(ui_task)才能调用;极简时钟 gate 在 cos_init 之前,
  * 不需要也不允许调用本函数。 */
 static const char *board_standby_foreground_app_id(void)
 {
-    eos_activity_t *top = eos_activity_get_current();
+    cos_activity_t *top = cos_activity_get_current();
     if (!top)
         return NULL;
-    eos_activity_type_t t = eos_activity_get_type(top);
+    cos_activity_type_t t = cos_activity_get_type(top);
     /* App 或 App 内部页(输入页/子页等)→ 用最近一次启动的 App id;
      * 表盘 / App 列表 / 表盘列表 / 锁屏均视为主界面,不恢复。 */
-    if (t == EOS_ACTIVITY_TYPE_APP || t == EOS_ACTIVITY_TYPE_INPUT_PAGE) {
-        const char *id = eos_app_list_get_last_launch_app_id();
+    if (t == COS_ACTIVITY_TYPE_APP || t == COS_ACTIVITY_TYPE_INPUT_PAGE) {
+        const char *id = cos_app_list_get_last_launch_app_id();
         if (id && id[0] && strcmp(id, "watchface") != 0)
             return id;
     }
@@ -1165,7 +1165,7 @@ static void board_standby_write_history(void)
 static void board_standby_enter_deep_sleep(void)
 {
     ESP_LOGI(TAG, "Standby: %u s idle -> L2 deep sleep (snapshot UI first)",
-             (unsigned)(eos_pm_get_l2_idle_ms() / 1000));
+             (unsigned)(cos_pm_get_l2_idle_ms() / 1000));
 
     /* 前台是 App → 记 app id;表盘/启动器 → watchface(正常启动即主界面) */
     const char *fg = board_standby_foreground_app_id();
@@ -1179,7 +1179,7 @@ static void board_standby_enter_deep_sleep(void)
              s_standby_restore_ui);
 
     /* L2 待机同样是深睡:先把四项设置固化到 SD(无卡则空操作) */
-    eos_cc_snapshot_capture_now();
+    cos_cc_snapshot_capture_now();
 
     s_standby_pending      = true;  /* 唤醒后:长按 → 极简时钟,5 击才进主系统 */
     s_standby_boot_restore = false; /* 5 击在 gate 内部再置位 */
@@ -1195,12 +1195,12 @@ static void board_standby_enter_deep_sleep(void)
 
 /* 开发/测试用:立即进入 L2 待机硬件深睡(走极简时钟 + 5 击唤醒路径),
  * 跳过 15min 空闲等待。供 shell 命令 `power standby` 调用。 */
-void eos_board_enter_standby_deep_sleep(void)
+void cos_board_enter_standby_deep_sleep(void)
 {
     board_standby_enter_deep_sleep();
 }
 
-/* 极简时钟(L2 待机长按唤醒):纯 LVGL 渲染,位于 eos_init() 之前,
+/* 极简时钟(L2 待机长按唤醒):纯 LVGL 渲染,位于 cos_init() 之前,
  * 系统服务/JS/网络均未启动。时间直接读 RTC 设备实例(HAL 已在
  * board_drivers_register 注册),避免拉启 time 服务。 */
 /* TODO(待机/功耗):极简时钟阶段"单核运行"暂未实现。评估结论——收益小
@@ -1218,7 +1218,7 @@ static void board_standby_clock_gate(void)
         { "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
 
     /* 深睡唤醒刚复位过面板,清一次 GRAM 避免残留 */
-    eos_dev_display_gc9a01_fill_black();
+    cos_dev_display_gc9a01_fill_black();
 
     /* 建立纯 LVGL 极简时钟屏:Montserrat 字体编译期自带,无需字体服务 */
     lv_obj_t *scr = lv_obj_create(NULL);
@@ -1276,7 +1276,7 @@ static void board_standby_clock_gate(void)
         /* 触摸轮询:上升沿计一次击。初始的"长按"在 gate 前已释放,
          * 不会被误计;相邻两击间隔 >500ms 则重新计数。 */
         int32_t x = 0, y = 0;
-        bool touched = eos_dev_touch_chsc6x_read(&x, &y);
+        bool touched = cos_dev_touch_chsc6x_read(&x, &y);
         if (touched && !prev_touched) {
             if (tap_count == 0 ||
                 (now_us - last_tap_us) <= (int64_t)BOARD_CLOCK_TAP_GAP_MS * 1000) {
@@ -1295,7 +1295,7 @@ static void board_standby_clock_gate(void)
                 ESP_LOGI(TAG, "Standby clock: %d taps -> fully boot "
                          "(restore '%s')", (int)BOARD_CLOCK_TAPS_TO_BOOT,
                          s_standby_restore_ui);
-                return;   /* 继续正常 app_main 启动(eos_init) */
+                return;   /* 继续正常 app_main 启动(cos_init) */
             }
         }
         prev_touched = touched;
@@ -1303,9 +1303,9 @@ static void board_standby_clock_gate(void)
         /* 每秒刷新时间/日期(文本未变时不动,LVGL 无连续刷屏) */
         if ((now_us - last_render_us) >= 1000 * 1000) {
             last_render_us = now_us;
-            eos_dev_time_t *td = eos_dev_time_get_instance();
+            cos_dev_time_t *td = cos_dev_time_get_instance();
             if (td && td->ops && td->ops->get_datetime) {
-                eos_datetime_t dt = td->ops->get_datetime();
+                cos_datetime_t dt = td->ops->get_datetime();
                 snprintf(time_str, sizeof(time_str), "%02u:%02u",
                          (unsigned)dt.hour, (unsigned)dt.min);
                 /* 日期用"月/日"(MM/DD):极简时钟只有三行,不留年份;
@@ -1344,14 +1344,14 @@ static void board_standby_try_restore_ui(void)
 
     /* 等 ui_task 处理完 root 启动(避开切换动画窗口,最多 ~5s) */
     for (int i = 0; i < 100; i++) {
-        eos_activity_t *top = eos_activity_get_current();
-        if (top && !eos_activity_is_transition_in_progress())
+        cos_activity_t *top = cos_activity_get_current();
+        if (top && !cos_activity_is_transition_in_progress())
             break;
         vTaskDelay(pdMS_TO_TICKS(50));
     }
 
-    eos_result_t r = eos_app_launch_immediately(s_standby_restore_ui);
-    if (r == EOS_OK) {
+    cos_result_t r = cos_app_launch_immediately(s_standby_restore_ui);
+    if (r == COS_OK) {
         ESP_LOGI(TAG, "Standby restore: opened '%s'",
                  s_standby_restore_ui);
     } else {
@@ -1360,15 +1360,15 @@ static void board_standby_try_restore_ui(void)
     }
 }
 
-/* L1/L2 主状态机单步:ui_task 每轮(eos_main_loop 后)调用。
+/* L1/L2 主状态机单步:ui_task 每轮(cos_main_loop 后)调用。
  * 仅 PM 处于 SLEEP(熄屏)时工作;亮屏/AOD 直接返回不干预。 */
 static void board_pm_step(void)
 {
     static bool            s_l1_gpio_wake_armed = false;
     static int64_t         s_l2_idle_start_us   = 0;  /* 连续 L1 无触摸累计起点 */
-    static eos_pm_state_t  s_prev_state         = EOS_PM_DISPLAY_ON;
+    static cos_pm_state_t  s_prev_state         = COS_PM_DISPLAY_ON;
 
-    eos_pm_state_t st  = eos_pm_get_state();
+    cos_pm_state_t st  = cos_pm_get_state();
     int64_t now_us = esp_timer_get_time();
 
 #if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
@@ -1378,14 +1378,14 @@ static void board_pm_step(void)
      * 检测 tud_mounted() 为假并自动断开恢复,避免熄屏后看似卡死需重启。 */
     if (board_pm_usb_msc_is_held()) {
         if (!_board_vbus_present()) {
-            eos_pm_wake_up();
+            cos_pm_wake_up();
         }
         return;
     }
 #endif
 
     /* 状态边界跟踪 */
-    if (st != EOS_PM_SLEEP) {
+    if (st != COS_PM_SLEEP) {
         if (s_prev_state != st) {
             s_prev_state = st;          /* 进入 ON/AOD:CPU 常醒 */
             s_l1_last_act_us = now_us;
@@ -1393,8 +1393,8 @@ static void board_pm_step(void)
         s_l2_idle_start_us = 0;
         return;
     }
-    if (s_prev_state != EOS_PM_SLEEP) {
-        s_prev_state      = EOS_PM_SLEEP;
+    if (s_prev_state != COS_PM_SLEEP) {
+        s_prev_state      = COS_PM_SLEEP;
         s_l1_last_act_us  = now_us;    /* 刚熄屏视作"有活动",先撑 guard */
         s_l2_idle_start_us = 0;
     }
@@ -1471,7 +1471,7 @@ static int board_power_set(dev_power_state_t state)
         return 0;  /* esp_deep_sleep_start 不返回 */
     }
 
-    eos_dev_display_t *disp = eos_dev_display_get_instance();
+    cos_dev_display_t *disp = cos_dev_display_get_instance();
     if (!disp || !disp->ops || !disp->ops->power_on || !disp->ops->power_off)
     {
         ESP_LOGE(TAG, "Power set(%d) failed: display HAL not ready", (int)state);
@@ -1481,12 +1481,12 @@ static int board_power_set(dev_power_state_t state)
     {
         /* 熄屏:先灭背光再关面板,避免"先黑屏再灭背光"的可见闪烁 */
         disp->ops->power_off();
-        eos_dev_display_gc9a01_display_off();
+        cos_dev_display_gc9a01_display_off();
     }
     else
     {
         /* 亮屏/AOD:先开面板再恢复背光(顺序反了会看到一帧黑) */
-        eos_dev_display_gc9a01_display_on();
+        cos_dev_display_gc9a01_display_on();
         disp->ops->power_on();
     }
     return 0;
@@ -1512,30 +1512,30 @@ static int board_power_setoff_params(bool timed, uint32_t wake_after_s)
     return 0;
 }
 
-static const eos_dev_power_ops_t s_board_power_ops = {
+static const cos_dev_power_ops_t s_board_power_ops = {
     .set_power           = board_power_set,
     .set_poweroff_params = board_power_setoff_params,
 };
 
 /* ════════════════════════════════════════════════════════════════
- *  板级驱动注册(对接 ElenixOS 设备 HAL)
+ *  板级驱动注册(对接 CantoMk6 设备 HAL)
  * ════════════════════════════════════════════════════════════════ */
 static void board_drivers_register(void)
 {
     /* GC9A01 / CHSC6X / BM8563 已是真实驱动 */
-    eos_dev_display_gc9a01_register();
-    eos_dev_rtc_bm8563_init();
-    /* Power ops 必须在 eos_init()(PM 服务读取 instance)之前注册 */
-    eos_dev_power_register(&s_board_power_ops);
+    cos_dev_display_gc9a01_register();
+    cos_dev_rtc_bm8563_init();
+    /* Power ops 必须在 cos_init()(PM 服务读取 instance)之前注册 */
+    cos_dev_power_register(&s_board_power_ops);
     /* 电池:ADC1_CH0 单次模式 + 校准;实际电芯 180~220mAh(XIAO 小电池),
      * 取中值 200mAh 作为容量口径(影响百分比/低电阈值/续航估算)。如后期实测
      * 标定,改这里一个数即可。 */
-    eos_dev_battery_register(&s_board_battery_ops, 200);
+    cos_dev_battery_register(&s_board_battery_ops, 200);
     ESP_LOGI(TAG, "Drivers registered (GC9A01/CHSC6X/BM8563 real, power->backlight, battery->ADC)");
 }
 
 /* 智能模式(省电/性能均未启用)默认 CPU profile:DFS 80-160MHz 按需调频。
- * 必须在 eos_init() 之前调用:power_save / beast_mode 服务首次切换模式时会把
+ * 必须在 cos_init() 之前调用:power_save / beast_mode 服务首次切换模式时会把
  * "当前 PM 配置"快照为 _pm_normal_config,退出时用它恢复。先在此配好智能
  * profile,两个服务快照到的就是 DFS 80-160,退出后回落回 DFS 智能档,
  * 而不是回落到 sdkconfig 的固定 160MHz(未 configure 时 esp_pm_get_configuration
@@ -1586,7 +1586,7 @@ static const char *board_reset_reason_str(esp_reset_reason_t r)
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "=== ElenixOS ESP32-S3 boot ===");
+    ESP_LOGI(TAG, "=== CantoMk6 ESP32-S3 boot ===");
     ESP_LOGI(TAG, "Reset reason: %d (%s)", (int)esp_reset_reason(),
              board_reset_reason_str(esp_reset_reason()));
     ESP_LOGI(TAG, "Board: XIAO ESP32-S3 + Round Display 1.28\"");
@@ -1635,18 +1635,18 @@ void app_main(void)
     /* 0. 创建 FreeRTOS 任务——必须在任何 internal 大分配之前!
      * 原因:ui_task 会执行 flash 写(如配置保存→SPIFFS)。flash 写期间 CPU cache
      * 被禁用,PSRAM 栈不可访问 → esp_task_stack_is_sane_cache_disabled() 断言崩溃。
-     * 因此 ui_task 栈必须分配在 internal RAM;且 eos_init() 之后 internal RAM
+     * 因此 ui_task 栈必须分配在 internal RAM;且 cos_init() 之后 internal RAM
      * 碎片化(largest≈7KB),48KB 栈无法分配。必须在 app_main 最开头、驱动/
      * SPIFFS 等 internal 占用之前分配(实测 CHSC6X+SPIFFS 会把 largest 从
      * ~51KB 啃到 ~45KB,导致 49152B 栈分配失败)。
-     * ui_task 通过 s_eos_ready 信号量等待 Core 就绪,不依赖驱动初始化顺序。
+     * ui_task 通过 s_cos_ready 信号量等待 Core 就绪,不依赖驱动初始化顺序。
      * input/service/script 不执行 flash 写,栈留在 PSRAM(8MB 充足)。
      * BOARD_TASK_*_STACK 为 words 单位,WithCaps 版要求 bytes(×4)。 */
     ESP_LOGI(TAG, "Heap before tasks: DRAM free=%u (largest=%u), PSRAM free=%u",
              (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
              (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
-    s_eos_ready = xSemaphoreCreateBinary();
+    s_cos_ready = xSemaphoreCreateBinary();
     BaseType_t r;
     r = xTaskCreatePinnedToCoreWithCaps(ui_task, "ui", BOARD_TASK_UI_STACK * 4, NULL,
                                         BOARD_TASK_UI_PRIO, NULL, BOARD_TASK_UI_AFFINITY,
@@ -1691,38 +1691,38 @@ void app_main(void)
     lv_init();
 
     /* 3. GC9A01 LCD 真实驱动初始化(含 SPI bus + panel + 背光 PWM) */
-    esp_err_t ret = eos_dev_display_gc9a01_init();
+    esp_err_t ret = cos_dev_display_gc9a01_init();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "GC9A01 init failed: %s", esp_err_to_name(ret));
         /* 不 return,继续启动(Shell 仍可用) */
     }
 
     /* 4. 注册 LVGL display(flush_cb → esp_lcd_panel_draw_bitmap) */
-    eos_dev_display_gc9a01_lvgl_init();
+    cos_dev_display_gc9a01_lvgl_init();
 
     /* 4.5 CHSC6X 触摸:创建 LVGL POINTER indev(read timer 自动轮询)
-     * 必须在 eos_init() 前创建,Core 侧 eos_touch_get_indev() 才能找到 */
-    eos_dev_touch_chsc6x_init();
+     * 必须在 cos_init() 前创建,Core 侧 cos_touch_get_indev() 才能找到 */
+    cos_dev_touch_chsc6x_init();
 
-    /* 5. 注册板级驱动到 ElenixOS HAL */
+    /* 5. 注册板级驱动到 CantoMk6 HAL */
     board_drivers_register();
 
-    /* 5.5 BLE 提前初始化:必须在 eos_init() 之前(internal RAM 尚连续、
-     * largest≈45KB)完成 NimBLE/controller 初始化——eos_init() 之后 largest
+    /* 5.5 BLE 提前初始化:必须在 cos_init() 之前(internal RAM 尚连续、
+     * largest≈45KB)完成 NimBLE/controller 初始化——cos_init() 之后 largest
      * 只剩 ≈7KB,controller 的大块 internal|DMA 分配必然 ESP_ERR_NO_MEM
      * (表现为打开蓝牙开关时 init 失败)。失败不致命:开关仍会懒初始化重试。 */
-    eos_bt_esp32_early_init();
+    cos_bt_esp32_early_init();
 
     /* 5.6 Wi-Fi 提前初始化:与蓝牙同理(esp_wifi_init 的 static RX buffer
      * 需 internal DMA 连续内存)。内部带内存门控:largest 不足时自动跳过、
-     * 保持懒初始化,绝不挤占 eos_init()/LVGL UI 加载的 internal 空间。 */
-    eos_net_wifi_esp32_early_init();
+     * 保持懒初始化,绝不挤占 cos_init()/LVGL UI 加载的 internal 空间。 */
+    cos_net_wifi_esp32_early_init();
 
     /* 6. Shell:USB-CDC(永远可用,不依赖 SD) */
     board_shell_usb_cdc_start();
 
     /* 6.5 文件系统:真 microSD 优先挂载 /sdcard,无卡回退 SPIFFS
-     * (config/state/资源依赖,须在 eos_init 前) */
+     * (config/state/资源依赖,须在 cos_init 前) */
     board_fs_mount();
     /* 6.6 应用持久化的 DEV 开关(依赖配置文件在 fs 上,须在 mount 后) */
     board_apply_dev_mode_config();
@@ -1731,9 +1731,9 @@ void app_main(void)
      * 分配 48KB ui_task 栈,此时才能成功;驱动/SPIFFS 之后 largest 只有 ~45KB)。 */
 
     /* 7.5 L2 待机唤醒的"极简时钟"gate:仅 s_standby_pending(15min 自动待机
-     * 后长按唤醒)时执行。此处位于 eos_init() 之前:LVGL/触摸/RTC 设备均已
+     * 后长按唤醒)时执行。此处位于 cos_init() 之前:LVGL/触摸/RTC 设备均已
      * 就绪,但 time/JS/网络等服务尚未启动,时间直接读 RTC 设备,开销极低。
-     * 8s 内连续 5 击 → 清待机标志返回(走正常 eos_init 完整启动);
+     * 8s 内连续 5 击 → 清待机标志返回(走正常 cos_init 完整启动);
      * 否则 8s 到点自动回 Deep Sleep(不返回)。 */
     if (s_standby_pending) {
         board_standby_clock_gate();   /* 5 击内部清标志;超时深睡不返回 */
@@ -1741,42 +1741,42 @@ void app_main(void)
     /* 极简时钟 5 击 = "真正唤醒":跳过 Boot Anim 快速进入主系统(开关保留,
      * 仅此路径自动跳过;普通开机仍显示开机动画) */
     if (s_standby_boot_restore) {
-        eos_boot_anim_skip_request();
+        cos_boot_anim_skip_request();
     }
 
     /* 7.8 SD 快照恢复:把 /sdcard/history/cc/settings.txt 里的亮度/蓝牙/
-     * WiFi/电源模式覆盖回系统。必须在 eos_init() 之前:
-     *   - eos_init() -> eos_service_config_init() 会用 cfg.json 设一次亮度/蓝牙;
-     *   - Control Center widget 在 eos_init() 内创建,会读取服务状态决定开关;
+     * WiFi/电源模式覆盖回系统。必须在 cos_init() 之前:
+     *   - cos_init() -> cos_service_config_init() 会用 cfg.json 设一次亮度/蓝牙;
+     *   - Control Center widget 在 cos_init() 内创建,会读取服务状态决定开关;
      *   - power_save/beast_mode 服务 init 时会快照"当前 PM 配置",此处先恢复
      *     模式,快照到的才是正确基线。
      * 无真 SD 卡或无快照文件时本函数直接返回,cfg.json 路径完全不变。
      * 唤醒路径(deep sleep 重启)也走这里 —— 唤醒后再次应用同一份快照是幂等的。 */
     {
-        eos_result_t snap_ret = eos_cc_snapshot_restore_now();
+        cos_result_t snap_ret = cos_cc_snapshot_restore_now();
         ESP_LOGI(TAG, "CC snapshot restore: %s",
-                 snap_ret == EOS_OK ? "applied" : "no snapshot / no SD (cfg.json in use)");
+                 snap_ret == COS_OK ? "applied" : "no snapshot / no SD (cfg.json in use)");
     }
 
-    /* 7.9 智能模式默认 CPU profile:DFS 80-160MHz。必须早于 eos_init()
+    /* 7.9 智能模式默认 CPU profile:DFS 80-160MHz。必须早于 cos_init()
      * (见 board_smart_cpu_profile_apply 注释:省电/性能服务在 init 时快照
      * "当前 PM 配置",退出时回落到它 —— 即回落回 DFS 智能档而非固定 160)。 */
     board_smart_cpu_profile_apply();
 
-    /* 8. ElenixOS Core 初始化(持 LVGL 递归锁,避免与 ui_task 并发竞态) */
+    /* 8. CantoMk6 Core 初始化(持 LVGL 递归锁,避免与 ui_task 并发竞态) */
     lv_lock();
-    eos_init();
+    cos_init();
     lv_unlock();
-    ESP_LOGI(TAG, "ElenixOS core initialized");
+    ESP_LOGI(TAG, "CantoMk6 core initialized");
     /* 放行 ui_task(LVGL 渲染/事件循环开始) */
-    if (s_eos_ready != NULL) {
-        xSemaphoreGive(s_eos_ready);
+    if (s_cos_ready != NULL) {
+        xSemaphoreGive(s_cos_ready);
     }
     /* 8.5 L2 完整唤醒的 App 恢复:极简时钟 5 击后置位 s_standby_boot_restore,
      * root/watchface 就绪后尝试回到深睡前正在使用的 App(尽力而为) */
     board_standby_try_restore_ui();
-    /* 诊断:eos_init() 之后的 internal RAM 状态(验证阈值 8KB 分流效果) */
-    ESP_LOGI(TAG, "Heap after eos_init: DRAM free=%u (largest=%u), PSRAM free=%u",
+    /* 诊断:cos_init() 之后的 internal RAM 状态(验证阈值 8KB 分流效果) */
+    ESP_LOGI(TAG, "Heap after cos_init: DRAM free=%u (largest=%u), PSRAM free=%u",
              (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
              (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
              (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));

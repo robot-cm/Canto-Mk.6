@@ -1,24 +1,24 @@
 /**
- * @file eos_service_audio.c
+ * @file cos_service_audio.c
  * @brief Audio service - high-level API for speaker and microphone
  */
-#include "eos_service_audio.h"
+#include "cos_service_audio.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "eos_mem.h"
-#define EOS_LOG_TAG "AudioService"
-#include "eos_log.h"
-#include "eos_dev_speaker.h"
-#include "eos_dev_microphone.h"
-#include "eos_audio_player.h"
-#include "eos_audio_decoder.h"
-#include "eos_audio_decoder_wav.h"
-#include "eos_service_config.h"
-#include "eos_service_state.h"
-#include "eos_service_storage.h"
+#include "cos_mem.h"
+#define COS_LOG_TAG "AudioService"
+#include "cos_log.h"
+#include "cos_dev_speaker.h"
+#include "cos_dev_microphone.h"
+#include "cos_audio_player.h"
+#include "cos_audio_decoder.h"
+#include "cos_audio_decoder_wav.h"
+#include "cos_service_config.h"
+#include "cos_service_state.h"
+#include "cos_service_storage.h"
 #include "lvgl.h"
 
 /* Macros and Definitions -------------------------------------*/
@@ -36,13 +36,13 @@ static bool _initialized = false;
  * Player instances managed by the audio service.
  * Currently one (MEDIA), expandable to multiple channels.
  */
-static eos_audio_player_t _player_media;
+static cos_audio_player_t _player_media;
 
 /* Recording state */
 static struct
 {
     bool active;
-    eos_file_t file;
+    cos_file_t file;
     uint8_t *ring_buf;
     uint32_t ring_buf_size;
     uint32_t read_offset;
@@ -52,91 +52,91 @@ static struct
 
 /* Function Implementations -----------------------------------*/
 
-void eos_service_audio_init(void)
+void cos_service_audio_init(void)
 {
     if (_initialized)
     {
         return;
     }
     _initialized = true;
-    eos_audio_decoder_init();
-    eos_audio_decoder_wav_init();
-    eos_audio_player_init(&_player_media);
-    EOS_LOG_I("Audio service initialized");
+    cos_audio_decoder_init();
+    cos_audio_decoder_wav_init();
+    cos_audio_player_init(&_player_media);
+    COS_LOG_I("Audio service initialized");
 }
 
-eos_result_t eos_service_audio_set_volume(uint8_t volume)
+cos_result_t cos_service_audio_set_volume(uint8_t volume)
 {
-    if (volume > EOS_SPEAKER_VOLUME_MAX)
+    if (volume > COS_SPEAKER_VOLUME_MAX)
     {
-        volume = EOS_SPEAKER_VOLUME_MAX;
+        volume = COS_SPEAKER_VOLUME_MAX;
     }
 
-    eos_audio_player_set_volume(&_player_media, volume);
-    eos_audio_player_apply_volume(&_player_media);
+    cos_audio_player_set_volume(&_player_media, volume);
+    cos_audio_player_apply_volume(&_player_media);
 
-    eos_config_set_number(EOS_CONFIG_KEY_SPEAKER_VOLUME_NUMBER, volume);
-    return EOS_OK;
+    cos_config_set_number(COS_CONFIG_KEY_SPEAKER_VOLUME_NUMBER, volume);
+    return COS_OK;
 }
 
-uint8_t eos_service_audio_get_volume(void)
+uint8_t cos_service_audio_get_volume(void)
 {
-    return (uint8_t)eos_config_get_number(EOS_CONFIG_KEY_SPEAKER_VOLUME_NUMBER, 50);
+    return (uint8_t)cos_config_get_number(COS_CONFIG_KEY_SPEAKER_VOLUME_NUMBER, 50);
 }
 
-void eos_service_audio_set_mute(bool mute)
+void cos_service_audio_set_mute(bool mute)
 {
-    eos_config_set_bool(EOS_CONFIG_KEY_MUTE_BOOL, mute);
+    cos_config_set_bool(COS_CONFIG_KEY_MUTE_BOOL, mute);
 
-    eos_audio_player_set_mute(&_player_media, mute);
+    cos_audio_player_set_mute(&_player_media, mute);
 }
 
-bool eos_service_audio_is_muted(void)
+bool cos_service_audio_is_muted(void)
 {
-    return eos_config_get_bool(EOS_CONFIG_KEY_MUTE_BOOL, false);
+    return cos_config_get_bool(COS_CONFIG_KEY_MUTE_BOOL, false);
 }
 
-eos_result_t eos_service_audio_play(const char *file_path)
+cos_result_t cos_service_audio_play(const char *file_path)
 {
     if (file_path == NULL)
     {
-        return EOS_ERR_INVALID_ARG;
+        return COS_ERR_INVALID_ARG;
     }
 
-    eos_dev_speaker_t *spk = eos_dev_speaker_get_instance();
+    cos_dev_speaker_t *spk = cos_dev_speaker_get_instance();
     if (spk == NULL || spk->ops == NULL || spk->ops->is_available == NULL)
     {
-        return EOS_ERR_DEV_NOT_FOUND;
+        return COS_ERR_DEV_NOT_FOUND;
     }
 
     if (!spk->ops->is_available())
     {
-        return EOS_ERR_DEV_NOT_FOUND;
+        return COS_ERR_DEV_NOT_FOUND;
     }
 
-    return eos_audio_player_play(&_player_media, file_path, EOS_AUDIO_SRC_FILE);
+    return cos_audio_player_play(&_player_media, file_path, COS_AUDIO_SRC_FILE);
 }
 
-eos_result_t eos_service_audio_play_tone(uint16_t freq, uint32_t duration_ms)
+cos_result_t cos_service_audio_play_tone(uint16_t freq, uint32_t duration_ms)
 {
     (void)freq;
     (void)duration_ms;
-    return EOS_ERR_DEV_OPS_NOT_SUPPORTED;
+    return COS_ERR_DEV_OPS_NOT_SUPPORTED;
 }
 
-eos_result_t eos_service_audio_stop(void)
+cos_result_t cos_service_audio_stop(void)
 {
-    return eos_audio_player_stop(&_player_media);
+    return cos_audio_player_stop(&_player_media);
 }
 
-eos_result_t eos_service_audio_pause(void)
+cos_result_t cos_service_audio_pause(void)
 {
-    return eos_audio_player_pause(&_player_media);
+    return cos_audio_player_pause(&_player_media);
 }
 
-eos_result_t eos_service_audio_resume(void)
+cos_result_t cos_service_audio_resume(void)
 {
-    return eos_audio_player_resume(&_player_media);
+    return cos_audio_player_resume(&_player_media);
 }
 
 /* ---- Recording (ring-buffer producer-consumer) ------------- */
@@ -147,7 +147,7 @@ eos_result_t eos_service_audio_resume(void)
  * Write a standard 44-byte RIFF/WAV header for 16-bit mono PCM.
  * Size fields are set to zero initially and patched on stop_recording.
  */
-static void _write_wav_header(eos_file_t fp)
+static void _write_wav_header(cos_file_t fp)
 {
     uint8_t hdr[WAV_HEADER_SIZE];
     uint16_t channels = MIC_DEFAULT_CHANNELS;
@@ -177,17 +177,17 @@ static void _write_wav_header(eos_file_t fp)
     memcpy(hdr + 36, "data", 4);
     /* hdr[40..43] = data chunk size (placeholder, 0) */
 
-    eos_storage_file_write(fp, hdr, WAV_HEADER_SIZE);
+    cos_storage_file_write(fp, hdr, WAV_HEADER_SIZE);
 }
 
 /**
  * Patch the RIFF total-size and data-chunk-size fields in the WAV header
  * after recording completes.
  */
-static void _update_wav_header(eos_file_t fp)
+static void _update_wav_header(cos_file_t fp)
 {
     uint32_t file_size;
-    if (eos_storage_file_size(fp, &file_size) != EOS_OK)
+    if (cos_storage_file_size(fp, &file_size) != COS_OK)
         return;
 
     uint32_t riff_size = file_size - 8;
@@ -198,15 +198,15 @@ static void _update_wav_header(eos_file_t fp)
     buf[1] = (riff_size >> 8) & 0xFF;
     buf[2] = (riff_size >> 16) & 0xFF;
     buf[3] = (riff_size >> 24) & 0xFF;
-    eos_storage_file_seek(fp, 4);
-    eos_storage_file_write(fp, buf, 4);
+    cos_storage_file_seek(fp, 4);
+    cos_storage_file_write(fp, buf, 4);
 
     buf[0] = data_size & 0xFF;
     buf[1] = (data_size >> 8) & 0xFF;
     buf[2] = (data_size >> 16) & 0xFF;
     buf[3] = (data_size >> 24) & 0xFF;
-    eos_storage_file_seek(fp, 40);
-    eos_storage_file_write(fp, buf, 4);
+    cos_storage_file_seek(fp, 40);
+    cos_storage_file_write(fp, buf, 4);
 }
 
 static void _ensure_parent_dir(const char *file_path)
@@ -221,7 +221,7 @@ static void _ensure_parent_dir(const char *file_path)
     if (slash && slash != tmp)
     {
         *slash = '\0';
-        eos_storage_mkdir_recursive(tmp);
+        cos_storage_mkdir_recursive(tmp);
     }
 }
 
@@ -232,8 +232,8 @@ static void _ensure_parent_dir(const char *file_path)
 static void _recording_timer_cb(lv_timer_t *timer)
 {
     (void)timer;
-    eos_dev_microphone_t *mic = eos_dev_microphone_get_instance();
-    if (!mic || !mic->ops || _rec.file == EOS_FILE_INVALID)
+    cos_dev_microphone_t *mic = cos_dev_microphone_get_instance();
+    if (!mic || !mic->ops || _rec.file == COS_FILE_INVALID)
         return;
 
     uint32_t write_off = mic->ops->get_write_offset();
@@ -246,48 +246,48 @@ static void _recording_timer_cb(lv_timer_t *timer)
     if (read_mod + avail <= _rec.ring_buf_size)
     {
         /* Contiguous: single write */
-        eos_storage_file_write(_rec.file, _rec.ring_buf + read_mod, avail);
+        cos_storage_file_write(_rec.file, _rec.ring_buf + read_mod, avail);
     }
     else
     {
         /* Wraps around: two writes */
         uint32_t first_part = _rec.ring_buf_size - read_mod;
         uint32_t second_part = avail - first_part;
-        eos_storage_file_write(_rec.file, _rec.ring_buf + read_mod, first_part);
-        eos_storage_file_write(_rec.file, _rec.ring_buf, second_part);
+        cos_storage_file_write(_rec.file, _rec.ring_buf + read_mod, first_part);
+        cos_storage_file_write(_rec.file, _rec.ring_buf, second_part);
     }
 
     _rec.read_offset = write_off;
 }
 
-eos_result_t eos_service_audio_start_recording(const char *file_path)
+cos_result_t cos_service_audio_start_recording(const char *file_path)
 {
     if (file_path == NULL)
     {
-        return EOS_ERR_INVALID_ARG;
+        return COS_ERR_INVALID_ARG;
     }
 
     if (_rec.active)
     {
-        EOS_LOG_W("Recording already in progress");
-        return EOS_ERR_ALREADY_EXISTS;
+        COS_LOG_W("Recording already in progress");
+        return COS_ERR_ALREADY_EXISTS;
     }
 
-    eos_dev_microphone_t *mic = eos_dev_microphone_get_instance();
+    cos_dev_microphone_t *mic = cos_dev_microphone_get_instance();
     if (mic == NULL || mic->ops == NULL || mic->ops->is_available == NULL)
     {
-        return EOS_ERR_DEV_NOT_FOUND;
+        return COS_ERR_DEV_NOT_FOUND;
     }
 
     if (!mic->ops->is_available())
     {
-        return EOS_ERR_DEV_NOT_FOUND;
+        return COS_ERR_DEV_NOT_FOUND;
     }
 
-    _rec.ring_buf = eos_malloc(MIC_RING_BUFFER_SIZE);
+    _rec.ring_buf = cos_malloc(MIC_RING_BUFFER_SIZE);
     if (!_rec.ring_buf)
     {
-        return EOS_ERR_MEM;
+        return COS_ERR_MEM;
     }
     _rec.ring_buf_size = MIC_RING_BUFFER_SIZE;
     memset(_rec.ring_buf, 0, _rec.ring_buf_size);
@@ -295,31 +295,31 @@ eos_result_t eos_service_audio_start_recording(const char *file_path)
 
     if (mic->ops->set_buffer(_rec.ring_buf, _rec.ring_buf_size) != 0)
     {
-        EOS_LOG_E("Failed to set mic ring buffer");
-        eos_free(_rec.ring_buf);
+        COS_LOG_E("Failed to set mic ring buffer");
+        cos_free(_rec.ring_buf);
         _rec.ring_buf = NULL;
-        return EOS_ERR_DEV_ERROR;
+        return COS_ERR_DEV_ERROR;
     }
 
     int ret = mic->ops->open(MIC_DEFAULT_SAMPLE_RATE, MIC_DEFAULT_CHANNELS, MIC_DEFAULT_BITS);
     if (ret != 0)
     {
-        EOS_LOG_E("Failed to open mic: %d", ret);
-        eos_free(_rec.ring_buf);
+        COS_LOG_E("Failed to open mic: %d", ret);
+        cos_free(_rec.ring_buf);
         _rec.ring_buf = NULL;
-        return EOS_ERR_DEV_ERROR;
+        return COS_ERR_DEV_ERROR;
     }
 
     _ensure_parent_dir(file_path);
 
-    _rec.file = eos_storage_file_open_write(file_path);
-    if (_rec.file == EOS_FILE_INVALID)
+    _rec.file = cos_storage_file_open_write(file_path);
+    if (_rec.file == COS_FILE_INVALID)
     {
-        EOS_LOG_E("Cannot open recording file: %s", file_path);
+        COS_LOG_E("Cannot open recording file: %s", file_path);
         mic->ops->close();
-        eos_free(_rec.ring_buf);
+        cos_free(_rec.ring_buf);
         _rec.ring_buf = NULL;
-        return EOS_ERR_DEV_ERROR;
+        return COS_ERR_DEV_ERROR;
     }
 
     _write_wav_header(_rec.file);
@@ -328,30 +328,30 @@ eos_result_t eos_service_audio_start_recording(const char *file_path)
 
     if (mic->ops->start() != 0)
     {
-        EOS_LOG_E("Failed to start mic DMA");
-        eos_storage_file_close(_rec.file);
-        _rec.file = EOS_FILE_INVALID;
+        COS_LOG_E("Failed to start mic DMA");
+        cos_storage_file_close(_rec.file);
+        _rec.file = COS_FILE_INVALID;
         mic->ops->close();
-        eos_free(_rec.ring_buf);
+        cos_free(_rec.ring_buf);
         _rec.ring_buf = NULL;
-        return EOS_ERR_DEV_ERROR;
+        return COS_ERR_DEV_ERROR;
     }
 
     _rec.timer = lv_timer_create(_recording_timer_cb, MIC_POLL_PERIOD_MS, NULL);
     _rec.active = true;
 
-    EOS_LOG_I("Recording to: %s", file_path);
-    return EOS_OK;
+    COS_LOG_I("Recording to: %s", file_path);
+    return COS_OK;
 }
 
-eos_result_t eos_service_audio_stop_recording(void)
+cos_result_t cos_service_audio_stop_recording(void)
 {
     if (!_rec.active)
     {
-        return EOS_OK;
+        return COS_OK;
     }
 
-    eos_dev_microphone_t *mic = eos_dev_microphone_get_instance();
+    cos_dev_microphone_t *mic = cos_dev_microphone_get_instance();
 
     if (_rec.timer)
     {
@@ -368,24 +368,24 @@ eos_result_t eos_service_audio_stop_recording(void)
         mic->ops->close();
     }
 
-    if (_rec.file != EOS_FILE_INVALID)
+    if (_rec.file != COS_FILE_INVALID)
     {
         _update_wav_header(_rec.file);
-        eos_storage_file_close(_rec.file);
-        _rec.file = EOS_FILE_INVALID;
+        cos_storage_file_close(_rec.file);
+        _rec.file = COS_FILE_INVALID;
     }
 
-    eos_free(_rec.ring_buf);
+    cos_free(_rec.ring_buf);
     _rec.ring_buf = NULL;
     _rec.active = false;
 
-    EOS_LOG_I("Recording stopped");
-    return EOS_OK;
+    COS_LOG_I("Recording stopped");
+    return COS_OK;
 }
 
-bool eos_service_audio_speaker_available(void)
+bool cos_service_audio_speaker_available(void)
 {
-    eos_dev_speaker_t *spk = eos_dev_speaker_get_instance();
+    cos_dev_speaker_t *spk = cos_dev_speaker_get_instance();
     if (spk == NULL || spk->ops == NULL || spk->ops->is_available == NULL)
     {
         return false;
@@ -393,9 +393,9 @@ bool eos_service_audio_speaker_available(void)
     return spk->ops->is_available();
 }
 
-bool eos_service_audio_microphone_available(void)
+bool cos_service_audio_microphone_available(void)
 {
-    eos_dev_microphone_t *mic = eos_dev_microphone_get_instance();
+    cos_dev_microphone_t *mic = cos_dev_microphone_get_instance();
     if (mic == NULL || mic->ops == NULL || mic->ops->is_available == NULL)
     {
         return false;
@@ -403,7 +403,7 @@ bool eos_service_audio_microphone_available(void)
     return mic->ops->is_available();
 }
 
-eos_audio_player_t *eos_service_audio_get_player(void)
+cos_audio_player_t *cos_service_audio_get_player(void)
 {
     return &_player_media;
 }

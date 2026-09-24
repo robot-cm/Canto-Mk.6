@@ -1,130 +1,130 @@
 /**
- * @file eos_font_ttf.c
+ * @file cos_font_ttf.c
  * @brief TTF file
  */
 
-#include "eos_config.h"
-#if EOS_FONT_TYPE == EOS_FONT_TTF
-#include "eos_font.h"
+#include "cos_config.h"
+#if COS_FONT_TYPE == COS_FONT_TTF
+#include "cos_font.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
-#include "eos_theme.h"
-#include "eos_service_storage.h"
+#include "cos_theme.h"
+#include "cos_service_storage.h"
 
 /* Macros and Definitions -------------------------------------*/
-LV_FONT_DECLARE(EOS_FONT_ICON);
-#if EOS_FONT_TTF_TYPE == EOS_FONT_TTF_DATA
-EOS_FONT_DATA_DECLARE(EOS_FONT_TTF_DATA_NAME);
-EOS_FONT_DATA_SIZE_DECLARE(EOS_FONT_TTF_DATA_SIZE);
-#endif /* EOS_FONT_TTF_TYPE */
+LV_FONT_DECLARE(COS_FONT_ICON);
+#if COS_FONT_TTF_TYPE == COS_FONT_TTF_DATA
+COS_FONT_DATA_DECLARE(COS_FONT_TTF_DATA_NAME);
+COS_FONT_DATA_SIZE_DECLARE(COS_FONT_TTF_DATA_SIZE);
+#endif /* COS_FONT_TTF_TYPE */
 /* Variables --------------------------------------------------*/
 static lv_font_t *font_large;
 static lv_font_t *font_medium;
 static lv_font_t *font_small;
 static bool _font_inited = false;
-#if EOS_FONT_TTF_TYPE == EOS_FONT_TTF_FILE
-/* 字体来源:优先外部 SD 卡(EOS_FONT_TTF_FILE_PATH = /sdcard/font/font.ttf),
- * 缺失时回退系统内置资源目录. 路径带 LVGL FS 盘符(EOS_LVGL_FS_LETTER 'Z'),
- * 经 lv_fs_resolve_path 路由到 eos_storage_file_open_read() 读取. */
+#if COS_FONT_TTF_TYPE == COS_FONT_TTF_FILE
+/* 字体来源:优先外部 SD 卡(COS_FONT_TTF_FILE_PATH = /sdcard/font/font.ttf),
+ * 缺失时回退系统内置资源目录. 路径带 LVGL FS 盘符(COS_LVGL_FS_LETTER 'Z'),
+ * 经 lv_fs_resolve_path 路由到 cos_storage_file_open_read() 读取. */
 static char _font_path[256];
 
 static void _resolve_font_path(void)
 {
     snprintf(_font_path, sizeof(_font_path),
-             "%c:" EOS_FONT_TTF_FILE_PATH, (int)EOS_LVGL_FS_LETTER);
-    if (eos_storage_is_file(EOS_FONT_TTF_FILE_PATH))
+             "%c:" COS_FONT_TTF_FILE_PATH, (int)COS_LVGL_FS_LETTER);
+    if (cos_storage_is_file(COS_FONT_TTF_FILE_PATH))
     {
-        EOS_LOG_I("Font source: external %s", EOS_FONT_TTF_FILE_PATH);
+        COS_LOG_I("Font source: external %s", COS_FONT_TTF_FILE_PATH);
         return;
     }
-    EOS_LOG_W("External font not found (%s), fallback to system resource",
-              EOS_FONT_TTF_FILE_PATH);
+    COS_LOG_W("External font not found (%s), fallback to system resource",
+              COS_FONT_TTF_FILE_PATH);
     snprintf(_font_path, sizeof(_font_path),
-             "%c:" EOS_SYS_RES_FONT_DIR "font.ttf", (int)EOS_LVGL_FS_LETTER);
+             "%c:" COS_SYS_RES_FONT_DIR "font.ttf", (int)COS_LVGL_FS_LETTER);
 }
 #endif
 /* Function Implementations -----------------------------------*/
 
-lv_font_t *eos_font_init(void)
+lv_font_t *cos_font_init(void)
 {
     if (_font_inited)
     {
-        EOS_LOG_W("Font system already initialized, returning cached font");
+        COS_LOG_W("Font system already initialized, returning cached font");
         return font_medium;
     }
 
-    EOS_LOG_I("Font system init");
+    COS_LOG_I("Font system init");
 
-#if EOS_FONT_TTF_TYPE == EOS_FONT_TTF_FILE
-    /* 开机流程中此处早于开机动画(eos_boot_anim_start),且存储服务已就绪 */
+#if COS_FONT_TTF_TYPE == COS_FONT_TTF_FILE
+    /* 开机流程中此处早于开机动画(cos_boot_anim_start),且存储服务已就绪 */
     _resolve_font_path();
 #endif
 
-#if EOS_FONT_TTF_TYPE == EOS_FONT_TTF_DATA
+#if COS_FONT_TTF_TYPE == COS_FONT_TTF_DATA
 
-#if EOS_FONT_TTF_ENABLE_EXTENDED
-    font_large = lv_tiny_ttf_create_data_ex(EOS_FONT_TTF_DATA_NAME,
-                                            EOS_FONT_TTF_DATA_SIZE,
-                                            EOS_FONT_SIZE_LARGE,
-                                            EOS_FONT_TTF_KERNING,
-                                            EOS_FONT_TTF_CACHE_SIZE);
-    font_medium = lv_tiny_ttf_create_data_ex(EOS_FONT_TTF_DATA_NAME,
-                                             EOS_FONT_TTF_DATA_SIZE,
-                                             EOS_FONT_SIZE_MEDIUM,
-                                             EOS_FONT_TTF_KERNING,
-                                             EOS_FONT_TTF_CACHE_SIZE);
-    font_small = lv_tiny_ttf_create_data_ex(EOS_FONT_TTF_DATA_NAME,
-                                            EOS_FONT_TTF_DATA_SIZE,
-                                            EOS_FONT_SIZE_SMALL,
-                                            EOS_FONT_TTF_KERNING,
-                                            EOS_FONT_TTF_CACHE_SIZE);
+#if COS_FONT_TTF_ENABLE_EXTENDED
+    font_large = lv_tiny_ttf_create_data_ex(COS_FONT_TTF_DATA_NAME,
+                                            COS_FONT_TTF_DATA_SIZE,
+                                            COS_FONT_SIZE_LARGE,
+                                            COS_FONT_TTF_KERNING,
+                                            COS_FONT_TTF_CACHE_SIZE);
+    font_medium = lv_tiny_ttf_create_data_ex(COS_FONT_TTF_DATA_NAME,
+                                             COS_FONT_TTF_DATA_SIZE,
+                                             COS_FONT_SIZE_MEDIUM,
+                                             COS_FONT_TTF_KERNING,
+                                             COS_FONT_TTF_CACHE_SIZE);
+    font_small = lv_tiny_ttf_create_data_ex(COS_FONT_TTF_DATA_NAME,
+                                            COS_FONT_TTF_DATA_SIZE,
+                                            COS_FONT_SIZE_SMALL,
+                                            COS_FONT_TTF_KERNING,
+                                            COS_FONT_TTF_CACHE_SIZE);
 #else
-    font_large = lv_tiny_ttf_create_data(EOS_FONT_TTF_DATA_NAME, EOS_FONT_TTF_DATA_SIZE, EOS_FONT_SIZE_LARGE);
-    font_medium = lv_tiny_ttf_create_data(EOS_FONT_TTF_DATA_NAME, EOS_FONT_TTF_DATA_SIZE, EOS_FONT_SIZE_MEDIUM);
-    font_small = lv_tiny_ttf_create_data(EOS_FONT_TTF_DATA_NAME, EOS_FONT_TTF_DATA_SIZE, EOS_FONT_SIZE_SMALL);
-#endif /* EOS_FONT_TTF_ENABLE_EXTENDED */
+    font_large = lv_tiny_ttf_create_data(COS_FONT_TTF_DATA_NAME, COS_FONT_TTF_DATA_SIZE, COS_FONT_SIZE_LARGE);
+    font_medium = lv_tiny_ttf_create_data(COS_FONT_TTF_DATA_NAME, COS_FONT_TTF_DATA_SIZE, COS_FONT_SIZE_MEDIUM);
+    font_small = lv_tiny_ttf_create_data(COS_FONT_TTF_DATA_NAME, COS_FONT_TTF_DATA_SIZE, COS_FONT_SIZE_SMALL);
+#endif /* COS_FONT_TTF_ENABLE_EXTENDED */
 
-#elif EOS_FONT_TTF_TYPE == EOS_FONT_TTF_FILE
+#elif COS_FONT_TTF_TYPE == COS_FONT_TTF_FILE
 
-#if EOS_FONT_TTF_ENABLE_EXTENDED
+#if COS_FONT_TTF_ENABLE_EXTENDED
     font_large =
-        lv_tiny_ttf_create_file_ex(_font_path, EOS_FONT_SIZE_LARGE, EOS_FONT_TTF_KERNING, EOS_FONT_TTF_CACHE_SIZE);
+        lv_tiny_ttf_create_file_ex(_font_path, COS_FONT_SIZE_LARGE, COS_FONT_TTF_KERNING, COS_FONT_TTF_CACHE_SIZE);
     font_medium =
-        lv_tiny_ttf_create_file_ex(_font_path, EOS_FONT_SIZE_MEDIUM, EOS_FONT_TTF_KERNING, EOS_FONT_TTF_CACHE_SIZE);
+        lv_tiny_ttf_create_file_ex(_font_path, COS_FONT_SIZE_MEDIUM, COS_FONT_TTF_KERNING, COS_FONT_TTF_CACHE_SIZE);
     font_small =
-        lv_tiny_ttf_create_file_ex(_font_path, EOS_FONT_SIZE_SMALL, EOS_FONT_TTF_KERNING, EOS_FONT_TTF_CACHE_SIZE);
+        lv_tiny_ttf_create_file_ex(_font_path, COS_FONT_SIZE_SMALL, COS_FONT_TTF_KERNING, COS_FONT_TTF_CACHE_SIZE);
 #else
-    font_large = lv_tiny_ttf_create_file(_font_path, EOS_FONT_SIZE_LARGE);
-    font_medium = lv_tiny_ttf_create_file(_font_path, EOS_FONT_SIZE_MEDIUM);
-    font_small = lv_tiny_ttf_create_file(_font_path, EOS_FONT_SIZE_SMALL);
-#endif /* EOS_FONT_TTF_ENABLE_EXTENDED */
+    font_large = lv_tiny_ttf_create_file(_font_path, COS_FONT_SIZE_LARGE);
+    font_medium = lv_tiny_ttf_create_file(_font_path, COS_FONT_SIZE_MEDIUM);
+    font_small = lv_tiny_ttf_create_file(_font_path, COS_FONT_SIZE_SMALL);
+#endif /* COS_FONT_TTF_ENABLE_EXTENDED */
 
-#endif /* EOS_FONT_TTF_TYPE */
+#endif /* COS_FONT_TTF_TYPE */
 
     if (!font_large || !font_medium || !font_small)
     {
-        EOS_LOG_E("Some fonts failed to load!");
+        COS_LOG_E("Some fonts failed to load!");
         return NULL;
     }
     else
     {
         font_large->fallback = font_medium;
         font_medium->fallback = font_small;
-        font_small->fallback = &EOS_FONT_ICON;
-        EOS_LOG_D("All TTF fonts loaded successfully");
+        font_small->fallback = &COS_FONT_ICON;
+        COS_LOG_D("All TTF fonts loaded successfully");
     }
     _font_inited = true;
     return font_medium;
 }
 
-void eos_font_deinit(void)
+void cos_font_deinit(void)
 {
     if (!_font_inited)
         return;
 
-    EOS_LOG_I("Font system deinit");
+    COS_LOG_I("Font system deinit");
 
     if (font_large)
     {
@@ -145,50 +145,50 @@ void eos_font_deinit(void)
     _font_inited = false;
 }
 
-lv_font_t *eos_font_reload(const char *path)
+lv_font_t *cos_font_reload(const char *path)
 {
-#if EOS_FONT_TTF_TYPE == EOS_FONT_TTF_FILE
+#if COS_FONT_TTF_TYPE == COS_FONT_TTF_FILE
     if (path && path[0])
     {
         snprintf(_font_path, sizeof(_font_path), "%s", path);
-        EOS_LOG_I("Font path changed to: %s", _font_path);
+        COS_LOG_I("Font path changed to: %s", _font_path);
     }
 #endif
 
-    eos_font_deinit();
+    cos_font_deinit();
 
-    lv_font_t *default_font = eos_font_init();
+    lv_font_t *default_font = cos_font_init();
     if (!default_font)
         return NULL;
 
-    eos_theme_set(lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED), default_font);
+    cos_theme_set(lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED), default_font);
 
     return default_font;
 }
 
-lv_font_t *_select_font(eos_font_size_t size)
+lv_font_t *_select_font(cos_font_size_t size)
 {
     switch (size)
     {
-        case EOS_FONT_SIZE_LARGE:
+        case COS_FONT_SIZE_LARGE:
             return font_large;
-        case EOS_FONT_SIZE_MEDIUM:
+        case COS_FONT_SIZE_MEDIUM:
             return font_medium;
-        case EOS_FONT_SIZE_SMALL:
+        case COS_FONT_SIZE_SMALL:
             return font_small;
         default:
-            if (size >= EOS_FONT_SIZE_LARGE)
+            if (size >= COS_FONT_SIZE_LARGE)
                 return font_large;
-            else if (size > EOS_FONT_SIZE_SMALL)
+            else if (size > COS_FONT_SIZE_SMALL)
                 return font_medium;
             else
                 return font_small;
     }
 }
 
-void eos_label_set_font_size(lv_obj_t *label, eos_font_size_t size)
+void cos_label_set_font_size(lv_obj_t *label, cos_font_size_t size)
 {
-    EOS_CHECK_PTR_RETURN(label);
+    COS_CHECK_PTR_RETURN(label);
     lv_obj_set_style_text_font(label, _select_font(size), 0);
 }
-#endif /* EOS_FONT_TYPE */
+#endif /* COS_FONT_TYPE */

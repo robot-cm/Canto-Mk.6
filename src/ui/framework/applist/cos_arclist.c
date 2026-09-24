@@ -1,18 +1,18 @@
 /**
- * @file eos_arclist.c
+ * @file cos_arclist.c
  * @brief Huawei-Watch style arc app list geometry + physics.
  */
-#include "eos_arclist.h"
+#include "cos_arclist.h"
 #include <math.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
-void eos_arclist_init(eos_arclist_t *al, const eos_display_profile_t *p, int count)
+void cos_arclist_init(cos_arclist_t *al, const cos_display_profile_t *p, int count)
 {
     al->profile = p;
-    al->count = (count > EOS_ARCLIST_MAX) ? EOS_ARCLIST_MAX : count;
+    al->count = (count > COS_ARCLIST_MAX) ? COS_ARCLIST_MAX : count;
     al->scroll = 0.0f;
     al->arc_radius_factor = 0.90f;
     al->step_deg = 22.0f;
@@ -24,13 +24,13 @@ void eos_arclist_init(eos_arclist_t *al, const eos_display_profile_t *p, int cou
     float max_scroll = (al->count > 1)
                      ? (float)(al->count - 1) * al->step_deg
                      : 0.0f;
-    eos_scroller_init(&al->scroller, 0.0f, max_scroll);
-    eos_arclist_layout(al);
+    cos_scroller_init(&al->scroller, 0.0f, max_scroll);
+    cos_arclist_layout(al);
 }
 
-void eos_arclist_layout(eos_arclist_t *al)
+void cos_arclist_layout(cos_arclist_t *al)
 {
-    const eos_display_profile_t *p = al->profile;
+    const cos_display_profile_t *p = al->profile;
     float R = p->safe_radius * al->arc_radius_factor;
     float scale_slope = (al->focus_scale - al->min_scale) / al->visible_deg;
     float opa_slope   = (1.0f - 0.15f) / al->visible_deg;
@@ -50,7 +50,7 @@ void eos_arclist_layout(eos_arclist_t *al)
         if (op < 0.15f) op = 0.15f;
         bool vis = (ad <= al->visible_deg);
 
-        eos_arclist_item_t *it = &al->items[i];
+        cos_arclist_item_t *it = &al->items[i];
         it->index = i;
         it->x = x;
         it->y = y;
@@ -60,32 +60,32 @@ void eos_arclist_layout(eos_arclist_t *al)
 
         /* Guarantee no off-screen / clipped content: pull back inside safe area. */
         float r = al->item_radius * scale;
-        eos_display_profile_clamp_inside(p, &it->x, &it->y, r);
+        cos_display_profile_clamp_inside(p, &it->x, &it->y, r);
     }
 }
 
-void eos_arclist_drag(eos_arclist_t *al, float dy_px, float dt)
+void cos_arclist_drag(cos_arclist_t *al, float dy_px, float dt)
 {
     float deg_per_px = al->step_deg / (al->profile->safe_radius * al->arc_radius_factor);
     float delta_deg = -dy_px * deg_per_px;   /* drag up -> advance to next app */
-    eos_scroller_drag(&al->scroller, delta_deg, dt);
+    cos_scroller_drag(&al->scroller, delta_deg, dt);
     al->scroll = al->scroller.pos;
-    eos_arclist_layout(al);
+    cos_arclist_layout(al);
 }
 
-void eos_arclist_release(eos_arclist_t *al)
+void cos_arclist_release(cos_arclist_t *al)
 {
-    eos_scroller_release(&al->scroller);
+    cos_scroller_release(&al->scroller);
 }
 
-void eos_arclist_step(eos_arclist_t *al, float dt)
+void cos_arclist_step(cos_arclist_t *al, float dt)
 {
-    eos_scroller_step(&al->scroller, dt);
+    cos_scroller_step(&al->scroller, dt);
     al->scroll = al->scroller.pos;
-    eos_arclist_layout(al);
+    cos_arclist_layout(al);
 }
 
-void eos_arclist_set_item_radius(eos_arclist_t *al, float radius_px)
+void cos_arclist_set_item_radius(cos_arclist_t *al, float radius_px)
 {
     if (!al) return;
     al->item_radius = (radius_px > 0.0f) ? radius_px : 22.0f;
@@ -94,10 +94,10 @@ void eos_arclist_set_item_radius(eos_arclist_t *al, float radius_px)
      * otherwise a freshly created view sits at rest with the default-radius
      * clamp and a later assertion using the true card radius fails. */
     if (al->profile)
-        eos_arclist_layout(al);
+        cos_arclist_layout(al);
 }
 
-int eos_arclist_focus_index(const eos_arclist_t *al)
+int cos_arclist_focus_index(const cos_arclist_t *al)
 {
     int best = 0;
     float bestd = 1e9f;

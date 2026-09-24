@@ -7,14 +7,14 @@ rules:
     severity: error
 
   - name: "malloc gate"
-    description: "Use eos_malloc() instead of malloc() (except in port/ layer)"
+    description: "Use cos_malloc() instead of malloc() (except in port/ layer)"
     pattern: "\\bmalloc\\s*\\("
     allowed_files:
       - "src/port/**"
     severity: error
 
   - name: "free gate"
-    description: "Use eos_free() instead of free() (except in port/ layer)"
+    description: "Use cos_free() instead of free() (except in port/ layer)"
     pattern: "\\bfree\\s*\\("
     allowed_files:
       - "src/port/**"

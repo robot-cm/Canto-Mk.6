@@ -1,11 +1,11 @@
 /**
- * @file eos_liquid_glass.c
+ * @file cos_liquid_glass.c
  * @brief Simplified Liquid Glass style helpers.
  */
-#include "eos_liquid_glass.h"
+#include "cos_liquid_glass.h"
 #include <lvgl.h>
 
-void eos_liquid_glass_card(void *obj)
+void cos_liquid_glass_card(void *obj)
 {
     lv_obj_t *o = (lv_obj_t *)obj;
     if (!o) return;
@@ -21,7 +21,7 @@ void eos_liquid_glass_card(void *obj)
     lv_obj_set_style_shadow_spread(o, 0, 0);
 }
 
-void eos_liquid_glass_panel(void *obj)
+void cos_liquid_glass_panel(void *obj)
 {
     lv_obj_t *o = (lv_obj_t *)obj;
     if (!o) return;
@@ -33,7 +33,7 @@ void eos_liquid_glass_panel(void *obj)
     lv_obj_set_style_border_color(o, lv_color_white(), 0);
 }
 
-void eos_liquid_glass_card_subtle(void *obj)
+void cos_liquid_glass_card_subtle(void *obj)
 {
     lv_obj_t *o = (lv_obj_t *)obj;
     if (!o) return;
@@ -48,7 +48,7 @@ void eos_liquid_glass_card_subtle(void *obj)
     lv_obj_set_style_shadow_width(o, 0, 0);
 }
 
-void eos_app_icon_solid(void *obj)
+void cos_app_icon_solid(void *obj)
 {
     lv_obj_t *o = (lv_obj_t *)obj;
     if (!o) return;

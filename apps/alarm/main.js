@@ -7,7 +7,7 @@
  *  - Ring: white-screen flash in grouped intervals 0.8s/0.9s/0.6s/0.4s
  *    (on/off alternation), black OFF button + purple SNOOZE (5 min) button.
  *  - No buzzer on this hardware -> visual ring only.
- *  - Background trigger: a Core service (eos_service_alarm.c) polls the
+ *  - Background trigger: a Core service (cos_service_alarm.c) polls the
  *    system clock every 1s, reads this app's config.json ("alarms" field)
  *    and relaunches this app when an alarm is due, so it fires even after
  *    the app was closed. Ringing UI itself lives here.
@@ -21,14 +21,14 @@
  *     tmp  : temporary snooze alarm (auto-removed after it rings)
  *
  * Add/Edit is a 4-step wizard (TIME -> WEEKDAYS -> REPEAT -> NOTE) so each
- * field gets roomy spacing; NOTE uses eos.ime.open (the same round keyboard
+ * field gets roomy spacing; NOTE uses cos.ime.open (the same round keyboard
  * as the Wi-Fi password page).
  *
  * Red lines: no arc / no border / radius<54 / no flex / anim<=6.
  * EVENT_CLICKED broken in this fork -> use EVENT_PRESSED.
  */
-var activity = eos.activity.current();
-var view = eos.activity.getView(activity);
+var activity = cos.activity.current();
+var view = cos.activity.getView(activity);
 
 /* ---------- palette ---------- */
 var COL_BG = 0x12121A, COL_WHITE = 0xFFFFFF, COL_GRAY = 0x9A9AA8,
@@ -47,7 +47,7 @@ var nextId = 0;
 
 function loadAlarms() {
     try {
-        var s = eos.config.getStr("alarms");
+        var s = cos.config.getStr("alarms");
         if (s) { alarms = JSON.parse(s); if (!Array.isArray(alarms)) alarms = []; }
     } catch (e) { alarms = []; }
     nextId = 0;
@@ -56,7 +56,7 @@ function loadAlarms() {
     }
 }
 function saveAlarms() {
-    try { eos.config.setStr("alarms", JSON.stringify(alarms)); } catch (e) {}
+    try { cos.config.setStr("alarms", JSON.stringify(alarms)); } catch (e) {}
 }
 function dayMatch(d, dow) { if (!d) return true; return (d & (1 << ((dow + 6) % 7))) !== 0; }
 function daysLabel(d) {
@@ -70,7 +70,7 @@ function daysLabel(d) {
 }
 function repLabel(r) { return r < 0 ? "INF" : "x" + r; }
 function newAlarm() {
-    var t = eos.time.getNow();
+    var t = cos.time.getNow();
     var nm = (t.min + 10) % 60;
     var nh = (t.hour + Math.floor((t.min + 10) / 60)) % 24;
     return { id: nextId++, h: nh, m: nm, days: 0, rep: -1, on: true, lf: 0 };
@@ -94,7 +94,7 @@ var root = new lv.obj(view);
 root.setSize(240, 240); root.setPos(0, 0);
 root.setStyleBgOpa(255, 0);
 root.setStyleBgColor(hex(COL_BG), 0);
-eos.roundClip(root);
+cos.roundClip(root);
 
 var homeC = new lv.obj(view);
 homeC.setSize(240, 210); homeC.setPos(0, 30);
@@ -116,7 +116,7 @@ ringC.removeFlag(lv.OBJ_FLAG_SCROLLABLE);
 ringC.removeFlag(lv.OBJ_FLAG_CLICKABLE);
 ringC.addFlag(lv.OBJ_FLAG_HIDDEN);
 
-function setTitle(s) { try { eos.activity.setTitle(activity, s); } catch (e) {} }
+function setTitle(s) { try { cos.activity.setTitle(activity, s); } catch (e) {} }
 
 /* ---------- small button helper ---------- */
 function smallBtn(parent, x, y, w, h, label, opa, color, cb) {
@@ -293,7 +293,7 @@ function paintHome() {
 /* ================= EDIT (4-step wizard) =================
  * TIME -> WEEKDAYS -> REPEAT -> NOTE, one page at a time so each field
  * gets roomy spacing on the round screen. NOTE opens the system round
- * keyboard (eos.ime.open, same as the Wi-Fi password page).
+ * keyboard (cos.ime.open, same as the Wi-Fi password page).
  * Bottom nav: BACK / NEXT; step0 BACK=CANCEL; step3 NEXT=SAVE;
  * DEL (edit mode only, on step 0) sits top-right. */
 var stepTtl;
@@ -433,7 +433,7 @@ function buildEdit() {
     noteLbl.addFlag(lv.OBJ_FLAG_SCROLLABLE);
     noteLbl.setLongMode(lv.LABEL_LONG_SCROLL_CIRCULAR);
     noteBox.addEventCb(function () {
-        eos.ime.open(function (text) {
+        cos.ime.open(function (text) {
             if (text !== undefined) { editNote = text; paintEdit(); }
         });
     }, lv.EVENT_PRESSED, null);
@@ -640,7 +640,7 @@ function stopRing() {
 }
 
 function snoozeRing() {
-    var t = eos.time.getNow();
+    var t = cos.time.getNow();
     var nm = (t.min + 5) % 60;
     var nh = (t.hour + Math.floor((t.min + 5) / 60)) % 24;
     alarms.push({
@@ -675,7 +675,7 @@ function showRing() {
 /* ================= due check + ring flash driver ================= */
 function checkDue() {
     if (ringAlarm) return;
-    var t = eos.time.getNow();
+    var t = cos.time.getNow();
     var key = t.year * 1000000 + t.month * 10000 + t.day * 100 + t.hour * 100 + t.min;
     var hit = null, dirty = false;
     for (var i = 0; i < alarms.length; i++) {

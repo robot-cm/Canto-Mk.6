@@ -1,5 +1,5 @@
 /**
- * @file eos_pinyin.h
+ * @file cos_pinyin.h
  * @brief Compact pinyin -> Chinese candidate engine (Core, LVGL-free).
  *
  * A small embedded pinyin input-method dictionary. Maps a pinyin syllable
@@ -16,8 +16,8 @@
  * widget.
  */
 
-#ifndef EOS_PINYIN_H
-#define EOS_PINYIN_H
+#ifndef COS_PINYIN_H
+#define COS_PINYIN_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,7 +34,7 @@ typedef struct
 {
     const char *py;   /**< pinyin syllable/word, lowercase ascii */
     const char *han;  /**< candidate Chinese character(s) (UTF-8) */
-} eos_pinyin_entry_t;
+} cos_pinyin_entry_t;
 
 /* Public function prototypes --------------------------------*/
 
@@ -47,15 +47,15 @@ typedef struct
  *                 @p max_out; in that case only the first @p max_out are stored).
  * @return The total number of candidates available for @p py (>= written count).
  */
-int eos_pinyin_lookup(const char *py, const char **out, int max_out, int *out_count);
+int cos_pinyin_lookup(const char *py, const char **out, int max_out, int *out_count);
 
 /**
  * @brief Total number of dictionary entries (for diagnostics).
  */
-int eos_pinyin_dict_size(void);
+int cos_pinyin_dict_size(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_PINYIN_H */
+#endif /* COS_PINYIN_H */

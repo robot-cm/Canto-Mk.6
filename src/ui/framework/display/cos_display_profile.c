@@ -1,17 +1,17 @@
 /**
- * @file eos_display_profile.c
+ * @file cos_display_profile.c
  * @brief Implementation of the Display Adaptation Layer.
  */
-#include "eos_display_profile.h"
+#include "cos_display_profile.h"
 #include <math.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
-eos_display_profile_t eos_display_profile_create(eos_display_shape_t shape, int w, int h)
+cos_display_profile_t cos_display_profile_create(cos_display_shape_t shape, int w, int h)
 {
-    eos_display_profile_t p;
+    cos_display_profile_t p;
     p.shape = shape;
     p.width = w;
     p.height = h;
@@ -21,9 +21,9 @@ eos_display_profile_t eos_display_profile_create(eos_display_shape_t shape, int 
     float half_min = (float)(w < h ? w : h) * 0.5f;
     p.radius = half_min;
     p.aspect_ratio = (h != 0) ? ((float)w / (float)h) : 1.0f;
-    p.dp_scale = (float)w / EOS_UI_REF_WIDTH;
+    p.dp_scale = (float)w / COS_UI_REF_WIDTH;
 
-    if (shape == EOS_DISPLAY_SHAPE_CIRCLE) {
+    if (shape == COS_DISPLAY_SHAPE_CIRCLE) {
         /* Usable inscribed circle leaves an 8% margin (no rectangular clipping). */
         p.safe_radius = half_min * 0.92f;
         p.safe_x = p.center_x - p.safe_radius;
@@ -42,12 +42,12 @@ eos_display_profile_t eos_display_profile_create(eos_display_shape_t shape, int 
     return p;
 }
 
-float eos_dp(const eos_display_profile_t *p, float dp)
+float cos_dp(const cos_display_profile_t *p, float dp)
 {
     return dp * p->dp_scale;
 }
 
-void eos_display_profile_polar(const eos_display_profile_t *p,
+void cos_display_profile_polar(const cos_display_profile_t *p,
                                float angle_deg, float radius_px,
                                float *x, float *y)
 {
@@ -56,10 +56,10 @@ void eos_display_profile_polar(const eos_display_profile_t *p,
     *y = p->center_y + radius_px * sinf(a);
 }
 
-bool eos_display_profile_is_inside(const eos_display_profile_t *p,
+bool cos_display_profile_is_inside(const cos_display_profile_t *p,
                                    float x, float y, float r)
 {
-    if (p->shape == EOS_DISPLAY_SHAPE_CIRCLE) {
+    if (p->shape == COS_DISPLAY_SHAPE_CIRCLE) {
         float dx = x - p->center_x;
         float dy = y - p->center_y;
         return (sqrtf(dx * dx + dy * dy) + r) <= p->safe_radius;
@@ -68,13 +68,13 @@ bool eos_display_profile_is_inside(const eos_display_profile_t *p,
            (y - r) >= p->safe_y && (y + r) <= (p->safe_y + p->safe_h);
 }
 
-bool eos_display_profile_clamp_inside(const eos_display_profile_t *p,
+bool cos_display_profile_clamp_inside(const cos_display_profile_t *p,
                                       float *x, float *y, float r)
 {
-    if (eos_display_profile_is_inside(p, *x, *y, r)) {
+    if (cos_display_profile_is_inside(p, *x, *y, r)) {
         return false;
     }
-    if (p->shape == EOS_DISPLAY_SHAPE_CIRCLE) {
+    if (p->shape == COS_DISPLAY_SHAPE_CIRCLE) {
         float dx = *x - p->center_x;
         float dy = *y - p->center_y;
         float d = sqrtf(dx * dx + dy * dy);

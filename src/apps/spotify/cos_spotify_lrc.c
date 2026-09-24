@@ -1,5 +1,5 @@
 /**
- * @file eos_spotify_lrc.c
+ * @file cos_spotify_lrc.c
  * @brief LRC 歌词解析与检索实现。
  *
  * 解析流程:
@@ -13,7 +13,7 @@
  *
  * 时间复杂度:解析 O(n·k);检索用二分(O(log n))。
  */
-#include "eos_spotify_lrc.h"
+#include "cos_spotify_lrc.h"
 
 #if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
 
@@ -23,19 +23,19 @@
 
 #include "esp_heap_caps.h"
 
-#define EOS_LOG_TAG "SpotifyLrc"
-#include "eos_log.h"
+#define COS_LOG_TAG "SpotifyLrc"
+#include "cos_log.h"
 
-#include "eos_mem.h"
-#include "eos_service_storage.h"
+#include "cos_mem.h"
+#include "cos_service_storage.h"
 
 typedef struct
 {
     uint32_t time_ms;
-    char    *text;      /* eos_malloc 的 UTF-8 文本           */
+    char    *text;      /* cos_malloc 的 UTF-8 文本           */
 } lrc_line_t;
 
-struct eos_spotify_lrc_s
+struct cos_spotify_lrc_s
 {
     lrc_line_t *lines;
     int         count;
@@ -45,7 +45,7 @@ struct eos_spotify_lrc_s
 
 /* ── 动态数组 ─────────────────────────────────────────────── */
 
-static bool _push(eos_spotify_lrc_t *lrc, uint32_t t, const char *text, size_t len)
+static bool _push(cos_spotify_lrc_t *lrc, uint32_t t, const char *text, size_t len)
 {
     if (lrc->count >= lrc->cap)
     {
@@ -55,7 +55,7 @@ static bool _push(eos_spotify_lrc_t *lrc, uint32_t t, const char *text, size_t l
                                                          MALLOC_CAP_SPIRAM);
         if (nl == NULL)
         {
-            nl = (lrc_line_t *)eos_realloc(lrc->lines, (size_t)ncap * sizeof(lrc_line_t));
+            nl = (lrc_line_t *)cos_realloc(lrc->lines, (size_t)ncap * sizeof(lrc_line_t));
         }
         if (nl == NULL)
         {
@@ -76,15 +76,15 @@ static bool _push(eos_spotify_lrc_t *lrc, uint32_t t, const char *text, size_t l
     {
         len--;
     }
-    if (len >= EOS_SPOTIFY_LRC_LINE_MAX)
+    if (len >= COS_SPOTIFY_LRC_LINE_MAX)
     {
-        len = EOS_SPOTIFY_LRC_LINE_MAX - 1;
+        len = COS_SPOTIFY_LRC_LINE_MAX - 1;
     }
 
     char *copy = (char *)heap_caps_malloc(len + 1, MALLOC_CAP_SPIRAM);
     if (copy == NULL)
     {
-        copy = (char *)eos_malloc(len + 1);
+        copy = (char *)cos_malloc(len + 1);
     }
     if (copy == NULL)
     {
@@ -187,33 +187,33 @@ static bool _parse_time_tag(const char *p, uint32_t *out_t, const char **out_nex
 
 /* ── 加载 ─────────────────────────────────────────────────── */
 
-eos_spotify_lrc_t *eos_spotify_lrc_load(const char *path)
+cos_spotify_lrc_t *cos_spotify_lrc_load(const char *path)
 {
     if (path == NULL)
     {
         return NULL;
     }
-    if (!eos_storage_is_file(path))
+    if (!cos_storage_is_file(path))
     {
         return NULL;
     }
 
-    char *data = eos_storage_read_file(path);
+    char *data = cos_storage_read_file(path);
     if (data == NULL)
     {
-        EOS_LOG_W("lrc: read fail %s", path);
+        COS_LOG_W("lrc: read fail %s", path);
         return NULL;
     }
 
-    eos_spotify_lrc_t *lrc = (eos_spotify_lrc_t *)heap_caps_malloc(
-        sizeof(eos_spotify_lrc_t), MALLOC_CAP_SPIRAM);
+    cos_spotify_lrc_t *lrc = (cos_spotify_lrc_t *)heap_caps_malloc(
+        sizeof(cos_spotify_lrc_t), MALLOC_CAP_SPIRAM);
     if (lrc == NULL)
     {
-        lrc = (eos_spotify_lrc_t *)eos_malloc(sizeof(eos_spotify_lrc_t));
+        lrc = (cos_spotify_lrc_t *)cos_malloc(sizeof(cos_spotify_lrc_t));
     }
     if (lrc == NULL)
     {
-        eos_free(data);
+        cos_free(data);
         return NULL;
     }
     memset(lrc, 0, sizeof(*lrc));
@@ -281,12 +281,12 @@ eos_spotify_lrc_t *eos_spotify_lrc_load(const char *path)
         }
     }
 
-    eos_free(data);
+    cos_free(data);
 
     if (lrc->count == 0)
     {
-        EOS_LOG_I("lrc: no timed lines in %s", path);
-        eos_free(lrc);
+        COS_LOG_I("lrc: no timed lines in %s", path);
+        cos_free(lrc);
         return NULL;
     }
 
@@ -302,12 +302,12 @@ eos_spotify_lrc_t *eos_spotify_lrc_load(const char *path)
         }
     }
 
-    EOS_LOG_I("lrc: loaded %d lines from %s (offset=%ldms)",
+    COS_LOG_I("lrc: loaded %d lines from %s (offset=%ldms)",
               lrc->count, path, (long)lrc->offset_ms);
     return lrc;
 }
 
-void eos_spotify_lrc_free(eos_spotify_lrc_t *lrc)
+void cos_spotify_lrc_free(cos_spotify_lrc_t *lrc)
 {
     if (lrc == NULL)
     {
@@ -317,24 +317,24 @@ void eos_spotify_lrc_free(eos_spotify_lrc_t *lrc)
     {
         if (lrc->lines[i].text)
         {
-            eos_free(lrc->lines[i].text);
+            cos_free(lrc->lines[i].text);
         }
     }
     if (lrc->lines)
     {
-        eos_free(lrc->lines);
+        cos_free(lrc->lines);
     }
-    eos_free(lrc);
+    cos_free(lrc);
 }
 
 /* ── 检索 ─────────────────────────────────────────────────── */
 
-int eos_spotify_lrc_count(const eos_spotify_lrc_t *lrc)
+int cos_spotify_lrc_count(const cos_spotify_lrc_t *lrc)
 {
     return lrc ? lrc->count : 0;
 }
 
-int eos_spotify_lrc_index_at(const eos_spotify_lrc_t *lrc, uint32_t ms)
+int cos_spotify_lrc_index_at(const cos_spotify_lrc_t *lrc, uint32_t ms)
 {
     if (lrc == NULL || lrc->count == 0 || ms < lrc->lines[0].time_ms)
     {
@@ -359,7 +359,7 @@ int eos_spotify_lrc_index_at(const eos_spotify_lrc_t *lrc, uint32_t ms)
     return best;
 }
 
-const char *eos_spotify_lrc_line(const eos_spotify_lrc_t *lrc, int idx)
+const char *cos_spotify_lrc_line(const cos_spotify_lrc_t *lrc, int idx)
 {
     if (lrc == NULL || idx < 0 || idx >= lrc->count)
     {
@@ -368,7 +368,7 @@ const char *eos_spotify_lrc_line(const eos_spotify_lrc_t *lrc, int idx)
     return lrc->lines[idx].text;
 }
 
-uint32_t eos_spotify_lrc_time(const eos_spotify_lrc_t *lrc, int idx)
+uint32_t cos_spotify_lrc_time(const cos_spotify_lrc_t *lrc, int idx)
 {
     if (lrc == NULL || idx < 0 || idx >= lrc->count)
     {
@@ -377,11 +377,11 @@ uint32_t eos_spotify_lrc_time(const eos_spotify_lrc_t *lrc, int idx)
     return lrc->lines[idx].time_ms;
 }
 
-uint32_t eos_spotify_lrc_duration(const eos_spotify_lrc_t *lrc, int idx)
+uint32_t cos_spotify_lrc_duration(const cos_spotify_lrc_t *lrc, int idx)
 {
     if (lrc == NULL || idx < 0 || idx >= lrc->count)
     {
-        return EOS_SPOTIFY_LRC_TAIL_MS;
+        return COS_SPOTIFY_LRC_TAIL_MS;
     }
     uint32_t dur;
     if (idx + 1 < lrc->count)
@@ -392,7 +392,7 @@ uint32_t eos_spotify_lrc_duration(const eos_spotify_lrc_t *lrc, int idx)
     }
     else
     {
-        dur = EOS_SPOTIFY_LRC_TAIL_MS;
+        dur = COS_SPOTIFY_LRC_TAIL_MS;
     }
     if (dur < 300u)
     {

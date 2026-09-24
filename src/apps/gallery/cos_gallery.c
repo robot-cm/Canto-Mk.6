@@ -1,30 +1,30 @@
 /**
- * @file eos_gallery.c
+ * @file cos_gallery.c
  * @brief Minimal image viewer (native app)
  *
- * Scans EOS_GALLERY_DIR for PNG images (LodePNG decoder is enabled in the
+ * Scans COS_GALLERY_DIR for PNG images (LodePNG decoder is enabled in the
  * simulator build) and displays them fit-scaled on the round display with
  * prev/next navigation and an image counter.
  */
 
-#include "eos_gallery.h"
+#include "cos_gallery.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 
-#include "eos_log.h"
-#include "eos_config.h"
-#include "eos_activity.h"
-#include "eos_service_storage.h"
-#include "eos_storage_paths.h"
+#include "cos_log.h"
+#include "cos_config.h"
+#include "cos_activity.h"
+#include "cos_service_storage.h"
+#include "cos_storage_paths.h"
 #include "lvgl.h"
-#include "ui/system/eos_round_clip.h" /* eos_round_clip() */
+#include "ui/system/cos_round_clip.h" /* cos_round_clip() */
 
 /* ------------------------------------------------------------------ */
 /* Config                                                             */
 /* ------------------------------------------------------------------ */
-#define EOS_LOG_TAG "Gallery"
+#define COS_LOG_TAG "Gallery"
 
 #define GALLERY_MAX   64          /* max images cached per session       */
 #define GALLERY_TARGET 150        /* fit box (px) for the round display  */
@@ -32,13 +32,13 @@
 /* ------------------------------------------------------------------ */
 /* State (single-instance viewer)                                     */
 /* ------------------------------------------------------------------ */
-static char s_paths[GALLERY_MAX][EOS_FS_PATH_MAX];
+static char s_paths[GALLERY_MAX][COS_FS_PATH_MAX];
 static int  s_count = 0;
 static int  s_index = 0;
 
 typedef struct
 {
-    eos_activity_t *activity;
+    cos_activity_t *activity;
     lv_obj_t *img;
     lv_obj_t *title;
     lv_obj_t *counter;
@@ -77,28 +77,28 @@ static int _gallery_cmp(const char *a, const char *b)
 static void _gallery_scan(void)
 {
     s_count = 0;
-    eos_dir_t dir = eos_storage_dir_open(EOS_GALLERY_DIR);
+    cos_dir_t dir = cos_storage_dir_open(COS_GALLERY_DIR);
     if (!dir)
         return;
 
     char name[64];
-    while (eos_storage_dir_read(dir, name, sizeof(name)) == EOS_OK && s_count < GALLERY_MAX)
+    while (cos_storage_dir_read(dir, name, sizeof(name)) == COS_OK && s_count < GALLERY_MAX)
     {
         if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
             continue;
 
-        char full[EOS_FS_PATH_MAX];
-        snprintf(full, sizeof(full), "%s%s", EOS_GALLERY_DIR, name);
-        if (!eos_storage_is_file(full))
+        char full[COS_FS_PATH_MAX];
+        snprintf(full, sizeof(full), "%s%s", COS_GALLERY_DIR, name);
+        if (!cos_storage_is_file(full))
             continue;
         if (!_gallery_is_png(name))
             continue;
 
-        strncpy(s_paths[s_count], full, EOS_FS_PATH_MAX - 1);
-        s_paths[s_count][EOS_FS_PATH_MAX - 1] = '\0';
+        strncpy(s_paths[s_count], full, COS_FS_PATH_MAX - 1);
+        s_paths[s_count][COS_FS_PATH_MAX - 1] = '\0';
         s_count++;
     }
-    eos_storage_dir_close(dir);
+    cos_storage_dir_close(dir);
 
     /* simple selection sort (small N) */
     for (int i = 0; i < s_count - 1; i++)
@@ -107,7 +107,7 @@ static void _gallery_scan(void)
         {
             if (_gallery_cmp(s_paths[i], s_paths[j]) > 0)
             {
-                char tmp[EOS_FS_PATH_MAX];
+                char tmp[COS_FS_PATH_MAX];
                 memcpy(tmp, s_paths[i], sizeof(tmp));
                 memcpy(s_paths[i], s_paths[j], sizeof(tmp));
                 memcpy(s_paths[j], tmp, sizeof(tmp));
@@ -185,16 +185,16 @@ static void _gallery_next_cb(lv_event_t *e)
 static void _gallery_back_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
-    eos_activity_back();
+    cos_activity_back();
 }
 
 /* ------------------------------------------------------------------ */
 /* Activity lifecycle                                                 */
 /* ------------------------------------------------------------------ */
-static void _gallery_on_enter(eos_activity_t *activity)
+static void _gallery_on_enter(cos_activity_t *activity)
 {
-    lv_obj_t *view = eos_activity_get_view(activity);
-    eos_round_clip(view);
+    lv_obj_t *view = cos_activity_get_view(activity);
+    cos_round_clip(view);
     lv_obj_set_style_bg_color(view, lv_color_black(), 0);
 
     s_gctx.activity = activity;
@@ -252,10 +252,10 @@ static void _gallery_on_enter(eos_activity_t *activity)
     _gallery_scan();
     _gallery_show(0);
 
-    EOS_LOG_I("Gallery opened (%d images)", s_count);
+    COS_LOG_I("Gallery opened (%d images)", s_count);
 }
 
-static void _gallery_on_destroy(eos_activity_t *activity)
+static void _gallery_on_destroy(cos_activity_t *activity)
 {
     LV_UNUSED(activity);
     memset(&s_gctx, 0, sizeof(s_gctx));
@@ -263,16 +263,16 @@ static void _gallery_on_destroy(eos_activity_t *activity)
     s_index = 0;
 }
 
-static const eos_activity_lifecycle_t s_gallery_lc = {
+static const cos_activity_lifecycle_t s_gallery_lc = {
     .on_enter = _gallery_on_enter,
     .on_destroy = _gallery_on_destroy,
 };
 
-void eos_gallery_enter(void)
+void cos_gallery_enter(void)
 {
-    eos_activity_t *a = eos_activity_create(&s_gallery_lc);
+    cos_activity_t *a = cos_activity_create(&s_gallery_lc);
     if (!a)
         return;
-    eos_activity_set_type(a, EOS_ACTIVITY_TYPE_APP);
-    eos_activity_enter(a);
+    cos_activity_set_type(a, COS_ACTIVITY_TYPE_APP);
+    cos_activity_enter(a);
 }

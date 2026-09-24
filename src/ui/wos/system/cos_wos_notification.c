@@ -1,15 +1,15 @@
 /**
- * @file eos_wos_notification.c
+ * @file cos_wos_notification.c
  * @brief WOS notification layer implementation
  */
-#include "eos_wos_notification.h"
+#include "cos_wos_notification.h"
 
-#include "eos_wos_theme.h"
-#include "eos_overlay_layer.h"
-#include "eos_log.h"
+#include "cos_wos_theme.h"
+#include "cos_overlay_layer.h"
+#include "cos_log.h"
 #include <string.h>
 
-#define EOS_LOG_TAG "WosNotify"
+#define COS_LOG_TAG "WosNotify"
 
 #define NOTIFY_W   240
 #define NOTIFY_H   56
@@ -84,7 +84,7 @@ void wos_notification_dismiss(void)
 
 void wos_notification_show(const char *title, const char *body, uint32_t hold_ms)
 {
-    lv_obj_t *layer = eos_overlay_get_notification_layer();
+    lv_obj_t *layer = cos_overlay_get_notification_layer();
     if (!layer)
         return;
 
@@ -131,11 +131,11 @@ void wos_notification_show(const char *title, const char *body, uint32_t hold_ms
         s_hold_timer = lv_timer_create(_hold_done_cb, hold_ms, NULL);
         lv_timer_set_repeat_count(s_hold_timer, 1);
     }
-    EOS_LOG_I("wos: notification shown (%s)", title ? title : "?");
+    COS_LOG_I("wos: notification shown (%s)", title ? title : "?");
 }
 
 void wos_notification_init(void)
 {
     /* The layer already exists; nothing else to pre-build. */
-    EOS_LOG_I("wos: notification layer ready");
+    COS_LOG_I("wos: notification layer ready");
 }

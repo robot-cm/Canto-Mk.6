@@ -74,7 +74,7 @@ jerry_value_t sni_api_prop_set_obj_user_data(const jerry_call_info_t *call_info_
                                              const jerry_value_t args_p[],
                                              const jerry_length_t args_count);
 
-jerry_value_t sni_api_eos_label_set_font_size(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_label_set_font_size(const jerry_call_info_t *call_info_p,
                                               const jerry_value_t args_p[],
                                               const jerry_length_t args_count);
 

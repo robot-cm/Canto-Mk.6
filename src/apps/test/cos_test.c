@@ -1,11 +1,11 @@
 /**
- * @file eos_test.c
+ * @file cos_test.c
  * @brief System function test
  */
 
-#include "eos_test.h"
-#include "eos_config.h"
-#if EOS_ENABLE_TEST_APP
+#include "cos_test.h"
+#include "cos_config.h"
+#if COS_ENABLE_TEST_APP
 
 /* Includes ---------------------------------------------------*/
 #include <limits.h>
@@ -13,51 +13,51 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
-#include "eos_swipe_panel.h"
+#include "cos_swipe_panel.h"
 #include "lvgl.h"
-#include "eos_image.h"
-#include "eos_msg_list.h"
-#include "eos_lang.h"
-#include "eos_log.h"
-#include "eos_basic_widgets.h"
-#include "eos_std_widgets.h"
-#include "eos_event.h"
-#include "eos_port.h"
-#include "eos_app.h"
-#include "eos_app_list.h"
-#include "eos_core.h"
+#include "cos_image.h"
+#include "cos_msg_list.h"
+#include "cos_lang.h"
+#include "cos_log.h"
+#include "cos_basic_widgets.h"
+#include "cos_std_widgets.h"
+#include "cos_event.h"
+#include "cos_port.h"
+#include "cos_app.h"
+#include "cos_app_list.h"
+#include "cos_core.h"
 #include "spm.h"
-#include "eos_pkg_mgr.h"
-#include "eos_watchface_list.h"
-#include "eos_icon.h"
-#include "eos_toast.h"
-#include "eos_slide_widget.h"
-#include "eos_font.h"
-#include "eos_service_sensor.h"
-#include "eos_dev_sensor.h"
-#include "sensor/eos_test_sensor_chart.h"
-#include "sensor/eos_test_sensor_multi_chart.h"
-#include "battery/eos_test_battery_history.h"
-#include "package/eos_test_package.h"
-#include "input/eos_test_input_page.h"
-#include "eos_test_runner.h"
-#include "eos_service_audio.h"
-#include "eos_audio_player.h"
-#include "eos_dev_speaker.h"
-#include "eos_crown.h"
-#include "eos_app_header.h"
-#include "eos_service_storage.h"
-#include "eos_mem.h"
-#include "eos_theme.h"
-#include "eos_activity.h"
-#include "eos_panel.h"
-#include "eos_fault_panel.h"
+#include "cos_pkg_mgr.h"
+#include "cos_watchface_list.h"
+#include "cos_icon.h"
+#include "cos_toast.h"
+#include "cos_slide_widget.h"
+#include "cos_font.h"
+#include "cos_service_sensor.h"
+#include "cos_dev_sensor.h"
+#include "sensor/cos_test_sensor_chart.h"
+#include "sensor/cos_test_sensor_multi_chart.h"
+#include "battery/cos_test_battery_history.h"
+#include "package/cos_test_package.h"
+#include "input/cos_test_input_page.h"
+#include "cos_test_runner.h"
+#include "cos_service_audio.h"
+#include "cos_audio_player.h"
+#include "cos_dev_speaker.h"
+#include "cos_crown.h"
+#include "cos_app_header.h"
+#include "cos_service_storage.h"
+#include "cos_mem.h"
+#include "cos_theme.h"
+#include "cos_activity.h"
+#include "cos_panel.h"
+#include "cos_fault_panel.h"
 
 /* Macros and Definitions -------------------------------------*/
-#define EOS_LOG_TAG "Test"
+#define COS_LOG_TAG "Test"
 // #define TEST_USE_ZH_FONT
 #ifdef TEST_USE_ZH_FONT
-LV_FONT_DECLARE(eos_font_resource_han_rounded_30);
+LV_FONT_DECLARE(cos_font_resource_han_rounded_30);
 #endif
 #define LV_KB_BTN(width) LV_BUTTONMATRIX_CTRL_POPOVER | width
 
@@ -147,27 +147,27 @@ static const char *s_test_audio_fallback_path = "/music.mp3";
 
 /* Activity Lifecycle ---------------------------------------------------*/
 
-static void _test_activity_on_enter(eos_activity_t *activity)
+static void _test_activity_on_enter(cos_activity_t *activity)
 {
     LV_UNUSED(activity);
 }
 
-static void _test_activity_on_destroy(eos_activity_t *activity)
+static void _test_activity_on_destroy(cos_activity_t *activity)
 {
     LV_UNUSED(activity);
 }
 
-static void _test_activity_on_pause(eos_activity_t *activity)
+static void _test_activity_on_pause(cos_activity_t *activity)
 {
     LV_UNUSED(activity);
 }
 
-static void _test_activity_on_resume(eos_activity_t *activity)
+static void _test_activity_on_resume(cos_activity_t *activity)
 {
     LV_UNUSED(activity);
 }
 
-static const eos_activity_lifecycle_t s_test_activity_lifecycle = {.on_enter = _test_activity_on_enter,
+static const cos_activity_lifecycle_t s_test_activity_lifecycle = {.on_enter = _test_activity_on_enter,
                                                                    .on_destroy = _test_activity_on_destroy,
                                                                    .on_pause = _test_activity_on_pause,
                                                                    .on_resume = _test_activity_on_resume};
@@ -181,10 +181,10 @@ static void _test_app_debug_clamp_bar_pos(int32_t *x, int32_t *y, int32_t w, int
         *x = 0;
     if (*y < 0)
         *y = 0;
-    if (*x + w > EOS_DISPLAY_WIDTH)
-        *x = EOS_DISPLAY_WIDTH - w;
-    if (*y + h > EOS_DISPLAY_HEIGHT)
-        *y = EOS_DISPLAY_HEIGHT - h;
+    if (*x + w > COS_DISPLAY_WIDTH)
+        *x = COS_DISPLAY_WIDTH - w;
+    if (*y + h > COS_DISPLAY_HEIGHT)
+        *y = COS_DISPLAY_HEIGHT - h;
     if (*x < 0)
         *x = 0;
     if (*y < 0)
@@ -235,7 +235,7 @@ static void _test_app_debug_clear_current_app_id(void)
 {
     if (s_test_app_debug.current_app_id)
     {
-        eos_free(s_test_app_debug.current_app_id);
+        cos_free(s_test_app_debug.current_app_id);
         s_test_app_debug.current_app_id = NULL;
     }
 }
@@ -259,9 +259,9 @@ static void _test_app_debug_destroy_bar(void)
 }
 
 static void _test_app_debug_create_bar(void);
-static void _test_app_debug_app_installed_cb(eos_event_t *e);
+static void _test_app_debug_app_installed_cb(cos_event_t *e);
 
-static void _test_app_debug_script_exited_cb(eos_event_t *e)
+static void _test_app_debug_script_exited_cb(cos_event_t *e)
 {
     LV_UNUSED(e);
 
@@ -282,7 +282,7 @@ static void __attribute__((unused)) _test_app_debug_global_screen_loaded_cb(lv_e
     if (!(scr && lv_obj_is_valid(scr) && lv_obj_has_class(scr, &lv_obj_class)))
         return;
 
-    eos_app_header_hide();
+    cos_app_header_hide();
     if (s_test_app_debug.debug_bar && lv_obj_is_valid(s_test_app_debug.debug_bar))
     {
         _test_app_debug_sync_bar_pos();
@@ -295,10 +295,10 @@ static void _test_app_debug_register_global_cb(void)
     if (s_test_app_debug.global_cb_registered)
         return;
 
-    // eos_event_add_global_cb(_test_app_debug_global_screen_loaded_cb,
-    //                         EOS_EVENT_GLOBAL_SCREEN_LOADED,
+    // cos_event_add_global_cb(_test_app_debug_global_screen_loaded_cb,
+    //                         COS_EVENT_GLOBAL_SCREEN_LOADED,
     //                         NULL);
-    eos_event_subscribe(EOS_EVENT_SCRIPT_EXITED, _test_app_debug_script_exited_cb, NULL);
+    cos_event_subscribe(COS_EVENT_SCRIPT_EXITED, _test_app_debug_script_exited_cb, NULL);
     s_test_app_debug.global_cb_registered = true;
 }
 
@@ -307,74 +307,74 @@ static void _test_app_debug_unregister_global_cb(void)
     if (!s_test_app_debug.global_cb_registered)
         return;
 
-    eos_event_unsubscribe_all(_test_app_debug_script_exited_cb);
-    eos_event_unsubscribe(EOS_EVENT_APP_INSTALLED, _test_app_debug_app_installed_cb);
-    eos_event_cleanup_now();
+    cos_event_unsubscribe_all(_test_app_debug_script_exited_cb);
+    cos_event_unsubscribe(COS_EVENT_APP_INSTALLED, _test_app_debug_app_installed_cb);
+    cos_event_cleanup_now();
     s_test_app_debug.global_cb_registered = false;
 }
 
-static eos_result_t _test_app_debug_create_pkg(const char *app_id, script_pkg_t **out_pkg)
+static cos_result_t _test_app_debug_create_pkg(const char *app_id, script_pkg_t **out_pkg)
 {
     if (!(app_id && out_pkg))
-        return EOS_ERR_SCRIPT_NULL_PACKAGE;
+        return COS_ERR_SCRIPT_NULL_PACKAGE;
 
-    char manifest_path[EOS_FS_PATH_MAX];
-    snprintf(manifest_path, sizeof(manifest_path), EOS_APP_INSTALLED_DIR "%s/" EOS_APP_MANIFEST_FILE_NAME, app_id);
+    char manifest_path[COS_FS_PATH_MAX];
+    snprintf(manifest_path, sizeof(manifest_path), COS_APP_INSTALLED_DIR "%s/" COS_APP_MANIFEST_FILE_NAME, app_id);
 
-    script_pkg_t *pkg = eos_malloc_zeroed(sizeof(script_pkg_t));
+    script_pkg_t *pkg = cos_malloc_zeroed(sizeof(script_pkg_t));
     if (!pkg)
-        return EOS_ERR_MEM;
+        return COS_ERR_MEM;
 
     pkg->type = SCRIPT_TYPE_APPLICATION;
-    if (script_engine_get_manifest(manifest_path, pkg) != EOS_OK)
+    if (script_engine_get_manifest(manifest_path, pkg) != COS_OK)
     {
-        EOS_LOG_E("Read manifest failed: %s", manifest_path);
-        eos_free(pkg);
-        return EOS_FAILED;
+        COS_LOG_E("Read manifest failed: %s", manifest_path);
+        cos_free(pkg);
+        return COS_FAILED;
     }
 
-    char script_path[EOS_FS_PATH_MAX];
-    snprintf(script_path, sizeof(script_path), EOS_APP_INSTALLED_DIR "%s/" EOS_APP_SCRIPT_ENTRY_FILE_NAME, app_id);
+    char script_path[COS_FS_PATH_MAX];
+    snprintf(script_path, sizeof(script_path), COS_APP_INSTALLED_DIR "%s/" COS_APP_SCRIPT_ENTRY_FILE_NAME, app_id);
 
-    char base_path[EOS_FS_PATH_MAX];
-    snprintf(base_path, sizeof(base_path), EOS_APP_INSTALLED_DIR "%s/", app_id);
-    pkg->base_path = eos_strdup(base_path);
+    char base_path[COS_FS_PATH_MAX];
+    snprintf(base_path, sizeof(base_path), COS_APP_INSTALLED_DIR "%s/", app_id);
+    pkg->base_path = cos_strdup(base_path);
 
-    if (!eos_storage_is_file(script_path))
+    if (!cos_storage_is_file(script_path))
     {
-        EOS_LOG_E("Can't find script: %s", script_path);
-        eos_pkg_free(pkg);
-        eos_free(pkg);
-        return EOS_FAILED;
+        COS_LOG_E("Can't find script: %s", script_path);
+        cos_pkg_free(pkg);
+        cos_free(pkg);
+        return COS_FAILED;
     }
 
-    pkg->script_str = eos_storage_read_file(script_path);
+    pkg->script_str = cos_storage_read_file(script_path);
     if (!pkg->script_str)
     {
-        eos_pkg_free(pkg);
-        eos_free(pkg);
-        return EOS_FAILED;
+        cos_pkg_free(pkg);
+        cos_free(pkg);
+        return COS_FAILED;
     }
 
     *out_pkg = pkg;
-    return EOS_OK;
+    return COS_OK;
 }
 
-static void _test_app_debug_show_error(lv_obj_t *scr, const char *app_id, eos_result_t ret)
+static void _test_app_debug_show_error(lv_obj_t *scr, const char *app_id, cos_result_t ret)
 {
     lv_obj_clean(scr);
     lv_obj_remove_style_all(scr);
-    // lv_obj_add_style(scr, eos_theme_get_view_style(), 0);
+    // lv_obj_add_style(scr, cos_theme_get_view_style(), 0);
 
-    lv_obj_t *list = eos_std_info_create(scr,
-                                         EOS_THEME_DANGEROS_COLOR,
+    lv_obj_t *list = cos_std_info_create(scr,
+                                         COS_THEME_DANGEROS_COLOR,
                                          RI_BUG_LINE,
-                                         eos_lang_get_text(STR_ID_APP_RUN_ERR_TITLE),
-                                         eos_lang_get_text(STR_ID_APP_RUN_ERR));
+                                         cos_lang_get_text(STR_ID_APP_RUN_ERR_TITLE),
+                                         cos_lang_get_text(STR_ID_APP_RUN_ERR));
 
     char info_str[1024];
     snprintf(info_str, sizeof(info_str), "Code: %d\nAppID: %s\nError: %s", ret, app_id, script_engine_get_error_info());
-    eos_list_add_comment(list, info_str);
+    cos_list_add_comment(list, info_str);
 }
 
 static void _test_app_debug_restore_after_error(const char *app_id)
@@ -384,15 +384,15 @@ static void _test_app_debug_restore_after_error(const char *app_id)
 
     s_test_app_debug.debug_active = true;
     _test_app_debug_clear_current_app_id();
-    s_test_app_debug.current_app_id = (char *)eos_strdup(app_id);
+    s_test_app_debug.current_app_id = (char *)cos_strdup(app_id);
     _test_app_debug_create_bar();
     _test_app_debug_sync_bar_pos();
 }
 
-static eos_result_t _test_app_debug_start_internal(const char *app_id)
+static cos_result_t _test_app_debug_start_internal(const char *app_id)
 {
     if (!(app_id && s_test_app_debug.list_screen && lv_obj_is_valid(s_test_app_debug.list_screen)))
-        return EOS_ERR_SCRIPT_NULL_PACKAGE;
+        return COS_ERR_SCRIPT_NULL_PACKAGE;
 
     if (script_engine_get_state() != SCRIPT_ENGINE_STATE_UNINITIALIZED
         && script_engine_get_state() != SCRIPT_ENGINE_STATE_EXCEPTION)
@@ -402,47 +402,47 @@ static eos_result_t _test_app_debug_start_internal(const char *app_id)
 
     _test_app_debug_register_global_cb();
     _test_app_debug_clear_current_app_id();
-    s_test_app_debug.current_app_id = (char *)eos_strdup(app_id);
+    s_test_app_debug.current_app_id = (char *)cos_strdup(app_id);
     if (!s_test_app_debug.current_app_id)
     {
         s_test_app_debug.debug_active = false;
-        return EOS_ERR_MEM;
+        return COS_ERR_MEM;
     }
     s_test_app_debug.debug_active = true;
 
     // Create new activity for the app
-    eos_activity_t *activity = eos_activity_create(&s_test_activity_lifecycle);
+    cos_activity_t *activity = cos_activity_create(&s_test_activity_lifecycle);
     if (!activity)
     {
         s_test_app_debug.debug_active = false;
         _test_app_debug_clear_current_app_id();
-        return EOS_FAILED;
+        return COS_FAILED;
     }
 
-    lv_obj_t *view = eos_activity_get_view(activity);
+    lv_obj_t *view = cos_activity_get_view(activity);
     if (!view)
     {
         s_test_app_debug.debug_active = false;
         _test_app_debug_clear_current_app_id();
-        return EOS_FAILED;
+        return COS_FAILED;
     }
 
-    eos_activity_set_view(activity, view);
-    eos_activity_set_title(activity, app_id);
-    eos_activity_set_type(activity, EOS_ACTIVITY_TYPE_APP);
+    cos_activity_set_view(activity, view);
+    cos_activity_set_title(activity, app_id);
+    cos_activity_set_type(activity, COS_ACTIVITY_TYPE_APP);
 
     script_pkg_t *pkg = NULL;
-    eos_result_t ret = _test_app_debug_create_pkg(app_id, &pkg);
-    if (ret != EOS_OK)
+    cos_result_t ret = _test_app_debug_create_pkg(app_id, &pkg);
+    if (ret != COS_OK)
     {
         s_test_app_debug.debug_active = false;
         _test_app_debug_clear_current_app_id();
         return ret;
     }
 
-    eos_activity_enter(activity);
+    cos_activity_enter(activity);
     ret = spm_app_run(pkg);
-    if (ret != EOS_OK)
+    if (ret != COS_OK)
     {
         _test_app_debug_show_error(view, app_id, ret);
         _test_app_debug_restore_after_error(app_id);
@@ -454,7 +454,7 @@ static eos_result_t _test_app_debug_start_internal(const char *app_id)
 static void _test_app_debug_safe_nav_cleanup(void)
 {
     // Activity-based cleanup - just return to previous activity
-    eos_activity_back();
+    cos_activity_back();
 }
 
 static void _test_app_debug_exit_current_app(void)
@@ -479,7 +479,7 @@ static void _test_app_debug_restart_current_app(void)
     if (!s_test_app_debug.current_app_id)
         return;
 
-    char *app_id = (char *)eos_strdup(s_test_app_debug.current_app_id);
+    char *app_id = (char *)cos_strdup(s_test_app_debug.current_app_id);
     if (!app_id)
         return;
 
@@ -494,7 +494,7 @@ static void _test_app_debug_restart_current_app(void)
 
     _test_app_debug_create_bar();
     _test_app_debug_start_internal(app_id);
-    eos_free(app_id);
+    cos_free(app_id);
 }
 
 static void _test_app_debug_restart_btn_cb(lv_event_t *e)
@@ -533,10 +533,10 @@ static void _test_app_debug_drag_handle_cb(lv_event_t *e)
             new_x = 0;
         if (new_y < 0)
             new_y = 0;
-        if (new_x + bar_w > EOS_DISPLAY_WIDTH)
-            new_x = EOS_DISPLAY_WIDTH - bar_w;
-        if (new_y + bar_h > EOS_DISPLAY_HEIGHT)
-            new_y = EOS_DISPLAY_HEIGHT - bar_h;
+        if (new_x + bar_w > COS_DISPLAY_WIDTH)
+            new_x = COS_DISPLAY_WIDTH - bar_w;
+        if (new_y + bar_h > COS_DISPLAY_HEIGHT)
+            new_y = COS_DISPLAY_HEIGHT - bar_h;
 
         lv_obj_set_pos(bar, new_x, new_y);
         _test_app_debug_set_global_bar_pos(new_x, new_y, bar_w, bar_h);
@@ -565,7 +565,7 @@ static void _test_app_debug_create_bar(void)
 
     const int32_t bar_w = TEST_APP_DEBUG_BAR_W;
     const int32_t bar_h = TEST_APP_DEBUG_BAR_H;
-    int32_t bar_x = (EOS_DISPLAY_WIDTH - bar_w) / 2;
+    int32_t bar_x = (COS_DISPLAY_WIDTH - bar_w) / 2;
     int32_t bar_y = 18;
 
     if (s_debug_bar_global_pos_valid)
@@ -614,7 +614,7 @@ static void _test_app_debug_create_bar(void)
     /* Exit button (icon only) */
     lv_obj_t *exit_btn = lv_button_create(bar);
     lv_obj_set_size(exit_btn, 72, lv_pct(100));
-    lv_obj_set_style_bg_color(exit_btn, EOS_THEME_DANGEROS_COLOR, 0);
+    lv_obj_set_style_bg_color(exit_btn, COS_THEME_DANGEROS_COLOR, 0);
     lv_obj_add_event_cb(exit_btn, _test_app_debug_exit_btn_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_t *exit_icon = lv_label_create(exit_btn);
     lv_label_set_text(exit_icon, RI_CLOSE_FILL);
@@ -624,7 +624,7 @@ static void _test_app_debug_create_bar(void)
 static void _test_app_debug_app_btn_cb(lv_event_t *e)
 {
     const char *app_id = (const char *)lv_event_get_user_data(e);
-    EOS_CHECK_PTR_RETURN(app_id);
+    COS_CHECK_PTR_RETURN(app_id);
 
     _test_app_debug_create_bar();
     _test_app_debug_start_internal(app_id);
@@ -632,34 +632,34 @@ static void _test_app_debug_app_btn_cb(lv_event_t *e)
 
 static void _test_app_debug_app_btn_create(lv_obj_t *parent, const char *app_id)
 {
-    char icon_path[EOS_FS_PATH_MAX];
-    snprintf(icon_path, sizeof(icon_path), EOS_APP_INSTALLED_DIR "%s/" EOS_APP_ICON_FILE_NAME, app_id);
-    if (!eos_storage_is_file(icon_path))
+    char icon_path[COS_FS_PATH_MAX];
+    snprintf(icon_path, sizeof(icon_path), COS_APP_INSTALLED_DIR "%s/" COS_APP_ICON_FILE_NAME, app_id);
+    if (!cos_storage_is_file(icon_path))
     {
-        memcpy(icon_path, EOS_IMG_APP, sizeof(EOS_IMG_APP));
+        memcpy(icon_path, COS_IMG_APP, sizeof(COS_IMG_APP));
     }
 
-    char manifest_path[EOS_FS_PATH_MAX];
-    snprintf(manifest_path, sizeof(manifest_path), EOS_APP_INSTALLED_DIR "%s/" EOS_APP_MANIFEST_FILE_NAME, app_id);
+    char manifest_path[COS_FS_PATH_MAX];
+    snprintf(manifest_path, sizeof(manifest_path), COS_APP_INSTALLED_DIR "%s/" COS_APP_MANIFEST_FILE_NAME, app_id);
 
     script_pkg_t pkg = {0};
-    if (script_engine_get_manifest(manifest_path, &pkg) != EOS_OK)
+    if (script_engine_get_manifest(manifest_path, &pkg) != COS_OK)
     {
-        EOS_LOG_E("Read manifest failed: %s", manifest_path);
+        COS_LOG_E("Read manifest failed: %s", manifest_path);
         return;
     }
 
-    lv_obj_t *btn = eos_list_add_button(parent, icon_path, pkg.name);
+    lv_obj_t *btn = cos_list_add_button(parent, icon_path, pkg.name);
     lv_obj_add_event_cb(btn, _test_app_debug_app_btn_cb, LV_EVENT_CLICKED, (void *)app_id);
-    eos_app_obj_auto_delete(btn, app_id);
-    eos_pkg_free(&pkg);
+    cos_app_obj_auto_delete(btn, app_id);
+    cos_pkg_free(&pkg);
 }
 
-static void _test_app_debug_app_installed_cb(eos_event_t *e)
+static void _test_app_debug_app_installed_cb(cos_event_t *e)
 {
-    lv_obj_t *parent = eos_event_get_user_data(e);
-    const char *installed_app_id = eos_event_get_param(e);
-    EOS_CHECK_PTR_RETURN(parent && installed_app_id);
+    lv_obj_t *parent = cos_event_get_user_data(e);
+    const char *installed_app_id = cos_event_get_param(e);
+    COS_CHECK_PTR_RETURN(parent && installed_app_id);
 
     _test_app_debug_app_btn_create(parent, installed_app_id);
 }
@@ -687,7 +687,7 @@ static void _test_app_debug_back_to_test_cb(lv_event_t *e)
     _test_app_debug_unregister_global_cb();
     s_test_app_debug.debug_active = false;
 
-    eos_activity_back();
+    cos_activity_back();
 
     if (list_screen && lv_obj_is_valid(list_screen))
     {
@@ -703,15 +703,15 @@ static void _test_app_debugger(void)
         s_test_app_debug.list_screen = NULL;
     }
 
-    s_test_app_debug.launcher_screen = eos_view_active();
+    s_test_app_debug.launcher_screen = cos_view_active();
 
-    eos_activity_t *activity = eos_activity_create(&s_test_activity_lifecycle);
+    cos_activity_t *activity = cos_activity_create(&s_test_activity_lifecycle);
     if (!activity)
     {
         return;
     }
 
-    lv_obj_t *view = eos_activity_get_view(activity);
+    lv_obj_t *view = cos_activity_get_view(activity);
     if (!view)
     {
         return;
@@ -719,9 +719,9 @@ static void _test_app_debugger(void)
 
     s_test_app_debug.list_screen = view;
 
-    eos_activity_set_view(activity, view);
-    eos_activity_set_title(activity, "App Debugger");
-    eos_activity_set_type(activity, EOS_ACTIVITY_TYPE_APP);
+    cos_activity_set_view(activity, view);
+    cos_activity_set_title(activity, "App Debugger");
+    cos_activity_set_type(activity, COS_ACTIVITY_TYPE_APP);
 
     lv_obj_t *scr = view;
     lv_obj_add_event_cb(scr, _test_app_debug_list_delete_cb, LV_EVENT_DELETE, NULL);
@@ -747,76 +747,76 @@ static void _test_app_debugger(void)
 
     lv_obj_t *title = lv_label_create(toolbar);
     lv_label_set_text(title, "App Debugger");
-    eos_label_set_font_size(title, EOS_FONT_SIZE_LARGE);
+    cos_label_set_font_size(title, COS_FONT_SIZE_LARGE);
     lv_obj_align(title, LV_ALIGN_RIGHT_MID, 0, 0);
 
     lv_obj_t *app_list = lv_list_create(scr);
     lv_obj_set_width(app_list, lv_pct(100));
     lv_obj_set_flex_grow(app_list, 1);
-    eos_event_subscribe_ex(EOS_EVENT_APP_INSTALLED, _test_app_debug_app_installed_cb, app_list, NULL);
+    cos_event_subscribe_ex(COS_EVENT_APP_INSTALLED, _test_app_debug_app_installed_cb, app_list, NULL);
 
-    size_t app_list_size = eos_app_get_installed();
+    size_t app_list_size = cos_app_get_installed();
     for (size_t i = 0; i < app_list_size; i++)
     {
-        _test_app_debug_app_btn_create(app_list, eos_app_list_get_id(i));
+        _test_app_debug_app_btn_create(app_list, cos_app_list_get_id(i));
     }
 
-    eos_crown_encoder_set_target_obj(app_list);
-    eos_activity_enter(activity);
+    cos_crown_encoder_set_target_obj(app_list);
+    cos_activity_enter(activity);
 }
 
 lv_obj_t *_create_new_scr()
 {
-    eos_activity_t *activity = eos_activity_create(&s_test_activity_lifecycle);
+    cos_activity_t *activity = cos_activity_create(&s_test_activity_lifecycle);
     if (!activity)
     {
         return NULL;
     }
 
-    lv_obj_t *view = eos_activity_get_view(activity);
+    lv_obj_t *view = cos_activity_get_view(activity);
     if (!view)
     {
         return NULL;
     }
 
-    eos_activity_set_view(activity, view);
-    eos_activity_set_title(activity, "ElenixOS Test");
-    eos_activity_set_type(activity, EOS_ACTIVITY_TYPE_APP);
+    cos_activity_set_view(activity, view);
+    cos_activity_set_title(activity, "CantoMk6 Test");
+    cos_activity_set_type(activity, COS_ACTIVITY_TYPE_APP);
 
-    eos_activity_enter(activity);
+    cos_activity_enter(activity);
     return view;
 }
 
 static void _test_msg_list_cb(lv_event_t *e)
 {
-    eos_msg_list_t *msg_list = lv_event_get_user_data(e);
-    EOS_CHECK_PTR_RETURN(msg_list);
+    cos_msg_list_t *msg_list = lv_event_get_user_data(e);
+    COS_CHECK_PTR_RETURN(msg_list);
     char *message = "Sab1e: No one's born being good at all things."
                     "You become good at things through hard work. "
                     "You're not a varsity athlete the first time "
                     "you play a new sport.";
 
     // Add a new message item
-    eos_msg_list_item_t *item = eos_msg_list_item_create(msg_list);
+    cos_msg_list_item_t *item = cos_msg_list_item_create(msg_list);
     // Set the content
-    eos_msg_list_item_set_title(item, "Settings");
-    eos_msg_list_item_set_msg(item, message);
-    eos_msg_list_item_set_time(item, "12:30");
+    cos_msg_list_item_set_title(item, "Settings");
+    cos_msg_list_item_set_msg(item, message);
+    cos_msg_list_item_set_time(item, "12:30");
 
-    eos_msg_list_item_icon_set_src(item, EOS_IMG_SETTINGS);
+    cos_msg_list_item_icon_set_src(item, COS_IMG_SETTINGS);
 
-    eos_msg_list_item_t *item1 = eos_msg_list_item_create(msg_list);
-    eos_msg_list_item_set_title(item1, "QQ");
-    eos_msg_list_item_set_msg(item1, message);
-    eos_msg_list_item_set_time(item1, "21:00");
+    cos_msg_list_item_t *item1 = cos_msg_list_item_create(msg_list);
+    cos_msg_list_item_set_title(item1, "QQ");
+    cos_msg_list_item_set_msg(item1, message);
+    cos_msg_list_item_set_time(item1, "21:00");
 }
 
 static void _test_msg_list(lv_event_t *e)
 {
     _create_new_scr();
-    eos_msg_list_t *msg_list = eos_msg_list_get_instance();
-    EOS_CHECK_PTR_RETURN(msg_list);
-    lv_obj_t *btn = lv_button_create(eos_view_active());
+    cos_msg_list_t *msg_list = cos_msg_list_get_instance();
+    COS_CHECK_PTR_RETURN(msg_list);
+    lv_obj_t *btn = lv_button_create(cos_view_active());
     lv_obj_center(btn);
     lv_obj_t *btn_label = lv_label_create(btn);
     lv_label_set_text(btn_label, RI_CHAT_FOLLOW_UP_FILL " Add new message");
@@ -837,13 +837,13 @@ static void _test_nav_cb_1(lv_event_t *e)
 {
     static int32_t nav_counter = 0;
 
-    eos_activity_t *activity = eos_activity_create(&s_test_activity_lifecycle);
+    cos_activity_t *activity = cos_activity_create(&s_test_activity_lifecycle);
     if (!activity)
     {
         return;
     }
 
-    lv_obj_t *view = eos_activity_get_view(activity);
+    lv_obj_t *view = cos_activity_get_view(activity);
     if (!view)
     {
         return;
@@ -851,11 +851,11 @@ static void _test_nav_cb_1(lv_event_t *e)
 
     char title_str[64];
     snprintf(title_str, sizeof(title_str), "Screen %d", (int)nav_counter);
-    EOS_LOG_D("%s", title_str);
+    COS_LOG_D("%s", title_str);
 
-    eos_activity_set_view(activity, view);
-    eos_activity_set_title(activity, title_str);
-    eos_activity_set_type(activity, EOS_ACTIVITY_TYPE_APP);
+    cos_activity_set_view(activity, view);
+    cos_activity_set_title(activity, title_str);
+    cos_activity_set_type(activity, COS_ACTIVITY_TYPE_APP);
 
     lv_obj_t *new_scr_btn = lv_button_create(view);
     lv_obj_t *label = lv_label_create(new_scr_btn);
@@ -866,8 +866,8 @@ static void _test_nav_cb_1(lv_event_t *e)
 #if 0
     uint32_t w = 250, h = 80;
     lv_obj_set_size(new_scr_btn, w, h);
-    int32_t x = rand() % (EOS_DISPLAY_WIDTH - w);
-    int32_t y = rand() % (EOS_DISPLAY_HEIGHT - h);
+    int32_t x = rand() % (COS_DISPLAY_WIDTH - w);
+    int32_t y = rand() % (COS_DISPLAY_HEIGHT - h);
     if (y < 130)
         y += 130;
     lv_obj_set_pos(new_scr_btn, x, y);
@@ -882,10 +882,10 @@ static void _test_nav_cb_1(lv_event_t *e)
     lv_obj_t *back_label = lv_label_create(back_btn);
     lv_label_set_text(back_label, LV_SYMBOL_LEFT);
     lv_obj_center(back_label);
-    lv_obj_add_event_cb(back_btn, eos_activity_back_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(back_btn, cos_activity_back_cb, LV_EVENT_CLICKED, NULL);
 
     nav_counter++;
-    eos_activity_enter(activity);
+    cos_activity_enter(activity);
 }
 
 static void _test_font(lv_event_t *e)
@@ -901,26 +901,26 @@ static void _test_font(lv_event_t *e)
         /* Rare Chinese chars test */ "霡霂淅沥，薜荔葳蕤。彳亍踟蹰，睥睨娉婷。觊觎饕餮，倥偬倜傥。菡萏猗傩，蘼芜菁菁"
         "。";
 
-    lv_obj_t *container = eos_list_create(eos_view_active());
+    lv_obj_t *container = cos_list_create(cos_view_active());
     lv_obj_set_size(container, lv_pct(100), lv_pct(100));
     lv_obj_t *font_label = lv_label_create(container);
     lv_label_set_text(font_label, test_str);
     lv_obj_set_width(font_label, lv_pct(100));
     lv_label_set_long_mode(font_label, LV_LABEL_LONG_WRAP);
 #ifdef TEST_USE_ZH_FONT
-    lv_obj_set_style_text_font(font_label, &eos_font_resource_han_rounded_30, LV_PART_MAIN);
+    lv_obj_set_style_text_font(font_label, &cos_font_resource_han_rounded_30, LV_PART_MAIN);
 #endif
 }
 
 static void _test_lang_cb(lv_event_t *e)
 {
-    if (eos_lang_get_current_id() == LANG_ZH)
+    if (cos_lang_get_current_id() == LANG_ZH)
     {
-        eos_lang_set_current_id(LANG_EN);
+        cos_lang_set_current_id(LANG_EN);
     }
     else
     {
-        eos_lang_set_current_id(LANG_ZH);
+        cos_lang_set_current_id(LANG_ZH);
     }
 }
 
@@ -928,14 +928,14 @@ static void _test_lang(lv_event_t *e)
 {
     _create_new_scr();
 
-    lv_obj_t *label = lv_label_create(eos_view_active());
+    lv_obj_t *label = lv_label_create(cos_view_active());
     lv_obj_set_width(label, lv_pct(100));
     lv_obj_center(label);
 #ifdef TEST_USE_ZH_FONT
-    lv_obj_set_style_text_font(label, &eos_font_resource_han_rounded_30, LV_PART_MAIN);
+    lv_obj_set_style_text_font(label, &cos_font_resource_han_rounded_30, LV_PART_MAIN);
 #endif
     lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
-    lv_obj_t *btn = lv_button_create(eos_view_active());
+    lv_obj_t *btn = lv_button_create(cos_view_active());
     lv_obj_t *btn_label = lv_label_create(btn);
     lv_label_set_text(btn_label, RI_REPEAT_2_FILL " Switch Language");
     lv_obj_add_event_cb(btn, _test_lang_cb, LV_EVENT_CLICKED, NULL);
@@ -997,7 +997,7 @@ static void _test_image(lv_event_t *e)
 
 static void _test_app_list(lv_event_t *e)
 {
-    eos_app_list_enter();
+    cos_app_list_enter();
 }
 
 static void _test_app_debug_page(lv_event_t *e)
@@ -1007,17 +1007,17 @@ static void _test_app_debug_page(lv_event_t *e)
 
 static void _test_watchface_list(lv_event_t *e)
 {
-    eos_watchface_list_enter();
+    cos_watchface_list_enter();
 }
 
 static void _toast_clicked_cb(lv_event_t *e)
 {
-    eos_app_list_enter();
+    cos_app_list_enter();
 }
 
 static void _test_toast(lv_event_t *e)
 {
-    lv_obj_t *toast = eos_toast_show(NULL, "Click me to open App List!");
+    lv_obj_t *toast = cos_toast_show(NULL, "Click me to open App List!");
     lv_obj_add_event_cb(toast, _toast_clicked_cb, LV_EVENT_CLICKED, NULL);
 }
 
@@ -1026,16 +1026,16 @@ static void _test_panel_basic(lv_event_t *e)
     lv_obj_t *view = _create_new_scr();
     if (!view)
     {
-        EOS_LOG_E("Failed to create view");
+        COS_LOG_E("Failed to create view");
         return;
     }
 
     lv_obj_remove_style_all(view);
-    lv_obj_add_style(view, eos_theme_get_view_style(), 0);
+    lv_obj_add_style(view, cos_theme_get_view_style(), 0);
 
-    eos_panel_cfg_t cfg = {
-        .icon_bg_color = EOS_COLOR_BLUE,
-        .icon_type = EOS_PANEL_ICON_TYPE_SYMBOL,
+    cos_panel_cfg_t cfg = {
+        .icon_bg_color = COS_COLOR_BLUE,
+        .icon_type = COS_PANEL_ICON_TYPE_SYMBOL,
         .icon_src = RI_INFORMATION_LINE,
         .title_text = "Panel Title",
         .message_text = "This is a basic panel test message",
@@ -1047,10 +1047,10 @@ static void _test_panel_basic(lv_event_t *e)
         .cancel_cb = NULL,
     };
 
-    eos_panel_t *panel = eos_panel_create(view, &cfg);
+    cos_panel_t *panel = cos_panel_create(view, &cfg);
     if (panel)
     {
-        EOS_LOG_I("Basic panel created successfully");
+        COS_LOG_I("Basic panel created successfully");
     }
 }
 
@@ -1059,16 +1059,16 @@ static void _test_panel_with_extra_slot(lv_event_t *e)
     lv_obj_t *view = _create_new_scr();
     if (!view)
     {
-        EOS_LOG_E("Failed to create view");
+        COS_LOG_E("Failed to create view");
         return;
     }
 
     lv_obj_remove_style_all(view);
-    lv_obj_add_style(view, eos_theme_get_view_style(), 0);
+    lv_obj_add_style(view, cos_theme_get_view_style(), 0);
 
-    eos_panel_cfg_t cfg = {
-        .icon_bg_color = EOS_COLOR_GREEN,
-        .icon_type = EOS_PANEL_ICON_TYPE_SYMBOL,
+    cos_panel_cfg_t cfg = {
+        .icon_bg_color = COS_COLOR_GREEN,
+        .icon_type = COS_PANEL_ICON_TYPE_SYMBOL,
         .icon_src = RI_CHECK_FILL,
         .title_text = "Extra Slot Test",
         .message_text = "Adding custom content to extra slot",
@@ -1080,20 +1080,20 @@ static void _test_panel_with_extra_slot(lv_event_t *e)
         .cancel_cb = NULL,
     };
 
-    eos_panel_t *panel = eos_panel_create(view, &cfg);
+    cos_panel_t *panel = cos_panel_create(view, &cfg);
     if (panel)
     {
-        lv_obj_t *extra_slot = eos_panel_get_extra_slot(panel);
+        lv_obj_t *extra_slot = cos_panel_get_extra_slot(panel);
         if (extra_slot)
         {
             lv_obj_t *switch_label = lv_label_create(extra_slot);
             lv_label_set_text(switch_label, "Option 1: Sample Switch");
-            lv_obj_set_width(switch_label, EOS_PANEL_CONTENT_WIDTH);
+            lv_obj_set_width(switch_label, COS_PANEL_CONTENT_WIDTH);
 
             lv_obj_t *switch_btn = lv_switch_create(extra_slot);
             lv_obj_set_width(switch_btn, 50);
         }
-        EOS_LOG_I("Panel with extra slot created successfully");
+        COS_LOG_I("Panel with extra slot created successfully");
     }
 }
 
@@ -1102,12 +1102,12 @@ static void _test_fault_panel_bug(lv_event_t *e)
     lv_obj_t *view = _create_new_scr();
     if (!view)
     {
-        EOS_LOG_E("Failed to create view");
+        COS_LOG_E("Failed to create view");
         return;
     }
 
-    eos_fault_cfg_t cfg = {
-        .icon_type = EOS_FAULT_ICON_BUG,
+    cos_fault_cfg_t cfg = {
+        .icon_type = COS_FAULT_ICON_BUG,
         .custom_icon = NULL,
         .title_id = STR_ID_ERROR,
         .title_text = NULL,
@@ -1119,13 +1119,13 @@ static void _test_fault_panel_bug(lv_event_t *e)
         .cancel_btn_id = STR_ID_BACK,
         .cancel_btn_text = NULL,
         .cancel_cb = NULL,
-        .icon_color = EOS_COLOR_RED,
+        .icon_color = COS_COLOR_RED,
     };
 
-    eos_fault_panel_t *fault_panel = eos_fault_panel_create_on_activity(NULL, &cfg);
+    cos_fault_panel_t *fault_panel = cos_fault_panel_create_on_activity(NULL, &cfg);
     if (fault_panel)
     {
-        EOS_LOG_I("Bug fault panel created successfully");
+        COS_LOG_I("Bug fault panel created successfully");
     }
 }
 
@@ -1134,12 +1134,12 @@ static void _test_fault_panel_warning(lv_event_t *e)
     lv_obj_t *view = _create_new_scr();
     if (!view)
     {
-        EOS_LOG_E("Failed to create view");
+        COS_LOG_E("Failed to create view");
         return;
     }
 
-    eos_fault_cfg_t cfg = {
-        .icon_type = EOS_FAULT_ICON_WARNING,
+    cos_fault_cfg_t cfg = {
+        .icon_type = COS_FAULT_ICON_WARNING,
         .custom_icon = NULL,
         .title_id = 0,
         .title_text = "Warning",
@@ -1151,13 +1151,13 @@ static void _test_fault_panel_warning(lv_event_t *e)
         .cancel_btn_id = STR_ID_CANCEL,
         .cancel_btn_text = NULL,
         .cancel_cb = NULL,
-        .icon_color = EOS_COLOR_ORANGE,
+        .icon_color = COS_COLOR_ORANGE,
     };
 
-    eos_fault_panel_t *fault_panel = eos_fault_panel_create_on_activity(NULL, &cfg);
+    cos_fault_panel_t *fault_panel = cos_fault_panel_create_on_activity(NULL, &cfg);
     if (fault_panel)
     {
-        EOS_LOG_I("Warning fault panel created successfully");
+        COS_LOG_I("Warning fault panel created successfully");
     }
 }
 
@@ -1166,12 +1166,12 @@ static void _test_fault_panel_info(lv_event_t *e)
     lv_obj_t *view = _create_new_scr();
     if (!view)
     {
-        EOS_LOG_E("Failed to create view");
+        COS_LOG_E("Failed to create view");
         return;
     }
 
-    eos_fault_cfg_t cfg = {
-        .icon_type = EOS_FAULT_ICON_INFO,
+    cos_fault_cfg_t cfg = {
+        .icon_type = COS_FAULT_ICON_INFO,
         .custom_icon = NULL,
         .title_id = 0,
         .title_text = "Information",
@@ -1183,13 +1183,13 @@ static void _test_fault_panel_info(lv_event_t *e)
         .cancel_btn_id = STR_ID_OK,
         .cancel_btn_text = NULL,
         .cancel_cb = NULL,
-        .icon_color = EOS_COLOR_BLUE,
+        .icon_color = COS_COLOR_BLUE,
     };
 
-    eos_fault_panel_t *fault_panel = eos_fault_panel_create_on_activity(NULL, &cfg);
+    cos_fault_panel_t *fault_panel = cos_fault_panel_create_on_activity(NULL, &cfg);
     if (fault_panel)
     {
-        EOS_LOG_I("Info fault panel created successfully");
+        COS_LOG_I("Info fault panel created successfully");
     }
 }
 
@@ -1198,16 +1198,16 @@ static void _test_panel_no_icon(lv_event_t *e)
     lv_obj_t *view = _create_new_scr();
     if (!view)
     {
-        EOS_LOG_E("Failed to create view");
+        COS_LOG_E("Failed to create view");
         return;
     }
 
     lv_obj_remove_style_all(view);
-    lv_obj_add_style(view, eos_theme_get_view_style(), 0);
+    lv_obj_add_style(view, cos_theme_get_view_style(), 0);
 
-    eos_panel_cfg_t cfg = {
-        .icon_bg_color = EOS_COLOR_RED,
-        .icon_type = EOS_PANEL_ICON_TYPE_NONE,
+    cos_panel_cfg_t cfg = {
+        .icon_bg_color = COS_COLOR_RED,
+        .icon_type = COS_PANEL_ICON_TYPE_NONE,
         .icon_src = NULL,
         .title_text = "No Icon Panel",
         .message_text = "This panel has no icon",
@@ -1219,23 +1219,23 @@ static void _test_panel_no_icon(lv_event_t *e)
         .cancel_cb = NULL,
     };
 
-    eos_panel_t *panel = eos_panel_create(view, &cfg);
+    cos_panel_t *panel = cos_panel_create(view, &cfg);
     if (panel)
     {
-        EOS_LOG_I("No icon panel created successfully");
+        COS_LOG_I("No icon panel created successfully");
     }
 }
 
 static void _test_panel_list(lv_event_t *e)
 {
-    eos_activity_t *activity = eos_activity_get_current();
+    cos_activity_t *activity = cos_activity_get_current();
     if (!activity)
     {
-        EOS_LOG_E("No current activity");
+        COS_LOG_E("No current activity");
         return;
     }
 
-    lv_obj_t *view = eos_activity_get_view(activity);
+    lv_obj_t *view = cos_activity_get_view(activity);
     if (!view)
     {
         return;
@@ -1243,7 +1243,7 @@ static void _test_panel_list(lv_event_t *e)
 
     lv_obj_t *list = lv_list_create(view);
     lv_obj_set_size(list, lv_pct(100), lv_pct(100));
-    eos_crown_encoder_set_target_obj(list);
+    cos_crown_encoder_set_target_obj(list);
 
     lv_obj_t *btn;
     lv_obj_t *label = lv_list_add_text(list, RI_WINDOW_LINE " Panel Test List");
@@ -1267,17 +1267,17 @@ static void _test_panel_list(lv_event_t *e)
     btn = lv_list_add_button(list, RI_WINDOW_LINE, "No Icon");
     lv_obj_add_event_cb(btn, _test_panel_no_icon, LV_EVENT_CLICKED, NULL);
 
-    eos_activity_enter(activity);
+    cos_activity_enter(activity);
 }
 
 static const char *_test_audio_resolve_path(void)
 {
-    if (eos_storage_is_file(s_test_audio_primary_path))
+    if (cos_storage_is_file(s_test_audio_primary_path))
     {
         return s_test_audio_primary_path;
     }
 
-    if (eos_storage_is_file(s_test_audio_fallback_path))
+    if (cos_storage_is_file(s_test_audio_fallback_path))
     {
         return s_test_audio_fallback_path;
     }
@@ -1291,9 +1291,9 @@ static void _test_audio_sync_ui(void)
     if (!(ctx->status_label && lv_obj_is_valid(ctx->status_label)))
         return;
 
-    bool spk_avail = eos_service_audio_speaker_available();
-    bool mic_avail = eos_service_audio_microphone_available();
-    eos_dev_state_t state = eos_dev_speaker_get_state();
+    bool spk_avail = cos_service_audio_speaker_available();
+    bool mic_avail = cos_service_audio_microphone_available();
+    cos_dev_state_t state = cos_dev_speaker_get_state();
     const char *path = _test_audio_resolve_path();
 
     const char *status_text;
@@ -1317,27 +1317,27 @@ static void _test_audio_sync_ui(void)
                           mic_avail ? "yes" : "no",
                           path);
 
-    eos_audio_player_t *player = eos_service_audio_get_player();
+    cos_audio_player_t *player = cos_service_audio_get_player();
 
     if (ctx->play_btn_label && lv_obj_is_valid(ctx->play_btn_label))
     {
-        eos_audio_player_state_t p_state = eos_audio_player_get_state(player);
-        uint32_t check_dur = eos_audio_player_get_duration(player);
+        cos_audio_player_state_t p_state = cos_audio_player_get_state(player);
+        uint32_t check_dur = cos_audio_player_get_duration(player);
 
         /* Defensive: if state claims PLAYING but no decoder is open,
          * treat as IDLE (stale state from incomplete teardown). */
-        if (p_state == EOS_AUDIO_PLAYING && check_dur == 0)
+        if (p_state == COS_AUDIO_PLAYING && check_dur == 0)
         {
-            p_state = EOS_AUDIO_IDLE;
+            p_state = COS_AUDIO_IDLE;
         }
 
         lv_label_set_text(ctx->play_btn_label,
-                          (p_state == EOS_AUDIO_PLAYING) ? (LV_SYMBOL_PAUSE " Pause") : (LV_SYMBOL_PLAY " Play"));
+                          (p_state == COS_AUDIO_PLAYING) ? (LV_SYMBOL_PAUSE " Pause") : (LV_SYMBOL_PLAY " Play"));
     }
 
-    uint32_t pos = eos_audio_player_get_position(player);
-    uint32_t dur = eos_audio_player_get_duration(player);
-    uint32_t rate = eos_audio_player_get_sample_rate(player);
+    uint32_t pos = cos_audio_player_get_position(player);
+    uint32_t dur = cos_audio_player_get_duration(player);
+    uint32_t rate = cos_audio_player_get_sample_rate(player);
 
     if (ctx->progress_slider && lv_obj_is_valid(ctx->progress_slider))
     {
@@ -1384,15 +1384,15 @@ static void _test_audio_seek_cb(lv_event_t *e)
 {
     lv_obj_t *slider = lv_event_get_target(e);
     int32_t sample = lv_slider_get_value(slider);
-    eos_audio_player_t *player = eos_service_audio_get_player();
-    eos_audio_player_seek(player, (uint32_t)sample);
+    cos_audio_player_t *player = cos_service_audio_get_player();
+    cos_audio_player_seek(player, (uint32_t)sample);
 }
 
 static void _test_audio_volume_cb(lv_event_t *e)
 {
     lv_obj_t *slider = lv_event_get_target(e);
     uint8_t vol = (uint8_t)lv_slider_get_value(slider);
-    eos_service_audio_set_volume(vol);
+    cos_service_audio_set_volume(vol);
     if (s_test_audio_page.volume_label && lv_obj_is_valid(s_test_audio_page.volume_label))
     {
         lv_label_set_text_fmt(s_test_audio_page.volume_label, "Volume: %u%%", vol);
@@ -1402,37 +1402,37 @@ static void _test_audio_volume_cb(lv_event_t *e)
 static void _test_audio_button_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
-    eos_audio_player_t *player = eos_service_audio_get_player();
-    eos_audio_player_state_t p_state = eos_audio_player_get_state(player);
+    cos_audio_player_t *player = cos_service_audio_get_player();
+    cos_audio_player_state_t p_state = cos_audio_player_get_state(player);
 
-    if (p_state == EOS_AUDIO_PLAYING)
+    if (p_state == COS_AUDIO_PLAYING)
     {
-        eos_service_audio_pause();
-        eos_toast_show(NULL, "Paused");
+        cos_service_audio_pause();
+        cos_toast_show(NULL, "Paused");
     }
-    else if (p_state == EOS_AUDIO_PAUSED)
+    else if (p_state == COS_AUDIO_PAUSED)
     {
-        eos_service_audio_resume();
-        eos_toast_show(NULL, "Resumed");
+        cos_service_audio_resume();
+        cos_toast_show(NULL, "Resumed");
     }
     else
     {
-        if (!eos_service_audio_speaker_available())
+        if (!cos_service_audio_speaker_available())
         {
-            eos_toast_show(NULL, "Speaker unavailable");
+            cos_toast_show(NULL, "Speaker unavailable");
             return;
         }
         const char *path = _test_audio_resolve_path();
-        if (!eos_storage_is_file(path))
+        if (!cos_storage_is_file(path))
         {
-            eos_toast_show(NULL, "File not found");
+            cos_toast_show(NULL, "File not found");
             return;
         }
-        eos_result_t ret = eos_service_audio_play(path);
-        if (ret != EOS_OK)
-            eos_toast_show(NULL, "Play failed");
+        cos_result_t ret = cos_service_audio_play(path);
+        if (ret != COS_OK)
+            cos_toast_show(NULL, "Play failed");
         else
-            eos_toast_show(NULL, "Playing...");
+            cos_toast_show(NULL, "Playing...");
     }
     _test_audio_sync_ui();
 }
@@ -1440,7 +1440,7 @@ static void _test_audio_button_cb(lv_event_t *e)
 static void _test_audio_stop_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
-    eos_service_audio_stop();
+    cos_service_audio_stop();
     _test_audio_sync_ui();
 }
 
@@ -1448,7 +1448,7 @@ static void _test_audio_page_delete_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
 
-    eos_service_audio_stop();
+    cos_service_audio_stop();
 
     if (s_test_audio_page.state_timer)
     {
@@ -1464,7 +1464,7 @@ static void _test_audio_page(lv_event_t *e)
     memset(&s_test_audio_page, 0, sizeof(s_test_audio_page));
     s_test_audio_page.screen = scr;
 
-    lv_obj_t *list = eos_list_create(scr);
+    lv_obj_t *list = cos_list_create(scr);
     lv_obj_set_size(list, lv_pct(100), lv_pct(100));
     lv_obj_set_scroll_dir(list, LV_DIR_VER);
     lv_obj_set_style_pad_all(list, 16, 0);
@@ -1472,7 +1472,7 @@ static void _test_audio_page(lv_event_t *e)
 
     lv_obj_t *title = lv_label_create(list);
     lv_label_set_text(title, LV_SYMBOL_AUDIO " Audio Playback");
-    eos_label_set_font_size(title, EOS_FONT_SIZE_LARGE);
+    cos_label_set_font_size(title, COS_FONT_SIZE_LARGE);
 
     lv_obj_t *hint = lv_label_create(list);
     lv_label_set_text(hint, "Play/Pause/Stop fs/music.mp3");
@@ -1501,11 +1501,11 @@ static void _test_audio_page(lv_event_t *e)
     s_test_audio_page.volume_slider = lv_slider_create(list);
     lv_obj_set_size(s_test_audio_page.volume_slider, lv_pct(70), 20);
     lv_slider_set_range(s_test_audio_page.volume_slider, 0, 100);
-    lv_slider_set_value(s_test_audio_page.volume_slider, eos_service_audio_get_volume(), LV_ANIM_OFF);
+    lv_slider_set_value(s_test_audio_page.volume_slider, cos_service_audio_get_volume(), LV_ANIM_OFF);
     lv_obj_add_event_cb(s_test_audio_page.volume_slider, _test_audio_volume_cb, LV_EVENT_RELEASED, NULL);
 
     s_test_audio_page.volume_label = lv_label_create(list);
-    lv_label_set_text_fmt(s_test_audio_page.volume_label, "Volume: %u%%", eos_service_audio_get_volume());
+    lv_label_set_text_fmt(s_test_audio_page.volume_label, "Volume: %u%%", cos_service_audio_get_volume());
 
     s_test_audio_page.stop_btn = lv_button_create(list);
     lv_obj_set_size(s_test_audio_page.stop_btn, lv_pct(100), 40);
@@ -1534,7 +1534,7 @@ static void _test_recording_sync_ui(void)
     if (!(ctx->status_label && lv_obj_is_valid(ctx->status_label)))
         return;
 
-    bool mic_avail = eos_service_audio_microphone_available();
+    bool mic_avail = cos_service_audio_microphone_available();
     const char *status = ctx->is_recording ? "Recording..." : "Idle";
 
     lv_label_set_text_fmt(ctx->status_label, "%s\nMic: %s\nFile: %s", status, mic_avail ? "yes" : "no", RECORDING_PATH);
@@ -1557,29 +1557,29 @@ static void _test_recording_record_btn_cb(lv_event_t *e)
     LV_UNUSED(e);
     test_recording_page_ctx_t *ctx = &s_test_recording_page;
 
-    if (!eos_service_audio_microphone_available())
+    if (!cos_service_audio_microphone_available())
     {
-        eos_toast_show(NULL, "Microphone unavailable");
+        cos_toast_show(NULL, "Microphone unavailable");
         return;
     }
 
     if (ctx->is_recording)
     {
-        eos_service_audio_stop_recording();
+        cos_service_audio_stop_recording();
         ctx->is_recording = false;
-        eos_toast_show(NULL, "Recording stopped");
+        cos_toast_show(NULL, "Recording stopped");
     }
     else
     {
-        eos_result_t ret = eos_service_audio_start_recording(RECORDING_PATH);
-        if (ret != EOS_OK)
+        cos_result_t ret = cos_service_audio_start_recording(RECORDING_PATH);
+        if (ret != COS_OK)
         {
-            eos_toast_show(NULL, "Start recording failed");
+            cos_toast_show(NULL, "Start recording failed");
         }
         else
         {
             ctx->is_recording = true;
-            eos_toast_show(NULL, "Recording...");
+            cos_toast_show(NULL, "Recording...");
         }
     }
     _test_recording_sync_ui();
@@ -1591,20 +1591,20 @@ static void _test_recording_playback_cb(lv_event_t *e)
 
     if (s_test_recording_page.is_recording)
     {
-        eos_toast_show(NULL, "Stop recording first");
+        cos_toast_show(NULL, "Stop recording first");
         return;
     }
 
-    if (!eos_storage_is_file(RECORDING_PATH))
+    if (!cos_storage_is_file(RECORDING_PATH))
     {
-        eos_toast_show(NULL, "No recording yet");
+        cos_toast_show(NULL, "No recording yet");
         return;
     }
 
-    eos_result_t ret = eos_service_audio_play(RECORDING_PATH);
-    if (ret != EOS_OK)
+    cos_result_t ret = cos_service_audio_play(RECORDING_PATH);
+    if (ret != COS_OK)
     {
-        eos_toast_show(NULL, "Playback failed");
+        cos_toast_show(NULL, "Playback failed");
     }
 }
 
@@ -1615,7 +1615,7 @@ static void _test_recording_page_delete_cb(lv_event_t *e)
 
     if (ctx->is_recording)
     {
-        eos_service_audio_stop_recording();
+        cos_service_audio_stop_recording();
         ctx->is_recording = false;
     }
     if (ctx->state_timer)
@@ -1632,7 +1632,7 @@ static void _test_recording_page(lv_event_t *e)
     memset(&s_test_recording_page, 0, sizeof(s_test_recording_page));
     s_test_recording_page.screen = scr;
 
-    lv_obj_t *list = eos_list_create(scr);
+    lv_obj_t *list = cos_list_create(scr);
     lv_obj_set_size(list, lv_pct(100), lv_pct(100));
     lv_obj_set_scroll_dir(list, LV_DIR_VER);
     lv_obj_set_style_pad_all(list, 16, 0);
@@ -1640,7 +1640,7 @@ static void _test_recording_page(lv_event_t *e)
 
     lv_obj_t *title = lv_label_create(list);
     lv_label_set_text(title, LV_SYMBOL_AUDIO " Recording");
-    eos_label_set_font_size(title, EOS_FONT_SIZE_LARGE);
+    cos_label_set_font_size(title, COS_FONT_SIZE_LARGE);
 
     lv_obj_t *hint = lv_label_create(list);
     lv_label_set_text(hint, "Tap Record to start/stop, Play to listen");
@@ -1700,8 +1700,8 @@ static void _slide_widget_reached_threshold_cb(lv_event_t *e)
 {
     lv_obj_t *obj = lv_event_get_target(e);
     (void)obj;
-    eos_slide_widget_t *sw = (eos_slide_widget_t *)lv_event_get_user_data(e);
-    eos_slide_widget_delete(sw);
+    cos_slide_widget_t *sw = (cos_slide_widget_t *)lv_event_get_user_data(e);
+    cos_slide_widget_delete(sw);
 }
 
 static void __attribute__((unused)) _slide_widget_moving_cb(lv_event_t *e)
@@ -1723,15 +1723,15 @@ static lv_obj_t *_add_slide_wdiget(lv_obj_t *parent)
 {
     lv_obj_t *obj = lv_button_create(parent);
 
-    lv_obj_set_size(obj, EOS_DISPLAY_WIDTH - 100, 100);
+    lv_obj_set_size(obj, COS_DISPLAY_WIDTH - 100, 100);
     lv_obj_set_style_margin_ver(obj, 10, 0);
     lv_obj_update_layout(obj);
     lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
 
-    eos_slide_widget_t *sw =
-        eos_slide_widget_create_with_touch(obj, obj, EOS_SLIDE_DIR_HOR, EOS_DISPLAY_WIDTH, EOS_THRESHOLD_30);
-    eos_slide_widget_set_bidirectional(sw, true);
-    eos_slide_widget_add_event_cb_reached_threshold(sw, _slide_widget_reached_threshold_cb, sw);
+    cos_slide_widget_t *sw =
+        cos_slide_widget_create_with_touch(obj, obj, COS_SLIDE_DIR_HOR, COS_DISPLAY_WIDTH, COS_THRESHOLD_30);
+    cos_slide_widget_set_bidirectional(sw, true);
+    cos_slide_widget_add_event_cb_reached_threshold(sw, _slide_widget_reached_threshold_cb, sw);
 
     return obj;
 }
@@ -1760,7 +1760,7 @@ static void _test_slide_widget(lv_event_t *e)
     // lv_obj_t *label = lv_label_create(reset_btn);
     // lv_obj_align(reset_btn, LV_ALIGN_BOTTOM_MID, 0, -40);
     // lv_obj_add_event_cb(reset_btn, _slide_widget_reset_btn_clicked_cb, LV_EVENT_CLICKED, obj);
-    // eos_slide_widget_add_event_cb_moving(sw, _slide_widget_moving_cb, label);
+    // cos_slide_widget_add_event_cb_moving(sw, _slide_widget_moving_cb, label);
 }
 
 static void _test_font_size(lv_event_t *e)
@@ -1768,28 +1768,28 @@ static void _test_font_size(lv_event_t *e)
     lv_obj_t *scr = _create_new_scr();
     lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *list = eos_list_create(scr);
+    lv_obj_t *list = cos_list_create(scr);
     lv_obj_set_size(list, lv_pct(100), lv_pct(100));
 
     static const char *test_text = "AaBbCc 你好中国 1234567890";
 
     lv_obj_t *label = lv_label_create(list);
     lv_label_set_text(label, test_text);
-    eos_label_set_font_size(label, EOS_FONT_SIZE_SMALL);
+    cos_label_set_font_size(label, COS_FONT_SIZE_SMALL);
 
     label = lv_label_create(list);
     lv_label_set_text(label, test_text);
-    eos_label_set_font_size(label, EOS_FONT_SIZE_MEDIUM);
+    cos_label_set_font_size(label, COS_FONT_SIZE_MEDIUM);
 
     label = lv_label_create(list);
     lv_label_set_text(label, test_text);
-    eos_label_set_font_size(label, EOS_FONT_SIZE_LARGE);
+    cos_label_set_font_size(label, COS_FONT_SIZE_LARGE);
 }
 
 typedef struct
 {
     lv_obj_t *table;
-    eos_dev_sensor_t *sensors[EOS_SENSOR_TYPE_MAX];
+    cos_dev_sensor_t *sensors[COS_SENSOR_TYPE_MAX];
     uint8_t sensor_count;
     lv_timer_t *timer;
 } _sensor_test_data_t;
@@ -1807,17 +1807,17 @@ static void _sensor_update_table(_sensor_test_data_t *data)
 
     for (uint8_t i = 0; i < data->sensor_count; i++)
     {
-        eos_dev_sensor_t *dev = data->sensors[i];
+        cos_dev_sensor_t *dev = data->sensors[i];
         if (!dev)
         {
             lv_table_set_cell_value_fmt(data->table, i + 1, _SENSOR_VAL_COL, "N/A");
             continue;
         }
 
-        eos_sensor_raw_data_t raw_data;
-        eos_result_t result = eos_sensor_read_latest(dev->type, &raw_data);
+        cos_sensor_raw_data_t raw_data;
+        cos_result_t result = cos_sensor_read_latest(dev->type, &raw_data);
 
-        if (result != EOS_OK)
+        if (result != COS_OK)
         {
             lv_table_set_cell_value_fmt(data->table, i + 1, _SENSOR_VAL_COL, "N/A");
             continue;
@@ -1825,7 +1825,7 @@ static void _sensor_update_table(_sensor_test_data_t *data)
 
         switch (dev->type)
         {
-            case EOS_SENSOR_TYPE_ACCE:
+            case COS_SENSOR_TYPE_ACCE:
                 lv_table_set_cell_value_fmt(data->table,
                                             i + 1,
                                             _SENSOR_VAL_COL,
@@ -1835,7 +1835,7 @@ static void _sensor_update_table(_sensor_test_data_t *data)
                                             raw_data.data.acce.z);
                 break;
 
-            case EOS_SENSOR_TYPE_GYRO:
+            case COS_SENSOR_TYPE_GYRO:
                 lv_table_set_cell_value_fmt(data->table,
                                             i + 1,
                                             _SENSOR_VAL_COL,
@@ -1845,7 +1845,7 @@ static void _sensor_update_table(_sensor_test_data_t *data)
                                             raw_data.data.gyro.z);
                 break;
 
-            case EOS_SENSOR_TYPE_MAG:
+            case COS_SENSOR_TYPE_MAG:
                 lv_table_set_cell_value_fmt(data->table,
                                             i + 1,
                                             _SENSOR_VAL_COL,
@@ -1855,7 +1855,7 @@ static void _sensor_update_table(_sensor_test_data_t *data)
                                             raw_data.data.mag.z);
                 break;
 
-            case EOS_SENSOR_TYPE_TEMP:
+            case COS_SENSOR_TYPE_TEMP:
                 lv_table_set_cell_value_fmt(data->table,
                                             i + 1,
                                             _SENSOR_VAL_COL,
@@ -1863,7 +1863,7 @@ static void _sensor_update_table(_sensor_test_data_t *data)
                                             raw_data.data.temp.temp / 100.0f);
                 break;
 
-            case EOS_SENSOR_TYPE_BARO:
+            case COS_SENSOR_TYPE_BARO:
                 lv_table_set_cell_value_fmt(data->table,
                                             i + 1,
                                             _SENSOR_VAL_COL,
@@ -1871,7 +1871,7 @@ static void _sensor_update_table(_sensor_test_data_t *data)
                                             raw_data.data.baro.pressure / 100.0f);
                 break;
 
-            case EOS_SENSOR_TYPE_LIGHT:
+            case COS_SENSOR_TYPE_LIGHT:
                 lv_table_set_cell_value_fmt(data->table,
                                             i + 1,
                                             _SENSOR_VAL_COL,
@@ -1879,7 +1879,7 @@ static void _sensor_update_table(_sensor_test_data_t *data)
                                             (unsigned int)raw_data.data.light.lux);
                 break;
 
-            case EOS_SENSOR_TYPE_PROXIMITY:
+            case COS_SENSOR_TYPE_PROXIMITY:
                 lv_table_set_cell_value_fmt(data->table,
                                             i + 1,
                                             _SENSOR_VAL_COL,
@@ -1887,7 +1887,7 @@ static void _sensor_update_table(_sensor_test_data_t *data)
                                             raw_data.data.proximity.distance_mm);
                 break;
 
-            case EOS_SENSOR_TYPE_HR:
+            case COS_SENSOR_TYPE_HR:
                 lv_table_set_cell_value_fmt(data->table,
                                             i + 1,
                                             _SENSOR_VAL_COL,
@@ -1895,11 +1895,11 @@ static void _sensor_update_table(_sensor_test_data_t *data)
                                             raw_data.data.hr.heart_rate);
                 break;
 
-            case EOS_SENSOR_TYPE_SPO2:
+            case COS_SENSOR_TYPE_SPO2:
                 lv_table_set_cell_value_fmt(data->table, i + 1, _SENSOR_VAL_COL, "SpO2=%u%%", raw_data.data.spo2.spo2);
                 break;
 
-            case EOS_SENSOR_TYPE_STEP:
+            case COS_SENSOR_TYPE_STEP:
                 lv_table_set_cell_value_fmt(data->table,
                                             i + 1,
                                             _SENSOR_VAL_COL,
@@ -1936,35 +1936,35 @@ static void _sensor_cleanup(_sensor_test_data_t *data)
     }
 }
 
-static void _sensor_test_on_destroy(eos_activity_t *activity)
+static void _sensor_test_on_destroy(cos_activity_t *activity)
 {
     LV_UNUSED(activity);
     _sensor_cleanup(&sensor_data);
 }
 
-static const eos_activity_lifecycle_t _s_sensor_test_lifecycle = {.on_enter = NULL,
+static const cos_activity_lifecycle_t _s_sensor_test_lifecycle = {.on_enter = NULL,
                                                                   .on_destroy = _sensor_test_on_destroy,
                                                                   .on_pause = NULL,
                                                                   .on_resume = NULL};
 
 static lv_obj_t *_create_sensor_test_scr(void)
 {
-    eos_activity_t *activity = eos_activity_create(&_s_sensor_test_lifecycle);
+    cos_activity_t *activity = cos_activity_create(&_s_sensor_test_lifecycle);
     if (!activity)
     {
         return NULL;
     }
 
-    lv_obj_t *view = eos_activity_get_view(activity);
+    lv_obj_t *view = cos_activity_get_view(activity);
     if (!view)
     {
         return NULL;
     }
 
-    eos_activity_set_title(activity, "Sensor Tester");
-    eos_activity_set_type(activity, EOS_ACTIVITY_TYPE_APP);
+    cos_activity_set_title(activity, "Sensor Tester");
+    cos_activity_set_type(activity, COS_ACTIVITY_TYPE_APP);
 
-    eos_activity_enter(activity);
+    cos_activity_enter(activity);
     return view;
 }
 
@@ -1976,10 +1976,10 @@ static void _test_sensor(lv_event_t *e)
         return;
     }
 
-    lv_obj_t *list = eos_list_create(scr);
+    lv_obj_t *list = cos_list_create(scr);
 
     lv_obj_t *tb = lv_table_create(list);
-    lv_table_set_row_count(tb, EOS_SENSOR_TYPE_MAX + 1);
+    lv_table_set_row_count(tb, COS_SENSOR_TYPE_MAX + 1);
     lv_table_set_column_count(tb, 2);
     lv_obj_set_width(tb, lv_pct(100));
     lv_table_set_cell_value(tb, 0, 0, "Sensor");
@@ -1993,8 +1993,8 @@ static void _test_sensor(lv_event_t *e)
     sensor_data.sensor_count = 0;
 
     /* Iterate through all registered sensor devices */
-    eos_dev_sensor_t *dev = eos_dev_sensor_get_list_head();
-    while (dev && sensor_data.sensor_count < EOS_SENSOR_TYPE_MAX)
+    cos_dev_sensor_t *dev = cos_dev_sensor_get_list_head();
+    while (dev && sensor_data.sensor_count < COS_SENSOR_TYPE_MAX)
     {
         if (dev->name)
         {
@@ -2016,62 +2016,62 @@ static void _test_sensor(lv_event_t *e)
 static void _test_sensor_chart_cb(lv_event_t *e)
 {
     (void)e;
-    eos_test_sensor_chart_start();
+    cos_test_sensor_chart_start();
 }
 
 static void _test_sensor_multi_chart_cb(lv_event_t *e)
 {
     (void)e;
-    eos_test_sensor_multi_chart_start();
+    cos_test_sensor_multi_chart_start();
 }
 
 static void _test_input_page_cb(lv_event_t *e)
 {
     (void)e;
-    eos_test_input_page_start();
+    cos_test_input_page_start();
 }
 
 static void _test_battery_history_cb(lv_event_t *e)
 {
     (void)e;
-    eos_test_battery_history_start();
+    cos_test_battery_history_start();
 }
 
 static void _test_package_cb(lv_event_t *e)
 {
     (void)e;
-    eos_test_package_start();
+    cos_test_package_start();
 }
 
 static void _test_unit_runner_cb(lv_event_t *e)
 {
     (void)e;
-    eos_test_runner_start();
+    cos_test_runner_start();
 }
 
-void eos_test_start(void)
+void cos_test_start(void)
 {
-    eos_activity_t *activity = eos_activity_create(&s_test_activity_lifecycle);
+    cos_activity_t *activity = cos_activity_create(&s_test_activity_lifecycle);
     if (!activity)
     {
         return;
     }
 
-    lv_obj_t *view = eos_activity_get_view(activity);
+    lv_obj_t *view = cos_activity_get_view(activity);
     if (!view)
     {
         return;
     }
 
-    eos_activity_set_title(activity, "ElenixOS Test");
-    eos_activity_set_type(activity, EOS_ACTIVITY_TYPE_APP);
+    cos_activity_set_title(activity, "CantoMk6 Test");
+    cos_activity_set_type(activity, COS_ACTIVITY_TYPE_APP);
 
     lv_obj_t *test_list = lv_list_create(view);
     lv_obj_set_size(test_list, lv_pct(100), lv_pct(100));
-    eos_crown_encoder_set_target_obj(test_list);
+    cos_crown_encoder_set_target_obj(test_list);
 
     lv_obj_t *btn;
-    lv_obj_t *label = lv_list_add_text(test_list, RI_ELENIX_WATCH " ElenixOS Test List");
+    lv_obj_t *label = lv_list_add_text(test_list, RI_CANTOMK6_WATCH " CantoMk6 Test List");
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     // Unit Tests
     btn = lv_list_add_button(test_list, LV_SYMBOL_LIST, "Unit Tests");
@@ -2140,7 +2140,7 @@ void eos_test_start(void)
     btn = lv_list_add_button(test_list, RI_OMEGA, "LVGL Symbols");
     lv_obj_add_event_cb(btn, _test_show_all_lv_symbols_list, LV_EVENT_CLICKED, NULL);
 
-    eos_activity_enter(activity);
+    cos_activity_enter(activity);
 }
 
-#endif /* EOS_ENABLE_TEST_APP */
+#endif /* COS_ENABLE_TEST_APP */

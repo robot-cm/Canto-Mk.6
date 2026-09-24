@@ -1,7 +1,7 @@
 /* Auto-generated from earphone_err.png (size=94x94) */
 #include "lvgl.h"
 
-const lv_image_dsc_t eos_icon_earphone_err = {
+const lv_image_dsc_t cos_icon_earphone_err = {
     .header = {
         .magic = LV_IMAGE_HEADER_MAGIC,
         .cf = LV_COLOR_FORMAT_ARGB8888,

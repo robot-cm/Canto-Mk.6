@@ -1,16 +1,16 @@
 /**
- * @file eos_test_sensor_chart.h
+ * @file cos_test_sensor_chart.h
  * @brief Sensor chart visualization test module header
  */
 
-#ifndef EOS_TEST_SENSOR_CHART_H
-#define EOS_TEST_SENSOR_CHART_H
+#ifndef COS_TEST_SENSOR_CHART_H
+#define COS_TEST_SENSOR_CHART_H
 
-#include "eos_config.h"
+#include "cos_config.h"
 
-#if EOS_ENABLE_TEST_APP
+#if COS_ENABLE_TEST_APP
 
-#include "eos_activity.h"
+#include "cos_activity.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,12 +19,12 @@ extern "C" {
 /**
  * @brief Start sensor chart test activity
  */
-void eos_test_sensor_chart_start(void);
+void cos_test_sensor_chart_start(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_ENABLE_TEST_APP */
+#endif /* COS_ENABLE_TEST_APP */
 
-#endif /* EOS_TEST_SENSOR_CHART_H */
+#endif /* COS_TEST_SENSOR_CHART_H */

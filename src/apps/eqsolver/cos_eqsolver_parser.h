@@ -1,13 +1,13 @@
 /**
- * @file eos_eqsolver_parser.h
+ * @file cos_eqsolver_parser.h
  * @brief Equation string parser -> AST, with evaluation and Jacobian support.
  *
  * Uses single-precision float throughout (ESP32-S3 FPU friendly).
  * Variables are single letters a-z (case-insensitive, upper folded to lower).
  */
 
-#ifndef EOS_EQSOLVER_PARSER_H
-#define EOS_EQSOLVER_PARSER_H
+#ifndef COS_EQSOLVER_PARSER_H
+#define COS_EQSOLVER_PARSER_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -75,4 +75,4 @@ void eq_ast_free(eq_node_t *node);
  */
 int eq_collect_vars(eq_node_t *node, char *out_letters, int max);
 
-#endif /* EOS_EQSOLVER_PARSER_H */
+#endif /* COS_EQSOLVER_PARSER_H */

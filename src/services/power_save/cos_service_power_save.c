@@ -1,5 +1,5 @@
 /**
- * @file eos_service_power_save.c
+ * @file cos_service_power_save.c
  * @brief Power save mode service (省电模式)
  *
  * 启用:
@@ -9,43 +9,43 @@
  *   4. 熄屏/待机收紧:无触摸 5s 熄屏 Light Sleep;熄屏累计 10min → L2 自动
  *      待机 Deep Sleep(运行时覆盖,退出恢复;不写持久 config)
  *   5. 限制屏幕刷新率(LVGL 刷新周期 20→100ms,退出恢复)
- *   6. 返回主界面 (eos_activity_back_to_watchface)
- *   7. 广播 EOS_EVENT_POWER_SAVE_CHANGED
+ *   6. 返回主界面 (cos_activity_back_to_watchface)
+ *   7. 广播 COS_EVENT_POWER_SAVE_CHANGED
  * 禁用:
  *   1. 恢复亮度/频率/熄屏超时/L2 阈值/刷新周期
  *   2. 广播事件
  *
- * 页面锁定: watchface 手势回调均检查 eos_power_save_is_active(),
+ * 页面锁定: watchface 手势回调均检查 cos_power_save_is_active(),
  *   只保留右滑打开 Control Center(可在其中关闭省电开关)。
  */
 
-#include "eos_service_power_save.h"
+#include "cos_service_power_save.h"
 
 /* Includes ---------------------------------------------------*/
 #include <string.h>
-#include "eos_log.h"
-#include "eos_event.h"
-#include "eos_service_config.h"
-#include "eos_service_display.h"
-#include "eos_service_pm.h"
-#include "eos_activity.h"
-#include "eos_net_wifi.h"
-#include "eos_net_bt.h"
-#include "eos_service_beast_mode.h"
-#include "eos_service_cc_snapshot.h"
-#include "eos_port.h"
+#include "cos_log.h"
+#include "cos_event.h"
+#include "cos_service_config.h"
+#include "cos_service_display.h"
+#include "cos_service_pm.h"
+#include "cos_activity.h"
+#include "cos_net_wifi.h"
+#include "cos_net_bt.h"
+#include "cos_service_beast_mode.h"
+#include "cos_service_cc_snapshot.h"
+#include "cos_port.h"
 
-#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+#if !defined(COS_SIMULATOR) || COS_SIMULATOR == 0
 /* ESP-IDF v5.3:esp_cpu.h 无运行时调频 API(esp_cpu_update_freq 为 v5.4+),
  * 动态调频统一走 esp_pm_configure(需 CONFIG_PM_ENABLE=y,sdkconfig.defaults 已开) */
 #include "sdkconfig.h"
 #include "esp_pm.h"
 #endif
 
-#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+#if !defined(COS_SIMULATOR) || COS_SIMULATOR == 0
 /* L2 自动待机阈值查询/设置接口:定义于 port/esp32s3/main/main.c(板级) */
-extern void     eos_pm_set_l2_idle_ms(uint32_t idle_ms);
-extern uint32_t eos_pm_get_l2_idle_ms(void);
+extern void     cos_pm_set_l2_idle_ms(uint32_t idle_ms);
+extern uint32_t cos_pm_get_l2_idle_ms(void);
 #endif
 
 /* Macros and Definitions -------------------------------------*/
@@ -57,17 +57,17 @@ extern uint32_t eos_pm_get_l2_idle_ms(void);
 #define _POWER_SAVE_CPU_MAX_MHZ 160
 
 /* 熄屏超时(5s)/L2 待机阈值(10min)/刷新周期(100ms)策略宏来自
- * eos_service_power_save.h(与 PM 服务初始对齐共用同一来源) */
+ * cos_service_power_save.h(与 PM 服务初始对齐共用同一来源) */
 
 /* Variables --------------------------------------------------*/
 
 static bool _active = false;
-static eos_event_code_t _power_save_event_id = EOS_EVENT_LAST;
+static cos_event_code_t _power_save_event_id = COS_EVENT_LAST;
 /* 进入省电前的无线状态:退出时恢复(省电期间同时关闭 WiFi + 蓝牙) */
 static bool _wifi_was_enabled = false;
 static bool _bt_was_enabled = false;
 
-#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+#if !defined(COS_SIMULATOR) || COS_SIMULATOR == 0
 static esp_pm_config_t _pm_normal_config;
 static bool _pm_normal_config_valid = false;
 #endif
@@ -83,60 +83,60 @@ static void _idle_policy_apply(bool enabled)
 {
     if (enabled)
     {
-        eos_pm_set_sleep_timeout(EOS_POWER_SAVE_SLEEP_TIMEOUT_SEC);
-#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
-        _prev_l2_idle_ms = eos_pm_get_l2_idle_ms();
+        cos_pm_set_sleep_timeout(COS_POWER_SAVE_SLEEP_TIMEOUT_SEC);
+#if !defined(COS_SIMULATOR) || COS_SIMULATOR == 0
+        _prev_l2_idle_ms = cos_pm_get_l2_idle_ms();
         if (_prev_l2_idle_ms != 0)
-            eos_pm_set_l2_idle_ms(EOS_POWER_SAVE_L2_IDLE_MS);
+            cos_pm_set_l2_idle_ms(COS_POWER_SAVE_L2_IDLE_MS);
 #endif
         /* 限制 LVGL 刷新率(~10 FPS),退出时复位默认周期 */
-        eos_display_refresh_period_set(EOS_POWER_SAVE_REFR_PERIOD_MS);
+        cos_display_refresh_period_set(COS_POWER_SAVE_REFR_PERIOD_MS);
     }
     else
     {
-        eos_pm_set_sleep_timeout(
-            (uint32_t)eos_config_get_number(EOS_CONFIG_KEY_SLEEP_TIMEOUT_SEC_NUMBER, 10));
-#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+        cos_pm_set_sleep_timeout(
+            (uint32_t)cos_config_get_number(COS_CONFIG_KEY_SLEEP_TIMEOUT_SEC_NUMBER, 10));
+#if !defined(COS_SIMULATOR) || COS_SIMULATOR == 0
         if (_prev_l2_idle_ms != 0)
         {
-            eos_pm_set_l2_idle_ms(_prev_l2_idle_ms);
+            cos_pm_set_l2_idle_ms(_prev_l2_idle_ms);
             _prev_l2_idle_ms = 0;
         }
 #endif
-        eos_display_refresh_period_set(0); /* 复位系统默认刷新周期 */
+        cos_display_refresh_period_set(0); /* 复位系统默认刷新周期 */
     }
 }
 
 static void _radios_power_down(void)
 {
-    eos_net_wifi_set_enabled(false);
-    eos_net_bt_set_enabled(false);
-    eos_result_t bt_result = eos_net_bt_backend_power_down();
-    if (bt_result != EOS_OK)
-        EOS_LOG_W("BLE controller power-down failed: %d", (int)bt_result);
+    cos_net_wifi_set_enabled(false);
+    cos_net_bt_set_enabled(false);
+    cos_result_t bt_result = cos_net_bt_backend_power_down();
+    if (bt_result != COS_OK)
+        COS_LOG_W("BLE controller power-down failed: %d", (int)bt_result);
 }
 
 /* Function Implementations -----------------------------------*/
 
-bool eos_power_save_is_active(void)
+bool cos_power_save_is_active(void)
 {
     return _active;
 }
 
-eos_event_code_t eos_power_save_get_event_id(void)
+cos_event_code_t cos_power_save_get_event_id(void)
 {
     return _power_save_event_id;
 }
 
 static void _power_profile_apply(bool enabled)
 {
-#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+#if !defined(COS_SIMULATOR) || COS_SIMULATOR == 0
     if (!_pm_normal_config_valid)
     {
         esp_err_t get_err = esp_pm_get_configuration(&_pm_normal_config);
         if (get_err != ESP_OK)
         {
-            EOS_LOG_W("PM configuration read failed: %d", (int)get_err);
+            COS_LOG_W("PM configuration read failed: %d", (int)get_err);
             return;
         }
         /* 未做过 esp_pm_configure 时读到的是空配置(0),直接用它恢复会失败:
@@ -168,11 +168,11 @@ static void _power_profile_apply(bool enabled)
     esp_err_t err = esp_pm_configure(&cfg);
     if (err != ESP_OK)
     {
-        EOS_LOG_W("PM profile %s failed: %d", enabled ? "power-save" : "normal", (int)err);
+        COS_LOG_W("PM profile %s failed: %d", enabled ? "power-save" : "normal", (int)err);
     }
     else
     {
-        EOS_LOG_I("PM profile %s: CPU %d-%dMHz, auto light-sleep=%d",
+        COS_LOG_I("PM profile %s: CPU %d-%dMHz, auto light-sleep=%d",
                   enabled ? "power-save" : "normal", cfg.min_freq_mhz,
                   cfg.max_freq_mhz, (int)cfg.light_sleep_enable);
     }
@@ -181,100 +181,100 @@ static void _power_profile_apply(bool enabled)
 #endif
 }
 
-eos_result_t eos_service_power_save_init(void)
+cos_result_t cos_service_power_save_init(void)
 {
-    _power_save_event_id = eos_event_register_id();
-    _active = eos_config_get_bool(_POWER_SAVE_CONFIG_KEY, false);
+    _power_save_event_id = cos_event_register_id();
+    _active = cos_config_get_bool(_POWER_SAVE_CONFIG_KEY, false);
 
     if (_active)
     {
-        eos_display_set_brightness(_POWER_SAVE_BRIGHTNESS, _BRIGHTNESS_TRANS_MS, true);
-        _wifi_was_enabled = eos_net_wifi_is_enabled();
-        _bt_was_enabled = eos_net_bt_is_enabled();
+        cos_display_set_brightness(_POWER_SAVE_BRIGHTNESS, _BRIGHTNESS_TRANS_MS, true);
+        _wifi_was_enabled = cos_net_wifi_is_enabled();
+        _bt_was_enabled = cos_net_bt_is_enabled();
         _radios_power_down();
         _power_profile_apply(true);
         /* 收紧 L2/刷新周期并记录恢复值;熄屏 5s 超时此处设置会因 PM 服务
          * (晚于本服务 init)的 t 尚未创建而落空,已在 PM init 按其激活态对齐 */
         _idle_policy_apply(true);
     }
-    EOS_LOG_I("Power save init: %s", _active ? "ACTIVE" : "inactive");
-    return EOS_OK;
+    COS_LOG_I("Power save init: %s", _active ? "ACTIVE" : "inactive");
+    return COS_OK;
 }
 
-eos_result_t eos_power_save_enter(void)
+cos_result_t cos_power_save_enter(void)
 {
     if (_active)
     {
-        return EOS_OK;
+        return COS_OK;
     }
 
     /* 互斥:开启省电模式前先退出性能模式 */
-    if (eos_beast_mode_is_active())
+    if (cos_beast_mode_is_active())
     {
-        EOS_LOG_I("Power save: exiting beast mode first");
-        eos_beast_mode_exit();
+        COS_LOG_I("Power save: exiting beast mode first");
+        cos_beast_mode_exit();
     }
 
     _active = true;
-    eos_config_set_bool(_POWER_SAVE_CONFIG_KEY, true);
+    cos_config_set_bool(_POWER_SAVE_CONFIG_KEY, true);
 
     /* 记录省电前的无线状态,然后同时关闭 WiFi + 蓝牙 */
-    _wifi_was_enabled = eos_net_wifi_is_enabled();
-    _bt_was_enabled = eos_net_bt_is_enabled();
+    _wifi_was_enabled = cos_net_wifi_is_enabled();
+    _bt_was_enabled = cos_net_bt_is_enabled();
     _radios_power_down();
-    EOS_LOG_I("Power save: WiFi/BT disabled (was %d/%d)", (int)_wifi_was_enabled, (int)_bt_was_enabled);
+    COS_LOG_I("Power save: WiFi/BT disabled (was %d/%d)", (int)_wifi_was_enabled, (int)_bt_was_enabled);
 
-    eos_display_set_brightness(_POWER_SAVE_BRIGHTNESS, _BRIGHTNESS_TRANS_MS, true);
+    cos_display_set_brightness(_POWER_SAVE_BRIGHTNESS, _BRIGHTNESS_TRANS_MS, true);
     _power_profile_apply(true);
     /* 熄屏/L2/刷新收紧:5s 熄屏 + 10min 自动待机 + ~10FPS 刷新上限 */
     _idle_policy_apply(true);
 
     /* 回到主界面(省电模式下只能停留在此) */
-    eos_activity_back_to_watchface();
+    cos_activity_back_to_watchface();
 
     /* 快照电源模式到 SD(/sdcard/history/cc)。无真 SD 卡时空操作,
-     * 仍以 cfg.json 的 "power_save" 为准(见 eos_service_cc_snapshot.h)。 */
-    eos_cc_snapshot_store_power(EOS_CC_POWER_SAVE);
+     * 仍以 cfg.json 的 "power_save" 为准(见 cos_service_cc_snapshot.h)。 */
+    cos_cc_snapshot_store_power(COS_CC_POWER_SAVE);
 
-    if (_power_save_event_id != EOS_EVENT_LAST)
+    if (_power_save_event_id != COS_EVENT_LAST)
     {
-        eos_event_post(_power_save_event_id, NULL, NULL);
+        cos_event_post(_power_save_event_id, NULL, NULL);
     }
-    EOS_LOG_I("Power save mode ENTERED");
-    return EOS_OK;
+    COS_LOG_I("Power save mode ENTERED");
+    return COS_OK;
 }
 
-eos_result_t eos_power_save_exit(void)
+cos_result_t cos_power_save_exit(void)
 {
     if (!_active)
     {
-        return EOS_OK;
+        return COS_OK;
     }
     _active = false;
-    eos_config_set_bool(_POWER_SAVE_CONFIG_KEY, false);
+    cos_config_set_bool(_POWER_SAVE_CONFIG_KEY, false);
 
-    eos_display_restore(EOS_DISPLAY_DURATION_MEDIUM);
+    cos_display_restore(COS_DISPLAY_DURATION_MEDIUM);
     _power_profile_apply(false);
     /* 恢复熄屏超时(读最新持久 config)/L2 阈值/刷新周期 */
     _idle_policy_apply(false);
 
     /* 恢复省电前的无线状态 */
-    eos_net_wifi_set_enabled(_wifi_was_enabled);
-    eos_net_bt_set_enabled(_bt_was_enabled);
-    EOS_LOG_I("Power save: WiFi/BT restored to %d/%d", (int)_wifi_was_enabled, (int)_bt_was_enabled);
+    cos_net_wifi_set_enabled(_wifi_was_enabled);
+    cos_net_bt_set_enabled(_bt_was_enabled);
+    COS_LOG_I("Power save: WiFi/BT restored to %d/%d", (int)_wifi_was_enabled, (int)_bt_was_enabled);
 
     /* 退出省电:模式回到智能档,无线状态一并刷新到快照(两者都被本次改动影响) */
-    eos_cc_snapshot_store_power(EOS_CC_POWER_SMART);
-    if (eos_cc_snapshot_storage_available())
+    cos_cc_snapshot_store_power(COS_CC_POWER_SMART);
+    if (cos_cc_snapshot_storage_available())
     {
-        eos_cc_snapshot_store_wifi(_wifi_was_enabled);
-        eos_cc_snapshot_store_bt(_bt_was_enabled);
+        cos_cc_snapshot_store_wifi(_wifi_was_enabled);
+        cos_cc_snapshot_store_bt(_bt_was_enabled);
     }
 
-    if (_power_save_event_id != EOS_EVENT_LAST)
+    if (_power_save_event_id != COS_EVENT_LAST)
     {
-        eos_event_post(_power_save_event_id, NULL, NULL);
+        cos_event_post(_power_save_event_id, NULL, NULL);
     }
-    EOS_LOG_I("Power save mode EXITED");
-    return EOS_OK;
+    COS_LOG_I("Power save mode EXITED");
+    return COS_OK;
 }

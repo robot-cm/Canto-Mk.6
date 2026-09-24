@@ -1,9 +1,9 @@
 /**
  * @file sni_api_ui.h
- * @brief JerryScript bridge for the ElenixOS adaptive UI framework.
+ * @brief JerryScript bridge for the CantoMk6 adaptive UI framework.
  *
  * Exposes the P8 rendering layer (DisplayProfile, safe-area, Liquid Glass,
- * ArcList/LayoutManager Home) to JavaScript as `eos.ui.*`, so a UI written
+ * ArcList/LayoutManager Home) to JavaScript as `cos.ui.*`, so a UI written
  * entirely in JS becomes screen-shape adaptive automatically — exactly the
  * same code path the native Launcher uses.
  */
@@ -20,7 +20,7 @@ extern "C" {
 /** @brief Build the static `ui` API object (called once from sni_init). */
 void sni_api_ui_init(void);
 
-/** @brief Mount `ui` under the `eos` namespace (called from sni_mount). */
+/** @brief Mount `ui` under the `cos` namespace (called from sni_mount). */
 void sni_api_ui_mount(jerry_value_t realm);
 
 #ifdef __cplusplus

@@ -1,9 +1,9 @@
 /**
- * @file sni_api_eos.c
+ * @file sni_api_cos.c
  * @brief Canto Mk.6 API
  */
 
-#include "sni_api_eos.h"
+#include "sni_api_cos.h"
 
 /* Includes ---------------------------------------------------*/
 #include <limits.h>
@@ -15,38 +15,38 @@
 #include "sni_type_bridge.h"
 #include "sni_types.h"
 #include "sni_api_export.h"
-#include "eos_log.h"
-#include "eos_mem.h"
+#include "cos_log.h"
+#include "cos_mem.h"
 #include "script_engine_core.h"
-#include "eos_font.h"
-#include "eos_activity.h"
-#include "eos_service_time.h"
-#include "eos_app.h"
-#include "eos_watchface.h"
-#include "eos_service_storage.h"
-#include "eos_app_header.h"
-#include "eos_files.h"                 /* P0.5 相册: eos.app.openFiles -> 原生文件管理器 */
-#include "eos_input_page.h"            /* 笔记: eos.ime.open -> 系统输入页(键盘) */
+#include "cos_font.h"
+#include "cos_activity.h"
+#include "cos_service_time.h"
+#include "cos_app.h"
+#include "cos_watchface.h"
+#include "cos_service_storage.h"
+#include "cos_app_header.h"
+#include "cos_files.h"                 /* P0.5 相册: cos.app.openFiles -> 原生文件管理器 */
+#include "cos_input_page.h"            /* 笔记: cos.ime.open -> 系统输入页(键盘) */
 #include "spm.h"                       /* 笔记: ime 回调经 spm_call 调 JS */
 #include "sni_callback_runtime.h"      /* 笔记: sni_cb_get_context */
-#include "eos_ww_clock_hand.h"
-#include "ui/system/eos_round_clip.h"   /* eos_round_clip() exposed to JS */
-#include "sni_api_eos_permission.h"
+#include "cos_ww_clock_hand.h"
+#include "ui/system/cos_round_clip.h"   /* cos_round_clip() exposed to JS */
+#include "sni_api_cos_permission.h"
 /* Macros and Definitions -------------------------------------*/
-#define EOS_API_NAME "eos"
+#define COS_API_NAME "cos"
 #define CONSOLE_LOG_TAG script_engine_get_current_script_id()
 /* Variables --------------------------------------------------*/
-static jerry_value_t eos_api_obj;
+static jerry_value_t cos_api_obj;
 
 typedef enum
 {
-    EOS_CONSOLE_LEVEL_LOG,
-    EOS_CONSOLE_LEVEL_ERROR,
-    EOS_CONSOLE_LEVEL_WARN,
-    EOS_CONSOLE_LEVEL_DEBUG,
-} eos_console_level_t;
+    COS_CONSOLE_LEVEL_LOG,
+    COS_CONSOLE_LEVEL_ERROR,
+    COS_CONSOLE_LEVEL_WARN,
+    COS_CONSOLE_LEVEL_DEBUG,
+} cos_console_level_t;
 
-static bool sni_api_eos_to_c_string(jerry_value_t js_val, char **out_str)
+static bool sni_api_cos_to_c_string(jerry_value_t js_val, char **out_str)
 {
     if (!out_str || !jerry_value_is_string(js_val))
     {
@@ -54,7 +54,7 @@ static bool sni_api_eos_to_c_string(jerry_value_t js_val, char **out_str)
     }
 
     jerry_size_t str_len = jerry_string_size(js_val, JERRY_ENCODING_UTF8);
-    char *str = eos_malloc(str_len + 1);
+    char *str = cos_malloc(str_len + 1);
     if (!str)
     {
         return false;
@@ -67,14 +67,14 @@ static bool sni_api_eos_to_c_string(jerry_value_t js_val, char **out_str)
     return true;
 }
 
-static char *sni_api_eos_get_assets_file_str(jerry_value_t js_val)
+static char *sni_api_cos_get_assets_file_str(jerry_value_t js_val)
 {
     char *src = NULL;
-    char path[EOS_FS_PATH_MAX];
+    char path[COS_FS_PATH_MAX];
     char *ret = NULL;
     const char *script_id = NULL;
 
-    if (!sni_api_eos_to_c_string(js_val, &src))
+    if (!sni_api_cos_to_c_string(js_val, &src))
     {
         return NULL;
     }
@@ -82,32 +82,32 @@ static char *sni_api_eos_get_assets_file_str(jerry_value_t js_val)
     script_id = script_engine_get_current_script_id();
     if (!script_id)
     {
-        eos_free(src);
+        cos_free(src);
         return NULL;
     }
 
     if (script_engine_get_current_script_type() == SCRIPT_TYPE_APPLICATION)
     {
-        snprintf(path, sizeof(path), EOS_APP_INSTALLED_DIR "%s/assets/%s", script_id, src);
+        snprintf(path, sizeof(path), COS_APP_INSTALLED_DIR "%s/assets/%s", script_id, src);
     }
     else if (script_engine_get_current_script_type() == SCRIPT_TYPE_WATCHFACE)
     {
-        snprintf(path, sizeof(path), EOS_WATCHFACE_INSTALLED_DIR "%s/assets/%s", script_id, src);
+        snprintf(path, sizeof(path), COS_WATCHFACE_INSTALLED_DIR "%s/assets/%s", script_id, src);
     }
     else
     {
-        eos_free(src);
+        cos_free(src);
         return NULL;
     }
 
-    eos_free(src);
+    cos_free(src);
 
-    if (!eos_storage_is_file(path))
+    if (!cos_storage_is_file(path))
     {
         return NULL;
     }
 
-    ret = eos_malloc(strlen(path) + 1);
+    ret = cos_malloc(strlen(path) + 1);
     if (!ret)
     {
         return NULL;
@@ -117,10 +117,10 @@ static char *sni_api_eos_get_assets_file_str(jerry_value_t js_val)
     return ret;
 }
 
-static bool sni_api_eos_config_write_to_file(cJSON *root)
+static bool sni_api_cos_config_write_to_file(cJSON *root)
 {
     char *json_str = NULL;
-    char config_file_path[EOS_FS_PATH_MAX];
+    char config_file_path[COS_FS_PATH_MAX];
     bool ret;
 
     if (!root)
@@ -138,58 +138,58 @@ static bool sni_api_eos_config_write_to_file(cJSON *root)
     {
         snprintf(config_file_path,
                  sizeof(config_file_path),
-                 EOS_APP_DATA_DIR "%s",
+                 COS_APP_DATA_DIR "%s",
                  script_engine_get_current_script_id());
-        eos_storage_mkdir_if_not_exist(config_file_path);
+        cos_storage_mkdir_if_not_exist(config_file_path);
         snprintf(config_file_path,
                  sizeof(config_file_path),
-                 EOS_APP_DATA_DIR "%s/config.json",
+                 COS_APP_DATA_DIR "%s/config.json",
                  script_engine_get_current_script_id());
     }
     else if (script_engine_get_current_script_type() == SCRIPT_TYPE_WATCHFACE)
     {
         snprintf(config_file_path,
                  sizeof(config_file_path),
-                 EOS_WATCHFACE_DATA_DIR "%s",
+                 COS_WATCHFACE_DATA_DIR "%s",
                  script_engine_get_current_script_id());
-        eos_storage_mkdir_if_not_exist(config_file_path);
+        cos_storage_mkdir_if_not_exist(config_file_path);
         snprintf(config_file_path,
                  sizeof(config_file_path),
-                 EOS_WATCHFACE_DATA_DIR "%s/config.json",
+                 COS_WATCHFACE_DATA_DIR "%s/config.json",
                  script_engine_get_current_script_id());
     }
     else
     {
-        cJSON_free(json_str); /* cJSON 分配,勿用 eos_free(会错位解析头导致系统堆崩溃) */
+        cJSON_free(json_str); /* cJSON 分配,勿用 cos_free(会错位解析头导致系统堆崩溃) */
         return false;
     }
 
-    ret = (eos_storage_write_file(config_file_path, json_str, strlen(json_str)) == EOS_OK);
+    ret = (cos_storage_write_file(config_file_path, json_str, strlen(json_str)) == COS_OK);
 
-    cJSON_free(json_str); /* cJSON 分配,勿用 eos_free */
+    cJSON_free(json_str); /* cJSON 分配,勿用 cos_free */
     return ret;
 }
 
-static cJSON *sni_api_eos_config_load_from_file(void)
+static cJSON *sni_api_cos_config_load_from_file(void)
 {
-    char config_file_path[EOS_FS_PATH_MAX];
+    char config_file_path[COS_FS_PATH_MAX];
     char *data = NULL;
     cJSON *root = NULL;
 
     if (script_engine_get_current_script_type() == SCRIPT_TYPE_APPLICATION)
     {
-        eos_storage_mkdir_if_not_exist(EOS_APP_DATA_DIR);
+        cos_storage_mkdir_if_not_exist(COS_APP_DATA_DIR);
         snprintf(config_file_path,
                  sizeof(config_file_path),
-                 EOS_APP_DATA_DIR "%s/config.json",
+                 COS_APP_DATA_DIR "%s/config.json",
                  script_engine_get_current_script_id());
     }
     else if (script_engine_get_current_script_type() == SCRIPT_TYPE_WATCHFACE)
     {
-        eos_storage_mkdir_if_not_exist(EOS_WATCHFACE_DATA_DIR);
+        cos_storage_mkdir_if_not_exist(COS_WATCHFACE_DATA_DIR);
         snprintf(config_file_path,
                  sizeof(config_file_path),
-                 EOS_WATCHFACE_DATA_DIR "%s/config.json",
+                 COS_WATCHFACE_DATA_DIR "%s/config.json",
                  script_engine_get_current_script_id());
     }
     else
@@ -197,12 +197,12 @@ static cJSON *sni_api_eos_config_load_from_file(void)
         return NULL;
     }
 
-    if (!eos_storage_is_file(config_file_path))
+    if (!cos_storage_is_file(config_file_path))
     {
         return cJSON_CreateObject();
     }
 
-    data = eos_storage_read_file(config_file_path);
+    data = cos_storage_read_file(config_file_path);
 
     if (!data)
     {
@@ -210,7 +210,7 @@ static cJSON *sni_api_eos_config_load_from_file(void)
     }
 
     root = cJSON_Parse(data);
-    eos_free(data);
+    cos_free(data);
 
     if (!root)
     {
@@ -220,9 +220,9 @@ static cJSON *sni_api_eos_config_load_from_file(void)
     return root;
 }
 
-static jerry_value_t sni_api_eos_console_write(const jerry_value_t args_p[],
+static jerry_value_t sni_api_cos_console_write(const jerry_value_t args_p[],
                                                const jerry_length_t args_count,
-                                               eos_console_level_t level)
+                                               cos_console_level_t level)
 {
     const char *str;
 
@@ -243,30 +243,30 @@ static jerry_value_t sni_api_eos_console_write(const jerry_value_t args_p[],
 
     switch (level)
     {
-        case EOS_CONSOLE_LEVEL_LOG:
-            EOS_LOG_I("[%s] %s", CONSOLE_LOG_TAG, str);
+        case COS_CONSOLE_LEVEL_LOG:
+            COS_LOG_I("[%s] %s", CONSOLE_LOG_TAG, str);
             break;
-        case EOS_CONSOLE_LEVEL_ERROR:
-            EOS_LOG_E("[%s] %s", CONSOLE_LOG_TAG, str);
+        case COS_CONSOLE_LEVEL_ERROR:
+            COS_LOG_E("[%s] %s", CONSOLE_LOG_TAG, str);
             break;
-        case EOS_CONSOLE_LEVEL_WARN:
-            EOS_LOG_W("[%s] %s", CONSOLE_LOG_TAG, str);
+        case COS_CONSOLE_LEVEL_WARN:
+            COS_LOG_W("[%s] %s", CONSOLE_LOG_TAG, str);
             break;
-        case EOS_CONSOLE_LEVEL_DEBUG:
-            EOS_LOG_D("[%s] %s", CONSOLE_LOG_TAG, str);
+        case COS_CONSOLE_LEVEL_DEBUG:
+            COS_LOG_D("[%s] %s", CONSOLE_LOG_TAG, str);
             break;
         default:
-            eos_free((void *)str);
+            cos_free((void *)str);
             return sni_api_throw_error("Invalid console log level");
     }
 
-    eos_free((void *)str);
+    cos_free((void *)str);
 
     return jerry_undefined();
 }
 /* Function Implementations -----------------------------------*/
 
-jerry_value_t sni_api_eos_view_active(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_view_active(const jerry_call_info_t *call_info_p,
                                       const jerry_value_t args_p[],
                                       const jerry_length_t args_count)
 {
@@ -278,12 +278,12 @@ jerry_value_t sni_api_eos_view_active(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Invalid argument count");
     }
 
-    lv_obj_t *result = eos_view_active();
+    lv_obj_t *result = cos_view_active();
     return sni_tb_c2js(&result, SNI_H_LV_OBJ);
 }
 
-/* ---- eos.roundClip(view): expose eos_round_clip() to JS scripts ---- */
-jerry_value_t sni_api_eos_round_clip(const jerry_call_info_t *call_info_p,
+/* ---- cos.roundClip(view): expose cos_round_clip() to JS scripts ---- */
+jerry_value_t sni_api_cos_round_clip(const jerry_call_info_t *call_info_p,
                                      const jerry_value_t args_p[],
                                      const jerry_length_t args_count)
 {
@@ -301,11 +301,11 @@ jerry_value_t sni_api_eos_round_clip(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Invalid view argument");
     }
 
-    eos_round_clip(view);
+    cos_round_clip(view);
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_config_set_str(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_config_set_str(const jerry_call_info_t *call_info_p,
                                          const jerry_value_t args_p[],
                                          const jerry_length_t args_count)
 {
@@ -321,24 +321,24 @@ jerry_value_t sni_api_eos_config_set_str(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Usage: config.setStr(key, value)");
     }
 
-    if (!sni_api_eos_to_c_string(args_p[0], &key) || !sni_api_eos_to_c_string(args_p[1], &value))
+    if (!sni_api_cos_to_c_string(args_p[0], &key) || !sni_api_cos_to_c_string(args_p[1], &value))
     {
         if (key)
         {
-            eos_free(key);
+            cos_free(key);
         }
         if (value)
         {
-            eos_free(value);
+            cos_free(value);
         }
         return sni_api_throw_error("Failed to convert argument");
     }
 
-    root = sni_api_eos_config_load_from_file();
+    root = sni_api_cos_config_load_from_file();
     if (!root)
     {
-        eos_free(key);
-        eos_free(value);
+        cos_free(key);
+        cos_free(value);
         return sni_api_throw_error("Can't load config");
     }
 
@@ -352,14 +352,14 @@ jerry_value_t sni_api_eos_config_set_str(const jerry_call_info_t *call_info_p,
         cJSON_AddItemToObject(root, key, cJSON_CreateString(value));
     }
 
-    sni_api_eos_config_write_to_file(root);
+    sni_api_cos_config_write_to_file(root);
     cJSON_Delete(root);
-    eos_free(key);
-    eos_free(value);
+    cos_free(key);
+    cos_free(value);
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_config_set_bool(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_config_set_bool(const jerry_call_info_t *call_info_p,
                                           const jerry_value_t args_p[],
                                           const jerry_length_t args_count)
 {
@@ -375,16 +375,16 @@ jerry_value_t sni_api_eos_config_set_bool(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Usage: config.setBool(key, bool)");
     }
 
-    if (!sni_api_eos_to_c_string(args_p[0], &key))
+    if (!sni_api_cos_to_c_string(args_p[0], &key))
     {
         return sni_api_throw_error("Failed to convert argument");
     }
 
     value = jerry_value_is_true(args_p[1]);
-    root = sni_api_eos_config_load_from_file();
+    root = sni_api_cos_config_load_from_file();
     if (!root)
     {
-        eos_free(key);
+        cos_free(key);
         return sni_api_throw_error("Can't load config");
     }
 
@@ -398,13 +398,13 @@ jerry_value_t sni_api_eos_config_set_bool(const jerry_call_info_t *call_info_p,
         cJSON_AddItemToObject(root, key, cJSON_CreateBool(value));
     }
 
-    sni_api_eos_config_write_to_file(root);
+    sni_api_cos_config_write_to_file(root);
     cJSON_Delete(root);
-    eos_free(key);
+    cos_free(key);
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_config_set_number(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_config_set_number(const jerry_call_info_t *call_info_p,
                                             const jerry_value_t args_p[],
                                             const jerry_length_t args_count)
 {
@@ -420,16 +420,16 @@ jerry_value_t sni_api_eos_config_set_number(const jerry_call_info_t *call_info_p
         return sni_api_throw_error("Usage: config.setNumber(key, number)");
     }
 
-    if (!sni_api_eos_to_c_string(args_p[0], &key))
+    if (!sni_api_cos_to_c_string(args_p[0], &key))
     {
         return sni_api_throw_error("Failed to convert argument");
     }
 
     value = jerry_value_as_number(args_p[1]);
-    root = sni_api_eos_config_load_from_file();
+    root = sni_api_cos_config_load_from_file();
     if (!root)
     {
-        eos_free(key);
+        cos_free(key);
         return sni_api_throw_error("Can't load config");
     }
 
@@ -443,13 +443,13 @@ jerry_value_t sni_api_eos_config_set_number(const jerry_call_info_t *call_info_p
         cJSON_AddItemToObject(root, key, cJSON_CreateNumber(value));
     }
 
-    sni_api_eos_config_write_to_file(root);
+    sni_api_cos_config_write_to_file(root);
     cJSON_Delete(root);
-    eos_free(key);
+    cos_free(key);
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_config_get_str(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_config_get_str(const jerry_call_info_t *call_info_p,
                                          const jerry_value_t args_p[],
                                          const jerry_length_t args_count)
 {
@@ -465,15 +465,15 @@ jerry_value_t sni_api_eos_config_get_str(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Usage: config.getStr(key)");
     }
 
-    if (!sni_api_eos_to_c_string(args_p[0], &key))
+    if (!sni_api_cos_to_c_string(args_p[0], &key))
     {
         return sni_api_throw_error("Failed to convert argument");
     }
 
-    root = sni_api_eos_config_load_from_file();
+    root = sni_api_cos_config_load_from_file();
     if (!root)
     {
-        eos_free(key);
+        cos_free(key);
         return sni_api_throw_error("Can't load config");
     }
 
@@ -484,11 +484,11 @@ jerry_value_t sni_api_eos_config_get_str(const jerry_call_info_t *call_info_p,
     }
 
     cJSON_Delete(root);
-    eos_free(key);
+    cos_free(key);
     return ret;
 }
 
-jerry_value_t sni_api_eos_config_get_bool(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_config_get_bool(const jerry_call_info_t *call_info_p,
                                           const jerry_value_t args_p[],
                                           const jerry_length_t args_count)
 {
@@ -504,15 +504,15 @@ jerry_value_t sni_api_eos_config_get_bool(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Usage: config.getBool(key)");
     }
 
-    if (!sni_api_eos_to_c_string(args_p[0], &key))
+    if (!sni_api_cos_to_c_string(args_p[0], &key))
     {
         return sni_api_throw_error("Failed to convert argument");
     }
 
-    root = sni_api_eos_config_load_from_file();
+    root = sni_api_cos_config_load_from_file();
     if (!root)
     {
-        eos_free(key);
+        cos_free(key);
         return sni_api_throw_error("Can't load config");
     }
 
@@ -523,11 +523,11 @@ jerry_value_t sni_api_eos_config_get_bool(const jerry_call_info_t *call_info_p,
     }
 
     cJSON_Delete(root);
-    eos_free(key);
+    cos_free(key);
     return ret;
 }
 
-jerry_value_t sni_api_eos_config_get_number(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_config_get_number(const jerry_call_info_t *call_info_p,
                                             const jerry_value_t args_p[],
                                             const jerry_length_t args_count)
 {
@@ -543,15 +543,15 @@ jerry_value_t sni_api_eos_config_get_number(const jerry_call_info_t *call_info_p
         return sni_api_throw_error("Usage: config.getNumber(key)");
     }
 
-    if (!sni_api_eos_to_c_string(args_p[0], &key))
+    if (!sni_api_cos_to_c_string(args_p[0], &key))
     {
         return sni_api_throw_error("Failed to convert argument");
     }
 
-    root = sni_api_eos_config_load_from_file();
+    root = sni_api_cos_config_load_from_file();
     if (!root)
     {
-        eos_free(key);
+        cos_free(key);
         return sni_api_throw_error("Can't load config");
     }
 
@@ -562,15 +562,15 @@ jerry_value_t sni_api_eos_config_get_number(const jerry_call_info_t *call_info_p
     }
 
     cJSON_Delete(root);
-    eos_free(key);
+    cos_free(key);
     return ret;
 }
 
-jerry_value_t sni_api_eos_time_get_now(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_time_get_now(const jerry_call_info_t *call_info_p,
                                        const jerry_value_t args_p[],
                                        const jerry_length_t args_count)
 {
-    eos_datetime_t dt;
+    cos_datetime_t dt;
     jerry_value_t obj;
 
     (void)call_info_p;
@@ -581,7 +581,7 @@ jerry_value_t sni_api_eos_time_get_now(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Invalid argument count");
     }
 
-    dt = eos_time_get();
+    dt = cos_time_get();
     obj = jerry_object();
     script_engine_set_prop_number(obj, "year", dt.year);
     script_engine_set_prop_number(obj, "month", dt.month);
@@ -595,13 +595,13 @@ jerry_value_t sni_api_eos_time_get_now(const jerry_call_info_t *call_info_p,
     return obj;
 }
 
-/* ---- P0.5 相册: eos.fs.list(path) / eos.fs.size(path) ---- */
-jerry_value_t sni_api_eos_fs_list(const jerry_call_info_t *call_info_p,
+/* ---- P0.5 相册: cos.fs.list(path) / cos.fs.size(path) ---- */
+jerry_value_t sni_api_cos_fs_list(const jerry_call_info_t *call_info_p,
                                   const jerry_value_t args_p[],
                                   const jerry_length_t args_count)
 {
     char *path = NULL;
-    eos_dir_t dir;
+    cos_dir_t dir;
     jerry_value_t arr;
     uint32_t idx = 0;
 
@@ -618,18 +618,18 @@ jerry_value_t sni_api_eos_fs_list(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Failed to convert argument");
     }
 
-    dir = eos_storage_dir_open(path);
+    dir = cos_storage_dir_open(path);
     if (!dir)
     {
-        eos_free(path);
+        cos_free(path);
         return sni_api_throw_error("Cannot open directory");
     }
 
     arr = jerry_array(0);
     for (;;)
     {
-        char name[EOS_FS_PATH_MAX];
-        if (eos_storage_dir_read(dir, name, sizeof(name)) != EOS_OK)
+        char name[COS_FS_PATH_MAX];
+        if (cos_storage_dir_read(dir, name, sizeof(name)) != COS_OK)
         {
             break;
         }
@@ -641,18 +641,18 @@ jerry_value_t sni_api_eos_fs_list(const jerry_call_info_t *call_info_p,
         jerry_object_set_index(arr, idx++, js_name);
         jerry_value_free(js_name);
     }
-    eos_storage_dir_close(dir);
-    eos_free(path);
+    cos_storage_dir_close(dir);
+    cos_free(path);
 
     return arr;
 }
 
-jerry_value_t sni_api_eos_fs_size(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_fs_size(const jerry_call_info_t *call_info_p,
                                   const jerry_value_t args_p[],
                                   const jerry_length_t args_count)
 {
     char *path = NULL;
-    eos_file_t fp;
+    cos_file_t fp;
     uint32_t size = 0;
 
     (void)call_info_p;
@@ -668,30 +668,30 @@ jerry_value_t sni_api_eos_fs_size(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Failed to convert argument");
     }
 
-    fp = eos_fs_open_read(path);
+    fp = cos_fs_open_read(path);
     if (!fp)
     {
-        eos_free(path);
+        cos_free(path);
         return jerry_number(0);
     }
 
-    if (eos_fs_size(fp, &size) != EOS_OK)
+    if (cos_fs_size(fp, &size) != COS_OK)
     {
         size = 0;
     }
-    eos_fs_close(fp);
-    eos_free(path);
+    cos_fs_close(fp);
+    cos_free(path);
 
     return jerry_number((double)size);
 }
 
-/* ---- 相册: eos.fs.remove(path) -> bool ---- */
-jerry_value_t sni_api_eos_fs_remove(const jerry_call_info_t *call_info_p,
+/* ---- 相册: cos.fs.remove(path) -> bool ---- */
+jerry_value_t sni_api_cos_fs_remove(const jerry_call_info_t *call_info_p,
                                     const jerry_value_t args_p[],
                                     const jerry_length_t args_count)
 {
     char *path = NULL;
-    eos_result_t ret;
+    cos_result_t ret;
 
     (void)call_info_p;
 
@@ -706,14 +706,14 @@ jerry_value_t sni_api_eos_fs_remove(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Failed to convert argument");
     }
 
-    ret = eos_storage_file_remove(path);
-    eos_free(path);
+    ret = cos_storage_file_remove(path);
+    cos_free(path);
 
-    return jerry_boolean(ret == EOS_OK);
+    return jerry_boolean(ret == COS_OK);
 }
 
-/* ---- 笔记/画图: eos.fs.write(path, data) 兼容 string 与 Uint8Array ---- */
-jerry_value_t sni_api_eos_fs_write(const jerry_call_info_t *call_info_p,
+/* ---- 笔记/画图: cos.fs.write(path, data) 兼容 string 与 Uint8Array ---- */
+jerry_value_t sni_api_cos_fs_write(const jerry_call_info_t *call_info_p,
                                    const jerry_value_t args_p[],
                                    const jerry_length_t args_count)
 {
@@ -731,14 +731,14 @@ jerry_value_t sni_api_eos_fs_write(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Failed to convert argument");
     }
 
-    eos_result_t r = EOS_ERR_INVALID_ARG;
+    cos_result_t r = COS_ERR_INVALID_ARG;
     if (jerry_value_is_string(args_p[1]))
     {
         char *text = (char *)sni_tb_js2c_string(args_p[1]);
         if (text)
         {
-            r = eos_storage_write_file(path, text, strlen(text));
-            eos_free(text);
+            r = cos_storage_write_file(path, text, strlen(text));
+            cos_free(text);
         }
     }
     else if (jerry_value_is_typedarray(args_p[1]))
@@ -749,16 +749,16 @@ jerry_value_t sni_api_eos_fs_write(const jerry_call_info_t *call_info_p,
         uint8_t *base = jerry_arraybuffer_data(ab);
         if (base)
         {
-            r = eos_storage_write_file(path, base + byte_offset, (size_t)tlen);
+            r = cos_storage_write_file(path, base + byte_offset, (size_t)tlen);
         }
         jerry_value_free(ab);
     }
-    eos_free(path);
-    return (r == EOS_OK) ? jerry_boolean(true) : jerry_boolean(false);
+    cos_free(path);
+    return (r == COS_OK) ? jerry_boolean(true) : jerry_boolean(false);
 }
 
-/* ---- 笔记/画图: eos.fs.read(path) -> Uint8Array（二进制安全） ---- */
-jerry_value_t sni_api_eos_fs_read(const jerry_call_info_t *call_info_p,
+/* ---- 笔记/画图: cos.fs.read(path) -> Uint8Array（二进制安全） ---- */
+jerry_value_t sni_api_cos_fs_read(const jerry_call_info_t *call_info_p,
                                   const jerry_value_t args_p[],
                                   const jerry_length_t args_count)
 {
@@ -776,32 +776,32 @@ jerry_value_t sni_api_eos_fs_read(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Failed to convert argument");
     }
 
-    eos_file_t fp = eos_fs_open_read(path);
+    cos_file_t fp = cos_fs_open_read(path);
     if (!fp)
     {
-        eos_free(path);
+        cos_free(path);
         return jerry_undefined();
     }
     uint32_t sz = 0;
-    if (eos_fs_size(fp, &sz) != EOS_OK || sz == 0)
+    if (cos_fs_size(fp, &sz) != COS_OK || sz == 0)
     {
-        eos_fs_close(fp);
-        eos_free(path);
+        cos_fs_close(fp);
+        cos_free(path);
         return jerry_undefined();
     }
-    uint8_t *buf = (uint8_t *)eos_malloc(sz);
+    uint8_t *buf = (uint8_t *)cos_malloc(sz);
     if (!buf)
     {
-        eos_fs_close(fp);
-        eos_free(path);
+        cos_fs_close(fp);
+        cos_free(path);
         return jerry_undefined();
     }
-    int rd = eos_fs_read(fp, buf, sz);
-    eos_fs_close(fp);
-    eos_free(path);
+    int rd = cos_fs_read(fp, buf, sz);
+    cos_fs_close(fp);
+    cos_free(path);
     if (rd <= 0)
     {
-        eos_free(buf);
+        cos_free(buf);
         return jerry_undefined();
     }
 
@@ -811,17 +811,17 @@ jerry_value_t sni_api_eos_fs_read(const jerry_call_info_t *call_info_p,
     {
         memcpy(dst, buf, (size_t)sz);
     }
-    eos_free(buf);
+    cos_free(buf);
 
     jerry_value_t ta = jerry_typedarray_with_buffer(JERRY_TYPEDARRAY_UINT8, ab);
     jerry_value_free(ab);
     return ta;
 }
 
-/* ---- Album: eos.fs.peek(path, offset, len) -> Uint8Array ----
+/* ---- Album: cos.fs.peek(path, offset, len) -> Uint8Array ----
    只读取文件任意一段(默认从头 64 字节,上限 8KB),用于探测图片魔数/
    JPEG SOF(progressive)而不用 fs.read 整读大图撑爆 JS 堆。 */
-jerry_value_t sni_api_eos_fs_peek(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_fs_peek(const jerry_call_info_t *call_info_p,
                                   const jerry_value_t args_p[],
                                   const jerry_length_t args_count)
 {
@@ -847,31 +847,31 @@ jerry_value_t sni_api_eos_fs_peek(const jerry_call_info_t *call_info_p,
     if (len > 8192)
         len = 8192;
 
-    eos_file_t fp = eos_fs_open_read(path);
+    cos_file_t fp = cos_fs_open_read(path);
     if (!fp)
     {
-        eos_free(path);
+        cos_free(path);
         return jerry_undefined();
     }
-    if (eos_fs_seek(fp, offset) != EOS_OK)
+    if (cos_fs_seek(fp, offset) != COS_OK)
     {
-        eos_fs_close(fp);
-        eos_free(path);
+        cos_fs_close(fp);
+        cos_free(path);
         return jerry_undefined();
     }
-    uint8_t *buf = (uint8_t *)eos_malloc(len);
+    uint8_t *buf = (uint8_t *)cos_malloc(len);
     if (!buf)
     {
-        eos_fs_close(fp);
-        eos_free(path);
+        cos_fs_close(fp);
+        cos_free(path);
         return jerry_undefined();
     }
-    int rd = eos_fs_read(fp, buf, len);
-    eos_fs_close(fp);
-    eos_free(path);
+    int rd = cos_fs_read(fp, buf, len);
+    cos_fs_close(fp);
+    cos_free(path);
     if (rd <= 0)
     {
-        eos_free(buf);
+        cos_free(buf);
         return jerry_undefined();
     }
 
@@ -881,15 +881,15 @@ jerry_value_t sni_api_eos_fs_peek(const jerry_call_info_t *call_info_p,
     {
         memcpy(dst, buf, (size_t)rd);
     }
-    eos_free(buf);
+    cos_free(buf);
 
     jerry_value_t ta = jerry_typedarray_with_buffer(JERRY_TYPEDARRAY_UINT8, ab);
     jerry_value_free(ab);
     return ta;
 }
 
-/* ---- P0.5 相册: eos.app.openFiles() -> 原生文件管理器 ---- */
-jerry_value_t sni_api_eos_app_open_files(const jerry_call_info_t *call_info_p,
+/* ---- P0.5 相册: cos.app.openFiles() -> 原生文件管理器 ---- */
+jerry_value_t sni_api_cos_app_open_files(const jerry_call_info_t *call_info_p,
                                          const jerry_value_t args_p[],
                                          const jerry_length_t args_count)
 {
@@ -897,11 +897,11 @@ jerry_value_t sni_api_eos_app_open_files(const jerry_call_info_t *call_info_p,
     (void)args_p;
     (void)args_count;
 
-    eos_files_enter();
+    cos_files_enter();
     return jerry_undefined();
 }
 
-/* ---- 笔记: eos.ime.open(callback) -> 系统输入页（键盘） ---- */
+/* ---- 笔记: cos.ime.open(callback) -> 系统输入页（键盘） ---- */
 typedef struct
 {
     jerry_value_t js_cb;
@@ -909,7 +909,7 @@ typedef struct
     uint8_t alive;
 } sni_ime_ctx_t;
 
-static void _sni_ime_close_cb(const char *text, eos_input_result_t result, void *user_data)
+static void _sni_ime_close_cb(const char *text, cos_input_result_t result, void *user_data)
 {
     sni_ime_ctx_t *ctx = (sni_ime_ctx_t *)user_data;
     if (!ctx || !ctx->alive)
@@ -919,7 +919,7 @@ static void _sni_ime_close_cb(const char *text, eos_input_result_t result, void 
     ctx->alive = 0;
 
     jerry_value_t js_text = jerry_undefined();
-    if (text && result == EOS_INPUT_RESULT_OK)
+    if (text && result == COS_INPUT_RESULT_OK)
     {
         js_text = sni_tb_c2js_string(text);
     }
@@ -927,15 +927,15 @@ static void _sni_ime_close_cb(const char *text, eos_input_result_t result, void 
     jerry_value_t ret = spm_call(ctx->owner_ctx->owner, ctx->js_cb, jerry_undefined(), args, 1);
     if (jerry_value_is_error(ret) || jerry_value_is_exception(ret))
     {
-        EOS_LOG_E("IME close callback encountered an error");
+        COS_LOG_E("IME close callback encountered an error");
     }
     jerry_value_free(ret);
     jerry_value_free(js_text);
     jerry_value_free(ctx->js_cb);
-    eos_free(ctx);
+    cos_free(ctx);
 }
 
-jerry_value_t sni_api_eos_ime_open(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_ime_open(const jerry_call_info_t *call_info_p,
                                    const jerry_value_t args_p[],
                                    const jerry_length_t args_count)
 {
@@ -946,7 +946,7 @@ jerry_value_t sni_api_eos_ime_open(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Usage: ime.open(callback)");
     }
 
-    sni_ime_ctx_t *ctx = (sni_ime_ctx_t *)eos_malloc(sizeof(sni_ime_ctx_t));
+    sni_ime_ctx_t *ctx = (sni_ime_ctx_t *)cos_malloc(sizeof(sni_ime_ctx_t));
     if (!ctx)
     {
         return sni_api_throw_error("Out of memory");
@@ -956,21 +956,21 @@ jerry_value_t sni_api_eos_ime_open(const jerry_call_info_t *call_info_p,
     ctx->owner_ctx = sni_cb_get_context();
     ctx->alive = 1;
 
-    if (eos_input_page_open_with_callback(NULL, _sni_ime_close_cb, ctx) != EOS_OK)
+    if (cos_input_page_open_with_callback(NULL, _sni_ime_close_cb, ctx) != COS_OK)
     {
         ctx->alive = 0;
         jerry_value_free(ctx->js_cb);
-        eos_free(ctx);
+        cos_free(ctx);
         return sni_api_throw_error("Failed to open input page");
     }
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_app_header_set_title(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_app_header_set_title(const jerry_call_info_t *call_info_p,
                                                const jerry_value_t args_p[],
                                                const jerry_length_t args_count)
 {
-    eos_activity_t *current;
+    cos_activity_t *current;
     char *title = NULL;
     lv_obj_t *view;
 
@@ -996,32 +996,32 @@ jerry_value_t sni_api_eos_app_header_set_title(const jerry_call_info_t *call_inf
 
     if (!jerry_value_is_null(args_p[1]) && !jerry_value_is_undefined(args_p[1]))
     {
-        if (!sni_api_eos_to_c_string(args_p[1], &title))
+        if (!sni_api_cos_to_c_string(args_p[1], &title))
         {
             return sni_api_throw_error("Invalid title argument");
         }
     }
 
-    current = eos_activity_get_current();
+    current = cos_activity_get_current();
     if (!current)
     {
         if (title)
         {
-            eos_free(title);
+            cos_free(title);
         }
         return sni_api_throw_error("No current activity");
     }
 
-    eos_activity_set_title(current, title);
+    cos_activity_set_title(current, title);
     if (title)
     {
-        eos_free(title);
+        cos_free(title);
     }
 
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_app_header_hide(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_app_header_hide(const jerry_call_info_t *call_info_p,
                                           const jerry_value_t args_p[],
                                           const jerry_length_t args_count)
 {
@@ -1033,15 +1033,15 @@ jerry_value_t sni_api_eos_app_header_hide(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Invalid argument count");
     }
 
-    eos_app_header_hide();
+    cos_app_header_hide();
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_app_header_show(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_app_header_show(const jerry_call_info_t *call_info_p,
                                           const jerry_value_t args_p[],
                                           const jerry_length_t args_count)
 {
-    eos_activity_t *current;
+    cos_activity_t *current;
 
     (void)call_info_p;
     (void)args_p;
@@ -1051,17 +1051,17 @@ jerry_value_t sni_api_eos_app_header_show(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Invalid argument count");
     }
 
-    current = eos_activity_get_current();
+    current = cos_activity_get_current();
     if (!current)
     {
         return sni_api_throw_error("No current activity");
     }
 
-    eos_app_header_show(current);
+    cos_app_header_show(current);
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_clock_hand_create(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_clock_hand_create(const jerry_call_info_t *call_info_p,
                                             const jerry_value_t args_p[],
                                             const jerry_length_t args_count)
 {
@@ -1090,7 +1090,7 @@ jerry_value_t sni_api_eos_clock_hand_create(const jerry_call_info_t *call_info_p
         return sni_api_throw_error("Invalid argument type");
     }
 
-    src = sni_api_eos_get_assets_file_str(args_p[1]);
+    src = sni_api_cos_get_assets_file_str(args_p[1]);
     if (!src)
     {
         return sni_api_throw_error("Invalid image source");
@@ -1100,12 +1100,12 @@ jerry_value_t sni_api_eos_clock_hand_create(const jerry_call_info_t *call_info_p
     cx = (int32_t)jerry_value_as_number(args_p[3]);
     cy = (int32_t)jerry_value_as_number(args_p[4]);
 
-    ret_obj = eos_clock_hand_create(obj, src, (eos_clock_hand_type_t)type, cx, cy);
-    eos_free(src);
+    ret_obj = cos_clock_hand_create(obj, src, (cos_clock_hand_type_t)type, cx, cy);
+    cos_free(src);
     return sni_tb_c2js(&ret_obj, SNI_H_LV_OBJ);
 }
 
-jerry_value_t sni_api_eos_clock_hand_center(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_clock_hand_center(const jerry_call_info_t *call_info_p,
                                             const jerry_value_t args_p[],
                                             const jerry_length_t args_count)
 {
@@ -1123,11 +1123,11 @@ jerry_value_t sni_api_eos_clock_hand_center(const jerry_call_info_t *call_info_p
         return sni_api_throw_error("Invalid object argument");
     }
 
-    eos_clock_hand_center(obj);
+    cos_clock_hand_center(obj);
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_clock_hand_place_pivot(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_clock_hand_place_pivot(const jerry_call_info_t *call_info_p,
                                                  const jerry_value_t args_p[],
                                                  const jerry_length_t args_count)
 {
@@ -1150,11 +1150,11 @@ jerry_value_t sni_api_eos_clock_hand_place_pivot(const jerry_call_info_t *call_i
 
     x = (int32_t)jerry_value_as_number(args_p[1]);
     y = (int32_t)jerry_value_as_number(args_p[2]);
-    eos_clock_hand_place_pivot(obj, x, y);
+    cos_clock_hand_place_pivot(obj, x, y);
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_clock_hand_attach(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_clock_hand_attach(const jerry_call_info_t *call_info_p,
                                             const jerry_value_t args_p[],
                                             const jerry_length_t args_count)
 {
@@ -1174,11 +1174,11 @@ jerry_value_t sni_api_eos_clock_hand_attach(const jerry_call_info_t *call_info_p
     }
 
     type = (int32_t)jerry_value_as_number(args_p[1]);
-    eos_clock_hand_attach(obj, (eos_clock_hand_type_t)type);
+    cos_clock_hand_attach(obj, (cos_clock_hand_type_t)type);
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_clock_hand_center_style(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_clock_hand_center_style(const jerry_call_info_t *call_info_p,
                                                   const jerry_value_t args_p[],
                                                   const jerry_length_t args_count)
 {
@@ -1201,15 +1201,15 @@ jerry_value_t sni_api_eos_clock_hand_center_style(const jerry_call_info_t *call_
 
     px = (int32_t)jerry_value_as_number(args_p[1]);
     py = (int32_t)jerry_value_as_number(args_p[2]);
-    eos_clock_hand_center_style(obj, px, py);
+    cos_clock_hand_center_style(obj, px, py);
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_activity_current(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_activity_current(const jerry_call_info_t *call_info_p,
                                            const jerry_value_t args_p[],
                                            const jerry_length_t args_count)
 {
-    eos_activity_t *activity;
+    cos_activity_t *activity;
 
     (void)call_info_p;
     (void)args_p;
@@ -1219,15 +1219,15 @@ jerry_value_t sni_api_eos_activity_current(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Invalid argument count");
     }
 
-    activity = eos_activity_get_current();
-    return sni_tb_c2js(&activity, SNI_H_EOS_ACTIVITY);
+    activity = cos_activity_get_current();
+    return sni_tb_c2js(&activity, SNI_H_COS_ACTIVITY);
 }
 
-jerry_value_t sni_api_eos_activity_visible(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_activity_visible(const jerry_call_info_t *call_info_p,
                                            const jerry_value_t args_p[],
                                            const jerry_length_t args_count)
 {
-    eos_activity_t *activity;
+    cos_activity_t *activity;
 
     (void)call_info_p;
     (void)args_p;
@@ -1237,15 +1237,15 @@ jerry_value_t sni_api_eos_activity_visible(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Invalid argument count");
     }
 
-    activity = eos_activity_get_visible();
-    return sni_tb_c2js(&activity, SNI_H_EOS_ACTIVITY);
+    activity = cos_activity_get_visible();
+    return sni_tb_c2js(&activity, SNI_H_COS_ACTIVITY);
 }
 
-jerry_value_t sni_api_eos_activity_bottom(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_activity_bottom(const jerry_call_info_t *call_info_p,
                                           const jerry_value_t args_p[],
                                           const jerry_length_t args_count)
 {
-    eos_activity_t *activity;
+    cos_activity_t *activity;
 
     (void)call_info_p;
     (void)args_p;
@@ -1255,15 +1255,15 @@ jerry_value_t sni_api_eos_activity_bottom(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Invalid argument count");
     }
 
-    activity = eos_activity_get_bottom();
-    return sni_tb_c2js(&activity, SNI_H_EOS_ACTIVITY);
+    activity = cos_activity_get_bottom();
+    return sni_tb_c2js(&activity, SNI_H_COS_ACTIVITY);
 }
 
-jerry_value_t sni_api_eos_activity_watchface(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_activity_watchface(const jerry_call_info_t *call_info_p,
                                              const jerry_value_t args_p[],
                                              const jerry_length_t args_count)
 {
-    eos_activity_t *activity;
+    cos_activity_t *activity;
 
     (void)call_info_p;
     (void)args_p;
@@ -1273,15 +1273,15 @@ jerry_value_t sni_api_eos_activity_watchface(const jerry_call_info_t *call_info_
         return sni_api_throw_error("Invalid argument count");
     }
 
-    activity = eos_activity_get_watchface();
-    return sni_tb_c2js(&activity, SNI_H_EOS_ACTIVITY);
+    activity = cos_activity_get_watchface();
+    return sni_tb_c2js(&activity, SNI_H_COS_ACTIVITY);
 }
 
-jerry_value_t sni_api_eos_activity_get_view(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_activity_get_view(const jerry_call_info_t *call_info_p,
                                             const jerry_value_t args_p[],
                                             const jerry_length_t args_count)
 {
-    eos_activity_t *activity;
+    cos_activity_t *activity;
     lv_obj_t *view;
 
     (void)call_info_p;
@@ -1291,20 +1291,20 @@ jerry_value_t sni_api_eos_activity_get_view(const jerry_call_info_t *call_info_p
         return sni_api_throw_error("Usage: activity.getView(activity)");
     }
 
-    if (!sni_tb_js2c(args_p[0], SNI_H_EOS_ACTIVITY, &activity))
+    if (!sni_tb_js2c(args_p[0], SNI_H_COS_ACTIVITY, &activity))
     {
         return sni_api_throw_error("Invalid activity argument");
     }
 
-    view = eos_activity_get_view(activity);
+    view = cos_activity_get_view(activity);
     return sni_tb_c2js(&view, SNI_H_LV_OBJ);
 }
 
-jerry_value_t sni_api_eos_activity_set_view(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_activity_set_view(const jerry_call_info_t *call_info_p,
                                             const jerry_value_t args_p[],
                                             const jerry_length_t args_count)
 {
-    eos_activity_t *activity;
+    cos_activity_t *activity;
     lv_obj_t *view;
 
     (void)call_info_p;
@@ -1314,20 +1314,20 @@ jerry_value_t sni_api_eos_activity_set_view(const jerry_call_info_t *call_info_p
         return sni_api_throw_error("Usage: activity.setView(activity, view)");
     }
 
-    if (!sni_tb_js2c(args_p[0], SNI_H_EOS_ACTIVITY, &activity) || !sni_tb_js2c(args_p[1], SNI_H_LV_OBJ, &view))
+    if (!sni_tb_js2c(args_p[0], SNI_H_COS_ACTIVITY, &activity) || !sni_tb_js2c(args_p[1], SNI_H_LV_OBJ, &view))
     {
         return sni_api_throw_error("Invalid argument type");
     }
 
-    eos_activity_set_view(activity, view);
+    cos_activity_set_view(activity, view);
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_activity_get_title(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_activity_get_title(const jerry_call_info_t *call_info_p,
                                              const jerry_value_t args_p[],
                                              const jerry_length_t args_count)
 {
-    eos_activity_t *activity;
+    cos_activity_t *activity;
     const char *title;
 
     (void)call_info_p;
@@ -1337,12 +1337,12 @@ jerry_value_t sni_api_eos_activity_get_title(const jerry_call_info_t *call_info_
         return sni_api_throw_error("Usage: activity.getTitle(activity)");
     }
 
-    if (!sni_tb_js2c(args_p[0], SNI_H_EOS_ACTIVITY, &activity))
+    if (!sni_tb_js2c(args_p[0], SNI_H_COS_ACTIVITY, &activity))
     {
         return sni_api_throw_error("Invalid activity argument");
     }
 
-    title = eos_activity_get_title(activity);
+    title = cos_activity_get_title(activity);
     if (!title)
     {
         return jerry_undefined();
@@ -1351,11 +1351,11 @@ jerry_value_t sni_api_eos_activity_get_title(const jerry_call_info_t *call_info_
     return sni_tb_c2js_string(title);
 }
 
-jerry_value_t sni_api_eos_activity_set_title(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_activity_set_title(const jerry_call_info_t *call_info_p,
                                              const jerry_value_t args_p[],
                                              const jerry_length_t args_count)
 {
-    eos_activity_t *activity;
+    cos_activity_t *activity;
     char *title = NULL;
 
     (void)call_info_p;
@@ -1365,21 +1365,21 @@ jerry_value_t sni_api_eos_activity_set_title(const jerry_call_info_t *call_info_
         return sni_api_throw_error("Usage: activity.setTitle(activity, title)");
     }
 
-    if (!sni_tb_js2c(args_p[0], SNI_H_EOS_ACTIVITY, &activity) || !sni_api_eos_to_c_string(args_p[1], &title))
+    if (!sni_tb_js2c(args_p[0], SNI_H_COS_ACTIVITY, &activity) || !sni_api_cos_to_c_string(args_p[1], &title))
     {
         return sni_api_throw_error("Invalid argument type");
     }
 
-    eos_activity_set_title(activity, title);
-    eos_free(title);
+    cos_activity_set_title(activity, title);
+    cos_free(title);
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_activity_set_type(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_activity_set_type(const jerry_call_info_t *call_info_p,
                                             const jerry_value_t args_p[],
                                             const jerry_length_t args_count)
 {
-    eos_activity_t *activity;
+    cos_activity_t *activity;
     int32_t type;
 
     (void)call_info_p;
@@ -1389,22 +1389,22 @@ jerry_value_t sni_api_eos_activity_set_type(const jerry_call_info_t *call_info_p
         return sni_api_throw_error("Usage: activity.setType(activity, type)");
     }
 
-    if (!sni_tb_js2c(args_p[0], SNI_H_EOS_ACTIVITY, &activity))
+    if (!sni_tb_js2c(args_p[0], SNI_H_COS_ACTIVITY, &activity))
     {
         return sni_api_throw_error("Invalid activity argument");
     }
 
     type = (int32_t)jerry_value_as_number(args_p[1]);
-    eos_activity_set_type(activity, (eos_activity_type_t)type);
+    cos_activity_set_type(activity, (cos_activity_type_t)type);
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_activity_get_type(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_activity_get_type(const jerry_call_info_t *call_info_p,
                                             const jerry_value_t args_p[],
                                             const jerry_length_t args_count)
 {
-    eos_activity_t *activity;
-    eos_activity_type_t type;
+    cos_activity_t *activity;
+    cos_activity_type_t type;
 
     (void)call_info_p;
 
@@ -1413,20 +1413,20 @@ jerry_value_t sni_api_eos_activity_get_type(const jerry_call_info_t *call_info_p
         return sni_api_throw_error("Usage: activity.getType(activity)");
     }
 
-    if (!sni_tb_js2c(args_p[0], SNI_H_EOS_ACTIVITY, &activity))
+    if (!sni_tb_js2c(args_p[0], SNI_H_COS_ACTIVITY, &activity))
     {
         return sni_api_throw_error("Invalid activity argument");
     }
 
-    type = eos_activity_get_type(activity);
+    type = cos_activity_get_type(activity);
     return jerry_number((double)type);
 }
 
-jerry_value_t sni_api_eos_activity_set_app_header_visible(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_activity_set_app_header_visible(const jerry_call_info_t *call_info_p,
                                                           const jerry_value_t args_p[],
                                                           const jerry_length_t args_count)
 {
-    eos_activity_t *activity;
+    cos_activity_t *activity;
     bool visible;
 
     (void)call_info_p;
@@ -1436,21 +1436,21 @@ jerry_value_t sni_api_eos_activity_set_app_header_visible(const jerry_call_info_
         return sni_api_throw_error("Usage: activity.setAppHeaderVisible(activity, visible)");
     }
 
-    if (!sni_tb_js2c(args_p[0], SNI_H_EOS_ACTIVITY, &activity))
+    if (!sni_tb_js2c(args_p[0], SNI_H_COS_ACTIVITY, &activity))
     {
         return sni_api_throw_error("Invalid activity argument");
     }
 
     visible = jerry_value_is_true(args_p[1]);
-    eos_activity_set_app_header_visible(activity, visible);
+    cos_activity_set_app_header_visible(activity, visible);
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_activity_is_app_header_visible(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_activity_is_app_header_visible(const jerry_call_info_t *call_info_p,
                                                          const jerry_value_t args_p[],
                                                          const jerry_length_t args_count)
 {
-    eos_activity_t *activity;
+    cos_activity_t *activity;
     bool visible;
 
     (void)call_info_p;
@@ -1460,20 +1460,20 @@ jerry_value_t sni_api_eos_activity_is_app_header_visible(const jerry_call_info_t
         return sni_api_throw_error("Usage: activity.isAppHeaderVisible(activity)");
     }
 
-    if (!sni_tb_js2c(args_p[0], SNI_H_EOS_ACTIVITY, &activity))
+    if (!sni_tb_js2c(args_p[0], SNI_H_COS_ACTIVITY, &activity))
     {
         return sni_api_throw_error("Invalid activity argument");
     }
 
-    visible = eos_activity_is_app_header_visible(activity);
+    visible = cos_activity_is_app_header_visible(activity);
     return jerry_boolean(visible);
 }
 
-jerry_value_t sni_api_eos_activity_enter(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_activity_enter(const jerry_call_info_t *call_info_p,
                                          const jerry_value_t args_p[],
                                          const jerry_length_t args_count)
 {
-    eos_activity_t *activity;
+    cos_activity_t *activity;
 
     (void)call_info_p;
 
@@ -1482,20 +1482,20 @@ jerry_value_t sni_api_eos_activity_enter(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Usage: activity.enter(activity)");
     }
 
-    if (!sni_tb_js2c(args_p[0], SNI_H_EOS_ACTIVITY, &activity))
+    if (!sni_tb_js2c(args_p[0], SNI_H_COS_ACTIVITY, &activity))
     {
         return sni_api_throw_error("Invalid activity argument");
     }
 
-    eos_activity_enter(activity);
+    cos_activity_enter(activity);
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_activity_back(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_activity_back(const jerry_call_info_t *call_info_p,
                                         const jerry_value_t args_p[],
                                         const jerry_length_t args_count)
 {
-    eos_result_t ret;
+    cos_result_t ret;
 
     (void)call_info_p;
     (void)args_p;
@@ -1505,11 +1505,11 @@ jerry_value_t sni_api_eos_activity_back(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("Invalid argument count");
     }
 
-    ret = eos_activity_back();
-    return jerry_boolean(ret == EOS_OK);
+    ret = cos_activity_back();
+    return jerry_boolean(ret == COS_OK);
 }
 
-jerry_value_t sni_api_eos_activity_root_screen(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_activity_root_screen(const jerry_call_info_t *call_info_p,
                                                const jerry_value_t args_p[],
                                                const jerry_length_t args_count)
 {
@@ -1523,11 +1523,11 @@ jerry_value_t sni_api_eos_activity_root_screen(const jerry_call_info_t *call_inf
         return sni_api_throw_error("Invalid argument count");
     }
 
-    screen = eos_activity_get_root_screen();
+    screen = cos_activity_get_root_screen();
     return sni_tb_c2js(&screen, SNI_H_LV_OBJ);
 }
 
-jerry_value_t sni_api_eos_activity_is_transition_in_progress(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_activity_is_transition_in_progress(const jerry_call_info_t *call_info_p,
                                                              const jerry_value_t args_p[],
                                                              const jerry_length_t args_count)
 {
@@ -1539,250 +1539,250 @@ jerry_value_t sni_api_eos_activity_is_transition_in_progress(const jerry_call_in
         return sni_api_throw_error("Invalid argument count");
     }
 
-    return jerry_boolean(eos_activity_is_transition_in_progress());
+    return jerry_boolean(cos_activity_is_transition_in_progress());
 }
 
-jerry_value_t sni_api_eos_console_log(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_console_log(const jerry_call_info_t *call_info_p,
                                       const jerry_value_t args_p[],
                                       const jerry_length_t args_count)
 {
     (void)call_info_p;
 
-    return sni_api_eos_console_write(args_p, args_count, EOS_CONSOLE_LEVEL_LOG);
+    return sni_api_cos_console_write(args_p, args_count, COS_CONSOLE_LEVEL_LOG);
 }
 
-jerry_value_t sni_api_eos_console_error(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_console_error(const jerry_call_info_t *call_info_p,
                                         const jerry_value_t args_p[],
                                         const jerry_length_t args_count)
 {
     (void)call_info_p;
 
-    return sni_api_eos_console_write(args_p, args_count, EOS_CONSOLE_LEVEL_ERROR);
+    return sni_api_cos_console_write(args_p, args_count, COS_CONSOLE_LEVEL_ERROR);
 }
 
-jerry_value_t sni_api_eos_console_warn(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_console_warn(const jerry_call_info_t *call_info_p,
                                        const jerry_value_t args_p[],
                                        const jerry_length_t args_count)
 {
     (void)call_info_p;
 
-    return sni_api_eos_console_write(args_p, args_count, EOS_CONSOLE_LEVEL_WARN);
+    return sni_api_cos_console_write(args_p, args_count, COS_CONSOLE_LEVEL_WARN);
 }
 
-jerry_value_t sni_api_eos_console_debug(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_console_debug(const jerry_call_info_t *call_info_p,
                                         const jerry_value_t args_p[],
                                         const jerry_length_t args_count)
 {
     (void)call_info_p;
 
-    return sni_api_eos_console_write(args_p, args_count, EOS_CONSOLE_LEVEL_DEBUG);
+    return sni_api_cos_console_write(args_p, args_count, COS_CONSOLE_LEVEL_DEBUG);
 }
 
-const sni_method_desc_t eos_class_static_methods_view[] = {
-    {.name = "active", .handler = sni_api_eos_view_active},
+const sni_method_desc_t cos_class_static_methods_view[] = {
+    {.name = "active", .handler = sni_api_cos_view_active},
     {.name = NULL, .handler = NULL},
 };
 
-const sni_method_desc_t eos_class_static_methods_console[] = {
-    {.name = "log", .handler = sni_api_eos_console_log},
-    {.name = "error", .handler = sni_api_eos_console_error},
-    {.name = "warn", .handler = sni_api_eos_console_warn},
-    {.name = "info", .handler = sni_api_eos_console_log},
-    {.name = "debug", .handler = sni_api_eos_console_debug},
+const sni_method_desc_t cos_class_static_methods_console[] = {
+    {.name = "log", .handler = sni_api_cos_console_log},
+    {.name = "error", .handler = sni_api_cos_console_error},
+    {.name = "warn", .handler = sni_api_cos_console_warn},
+    {.name = "info", .handler = sni_api_cos_console_log},
+    {.name = "debug", .handler = sni_api_cos_console_debug},
     {.name = NULL, .handler = NULL},
 };
 
-const sni_method_desc_t eos_class_static_methods_config[] = {
-    {.name = "setStr", .handler = sni_api_eos_config_set_str},
-    {.name = "setBool", .handler = sni_api_eos_config_set_bool},
-    {.name = "setNumber", .handler = sni_api_eos_config_set_number},
-    {.name = "getStr", .handler = sni_api_eos_config_get_str},
-    {.name = "getBool", .handler = sni_api_eos_config_get_bool},
-    {.name = "getNumber", .handler = sni_api_eos_config_get_number},
+const sni_method_desc_t cos_class_static_methods_config[] = {
+    {.name = "setStr", .handler = sni_api_cos_config_set_str},
+    {.name = "setBool", .handler = sni_api_cos_config_set_bool},
+    {.name = "setNumber", .handler = sni_api_cos_config_set_number},
+    {.name = "getStr", .handler = sni_api_cos_config_get_str},
+    {.name = "getBool", .handler = sni_api_cos_config_get_bool},
+    {.name = "getNumber", .handler = sni_api_cos_config_get_number},
     {.name = NULL, .handler = NULL},
 };
 
-const sni_method_desc_t eos_class_static_methods_time[] = {
-    {.name = "getNow", .handler = sni_api_eos_time_get_now},
+const sni_method_desc_t cos_class_static_methods_time[] = {
+    {.name = "getNow", .handler = sni_api_cos_time_get_now},
     {.name = NULL, .handler = NULL},
 };
 
-/* P0.5 相册: eos.fs.* */
-const sni_method_desc_t eos_class_static_methods_fs[] = {
-    {.name = "list", .handler = sni_api_eos_fs_list},
-    {.name = "size", .handler = sni_api_eos_fs_size},
-    {.name = "remove", .handler = sni_api_eos_fs_remove},   /* 相册删除 */
-    {.name = "write", .handler = sni_api_eos_fs_write},   /* 笔记/画图 */
-    {.name = "read", .handler = sni_api_eos_fs_read},     /* 笔记/画图 */
-    {.name = "peek", .handler = sni_api_eos_fs_peek},     /* 相册探测(不整读) */
+/* P0.5 相册: cos.fs.* */
+const sni_method_desc_t cos_class_static_methods_fs[] = {
+    {.name = "list", .handler = sni_api_cos_fs_list},
+    {.name = "size", .handler = sni_api_cos_fs_size},
+    {.name = "remove", .handler = sni_api_cos_fs_remove},   /* 相册删除 */
+    {.name = "write", .handler = sni_api_cos_fs_write},   /* 笔记/画图 */
+    {.name = "read", .handler = sni_api_cos_fs_read},     /* 笔记/画图 */
+    {.name = "peek", .handler = sni_api_cos_fs_peek},     /* 相册探测(不整读) */
     {.name = NULL, .handler = NULL},
 };
 
-const sni_class_desc_t eos_class_desc_fs = {
+const sni_class_desc_t cos_class_desc_fs = {
     .name = "fs",
     .constructor = NULL,
     .base_class = NULL,
     .methods = NULL,
     .properties = NULL,
-    .static_methods = eos_class_static_methods_fs,
+    .static_methods = cos_class_static_methods_fs,
     .constants = NULL,
 };
 
-/* P0.5 相册: eos.app.* */
-const sni_method_desc_t eos_class_static_methods_app[] = {
-    {.name = "openFiles", .handler = sni_api_eos_app_open_files},
+/* P0.5 相册: cos.app.* */
+const sni_method_desc_t cos_class_static_methods_app[] = {
+    {.name = "openFiles", .handler = sni_api_cos_app_open_files},
     {.name = NULL, .handler = NULL},
 };
 
-const sni_class_desc_t eos_class_desc_app = {
+const sni_class_desc_t cos_class_desc_app = {
     .name = "app",
     .constructor = NULL,
     .base_class = NULL,
     .methods = NULL,
     .properties = NULL,
-    .static_methods = eos_class_static_methods_app,
+    .static_methods = cos_class_static_methods_app,
     .constants = NULL,
 };
 
-/* 笔记/画图: eos.ime.open(cb) */
-const sni_method_desc_t eos_class_static_methods_ime[] = {
-    {.name = "open", .handler = sni_api_eos_ime_open},
+/* 笔记/画图: cos.ime.open(cb) */
+const sni_method_desc_t cos_class_static_methods_ime[] = {
+    {.name = "open", .handler = sni_api_cos_ime_open},
     {.name = NULL, .handler = NULL},
 };
 
-const sni_class_desc_t eos_class_desc_ime = {
+const sni_class_desc_t cos_class_desc_ime = {
     .name = "ime",
     .constructor = NULL,
     .base_class = NULL,
     .methods = NULL,
     .properties = NULL,
-    .static_methods = eos_class_static_methods_ime,
+    .static_methods = cos_class_static_methods_ime,
     .constants = NULL,
 };
 
-const sni_method_desc_t eos_class_static_methods_app_header[] = {
-    {.name = "setTitle", .handler = sni_api_eos_app_header_set_title},
-    {.name = "hide", .handler = sni_api_eos_app_header_hide},
-    {.name = "show", .handler = sni_api_eos_app_header_show},
+const sni_method_desc_t cos_class_static_methods_app_header[] = {
+    {.name = "setTitle", .handler = sni_api_cos_app_header_set_title},
+    {.name = "hide", .handler = sni_api_cos_app_header_hide},
+    {.name = "show", .handler = sni_api_cos_app_header_show},
     {.name = NULL, .handler = NULL},
 };
 
-const sni_method_desc_t eos_class_static_methods_clock_hand[] = {
-    {.name = "create", .handler = sni_api_eos_clock_hand_create},
-    {.name = "center", .handler = sni_api_eos_clock_hand_center},
-    {.name = "placePivot", .handler = sni_api_eos_clock_hand_place_pivot},
-    {.name = "attach", .handler = sni_api_eos_clock_hand_attach},
-    {.name = "centerStyle", .handler = sni_api_eos_clock_hand_center_style},
+const sni_method_desc_t cos_class_static_methods_clock_hand[] = {
+    {.name = "create", .handler = sni_api_cos_clock_hand_create},
+    {.name = "center", .handler = sni_api_cos_clock_hand_center},
+    {.name = "placePivot", .handler = sni_api_cos_clock_hand_place_pivot},
+    {.name = "attach", .handler = sni_api_cos_clock_hand_attach},
+    {.name = "centerStyle", .handler = sni_api_cos_clock_hand_center_style},
     {.name = NULL, .handler = NULL},
 };
 
-const sni_method_desc_t eos_class_static_methods_activity[] = {
-    {.name = "current", .handler = sni_api_eos_activity_current},
-    {.name = "visible", .handler = sni_api_eos_activity_visible},
-    {.name = "bottom", .handler = sni_api_eos_activity_bottom},
-    {.name = "watchface", .handler = sni_api_eos_activity_watchface},
-    {.name = "rootScreen", .handler = sni_api_eos_activity_root_screen},
-    {.name = "getView", .handler = sni_api_eos_activity_get_view},
-    {.name = "setView", .handler = sni_api_eos_activity_set_view},
-    {.name = "getTitle", .handler = sni_api_eos_activity_get_title},
-    {.name = "setTitle", .handler = sni_api_eos_activity_set_title},
-    {.name = "getType", .handler = sni_api_eos_activity_get_type},
-    {.name = "setType", .handler = sni_api_eos_activity_set_type},
-    {.name = "setAppHeaderVisible", .handler = sni_api_eos_activity_set_app_header_visible},
-    {.name = "isAppHeaderVisible", .handler = sni_api_eos_activity_is_app_header_visible},
-    {.name = "enter", .handler = sni_api_eos_activity_enter},
-    {.name = "back", .handler = sni_api_eos_activity_back},
-    {.name = "isTransitionInProgress", .handler = sni_api_eos_activity_is_transition_in_progress},
+const sni_method_desc_t cos_class_static_methods_activity[] = {
+    {.name = "current", .handler = sni_api_cos_activity_current},
+    {.name = "visible", .handler = sni_api_cos_activity_visible},
+    {.name = "bottom", .handler = sni_api_cos_activity_bottom},
+    {.name = "watchface", .handler = sni_api_cos_activity_watchface},
+    {.name = "rootScreen", .handler = sni_api_cos_activity_root_screen},
+    {.name = "getView", .handler = sni_api_cos_activity_get_view},
+    {.name = "setView", .handler = sni_api_cos_activity_set_view},
+    {.name = "getTitle", .handler = sni_api_cos_activity_get_title},
+    {.name = "setTitle", .handler = sni_api_cos_activity_set_title},
+    {.name = "getType", .handler = sni_api_cos_activity_get_type},
+    {.name = "setType", .handler = sni_api_cos_activity_set_type},
+    {.name = "setAppHeaderVisible", .handler = sni_api_cos_activity_set_app_header_visible},
+    {.name = "isAppHeaderVisible", .handler = sni_api_cos_activity_is_app_header_visible},
+    {.name = "enter", .handler = sni_api_cos_activity_enter},
+    {.name = "back", .handler = sni_api_cos_activity_back},
+    {.name = "isTransitionInProgress", .handler = sni_api_cos_activity_is_transition_in_progress},
     {.name = NULL, .handler = NULL},
 };
 
-const sni_class_desc_t eos_class_desc_view = {
+const sni_class_desc_t cos_class_desc_view = {
     .name = "view",
     .constructor = NULL,
     .base_class = NULL,
     .methods = NULL,
     .properties = NULL,
-    .static_methods = eos_class_static_methods_view,
+    .static_methods = cos_class_static_methods_view,
     .constants = NULL,
 };
 
-const sni_class_desc_t eos_class_desc_console = {
+const sni_class_desc_t cos_class_desc_console = {
     .name = "console",
     .constructor = NULL,
     .base_class = NULL,
     .methods = NULL,
     .properties = NULL,
-    .static_methods = eos_class_static_methods_console,
+    .static_methods = cos_class_static_methods_console,
     .constants = NULL,
 };
 
-const sni_class_desc_t eos_class_desc_config = {
+const sni_class_desc_t cos_class_desc_config = {
     .name = "config",
     .constructor = NULL,
     .base_class = NULL,
     .methods = NULL,
     .properties = NULL,
-    .static_methods = eos_class_static_methods_config,
+    .static_methods = cos_class_static_methods_config,
     .constants = NULL,
 };
 
-const sni_class_desc_t eos_class_desc_time = {
+const sni_class_desc_t cos_class_desc_time = {
     .name = "time",
     .constructor = NULL,
     .base_class = NULL,
     .methods = NULL,
     .properties = NULL,
-    .static_methods = eos_class_static_methods_time,
+    .static_methods = cos_class_static_methods_time,
     .constants = NULL,
 };
 
-const sni_class_desc_t eos_class_desc_app_header = {
+const sni_class_desc_t cos_class_desc_app_header = {
     .name = "appHeader",
     .constructor = NULL,
     .base_class = NULL,
     .methods = NULL,
     .properties = NULL,
-    .static_methods = eos_class_static_methods_app_header,
+    .static_methods = cos_class_static_methods_app_header,
     .constants = NULL,
 };
 
-const sni_class_desc_t eos_class_desc_clock_hand = {
+const sni_class_desc_t cos_class_desc_clock_hand = {
     .name = "clockHand",
     .constructor = NULL,
     .base_class = NULL,
     .methods = NULL,
     .properties = NULL,
-    .static_methods = eos_class_static_methods_clock_hand,
+    .static_methods = cos_class_static_methods_clock_hand,
     .constants = NULL,
 };
 
-const sni_class_desc_t eos_class_desc_activity = {
+const sni_class_desc_t cos_class_desc_activity = {
     .name = "activity",
     .constructor = NULL,
     .base_class = NULL,
     .methods = NULL,
     .properties = NULL,
-    .static_methods = eos_class_static_methods_activity,
+    .static_methods = cos_class_static_methods_activity,
     .constants = NULL,
 };
 
-const sni_method_desc_t eos_class_static_methods_permission[] = {
-    {.name = "request", .handler = sni_api_eos_permission_request},
-    {.name = "check", .handler = sni_api_eos_permission_check},
+const sni_method_desc_t cos_class_static_methods_permission[] = {
+    {.name = "request", .handler = sni_api_cos_permission_request},
+    {.name = "check", .handler = sni_api_cos_permission_check},
     {.name = NULL, .handler = NULL},
 };
 
-const sni_class_desc_t eos_class_desc_permission = {
+const sni_class_desc_t cos_class_desc_permission = {
     .name = "permission",
     .constructor = NULL,
     .base_class = NULL,
     .methods = NULL,
     .properties = NULL,
-    .static_methods = eos_class_static_methods_permission,
+    .static_methods = cos_class_static_methods_permission,
     .constants = NULL,
 };
 
-/* ---- 画图: eos.draw.* (C 持有 canvas 像素缓冲，JS 只发绘制指令) ---- */
+/* ---- 画图: cos.draw.* (C 持有 canvas 像素缓冲，JS 只发绘制指令) ---- */
 typedef struct
 {
     lv_obj_t *canvas;
@@ -1790,11 +1790,11 @@ typedef struct
     lv_coord_t w, h;
     lv_color_t pen;
     bool inited;
-} eos_draw_state_t;
-static eos_draw_state_t g_draw = {0};
+} cos_draw_state_t;
+static cos_draw_state_t g_draw = {0};
 
 /* 在 canvas 局部坐标画 Bresenham 线段，并触发重绘 */
-static void _eos_draw_line_local(int32_t x0, int32_t y0, int32_t x1, int32_t y1)
+static void _cos_draw_line_local(int32_t x0, int32_t y0, int32_t x1, int32_t y1)
 {
     if (!g_draw.inited || !g_draw.buf) return;
     int32_t dx = abs(x1 - x0), dy = abs(y1 - y0);
@@ -1813,7 +1813,7 @@ static void _eos_draw_line_local(int32_t x0, int32_t y0, int32_t x1, int32_t y1)
     lv_obj_invalidate(g_draw.canvas);
 }
 
-jerry_value_t sni_api_eos_draw_create(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_draw_create(const jerry_call_info_t *call_info_p,
                                       const jerry_value_t args_p[],
                                       const jerry_length_t args_cnt)
 {
@@ -1829,16 +1829,16 @@ jerry_value_t sni_api_eos_draw_create(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("draw.create: invalid size");
 
     if (g_draw.canvas) { lv_obj_del(g_draw.canvas); g_draw.canvas = NULL; }
-    if (g_draw.buf) { eos_free(g_draw.buf); g_draw.buf = NULL; }
+    if (g_draw.buf) { cos_free(g_draw.buf); g_draw.buf = NULL; }
 
-    g_draw.buf = (lv_color_t *)eos_malloc((size_t)w * (size_t)h * sizeof(lv_color_t));
+    g_draw.buf = (lv_color_t *)cos_malloc((size_t)w * (size_t)h * sizeof(lv_color_t));
     if (!g_draw.buf)
         return sni_api_throw_error("draw.create: out of memory");
 
     g_draw.canvas = lv_canvas_create(parent);
     if (!g_draw.canvas)
     {
-        eos_free(g_draw.buf); g_draw.buf = NULL;
+        cos_free(g_draw.buf); g_draw.buf = NULL;
         return sni_api_throw_error("draw.create: canvas create failed");
     }
     lv_canvas_set_buffer(g_draw.canvas, g_draw.buf, w, h, LV_COLOR_FORMAT_NATIVE);
@@ -1852,11 +1852,11 @@ jerry_value_t sni_api_eos_draw_create(const jerry_call_info_t *call_info_p,
     /* 注意：canvas 句柄不回传 JS。SNI 的 sni_tb_c2js 只给裸指针、不带 lv_obj 原型，
      * 回传后 JS 调 setPos / setStyle* / addEventCb 会 "Expected a function"。
      * 改为：C 持有 canvas（探针按 lv_canvas_class 查找），JS 把 PRESSED/PRESSING 挂在
-     * R.root 上，由 eos.draw.line 在 C 层把屏幕坐标转 canvas 局部坐标。 */
+     * R.root 上，由 cos.draw.line 在 C 层把屏幕坐标转 canvas 局部坐标。 */
     return jerry_boolean(true);
 }
 
-jerry_value_t sni_api_eos_draw_set_pen(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_draw_set_pen(const jerry_call_info_t *call_info_p,
                                        const jerry_value_t args_p[],
                                        const jerry_length_t args_cnt)
 {
@@ -1870,7 +1870,7 @@ jerry_value_t sni_api_eos_draw_set_pen(const jerry_call_info_t *call_info_p,
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_draw_line(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_draw_line(const jerry_call_info_t *call_info_p,
                                     const jerry_value_t args_p[],
                                     const jerry_length_t args_cnt)
 {
@@ -1882,11 +1882,11 @@ jerry_value_t sni_api_eos_draw_line(const jerry_call_info_t *call_info_p,
     int32_t y0 = (int32_t)jerry_value_as_integer(args_p[1]) - a.y1;
     int32_t x1 = (int32_t)jerry_value_as_integer(args_p[2]) - a.x1;
     int32_t y1 = (int32_t)jerry_value_as_integer(args_p[3]) - a.y1;
-    _eos_draw_line_local(x0, y0, x1, y1);
+    _cos_draw_line_local(x0, y0, x1, y1);
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_draw_clear(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_draw_clear(const jerry_call_info_t *call_info_p,
                                      const jerry_value_t args_p[],
                                      const jerry_length_t args_cnt)
 {
@@ -1902,7 +1902,7 @@ jerry_value_t sni_api_eos_draw_clear(const jerry_call_info_t *call_info_p,
     return jerry_undefined();
 }
 
-jerry_value_t sni_api_eos_draw_size(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_draw_size(const jerry_call_info_t *call_info_p,
                                     const jerry_value_t args_p[],
                                     const jerry_length_t args_cnt)
 {
@@ -1919,7 +1919,7 @@ jerry_value_t sni_api_eos_draw_size(const jerry_call_info_t *call_info_p,
 
 /* P0/P1a 笔刷：在 canvas 局部坐标 (x,y) 落一个像素（3×3 笔刷在 JS 侧循环调用）。
  * 直接写 g_draw.buf（与 line/clear 同缓冲），lv_obj_invalidate 触发重绘。 */
-jerry_value_t sni_api_eos_draw_set_px(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_draw_set_px(const jerry_call_info_t *call_info_p,
                                       const jerry_value_t args_p[],
                                       const jerry_length_t args_cnt)
 {
@@ -1938,7 +1938,7 @@ jerry_value_t sni_api_eos_draw_set_px(const jerry_call_info_t *call_info_p,
 }
 
 /* P0 探针回读：局部坐标 (x,y) 读回 {r,g,b}；越界返回 {0,0,0}。 */
-jerry_value_t sni_api_eos_draw_get_px(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_draw_get_px(const jerry_call_info_t *call_info_p,
                                       const jerry_value_t args_p[],
                                       const jerry_length_t args_cnt)
 {
@@ -1963,7 +1963,7 @@ jerry_value_t sni_api_eos_draw_get_px(const jerry_call_info_t *call_info_p,
     return obj;
 }
 
-jerry_value_t sni_api_eos_draw_save(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_draw_save(const jerry_call_info_t *call_info_p,
                                     const jerry_value_t args_p[],
                                     const jerry_length_t args_cnt)
 {
@@ -1982,7 +1982,7 @@ jerry_value_t sni_api_eos_draw_save(const jerry_call_info_t *call_info_p,
     if (slash && slash != dir)
     {
         *slash = '\0';
-        eos_storage_mkdir_if_not_exist(dir);
+        cos_storage_mkdir_if_not_exist(dir);
     }
 
     /* 组装 .edrw: "ELDRW1" + w(2) + h(2) + fmt(1) + buf(RGB565, 2 字节/像素)。
@@ -1991,7 +1991,7 @@ jerry_value_t sni_api_eos_draw_save(const jerry_call_info_t *call_info_p,
     uint32_t px = (uint32_t)g_draw.w * (uint32_t)g_draw.h;
     uint32_t px_bytes = px * 2U; /* RGB565 = 2 bytes/pixel */
     uint32_t total = 6 + 2 + 2 + 1 + px_bytes;
-    uint8_t *out = (uint8_t *)eos_malloc(total);
+    uint8_t *out = (uint8_t *)cos_malloc(total);
     if (!out)
         return sni_api_throw_error("draw.save: out of memory");
     uint8_t *p = out;
@@ -2010,19 +2010,19 @@ jerry_value_t sni_api_eos_draw_save(const jerry_call_info_t *call_info_p,
     }
 
     bool ok = false;
-    eos_file_t fp = eos_fs_open_write(path);
+    cos_file_t fp = cos_fs_open_write(path);
     if (fp)
     {
-        ssize_t written = eos_fs_write(fp, out, total);
-        eos_fs_close(fp);
+        ssize_t written = cos_fs_write(fp, out, total);
+        cos_fs_close(fp);
         ok = (written == (ssize_t)total);
     }
-    eos_free(out);
+    cos_free(out);
     return jerry_boolean(ok);
 }
 
 /* 回读 .edrw：解析 "ELDRW1"+w+h+fmt+RGB565，把像素写回 canvas 缓冲（RGB565 -> native） */
-jerry_value_t sni_api_eos_draw_load(const jerry_call_info_t *call_info_p,
+jerry_value_t sni_api_cos_draw_load(const jerry_call_info_t *call_info_p,
                                     const jerry_value_t args_p[],
                                     const jerry_length_t args_cnt)
 {
@@ -2033,34 +2033,34 @@ jerry_value_t sni_api_eos_draw_load(const jerry_call_info_t *call_info_p,
     if (!path)
         return sni_api_throw_error("draw.load: invalid path");
 
-    eos_file_t fp = eos_fs_open_read(path);
+    cos_file_t fp = cos_fs_open_read(path);
     if (!fp)
         return jerry_boolean(false);
 
     uint32_t fsize = 0;
-    if (eos_fs_size(fp, &fsize) != EOS_OK || fsize < 11)
+    if (cos_fs_size(fp, &fsize) != COS_OK || fsize < 11)
     {
-        eos_fs_close(fp);
+        cos_fs_close(fp);
         return jerry_boolean(false);
     }
 
-    uint8_t *raw = (uint8_t *)eos_malloc(fsize);
+    uint8_t *raw = (uint8_t *)cos_malloc(fsize);
     if (!raw)
     {
-        eos_fs_close(fp);
+        cos_fs_close(fp);
         return sni_api_throw_error("draw.load: out of memory");
     }
-    int rd = eos_fs_read(fp, raw, fsize);
-    eos_fs_close(fp);
+    int rd = cos_fs_read(fp, raw, fsize);
+    cos_fs_close(fp);
     if (rd != (int)fsize)
     {
-        eos_free(raw);
+        cos_free(raw);
         return jerry_boolean(false);
     }
 
     if (memcmp(raw, "ELDRW1", 6) != 0)          /* 魔术字 */
     {
-        eos_free(raw);
+        cos_free(raw);
         return jerry_boolean(false);
     }
     uint32_t fw = (uint32_t)raw[6] | ((uint32_t)raw[7] << 8);
@@ -2068,13 +2068,13 @@ jerry_value_t sni_api_eos_draw_load(const jerry_call_info_t *call_info_p,
     uint8_t  fmt = raw[10];
     if (fmt != 0)                                /* 仅支持 RGB565 */
     {
-        eos_free(raw);
+        cos_free(raw);
         return jerry_boolean(false);
     }
     const uint8_t *px = raw + 11;
     if ((fsize - 11) < (uint32_t)fw * (uint32_t)fh * 2U)
     {
-        eos_free(raw);
+        cos_free(raw);
         return jerry_boolean(false);
     }
 
@@ -2098,75 +2098,75 @@ jerry_value_t sni_api_eos_draw_load(const jerry_call_info_t *call_info_p,
         }
     }
     lv_obj_invalidate(g_draw.canvas);
-    eos_free(raw);
+    cos_free(raw);
     return jerry_boolean(true);
 }
 
-const sni_method_desc_t eos_class_static_methods_draw[] = {
-    {.name = "create", .handler = sni_api_eos_draw_create},
-    {.name = "setPen", .handler = sni_api_eos_draw_set_pen},
-    {.name = "line",   .handler = sni_api_eos_draw_line},
-    {.name = "clear",  .handler = sni_api_eos_draw_clear},
-    {.name = "size",   .handler = sni_api_eos_draw_size},
-    {.name = "setPx",  .handler = sni_api_eos_draw_set_px},
-    {.name = "getPx",  .handler = sni_api_eos_draw_get_px},
-    {.name = "save",   .handler = sni_api_eos_draw_save},
-    {.name = "load",   .handler = sni_api_eos_draw_load},
+const sni_method_desc_t cos_class_static_methods_draw[] = {
+    {.name = "create", .handler = sni_api_cos_draw_create},
+    {.name = "setPen", .handler = sni_api_cos_draw_set_pen},
+    {.name = "line",   .handler = sni_api_cos_draw_line},
+    {.name = "clear",  .handler = sni_api_cos_draw_clear},
+    {.name = "size",   .handler = sni_api_cos_draw_size},
+    {.name = "setPx",  .handler = sni_api_cos_draw_set_px},
+    {.name = "getPx",  .handler = sni_api_cos_draw_get_px},
+    {.name = "save",   .handler = sni_api_cos_draw_save},
+    {.name = "load",   .handler = sni_api_cos_draw_load},
     {.name = NULL, .handler = NULL},
 };
 
-const sni_class_desc_t eos_class_desc_draw = {
+const sni_class_desc_t cos_class_desc_draw = {
     .name = "draw",
     .constructor = NULL,
     .base_class = NULL,
     .methods = NULL,
     .properties = NULL,
-    .static_methods = eos_class_static_methods_draw,
+    .static_methods = cos_class_static_methods_draw,
     .constants = NULL,
 };
 
-const sni_class_desc_t *const eos_api_classes[] = {
-    &eos_class_desc_view,
-    &eos_class_desc_console,
-    &eos_class_desc_config,
-    &eos_class_desc_time,
-    &eos_class_desc_app_header,
-    &eos_class_desc_clock_hand,
-    &eos_class_desc_activity,
-    &eos_class_desc_permission,
-    &eos_class_desc_fs,      /* P0.5 相册 */
-    &eos_class_desc_app,     /* P0.5 相册 */
-    &eos_class_desc_ime,     /* 笔记: 系统键盘输入 */
-    &eos_class_desc_draw,    /* 画图: eos.draw.* */
+const sni_class_desc_t *const cos_api_classes[] = {
+    &cos_class_desc_view,
+    &cos_class_desc_console,
+    &cos_class_desc_config,
+    &cos_class_desc_time,
+    &cos_class_desc_app_header,
+    &cos_class_desc_clock_hand,
+    &cos_class_desc_activity,
+    &cos_class_desc_permission,
+    &cos_class_desc_fs,      /* P0.5 相册 */
+    &cos_class_desc_app,     /* P0.5 相册 */
+    &cos_class_desc_ime,     /* 笔记: 系统键盘输入 */
+    &cos_class_desc_draw,    /* 画图: cos.draw.* */
     NULL,
 };
 
-const sni_constant_desc_t eos_root_constants[] = {
-    {.name = "FONT_SIZE_LARGE", .type = SNI_CONST_INT, .value.i = EOS_FONT_SIZE_LARGE},
-    {.name = "FONT_SIZE_MEDIUM", .type = SNI_CONST_INT, .value.i = EOS_FONT_SIZE_MEDIUM},
-    {.name = "FONT_SIZE_SMALL", .type = SNI_CONST_INT, .value.i = EOS_FONT_SIZE_SMALL},
-    {.name = "DISPLAY_WIDTH", .type = SNI_CONST_INT, .value.i = EOS_DISPLAY_WIDTH},
-    {.name = "DISPLAY_HEIGHT", .type = SNI_CONST_INT, .value.i = EOS_DISPLAY_HEIGHT},
-    {.name = "CLOCK_HAND_HOUR", .type = SNI_CONST_INT, .value.i = EOS_CLOCK_HAND_HOUR},
-    {.name = "CLOCK_HAND_MINUTE", .type = SNI_CONST_INT, .value.i = EOS_CLOCK_HAND_MINUTE},
-    {.name = "CLOCK_HAND_SECOND", .type = SNI_CONST_INT, .value.i = EOS_CLOCK_HAND_SECOND},
-    {.name = "ACTIVITY_TYPE_NULL", .type = SNI_CONST_INT, .value.i = EOS_ACTIVITY_TYPE_NULL},
-    {.name = "ACTIVITY_TYPE_APP", .type = SNI_CONST_INT, .value.i = EOS_ACTIVITY_TYPE_APP},
-    {.name = "ACTIVITY_TYPE_APP_LIST", .type = SNI_CONST_INT, .value.i = EOS_ACTIVITY_TYPE_APP_LIST},
-    {.name = "ACTIVITY_TYPE_WATCHFACE", .type = SNI_CONST_INT, .value.i = EOS_ACTIVITY_TYPE_WATCHFACE},
-    {.name = "ACTIVITY_TYPE_WATCHFACE_LIST", .type = SNI_CONST_INT, .value.i = EOS_ACTIVITY_TYPE_WATCHFACE_LIST},
+const sni_constant_desc_t cos_root_constants[] = {
+    {.name = "FONT_SIZE_LARGE", .type = SNI_CONST_INT, .value.i = COS_FONT_SIZE_LARGE},
+    {.name = "FONT_SIZE_MEDIUM", .type = SNI_CONST_INT, .value.i = COS_FONT_SIZE_MEDIUM},
+    {.name = "FONT_SIZE_SMALL", .type = SNI_CONST_INT, .value.i = COS_FONT_SIZE_SMALL},
+    {.name = "DISPLAY_WIDTH", .type = SNI_CONST_INT, .value.i = COS_DISPLAY_WIDTH},
+    {.name = "DISPLAY_HEIGHT", .type = SNI_CONST_INT, .value.i = COS_DISPLAY_HEIGHT},
+    {.name = "CLOCK_HAND_HOUR", .type = SNI_CONST_INT, .value.i = COS_CLOCK_HAND_HOUR},
+    {.name = "CLOCK_HAND_MINUTE", .type = SNI_CONST_INT, .value.i = COS_CLOCK_HAND_MINUTE},
+    {.name = "CLOCK_HAND_SECOND", .type = SNI_CONST_INT, .value.i = COS_CLOCK_HAND_SECOND},
+    {.name = "ACTIVITY_TYPE_NULL", .type = SNI_CONST_INT, .value.i = COS_ACTIVITY_TYPE_NULL},
+    {.name = "ACTIVITY_TYPE_APP", .type = SNI_CONST_INT, .value.i = COS_ACTIVITY_TYPE_APP},
+    {.name = "ACTIVITY_TYPE_APP_LIST", .type = SNI_CONST_INT, .value.i = COS_ACTIVITY_TYPE_APP_LIST},
+    {.name = "ACTIVITY_TYPE_WATCHFACE", .type = SNI_CONST_INT, .value.i = COS_ACTIVITY_TYPE_WATCHFACE},
+    {.name = "ACTIVITY_TYPE_WATCHFACE_LIST", .type = SNI_CONST_INT, .value.i = COS_ACTIVITY_TYPE_WATCHFACE_LIST},
     {.name = NULL, .type = SNI_CONST_INT, .value.i = 0},
 };
 
-/* Root-level methods on the `eos` object (e.g. eos.roundClip(view)).
+/* Root-level methods on the `cos` object (e.g. cos.roundClip(view)).
  * sni_register_methods is file-static in sni_api_export.c and not reusable,
  * so we mirror ui_register_methods here. */
-static const sni_method_desc_t eos_root_static_methods[] = {
-    {.name = "roundClip", .handler = sni_api_eos_round_clip},
+static const sni_method_desc_t cos_root_static_methods[] = {
+    {.name = "roundClip", .handler = sni_api_cos_round_clip},
     {.name = NULL, .handler = NULL},
 };
 
-static void sni_api_eos_register_methods(const sni_method_desc_t *methods, jerry_value_t target)
+static void sni_api_cos_register_methods(const sni_method_desc_t *methods, jerry_value_t target)
 {
     if (!methods)
         return;
@@ -2184,26 +2184,26 @@ static void sni_api_eos_register_methods(const sni_method_desc_t *methods, jerry
     }
 }
 
-void sni_api_eos_init(void)
+void sni_api_cos_init(void)
 {
-    eos_api_obj = sni_api_build(eos_api_classes);
-    if (!jerry_value_is_object(eos_api_obj))
+    cos_api_obj = sni_api_build(cos_api_classes);
+    if (!jerry_value_is_object(cos_api_obj))
     {
-        EOS_LOG_E("Failed to build ElenixOS API object");
+        COS_LOG_E("Failed to build CantoMk6 API object");
         return;
     }
-    if (!sni_api_register_constants(eos_root_constants, eos_api_obj))
+    if (!sni_api_register_constants(cos_root_constants, cos_api_obj))
     {
-        EOS_LOG_E("Failed to register ElenixOS API constants");
+        COS_LOG_E("Failed to register CantoMk6 API constants");
     }
-    sni_api_eos_register_methods(eos_root_static_methods, eos_api_obj);
+    sni_api_cos_register_methods(cos_root_static_methods, cos_api_obj);
 }
 
-void sni_api_eos_mount(jerry_value_t realm)
+void sni_api_cos_mount(jerry_value_t realm)
 {
-    bool result = sni_api_mount(realm, eos_api_obj, EOS_API_NAME);
+    bool result = sni_api_mount(realm, cos_api_obj, COS_API_NAME);
     if (!result)
     {
-        EOS_LOG_E("Failed to mount ElenixOS API");
+        COS_LOG_E("Failed to mount CantoMk6 API");
     }
 }

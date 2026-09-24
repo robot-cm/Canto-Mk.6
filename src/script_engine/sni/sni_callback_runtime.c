@@ -8,16 +8,16 @@
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
-#define EOS_LOG_TAG "SNI Callback Runtime"
-#include "eos_mem.h"
-#include "eos_log.h"
+#define COS_LOG_TAG "SNI Callback Runtime"
+#include "cos_mem.h"
+#include "cos_log.h"
 #include "sni_api_export.h"
 #include "sni_type_bridge.h"
 #include "sni_types.h"
 #include "sni_context.h"
 #include "script_engine_core.h"
 #include "spm.h"
-#include "eos_dispatcher.h"
+#include "cos_dispatcher.h"
 #include "lvgl/src/misc/lv_timer_private.h"
 
 /* Macros and Definitions -------------------------------------*/
@@ -34,7 +34,7 @@ static inline void sni_cb_safe_jerry_value_free(jerry_value_t *value)
 
     if (script_engine_get_state() == SCRIPT_ENGINE_STATE_UNINITIALIZED)
     {
-        EOS_LOG_W("Skip jerry_value_free: engine not initialized");
+        COS_LOG_W("Skip jerry_value_free: engine not initialized");
         *value = jerry_undefined();
         return;
     }
@@ -143,7 +143,7 @@ static void sni_cb_event_free_ctx(sni_event_callback_ctx_t *ctx)
     sni_cb_safe_jerry_value_free(&ctx->js_cb);
     sni_cb_safe_jerry_value_free(&ctx->js_user_data);
 
-    eos_free(ctx);
+    cos_free(ctx);
 }
 
 void sni_cb_event_cleanup_by_obj(sni_context_t *ctx, lv_obj_t *obj)
@@ -199,7 +199,7 @@ static void sni_cb_event_dispatch(lv_event_t *e)
 
     if (jerry_value_is_error(ret) || jerry_value_is_exception(ret))
     {
-        EOS_LOG_E("Event callback encounter an error");
+        COS_LOG_E("Event callback encounter an error");
     }
 
     jerry_value_free(ret);
@@ -263,13 +263,13 @@ static void sni_cb_timer_dispatch(lv_timer_t *t)
 
     if (!ctx->owner_ctx || !ctx->owner_ctx->owner)
     {
-        EOS_LOG_W("Timer dispatch skipped: owner context or program is NULL");
+        COS_LOG_W("Timer dispatch skipped: owner context or program is NULL");
         return;
     }
 
     if (ctx->owner_ctx->owner->state != SCRIPT_PROGRAM_STATE_ACTIVE)
     {
-        EOS_LOG_W("Timer dispatch skipped: program not active (state=%d)", ctx->owner_ctx->owner->state);
+        COS_LOG_W("Timer dispatch skipped: program not active (state=%d)", ctx->owner_ctx->owner->state);
         return;
     }
 
@@ -280,7 +280,7 @@ static void sni_cb_timer_dispatch(lv_timer_t *t)
 
     if (jerry_value_is_error(ret) || jerry_value_is_exception(ret))
     {
-        EOS_LOG_E("Timer callback encountered an error");
+        COS_LOG_E("Timer callback encountered an error");
     }
 
     jerry_value_free(ret);
@@ -309,7 +309,7 @@ bool sni_cb_event_add(lv_obj_t *obj,
         return false;
     }
 
-    sni_event_callback_ctx_t *ctx = eos_malloc_zeroed(sizeof(sni_event_callback_ctx_t));
+    sni_event_callback_ctx_t *ctx = cos_malloc_zeroed(sizeof(sni_event_callback_ctx_t));
     if (!ctx)
     {
         return false;
@@ -326,7 +326,7 @@ bool sni_cb_event_add(lv_obj_t *obj,
     {
         jerry_value_free(ctx->js_cb);
         jerry_value_free(ctx->js_user_data);
-        eos_free(ctx);
+        cos_free(ctx);
         return false;
     }
 
@@ -438,7 +438,7 @@ bool sni_cb_timer_create(jerry_value_t js_cb, uint32_t period, lv_timer_t **out_
         return false;
     }
 
-    sni_timer_callback_ctx_t *ctx = eos_malloc_zeroed(sizeof(sni_timer_callback_ctx_t));
+    sni_timer_callback_ctx_t *ctx = cos_malloc_zeroed(sizeof(sni_timer_callback_ctx_t));
     if (!ctx)
     {
         return false;
@@ -453,7 +453,7 @@ bool sni_cb_timer_create(jerry_value_t js_cb, uint32_t period, lv_timer_t **out_
     if (!timer)
     {
         sni_cb_safe_jerry_value_free(&ctx->js_cb);
-        eos_free(ctx);
+        cos_free(ctx);
         return false;
     }
 
@@ -577,13 +577,13 @@ static void sni_cb_anim_call_void_slot(sni_anim_callback_ctx_t *ctx, sni_anim_cb
 
     if (!ctx->owner_ctx || !ctx->owner_ctx->owner)
     {
-        EOS_LOG_W("Anim dispatch skipped: owner context or program is NULL");
+        COS_LOG_W("Anim dispatch skipped: owner context or program is NULL");
         return;
     }
 
     if (ctx->owner_ctx->owner->state != SCRIPT_PROGRAM_STATE_ACTIVE)
     {
-        EOS_LOG_W("Anim dispatch skipped: program not active (state=%d)", ctx->owner_ctx->owner->state);
+        COS_LOG_W("Anim dispatch skipped: program not active (state=%d)", ctx->owner_ctx->owner->state);
         return;
     }
 
@@ -593,7 +593,7 @@ static void sni_cb_anim_call_void_slot(sni_anim_callback_ctx_t *ctx, sni_anim_cb
 
     if (jerry_value_is_error(ret) || jerry_value_is_exception(ret))
     {
-        EOS_LOG_E("Anim callback encountered an error");
+        COS_LOG_E("Anim callback encountered an error");
     }
 
     jerry_value_free(ret);
@@ -620,7 +620,7 @@ static void sni_cb_anim_custom_exec_dispatch(lv_anim_t *var, int32_t value)
 
     if (ctx->owner_ctx->owner->state != SCRIPT_PROGRAM_STATE_ACTIVE)
     {
-        EOS_LOG_W("Anim custom exec dispatch skipped: program not active (state=%d)", ctx->owner_ctx->owner->state);
+        COS_LOG_W("Anim custom exec dispatch skipped: program not active (state=%d)", ctx->owner_ctx->owner->state);
         return;
     }
 
@@ -632,7 +632,7 @@ static void sni_cb_anim_custom_exec_dispatch(lv_anim_t *var, int32_t value)
 
     if (jerry_value_is_error(ret) || jerry_value_is_exception(ret))
     {
-        EOS_LOG_E("Anim custom_exec callback encountered an error");
+        COS_LOG_E("Anim custom_exec callback encountered an error");
     }
 
     jerry_value_free(ret);
@@ -695,7 +695,7 @@ static int32_t sni_cb_anim_call_int_slot(sni_anim_callback_ctx_t *ctx, sni_anim_
 
     if (ctx->owner_ctx->owner->state != SCRIPT_PROGRAM_STATE_ACTIVE)
     {
-        EOS_LOG_W("Anim int callback skipped: program not active (state=%d)", ctx->owner_ctx->owner->state);
+        COS_LOG_W("Anim int callback skipped: program not active (state=%d)", ctx->owner_ctx->owner->state);
         return fallback;
     }
 
@@ -706,7 +706,7 @@ static int32_t sni_cb_anim_call_int_slot(sni_anim_callback_ctx_t *ctx, sni_anim_
 
     if (jerry_value_is_error(ret) || jerry_value_is_exception(ret))
     {
-        EOS_LOG_E("Anim callback encountered an error");
+        COS_LOG_E("Anim callback encountered an error");
     }
     else if (jerry_value_is_number(ret))
     {
@@ -773,7 +773,7 @@ void sni_cb_context_cleanup_events(sni_context_t *ctx)
         sni_cb_safe_jerry_value_free(&event_ctx->js_cb);
         sni_cb_safe_jerry_value_free(&event_ctx->js_user_data);
 
-        eos_free(event_ctx);
+        cos_free(event_ctx);
         event_ctx = next;
     }
 }
@@ -785,7 +785,7 @@ bool sni_cb_anim_create(sni_anim_callback_ctx_t **out_ctx)
         return false;
     }
 
-    sni_anim_callback_ctx_t *ctx = eos_malloc_zeroed(sizeof(sni_anim_callback_ctx_t));
+    sni_anim_callback_ctx_t *ctx = cos_malloc_zeroed(sizeof(sni_anim_callback_ctx_t));
     if (!ctx)
     {
         return false;

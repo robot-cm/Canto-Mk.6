@@ -1,5 +1,5 @@
 /**
- * @file eos_usb_msc_board.h
+ * @file cos_usb_msc_board.h
  * @brief USB MSC App 所使用的"板级能力"接口(由 port/esp32s3/main/main.c 实现)
  *
  * 架构说明(AGENTS.md 第3节:Core 稳定 / 硬件放 port):
@@ -10,8 +10,8 @@
  *
  * 与现有代码的关系:全部为"新增"接口,不修改任何现有 App / 电源管理逻辑。
  */
-#ifndef EOS_USB_MSC_BOARD_H
-#define EOS_USB_MSC_BOARD_H
+#ifndef COS_USB_MSC_BOARD_H
+#define COS_USB_MSC_BOARD_H
 
 #include <stdbool.h>
 #include "esp_err.h"
@@ -69,4 +69,4 @@ bool board_pm_usb_msc_is_held(void);
 }
 #endif
 
-#endif /* EOS_USB_MSC_BOARD_H */
+#endif /* COS_USB_MSC_BOARD_H */

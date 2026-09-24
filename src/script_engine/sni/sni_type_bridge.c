@@ -23,13 +23,13 @@
 #include "lvgl.h"
 #include "sni_types.h"
 #include "sni_context.h"
-#include "eos_mem.h"
+#include "cos_mem.h"
 #include "script_engine_core.h"
 #include "jerryscript.h"
 #include "sni_lv_types.h"
 #include "sni_callback_runtime.h"
-#define EOS_LOG_TAG "SNI-Bridge"
-#include "eos_log.h"
+#define COS_LOG_TAG "SNI-Bridge"
+#include "cos_log.h"
 
 /* Macros and Definitions -------------------------------------*/
 
@@ -153,7 +153,7 @@ static void *sni_node_from_native(void *ptr, sni_type_t type)
         {
             lv_obj_remove_event_cb((lv_obj_t *)ptr, sni_obj_deleted_cb);
             lv_obj_set_user_data((lv_obj_t *)ptr, NULL);
-            eos_free(cb);
+            cos_free(cb);
             return NULL;
         }
         return cb;
@@ -216,7 +216,7 @@ static void sni_obj_deleted_cb(lv_event_t *e)
     {
         cb->ptr = NULL;
         lv_obj_set_user_data(obj, NULL);
-        eos_free(cb);
+        cos_free(cb);
         return;
     }
 
@@ -312,7 +312,7 @@ static void sni_control_block_free_cb(void *native_p, struct jerry_object_native
         cb->js_obj = jerry_undefined();
     }
 
-    eos_free(cb);
+    cos_free(cb);
 }
 
 static void sni_resource_node_free_cb(void *native_p, struct jerry_object_native_info_t *info_p)
@@ -334,7 +334,7 @@ static void sni_resource_node_free_cb(void *native_p, struct jerry_object_native
         node->js_obj = jerry_undefined();
     }
 
-    eos_free(node);
+    cos_free(node);
 }
 
 /************************** Type bridge functions **************************/
@@ -348,7 +348,7 @@ const char *sni_tb_js2c_string(jerry_value_t js_val)
 
     jerry_size_t str_len = jerry_string_size(js_val, JERRY_ENCODING_UTF8);
 
-    char *string = eos_malloc(str_len + 1);
+    char *string = cos_malloc(str_len + 1);
     if (!string)
     {
         return NULL;
@@ -714,7 +714,7 @@ jerry_value_t sni_tb_c2js(void *c_val, sni_type_t type)
 
         if (SNI_TYPE_IS_TREE_NODE(type))
         {
-            sni_control_block_t *new_cb = eos_malloc_zeroed(sizeof(sni_control_block_t));
+            sni_control_block_t *new_cb = cos_malloc_zeroed(sizeof(sni_control_block_t));
             if (!new_cb)
             {
                 jerry_value_free(js_obj);
@@ -839,7 +839,7 @@ bool sni_tb_c2js_set_object(void *c_val, sni_type_t type, jerry_value_t js_obj)
 
         if (SNI_TYPE_IS_TREE_NODE(type))
         {
-            sni_control_block_t *new_cb = eos_malloc_zeroed(sizeof(sni_control_block_t));
+            sni_control_block_t *new_cb = cos_malloc_zeroed(sizeof(sni_control_block_t));
             if (!new_cb)
             {
                 return false;
@@ -1017,10 +1017,10 @@ char *sni_tb_utf8_sanitize_dup(const char *in)
     }
     if (!need)
     {
-        /* 用 eos 分配器复制,与调用方 eos_free 释放契约一致。
-         * 此前用 libc strdup → eos_free 识别为 foreign 拒绝释放 → 每次
+        /* 用 cos 分配器复制,与调用方 cos_free 释放契约一致。
+         * 此前用 libc strdup → cos_free 识别为 foreign 拒绝释放 → 每次
          * C→JS 字符串转换都泄漏一份 (internal RAM 持续下降)。 */
-        char *dup = (char *)eos_malloc_core(in_len + 1);
+        char *dup = (char *)cos_malloc_core(in_len + 1);
         if (dup)
         {
             memcpy(dup, in, in_len + 1);
@@ -1029,7 +1029,7 @@ char *sni_tb_utf8_sanitize_dup(const char *in)
     }
 
     /* 最坏情况: 每字节都替换为 U+FFFD(3 字节) */
-    char *out = (char *)eos_malloc_core(in_len * 3 + 1);
+    char *out = (char *)cos_malloc_core(in_len * 3 + 1);
     if (!out)
     {
         return NULL;
@@ -1146,7 +1146,7 @@ jerry_value_t sni_tb_c2js_string_safe(const char *s)
     if (clean)
     {
         jerry_value_t v = jerry_string_sz(clean);
-        eos_free(clean);
+        cos_free(clean);
         return v;
     }
 

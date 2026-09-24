@@ -1,5 +1,5 @@
 /**
- * @file eos_net_proxy.c
+ * @file cos_net_proxy.c
  * @brief SOCKS5 client implementation (Core system service).
  *
  * Implements the SOCKS5 protocol client side:
@@ -7,24 +7,24 @@
  *   - optional username/password auth (RFC 1929)
  *   - CONNECT request (IPv4 / domain name) and reply parsing
  *
- * The transport is abstracted by eos_net_sock (sim backend = loopback
+ * The transport is abstracted by cos_net_sock (sim backend = loopback
  * SOCKS5 server, so the handshake is fully verifiable on PC). The protocol
  * logic here is platform-agnostic and identical on real hardware.
  */
 
-#include "eos_net_proxy.h"
-#include "eos_net_sock.h"
-#include "eos_service_config.h"
-#include "eos_error.h"
-#include "eos_log.h"
-#include "eos_mem.h"
+#include "cos_net_proxy.h"
+#include "cos_net_sock.h"
+#include "cos_service_config.h"
+#include "cos_error.h"
+#include "cos_log.h"
+#include "cos_mem.h"
 
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
 
-#define EOS_NET_PROXY_LOG_TAG "SOCKS5"
+#define COS_NET_PROXY_LOG_TAG "SOCKS5"
 
 /* Config keys (proxy.*) */
 #define K_ENABLED  "proxy.enabled"
@@ -45,7 +45,7 @@ static uint16_t                 g_port = 1080;
 static char                     g_user[USER_MAX] = {0};
 static char                     g_pass[PASS_MAX] = {0};
 static bool                     g_auth = false;
-static eos_net_proxy_status_t   g_status = EOS_NET_PROXY_DISABLED;
+static cos_net_proxy_status_t   g_status = COS_NET_PROXY_DISABLED;
 static int                      g_tunnels = 0;
 
 /* SOCKS5 protocol helpers -------------------------------------*/
@@ -65,12 +65,12 @@ static size_t build_greeting(uint8_t *buf, bool with_auth)
     return 3;
 }
 
-static eos_result_t parse_method(const uint8_t *buf, size_t len, uint8_t *method)
+static cos_result_t parse_method(const uint8_t *buf, size_t len, uint8_t *method)
 {
     if (len < 2 || buf[0] != 0x05)
-        return EOS_ERR_NET_PROTOCOL;
+        return COS_ERR_NET_PROTOCOL;
     *method = buf[1];
-    return EOS_OK;
+    return COS_OK;
 }
 
 static size_t build_auth(uint8_t *buf, const char *user, const char *pass)
@@ -87,12 +87,12 @@ static size_t build_auth(uint8_t *buf, const char *user, const char *pass)
     return 3 + ulen + plen;
 }
 
-static eos_result_t parse_auth_status(const uint8_t *buf, size_t len, bool *ok)
+static cos_result_t parse_auth_status(const uint8_t *buf, size_t len, bool *ok)
 {
     if (len < 2 || buf[0] != 0x01)
-        return EOS_ERR_NET_PROTOCOL;
+        return COS_ERR_NET_PROTOCOL;
     *ok = (buf[1] == 0x00);
-    return EOS_OK;
+    return COS_OK;
 }
 
 static bool parse_ipv4(const char *s, uint8_t out[4])
@@ -152,80 +152,80 @@ static size_t build_connect(uint8_t *buf, const char *host, uint16_t port)
     return pos;
 }
 
-static eos_result_t parse_connect_reply(const uint8_t *buf, size_t len, uint8_t *rep)
+static cos_result_t parse_connect_reply(const uint8_t *buf, size_t len, uint8_t *rep)
 {
     if (len < 2 || buf[0] != 0x05)
-        return EOS_ERR_NET_PROTOCOL;
+        return COS_ERR_NET_PROTOCOL;
     *rep = buf[1];
-    return EOS_OK;
+    return COS_OK;
 }
 
 /* Tunnel type -------------------------------------------------*/
-struct eos_net_proxy_tunnel_t
+struct cos_net_proxy_tunnel_t
 {
-    eos_net_sock_t *sock;
+    cos_net_sock_t *sock;
     char target[256];
     uint16_t target_port;
 };
 
 /* Lifecycle ---------------------------------------------------*/
-void eos_net_proxy_init(void)
+void cos_net_proxy_init(void)
 {
-    g_enabled = eos_config_get_bool(K_ENABLED, false);
+    g_enabled = cos_config_get_bool(K_ENABLED, false);
 
-    char *h = eos_config_get_string(K_HOST, "");
+    char *h = cos_config_get_string(K_HOST, "");
     if (h)
     {
         strncpy(g_host, h, HOST_MAX - 1);
-        eos_free(h);
+        cos_free(h);
     }
-    g_port = (uint16_t)eos_config_get_number(K_PORT, 1080);
+    g_port = (uint16_t)cos_config_get_number(K_PORT, 1080);
 
-    char *u = eos_config_get_string(K_USER, "");
+    char *u = cos_config_get_string(K_USER, "");
     if (u)
     {
         strncpy(g_user, u, USER_MAX - 1);
-        eos_free(u);
+        cos_free(u);
     }
-    char *p = eos_config_get_string(K_PASS, "");
+    char *p = cos_config_get_string(K_PASS, "");
     if (p)
     {
         strncpy(g_pass, p, PASS_MAX - 1);
-        eos_free(p);
+        cos_free(p);
     }
 
     g_auth = (g_user[0] != '\0');
     g_tunnels = 0;
-    g_status = g_enabled ? EOS_NET_PROXY_IDLE : EOS_NET_PROXY_DISABLED;
+    g_status = g_enabled ? COS_NET_PROXY_IDLE : COS_NET_PROXY_DISABLED;
 
-    EOS_LOG_I("[%s] init: enabled=%d server=%s:%u auth=%d",
-              EOS_NET_PROXY_LOG_TAG, g_enabled, g_host, g_port, g_auth);
+    COS_LOG_I("[%s] init: enabled=%d server=%s:%u auth=%d",
+              COS_NET_PROXY_LOG_TAG, g_enabled, g_host, g_port, g_auth);
 }
 
 /* Configuration -----------------------------------------------*/
-bool eos_net_proxy_is_enabled(void) { return g_enabled; }
+bool cos_net_proxy_is_enabled(void) { return g_enabled; }
 
-eos_result_t eos_net_proxy_set_enabled(bool enabled)
+cos_result_t cos_net_proxy_set_enabled(bool enabled)
 {
     g_enabled = enabled;
-    g_status = enabled ? EOS_NET_PROXY_IDLE : EOS_NET_PROXY_DISABLED;
-    return eos_config_set_bool(K_ENABLED, enabled);
+    g_status = enabled ? COS_NET_PROXY_IDLE : COS_NET_PROXY_DISABLED;
+    return cos_config_set_bool(K_ENABLED, enabled);
 }
 
-eos_result_t eos_net_proxy_set_server(const char *host, uint16_t port)
+cos_result_t cos_net_proxy_set_server(const char *host, uint16_t port)
 {
     if (!host)
-        return EOS_ERR_VAR_NULL;
+        return COS_ERR_VAR_NULL;
     strncpy(g_host, host, HOST_MAX - 1);
     g_host[HOST_MAX - 1] = '\0';
     g_port = port;
-    eos_result_t r = eos_config_set_string(K_HOST, g_host);
-    if (r == EOS_OK)
-        r = eos_config_set_number(K_PORT, g_port);
+    cos_result_t r = cos_config_set_string(K_HOST, g_host);
+    if (r == COS_OK)
+        r = cos_config_set_number(K_PORT, g_port);
     return r;
 }
 
-eos_result_t eos_net_proxy_set_credentials(const char *user, const char *pass)
+cos_result_t cos_net_proxy_set_credentials(const char *user, const char *pass)
 {
     if (user)
     {
@@ -238,32 +238,32 @@ eos_result_t eos_net_proxy_set_credentials(const char *user, const char *pass)
         g_pass[PASS_MAX - 1] = '\0';
     }
     g_auth = (g_user[0] != '\0');
-    eos_result_t r = eos_config_set_string(K_USER, g_user);
-    if (r == EOS_OK)
-        r = eos_config_set_string_silent(K_PASS, g_pass); /* never log password */
+    cos_result_t r = cos_config_set_string(K_USER, g_user);
+    if (r == COS_OK)
+        r = cos_config_set_string_silent(K_PASS, g_pass); /* never log password */
     return r;
 }
 
-eos_result_t eos_net_proxy_save(void)
+cos_result_t cos_net_proxy_save(void)
 {
-    eos_result_t r = eos_config_set_bool(K_ENABLED, g_enabled);
-    if (r == EOS_OK) r = eos_config_set_string(K_HOST, g_host);
-    if (r == EOS_OK) r = eos_config_set_number(K_PORT, g_port);
-    if (r == EOS_OK) r = eos_config_set_string(K_USER, g_user);
-    if (r == EOS_OK) r = eos_config_set_string_silent(K_PASS, g_pass);
+    cos_result_t r = cos_config_set_bool(K_ENABLED, g_enabled);
+    if (r == COS_OK) r = cos_config_set_string(K_HOST, g_host);
+    if (r == COS_OK) r = cos_config_set_number(K_PORT, g_port);
+    if (r == COS_OK) r = cos_config_set_string(K_USER, g_user);
+    if (r == COS_OK) r = cos_config_set_string_silent(K_PASS, g_pass);
     return r;
 }
 
 /* Status / accessors ------------------------------------------*/
-eos_net_proxy_status_t eos_net_proxy_status(void) { return g_status; }
+cos_net_proxy_status_t cos_net_proxy_status(void) { return g_status; }
 
-bool eos_net_proxy_auth_configured(void) { return g_auth; }
+bool cos_net_proxy_auth_configured(void) { return g_auth; }
 
-const char *eos_net_proxy_host(void) { return g_host; }
+const char *cos_net_proxy_host(void) { return g_host; }
 
-uint16_t eos_net_proxy_port(void) { return g_port; }
+uint16_t cos_net_proxy_port(void) { return g_port; }
 
-const char *eos_net_proxy_server_str(char *buf, size_t buflen)
+const char *cos_net_proxy_server_str(char *buf, size_t buflen)
 {
     if (!buf || buflen == 0)
         return "";
@@ -277,38 +277,38 @@ const char *eos_net_proxy_server_str(char *buf, size_t buflen)
     return buf;
 }
 
-const char *eos_net_proxy_status_str(eos_net_proxy_status_t s)
+const char *cos_net_proxy_status_str(cos_net_proxy_status_t s)
 {
     switch (s)
     {
-        case EOS_NET_PROXY_DISABLED:   return "disabled";
-        case EOS_NET_PROXY_IDLE:       return "idle";
-        case EOS_NET_PROXY_CONNECTING: return "connecting";
-        case EOS_NET_PROXY_CONNECTED:  return "connected";
-        case EOS_NET_PROXY_ERROR:      return "error";
+        case COS_NET_PROXY_DISABLED:   return "disabled";
+        case COS_NET_PROXY_IDLE:       return "idle";
+        case COS_NET_PROXY_CONNECTING: return "connecting";
+        case COS_NET_PROXY_CONNECTED:  return "connected";
+        case COS_NET_PROXY_ERROR:      return "error";
         default:                       return "?";
     }
 }
 
 /* Dial --------------------------------------------------------*/
-eos_result_t eos_net_proxy_dial(const char *target_host, uint16_t target_port,
-                                eos_net_proxy_tunnel_t **out)
+cos_result_t cos_net_proxy_dial(const char *target_host, uint16_t target_port,
+                                cos_net_proxy_tunnel_t **out)
 {
     if (!target_host || !out)
-        return EOS_ERR_VAR_NULL;
+        return COS_ERR_VAR_NULL;
     if (g_host[0] == '\0')
     {
-        g_status = EOS_NET_PROXY_ERROR;
-        return EOS_ERR_NET_NOT_CONFIGURED;
+        g_status = COS_NET_PROXY_ERROR;
+        return COS_ERR_NET_NOT_CONFIGURED;
     }
 
-    g_status = EOS_NET_PROXY_CONNECTING;
+    g_status = COS_NET_PROXY_CONNECTING;
 
-    eos_net_sock_t *sock = NULL;
-    eos_result_t r = eos_net_sock_connect(g_host, g_port, &sock);
-    if (r != EOS_OK)
+    cos_net_sock_t *sock = NULL;
+    cos_result_t r = cos_net_sock_connect(g_host, g_port, &sock);
+    if (r != COS_OK)
     {
-        g_status = EOS_NET_PROXY_ERROR;
+        g_status = COS_NET_PROXY_ERROR;
         return r;
     }
 
@@ -318,60 +318,60 @@ eos_result_t eos_net_proxy_dial(const char *target_host, uint16_t target_port,
 
     /* 1) greeting */
     len = build_greeting(buf, g_auth);
-    eos_net_sock_send(sock, buf, len);
+    cos_net_sock_send(sock, buf, len);
     len = 0;
-    eos_net_sock_recv(sock, buf, sizeof(buf), &len);
+    cos_net_sock_recv(sock, buf, sizeof(buf), &len);
     r = parse_method(buf, len, &method);
-    if (r != EOS_OK)
+    if (r != COS_OK)
     {
-        eos_net_sock_close(sock);
-        g_status = EOS_NET_PROXY_ERROR;
+        cos_net_sock_close(sock);
+        g_status = COS_NET_PROXY_ERROR;
         return r;
     }
     if (method == 0xFF)
     {
-        eos_net_sock_close(sock);
-        g_status = EOS_NET_PROXY_ERROR;
-        return EOS_ERR_NET_HANDSHAKE; /* no acceptable method */
+        cos_net_sock_close(sock);
+        g_status = COS_NET_PROXY_ERROR;
+        return COS_ERR_NET_HANDSHAKE; /* no acceptable method */
     }
 
     /* 2) optional username/password auth */
     if (method == 0x02)
     {
         len = build_auth(buf, g_user, g_pass);
-        eos_net_sock_send(sock, buf, len);
+        cos_net_sock_send(sock, buf, len);
         len = 0;
-        eos_net_sock_recv(sock, buf, sizeof(buf), &len);
+        cos_net_sock_recv(sock, buf, sizeof(buf), &len);
         bool ok = false;
         r = parse_auth_status(buf, len, &ok);
-        if (r != EOS_OK || !ok)
+        if (r != COS_OK || !ok)
         {
-            eos_net_sock_close(sock);
-            g_status = EOS_NET_PROXY_ERROR;
-            return (r != EOS_OK) ? r : EOS_ERR_NET_HANDSHAKE;
+            cos_net_sock_close(sock);
+            g_status = COS_NET_PROXY_ERROR;
+            return (r != COS_OK) ? r : COS_ERR_NET_HANDSHAKE;
         }
     }
 
     /* 3) CONNECT */
     len = build_connect(buf, target_host, target_port);
-    eos_net_sock_send(sock, buf, len);
+    cos_net_sock_send(sock, buf, len);
     len = 0;
-    eos_net_sock_recv(sock, buf, sizeof(buf), &len);
+    cos_net_sock_recv(sock, buf, sizeof(buf), &len);
     uint8_t rep = 0;
     r = parse_connect_reply(buf, len, &rep);
-    if (r != EOS_OK || rep != 0x00)
+    if (r != COS_OK || rep != 0x00)
     {
-        eos_net_sock_close(sock);
-        g_status = EOS_NET_PROXY_ERROR;
-        return (r != EOS_OK) ? r : EOS_ERR_NET_HANDSHAKE;
+        cos_net_sock_close(sock);
+        g_status = COS_NET_PROXY_ERROR;
+        return (r != COS_OK) ? r : COS_ERR_NET_HANDSHAKE;
     }
 
-    eos_net_proxy_tunnel_t *t = (eos_net_proxy_tunnel_t *)eos_malloc(sizeof(*t));
+    cos_net_proxy_tunnel_t *t = (cos_net_proxy_tunnel_t *)cos_malloc(sizeof(*t));
     if (!t)
     {
-        eos_net_sock_close(sock);
-        g_status = EOS_NET_PROXY_ERROR;
-        return EOS_ERR_MEM;
+        cos_net_sock_close(sock);
+        g_status = COS_NET_PROXY_ERROR;
+        return COS_ERR_MEM;
     }
     memset(t, 0, sizeof(*t));
     t->sock = sock;
@@ -379,36 +379,36 @@ eos_result_t eos_net_proxy_dial(const char *target_host, uint16_t target_port,
     t->target_port = target_port;
 
     g_tunnels++;
-    g_status = EOS_NET_PROXY_CONNECTED;
+    g_status = COS_NET_PROXY_CONNECTED;
     *out = t;
-    return EOS_OK;
+    return COS_OK;
 }
 
-eos_result_t eos_net_proxy_tunnel_send(eos_net_proxy_tunnel_t *t,
+cos_result_t cos_net_proxy_tunnel_send(cos_net_proxy_tunnel_t *t,
                                        const uint8_t *data, size_t len)
 {
     if (!t || !t->sock || !data)
-        return EOS_ERR_VAR_NULL;
-    return eos_net_sock_send(t->sock, data, len);
+        return COS_ERR_VAR_NULL;
+    return cos_net_sock_send(t->sock, data, len);
 }
 
-eos_result_t eos_net_proxy_tunnel_recv(eos_net_proxy_tunnel_t *t,
+cos_result_t cos_net_proxy_tunnel_recv(cos_net_proxy_tunnel_t *t,
                                        uint8_t *buf, size_t buflen, size_t *out_len)
 {
     if (!t || !t->sock || !buf || !out_len)
-        return EOS_ERR_VAR_NULL;
-    return eos_net_sock_recv(t->sock, buf, buflen, out_len);
+        return COS_ERR_VAR_NULL;
+    return cos_net_sock_recv(t->sock, buf, buflen, out_len);
 }
 
-void eos_net_proxy_tunnel_close(eos_net_proxy_tunnel_t *t)
+void cos_net_proxy_tunnel_close(cos_net_proxy_tunnel_t *t)
 {
     if (!t)
         return;
     if (t->sock)
-        eos_net_sock_close(t->sock);
-    eos_free(t);
+        cos_net_sock_close(t->sock);
+    cos_free(t);
     if (g_tunnels > 0)
         g_tunnels--;
-    g_status = g_enabled ? (g_tunnels > 0 ? EOS_NET_PROXY_CONNECTED : EOS_NET_PROXY_IDLE)
-                         : EOS_NET_PROXY_DISABLED;
+    g_status = g_enabled ? (g_tunnels > 0 ? COS_NET_PROXY_CONNECTED : COS_NET_PROXY_IDLE)
+                         : COS_NET_PROXY_DISABLED;
 }

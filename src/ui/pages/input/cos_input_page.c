@@ -1,23 +1,23 @@
 /**
- * @file eos_input_page.c
+ * @file cos_input_page.c
  * @brief Implementation of the input page for Canto Mk.6
  */
 
-#include "eos_input_page.h"
+#include "cos_input_page.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "lvgl.h"
-#include "eos_activity.h"
-#include "eos_app_header.h"
-#include "eos_icon.h"
-#include "eos_mem.h"
-#include "eos_theme.h"
-#include "eos_round_keyboard.h"
-#define EOS_LOG_TAG "InputPage"
-#include "eos_log.h"
+#include "cos_activity.h"
+#include "cos_app_header.h"
+#include "cos_icon.h"
+#include "cos_mem.h"
+#include "cos_theme.h"
+#include "cos_round_keyboard.h"
+#define COS_LOG_TAG "InputPage"
+#include "cos_log.h"
 
 /* Macros and Definitions -------------------------------------*/
 #define MAX_INPUT_LENGTH (512 - 1)
@@ -31,22 +31,22 @@
 typedef struct
 {
     uint32_t magic;
-    eos_activity_t *activity;
+    cos_activity_t *activity;
     lv_obj_t *root;
     lv_obj_t *textarea;
     lv_obj_t *label_target;
     lv_obj_t *keyboard;
-    eos_input_close_callback_t close_callback;
+    cos_input_close_callback_t close_callback;
     void *user_data;
 } _input_page_ctx_t;
 
 /* Forward declarations */
-static void _on_activity_destroy(eos_activity_t *activity);
+static void _on_activity_destroy(cos_activity_t *activity);
 static void _input_page_register_transition_anim_route(void);
-static void _input_page_slide_in_anim_cb(lv_anim_timeline_t *at, eos_activity_t *from, eos_activity_t *to);
-static void _input_page_slide_out_anim_cb(lv_anim_timeline_t *at, eos_activity_t *from, eos_activity_t *to);
-static _input_page_ctx_t *_input_page_get_ctx(eos_activity_t *activity);
-static const eos_activity_lifecycle_t _input_page_lifecycle = {
+static void _input_page_slide_in_anim_cb(lv_anim_timeline_t *at, cos_activity_t *from, cos_activity_t *to);
+static void _input_page_slide_out_anim_cb(lv_anim_timeline_t *at, cos_activity_t *from, cos_activity_t *to);
+static _input_page_ctx_t *_input_page_get_ctx(cos_activity_t *activity);
+static const cos_activity_lifecycle_t _input_page_lifecycle = {
     .on_destroy = _on_activity_destroy,
 };
 
@@ -54,18 +54,18 @@ static const eos_activity_lifecycle_t _input_page_lifecycle = {
 typedef struct
 {
     char text[MAX_INPUT_LENGTH + 1];
-    eos_input_close_callback_t callback;
+    cos_input_close_callback_t callback;
     void *user_data;
-    eos_input_result_t result;
+    cos_input_result_t result;
     _input_page_ctx_t *ctx;
 } _callback_param_t;
 
 /* Data structure for deferred (transition-waiting) enter */
 typedef struct
 {
-    eos_activity_t *activity;
+    cos_activity_t *activity;
     _input_page_ctx_t *ctx;
-    eos_activity_type_t from_type;
+    cos_activity_type_t from_type;
     uint32_t retry;
 } _input_enter_param_t;
 
@@ -128,9 +128,9 @@ static int32_t _input_page_get_slide_height(lv_obj_t *obj)
     return height;
 }
 
-static _input_page_ctx_t *_input_page_get_ctx(eos_activity_t *activity)
+static _input_page_ctx_t *_input_page_get_ctx(cos_activity_t *activity)
 {
-    _input_page_ctx_t *ctx = activity ? (_input_page_ctx_t *)eos_activity_get_user_data(activity) : NULL;
+    _input_page_ctx_t *ctx = activity ? (_input_page_ctx_t *)cos_activity_get_user_data(activity) : NULL;
     if (!ctx || ctx->magic != INPUT_PAGE_CTX_MAGIC || ctx->activity != activity)
     {
         return NULL;
@@ -139,7 +139,7 @@ static _input_page_ctx_t *_input_page_get_ctx(eos_activity_t *activity)
     return ctx;
 }
 
-static void _input_page_slide_out_anim_cb(lv_anim_timeline_t *at, eos_activity_t *from, eos_activity_t *to)
+static void _input_page_slide_out_anim_cb(lv_anim_timeline_t *at, cos_activity_t *from, cos_activity_t *to)
 {
     if (!at || !from)
     {
@@ -154,14 +154,14 @@ static void _input_page_slide_out_anim_cb(lv_anim_timeline_t *at, eos_activity_t
 
     int32_t height = _input_page_get_slide_height(ctx->root);
 
-    lv_obj_t *to_view = to ? eos_activity_get_view(to) : NULL;
+    lv_obj_t *to_view = to ? cos_activity_get_view(to) : NULL;
     if (to_view && lv_obj_is_valid(to_view))
     {
         lv_obj_remove_flag(to_view, LV_OBJ_FLAG_HIDDEN);
         lv_obj_move_foreground(to_view);
     }
 
-    lv_obj_t *from_snapshot = eos_activity_take_snapshot(from, false);
+    lv_obj_t *from_snapshot = cos_activity_take_snapshot(from, false);
     lv_obj_t *anim_target = (from_snapshot && lv_obj_is_valid(from_snapshot)) ? from_snapshot : ctx->root;
 
     lv_obj_set_style_translate_y(anim_target, 0, 0);
@@ -170,13 +170,13 @@ static void _input_page_slide_out_anim_cb(lv_anim_timeline_t *at, eos_activity_t
     _input_page_anim_init(&anim, anim_target, 0, height, 220);
     lv_anim_timeline_add(at, 0, &anim);
 
-    if (to && eos_activity_is_app_header_visible(to))
+    if (to && cos_activity_is_app_header_visible(to))
     {
-        eos_app_header_slide_visible_animated(to, true, 220);
+        cos_app_header_slide_visible_animated(to, true, 220);
     }
 }
 
-static void _input_page_slide_in_anim_cb(lv_anim_timeline_t *at, eos_activity_t *from, eos_activity_t *to)
+static void _input_page_slide_in_anim_cb(lv_anim_timeline_t *at, cos_activity_t *from, cos_activity_t *to)
 {
     if (!at || !to)
     {
@@ -189,7 +189,7 @@ static void _input_page_slide_in_anim_cb(lv_anim_timeline_t *at, eos_activity_t 
         return;
     }
 
-    lv_obj_t *to_view = eos_activity_get_view(to);
+    lv_obj_t *to_view = cos_activity_get_view(to);
     if (to_view && lv_obj_is_valid(to_view))
     {
         lv_obj_remove_flag(to_view, LV_OBJ_FLAG_HIDDEN);
@@ -203,9 +203,9 @@ static void _input_page_slide_in_anim_cb(lv_anim_timeline_t *at, eos_activity_t 
     _input_page_anim_init(&anim, ctx->root, height, 0, 260);
     lv_anim_timeline_add(at, 0, &anim);
 
-    if (from && eos_activity_is_app_header_visible(from))
+    if (from && cos_activity_is_app_header_visible(from))
     {
-        eos_app_header_slide_visible_animated(NULL, false, 220);
+        cos_app_header_slide_visible_animated(NULL, false, 220);
     }
 }
 
@@ -216,10 +216,10 @@ static void _input_page_register_transition_anim_route(void)
 
     if (!close_route_registered)
     {
-        if (eos_activity_register_anim_route(EOS_ACTIVITY_TYPE_INPUT_PAGE,
-                                             EOS_ACTIVITY_TYPE_APP,
+        if (cos_activity_register_anim_route(COS_ACTIVITY_TYPE_INPUT_PAGE,
+                                             COS_ACTIVITY_TYPE_APP,
                                              _input_page_slide_out_anim_cb)
-            == EOS_OK)
+            == COS_OK)
         {
             close_route_registered = true;
         }
@@ -227,10 +227,10 @@ static void _input_page_register_transition_anim_route(void)
 
     if (!open_route_registered)
     {
-        if (eos_activity_register_anim_route(EOS_ACTIVITY_TYPE_APP,
-                                             EOS_ACTIVITY_TYPE_INPUT_PAGE,
+        if (cos_activity_register_anim_route(COS_ACTIVITY_TYPE_APP,
+                                             COS_ACTIVITY_TYPE_INPUT_PAGE,
                                              _input_page_slide_in_anim_cb)
-            == EOS_OK)
+            == COS_OK)
         {
             open_route_registered = true;
         }
@@ -248,14 +248,14 @@ static void _async_execute_callback_and_close(void *param)
 
     if (cb_param)
     {
-        eos_free(cb_param);
+        cos_free(cb_param);
     }
 
-    eos_activity_back();
+    cos_activity_back();
 }
 
 /* Enter the activity once the previous activity transition has finished.
- * eos_activity_enter() is silently dropped while a transition is running,
+ * cos_activity_enter() is silently dropped while a transition is running,
  * so opening the input page right after a close callback (e.g. the second
  * step of passcode setup) would never show the page/keyboard.
  *
@@ -277,7 +277,7 @@ static void _input_page_enter_deferred(lv_timer_t *timer)
         return;
     }
 
-    if (eos_activity_is_transition_in_progress() && (p->retry < INPUT_PAGE_ENTER_DEFER_MAX_RETRY))
+    if (cos_activity_is_transition_in_progress() && (p->retry < INPUT_PAGE_ENTER_DEFER_MAX_RETRY))
     {
         /* still transitioning: keep waiting (the periodic timer re-fires) */
         p->retry++;
@@ -286,10 +286,10 @@ static void _input_page_enter_deferred(lv_timer_t *timer)
 
     lv_timer_delete(timer);
 
-    eos_activity_t *activity = p->activity;
+    cos_activity_t *activity = p->activity;
     _input_page_ctx_t *ctx = p->ctx;
-    eos_activity_type_t from_type = p->from_type;
-    eos_free(p);
+    cos_activity_type_t from_type = p->from_type;
+    cos_free(p);
 
     if (!activity)
     {
@@ -297,24 +297,24 @@ static void _input_page_enter_deferred(lv_timer_t *timer)
     }
 
     /* sanity: the activity must still be alive and own this context */
-    if (eos_activity_get_user_data(activity) != (void *)ctx)
+    if (cos_activity_get_user_data(activity) != (void *)ctx)
     {
         return;
     }
 
     _input_page_register_transition_anim_route();
-    eos_activity_enter(activity);
+    cos_activity_enter(activity);
 
-    if (from_type != EOS_ACTIVITY_TYPE_APP)
+    if (from_type != COS_ACTIVITY_TYPE_APP)
     {
-        eos_app_header_slide_visible_animated(activity, false, 220);
+        cos_app_header_slide_visible_animated(activity, false, 220);
         if (ctx && ctx->root && lv_obj_is_valid(ctx->root))
         {
             lv_async_call(_input_page_enter_anim, ctx);
         }
     }
 
-    EOS_LOG_I("Input page opened");
+    COS_LOG_I("Input page opened");
 }
 
 static void _on_cancel_btn_clicked(lv_event_t *e)
@@ -329,7 +329,7 @@ static void _on_cancel_btn_clicked(lv_event_t *e)
 
     if (ctx->close_callback)
     {
-        _callback_param_t *cb_param = (_callback_param_t *)eos_malloc(sizeof(_callback_param_t));
+        _callback_param_t *cb_param = (_callback_param_t *)cos_malloc(sizeof(_callback_param_t));
         if (cb_param)
         {
             if (textarea_text)
@@ -343,19 +343,19 @@ static void _on_cancel_btn_clicked(lv_event_t *e)
             }
             cb_param->callback = ctx->close_callback;
             cb_param->user_data = ctx->user_data;
-            cb_param->result = EOS_INPUT_RESULT_CANCEL;
+            cb_param->result = COS_INPUT_RESULT_CANCEL;
             cb_param->ctx = ctx;
 
             lv_async_call(_async_execute_callback_and_close, cb_param);
         }
         else
         {
-            eos_activity_back();
+            cos_activity_back();
         }
     }
     else
     {
-        eos_activity_back();
+        cos_activity_back();
     }
 }
 
@@ -382,30 +382,30 @@ static void _on_ok_btn_clicked(lv_event_t *e)
 
     if (ctx->close_callback)
     {
-        _callback_param_t *cb_param = (_callback_param_t *)eos_malloc(sizeof(_callback_param_t));
+        _callback_param_t *cb_param = (_callback_param_t *)cos_malloc(sizeof(_callback_param_t));
         if (cb_param)
         {
             strcpy(cb_param->text, text_copy);
             cb_param->callback = ctx->close_callback;
             cb_param->user_data = ctx->user_data;
-            cb_param->result = EOS_INPUT_RESULT_OK;
+            cb_param->result = COS_INPUT_RESULT_OK;
             cb_param->ctx = ctx;
 
             lv_async_call(_async_execute_callback_and_close, cb_param);
         }
         else
         {
-            eos_activity_back();
+            cos_activity_back();
         }
     }
     else if (ctx->label_target && lv_obj_is_valid(ctx->label_target))
     {
         lv_label_set_text(ctx->label_target, text_copy);
-        eos_activity_back();
+        cos_activity_back();
     }
     else
     {
-        eos_activity_back();
+        cos_activity_back();
     }
 }
 
@@ -418,9 +418,9 @@ static void _on_delete_btn_clicked(lv_event_t *e)
     }
 }
 
-static void _on_activity_destroy(eos_activity_t *activity)
+static void _on_activity_destroy(cos_activity_t *activity)
 {
-    _input_page_ctx_t *ctx = eos_activity_get_user_data(activity);
+    _input_page_ctx_t *ctx = cos_activity_get_user_data(activity);
 
     if (ctx)
     {
@@ -429,38 +429,38 @@ static void _on_activity_destroy(eos_activity_t *activity)
             lv_obj_set_user_data(ctx->root, NULL);
         }
 
-        eos_free(ctx);
-        eos_activity_set_user_data(activity, NULL);
+        cos_free(ctx);
+        cos_activity_set_user_data(activity, NULL);
     }
 
-    EOS_LOG_I("Input page destroyed");
+    COS_LOG_I("Input page destroyed");
 }
 
-eos_result_t eos_input_page_open(lv_obj_t *label)
+cos_result_t cos_input_page_open(lv_obj_t *label)
 {
-    return eos_input_page_open_with_callback(label, NULL, NULL);
+    return cos_input_page_open_with_callback(label, NULL, NULL);
 }
 
-eos_result_t eos_input_page_open_with_callback(lv_obj_t *label,
-                                               eos_input_close_callback_t close_callback,
+cos_result_t cos_input_page_open_with_callback(lv_obj_t *label,
+                                               cos_input_close_callback_t close_callback,
                                                void *user_data)
 {
     /* Create Activity */
-    eos_activity_t *activity = eos_activity_create(&_input_page_lifecycle);
+    cos_activity_t *activity = cos_activity_create(&_input_page_lifecycle);
     if (activity == NULL)
     {
-        EOS_LOG_E("Failed to create activity");
-        return EOS_FAILED;
+        COS_LOG_E("Failed to create activity");
+        return COS_FAILED;
     }
 
-    eos_activity_set_type(activity, EOS_ACTIVITY_TYPE_INPUT_PAGE);
+    cos_activity_set_type(activity, COS_ACTIVITY_TYPE_INPUT_PAGE);
 
-    _input_page_ctx_t *ctx = (_input_page_ctx_t *)eos_malloc_zeroed(sizeof(_input_page_ctx_t));
+    _input_page_ctx_t *ctx = (_input_page_ctx_t *)cos_malloc_zeroed(sizeof(_input_page_ctx_t));
     if (!ctx)
     {
-        EOS_LOG_E("Failed to allocate input page context");
-        eos_activity_back();
-        return EOS_FAILED;
+        COS_LOG_E("Failed to allocate input page context");
+        cos_activity_back();
+        return COS_FAILED;
     }
 
     ctx->magic = INPUT_PAGE_CTX_MAGIC;
@@ -469,16 +469,16 @@ eos_result_t eos_input_page_open_with_callback(lv_obj_t *label,
     ctx->close_callback = close_callback;
     ctx->user_data = user_data;
 
-    eos_activity_set_user_data(activity, ctx);
+    cos_activity_set_user_data(activity, ctx);
 
     /* Create root container */
-    ctx->root = eos_activity_get_view(activity);
+    ctx->root = cos_activity_get_view(activity);
     if (!ctx->root)
     {
-        EOS_LOG_E("Failed to get activity view");
-        eos_free(ctx);
-        eos_activity_back();
-        return EOS_FAILED;
+        COS_LOG_E("Failed to get activity view");
+        cos_free(ctx);
+        cos_activity_back();
+        return COS_FAILED;
     }
 
     lv_obj_set_user_data(ctx->root, ctx);
@@ -503,12 +503,12 @@ eos_result_t eos_input_page_open_with_callback(lv_obj_t *label,
     /* Cancel button */
     lv_obj_t *cancel_btn = lv_button_create(top_bar);
     lv_obj_set_size(cancel_btn, 68, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_color(cancel_btn, EOS_THEME_BUTTON_COLOR, 0);
+    lv_obj_set_style_bg_color(cancel_btn, COS_THEME_BUTTON_COLOR, 0);
     lv_obj_set_style_border_width(cancel_btn, 0, 0);
     lv_obj_set_style_radius(cancel_btn, LV_RADIUS_CIRCLE, 0);
 
     lv_obj_t *cancel_label = lv_label_create(cancel_btn);
-    eos_label_set_text_id(cancel_label, STR_ID_CANCEL);
+    cos_label_set_text_id(cancel_label, STR_ID_CANCEL);
     lv_obj_center(cancel_label);
 
     lv_obj_add_event_cb(cancel_btn, _on_cancel_btn_clicked, LV_EVENT_CLICKED, ctx);
@@ -516,14 +516,14 @@ eos_result_t eos_input_page_open_with_callback(lv_obj_t *label,
     /* OK button */
     lv_obj_t *ok_btn = lv_button_create(top_bar);
     lv_obj_set_size(ok_btn, 68, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_color(ok_btn, EOS_THEME_BUTTON_COLOR, 0);
+    lv_obj_set_style_bg_color(ok_btn, COS_THEME_BUTTON_COLOR, 0);
     lv_obj_set_style_border_width(ok_btn, 0, 0);
     lv_obj_set_style_radius(ok_btn, LV_RADIUS_CIRCLE, 0);
 
     lv_obj_t *ok_label = lv_label_create(ok_btn);
-    eos_label_set_text_id(ok_label, STR_ID_DONE);
+    cos_label_set_text_id(ok_label, STR_ID_DONE);
     lv_obj_center(ok_label);
-    lv_obj_set_style_text_color(ok_label, EOS_THEME_PRIMARY_COLOR, 0);
+    lv_obj_set_style_text_color(ok_label, COS_THEME_PRIMARY_COLOR, 0);
     lv_obj_add_event_cb(ok_btn, _on_ok_btn_clicked, LV_EVENT_CLICKED, ctx);
 
     /* ============ Create textarea container with delete button ============ */
@@ -547,11 +547,11 @@ eos_result_t eos_input_page_open_with_callback(lv_obj_t *label,
     lv_obj_set_style_bg_color(ctx->textarea, lv_color_black(), 0);
     lv_obj_set_style_border_width(ctx->textarea, 0, 0);
     lv_obj_set_style_pad_all(ctx->textarea, 0, 0);
-    lv_obj_set_style_text_color(ctx->textarea, EOS_COLOR_WHITE, 0);
+    lv_obj_set_style_text_color(ctx->textarea, COS_COLOR_WHITE, 0);
     lv_obj_set_style_bg_opa(ctx->textarea, LV_OPA_TRANSP, LV_PART_CURSOR | LV_STATE_FOCUSED);
     lv_obj_set_style_border_width(ctx->textarea, 1, LV_PART_CURSOR | LV_STATE_FOCUSED);
     lv_obj_set_style_border_side(ctx->textarea, LV_BORDER_SIDE_LEFT, LV_PART_CURSOR | LV_STATE_FOCUSED);
-    lv_obj_set_style_border_color(ctx->textarea, EOS_COLOR_BLUE, LV_PART_CURSOR | LV_STATE_FOCUSED);
+    lv_obj_set_style_border_color(ctx->textarea, COS_COLOR_BLUE, LV_PART_CURSOR | LV_STATE_FOCUSED);
     lv_obj_set_style_border_opa(ctx->textarea, LV_OPA_COVER, LV_PART_CURSOR | LV_STATE_FOCUSED);
     lv_obj_set_style_anim_duration(ctx->textarea, 400, LV_PART_CURSOR | LV_STATE_FOCUSED);
 
@@ -576,8 +576,8 @@ eos_result_t eos_input_page_open_with_callback(lv_obj_t *label,
     lv_obj_add_event_cb(delete_btn, _on_delete_btn_clicked, LV_EVENT_CLICKED, ctx);
 
     /* ============ Create round keyboard (half-circle, fits 240x240 round screen) ============ */
-    ctx->keyboard = eos_round_keyboard_create(ctx->root);
-    eos_round_keyboard_set_textarea(ctx->keyboard, ctx->textarea);
+    ctx->keyboard = cos_round_keyboard_create(ctx->root);
+    cos_round_keyboard_set_textarea(ctx->keyboard, ctx->textarea);
 
     /* Focus the textarea and move cursor to the end so input is ready immediately */
     if (ctx->textarea && lv_obj_is_valid(ctx->textarea))
@@ -594,16 +594,16 @@ eos_result_t eos_input_page_open_with_callback(lv_obj_t *label,
         lv_obj_add_state(ctx->textarea, LV_STATE_FOCUSED);
     }
 
-    eos_activity_t *current = eos_activity_get_current();
-    eos_activity_type_t current_type = current ? eos_activity_get_type(current) : EOS_ACTIVITY_TYPE_NULL;
+    cos_activity_t *current = cos_activity_get_current();
+    cos_activity_type_t current_type = current ? cos_activity_get_type(current) : COS_ACTIVITY_TYPE_NULL;
 
     /* Enter Activity */
     _input_page_register_transition_anim_route();
 
-    if (eos_activity_is_transition_in_progress())
+    if (cos_activity_is_transition_in_progress())
     {
         /* A switch animation (e.g. slide-out of the previous input page) is
-         * still running: eos_activity_enter() would be silently dropped and
+         * still running: cos_activity_enter() would be silently dropped and
          * this page would never appear (no keyboard). Defer the enter until
          * the transition completes and keep the view hidden meanwhile. */
         if (ctx->root && lv_obj_is_valid(ctx->root))
@@ -611,7 +611,7 @@ eos_result_t eos_input_page_open_with_callback(lv_obj_t *label,
             lv_obj_add_flag(ctx->root, LV_OBJ_FLAG_HIDDEN);
         }
 
-        _input_enter_param_t *p = (_input_enter_param_t *)eos_malloc(sizeof(_input_enter_param_t));
+        _input_enter_param_t *p = (_input_enter_param_t *)cos_malloc(sizeof(_input_enter_param_t));
         if (p)
         {
             p->activity = activity;
@@ -624,11 +624,11 @@ eos_result_t eos_input_page_open_with_callback(lv_obj_t *label,
             if (!timer)
             {
                 /* fallback: try a direct enter anyway */
-                eos_free(p);
-                eos_activity_enter(activity);
-                if (current_type != EOS_ACTIVITY_TYPE_APP)
+                cos_free(p);
+                cos_activity_enter(activity);
+                if (current_type != COS_ACTIVITY_TYPE_APP)
                 {
-                    eos_app_header_slide_visible_animated(activity, false, 220);
+                    cos_app_header_slide_visible_animated(activity, false, 220);
                     lv_async_call(_input_page_enter_anim, ctx);
                 }
             }
@@ -636,25 +636,25 @@ eos_result_t eos_input_page_open_with_callback(lv_obj_t *label,
         else
         {
             /* fallback: try a direct enter anyway */
-            eos_activity_enter(activity);
-            if (current_type != EOS_ACTIVITY_TYPE_APP)
+            cos_activity_enter(activity);
+            if (current_type != COS_ACTIVITY_TYPE_APP)
             {
-                eos_app_header_slide_visible_animated(activity, false, 220);
+                cos_app_header_slide_visible_animated(activity, false, 220);
                 lv_async_call(_input_page_enter_anim, ctx);
             }
         }
 
-        return EOS_OK;
+        return COS_OK;
     }
 
-    eos_activity_enter(activity);
+    cos_activity_enter(activity);
 
-    if (current_type != EOS_ACTIVITY_TYPE_APP)
+    if (current_type != COS_ACTIVITY_TYPE_APP)
     {
-        eos_app_header_slide_visible_animated(activity, false, 220);
+        cos_app_header_slide_visible_animated(activity, false, 220);
         lv_async_call(_input_page_enter_anim, ctx);
     }
 
-    EOS_LOG_I("Input page opened");
-    return EOS_OK;
+    COS_LOG_I("Input page opened");
+    return COS_OK;
 }

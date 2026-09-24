@@ -1,14 +1,14 @@
 /**
- * @file eos_wos_layout.c
+ * @file cos_wos_layout.c
  * @brief WOS layout helpers implementation
  */
-#include "eos_wos_layout.h"
+#include "cos_wos_layout.h"
 
-#include "eos_wos_theme.h"
-#include "eos_log.h"
-#include "eos_display_profiles.h"
+#include "cos_wos_theme.h"
+#include "cos_log.h"
+#include "cos_display_profiles.h"
 
-#define EOS_LOG_TAG "WosLayout"
+#define COS_LOG_TAG "WosLayout"
 
 static void _wos_setup_flex(lv_obj_t *obj, lv_flex_flow_t flow)
 {
@@ -71,12 +71,12 @@ void wos_make_safe_area(lv_obj_t *root)
 {
     if (!root)
         return;
-    eos_display_profile_t p = eos_display_profiles_get(EOS_PROFILE_240C);
+    cos_display_profile_t p = cos_display_profiles_get(COS_PROFILE_240C);
     lv_obj_set_width(root, lv_pct(100));
     lv_obj_set_height(root, lv_pct(100));
     /* For the round display keep content inside the inscribed circle:
      * pad the root by (screen - safe) on each side. */
-    if (p.shape == EOS_DISPLAY_SHAPE_CIRCLE && p.safe_radius > 0.0f)
+    if (p.shape == COS_DISPLAY_SHAPE_CIRCLE && p.safe_radius > 0.0f)
     {
         lv_coord_t margin = (lv_coord_t)(240 - p.safe_radius * 2.0f) / 2;
         if (margin < 0)

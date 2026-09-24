@@ -13,7 +13,7 @@
     # 指定输出目录(默认 resources/images/icon)
     python3 scripts/icon/webp2c.py --out-dir build/icons path/to/a.webp
 输出:
-    <out-dir>/eos_icon_<name>.c
+    <out-dir>/cos_icon_<name>.c
 """
 import argparse
 import re
@@ -94,7 +94,7 @@ def main():
     ap.add_argument("--key-tol", type=int, default=40,
                     help="抠图容差(0-255), 默认 40")
     ap.add_argument("--name", default=None,
-                    help="生成的 C 变量名/输出文件名(不含 eos_icon_ 前缀)。"
+                    help="生成的 C 变量名/输出文件名(不含 cos_icon_ 前缀)。"
                          "不指定时从源文件名推导(非法字符转 _)。")
     ap.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR),
                     help="输出目录, 默认 resources/images/icon")
@@ -117,7 +117,7 @@ def main():
             continue
 
         base = args.name if args.name else sanitize(src.stem)
-        var = f"eos_icon_{base}"
+        var = f"cos_icon_{base}"
         out = out_dir / f"{var}.c"
         out.write_text(gen_c(src, var, args.size, key, args.key_tol),
                        encoding="utf-8")

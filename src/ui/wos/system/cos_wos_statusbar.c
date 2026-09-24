@@ -1,5 +1,5 @@
 /**
- * @file eos_wos_statusbar.c
+ * @file cos_wos_statusbar.c
  * @brief WOS top info bar — circular-screen top strip.
  *
  * Lives on the statusbar overlay layer, above the app page and notifications.
@@ -10,31 +10,31 @@
  * WHY a single centered label, no side placement:
  * the strip (y=6..28) is the narrowest band of the circular 240x240 screen —
  * at y=17 the circle still leaves only ~124 px across, and at y=6 only ~75 px.
- * The text renders with the 22 px Tiny-TTF font_small (eos_label_set_font_size
- * maps any size < EOS_FONT_CFG_SMALL_SIZE to the 22 px font), i.e. ~12 px per
+ * The text renders with the 22 px Tiny-TTF font_small (cos_label_set_font_size
+ * maps any size < COS_FONT_CFG_SMALL_SIZE to the 22 px font), i.e. ~12 px per
  * ASCII char. A single "8/25 Tue 87%" row (~140 px) is therefore clipped at
  * both edges, and a dedicated top-right battery label would fall entirely
  * outside the circle. Keeping every page <= 8 chars (~96 px) centered is the
  * only layout that never touches the curved edges while keeping the 22 px font.
  *
  * The label refreshes every second from the SAME time API as the watchface
- * (eos_time_get), so the strip never shows a stale time.
+ * (cos_time_get), so the strip never shows a stale time.
  * Transparent background: never covers watchface / app content (the layout
  * already reserves WOS_STATUSBAR_H at the top).
  */
-#include "eos_wos_statusbar.h"
+#include "cos_wos_statusbar.h"
 
-#include "eos_wos_theme.h"
-#include "eos_overlay_layer.h"
-#include "eos_log.h"
-#include "eos_service_time.h"
-#include "eos_service_battery.h"
+#include "cos_wos_theme.h"
+#include "cos_overlay_layer.h"
+#include "cos_log.h"
+#include "cos_service_time.h"
+#include "cos_service_battery.h"
 #include <stdio.h>
 #include <string.h>
 
-#define EOS_LOG_TAG "WosStatus"
+#define COS_LOG_TAG "WosStatus"
 
-/* 时间每秒刷新(与表盘同一 eos_time_get 源,保持同步) */
+/* 时间每秒刷新(与表盘同一 cos_time_get 源,保持同步) */
 #define WOS_STATUS_REFRESH_MS (1000)
 /* 每 10s 轮播一次;两页 → 电量/日期各 20s 见一次 */
 #define WOS_STATUS_ROTATE_MS (10 * 1000)
@@ -44,7 +44,7 @@ static lv_timer_t *s_timer = NULL;
 static uint8_t s_mode = 0; /* 0: 时间+电量  1: 日期+星期 */
 static uint32_t s_elapsed_ms = 0;
 
-/* day_of_week: 1=Mon .. 7=Sun (PCF8563 惯例, eos_service_time 保证) */
+/* day_of_week: 1=Mon .. 7=Sun (PCF8563 惯例, cos_service_time 保证) */
 static const char *const _wday_abbr[8] = {
     "", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun",
 };
@@ -54,13 +54,13 @@ static void _render(void)
     if (!s_label || !lv_obj_is_valid(s_label))
         return;
 
-    eos_datetime_t dt = eos_time_get();
+    cos_datetime_t dt = cos_time_get();
     char buf[24];
 
     if (s_mode == 0)
     {
         /* 时间页带电量(20s 一轮回),文本 8 字符 ~96px,圆内安全 */
-        int8_t batt = eos_battery_get_percent(); /* -1 = no battery device */
+        int8_t batt = cos_battery_get_percent(); /* -1 = no battery device */
         if (batt >= 0)
             snprintf(buf, sizeof(buf), "%02d:%02d %d%%", dt.hour, dt.min, (int)batt);
         else
@@ -68,7 +68,7 @@ static void _render(void)
 
         /* 电池状态着色: 充电→绿, <20%→红, 其余→白 */
         lv_color_t c = WOS_COLOR_TEXT_PRIMARY;
-        if (batt >= 0 && eos_battery_is_charging())
+        if (batt >= 0 && cos_battery_is_charging())
             c = lv_color_hex(0x66BB6A);
         else if (batt >= 0 && batt < 20)
             c = lv_color_hex(0xEF5350);
@@ -102,7 +102,7 @@ void wos_statusbar_init(void)
     if (s_label)
         return;
 
-    lv_obj_t *layer = eos_overlay_get_statusbar_layer();
+    lv_obj_t *layer = cos_overlay_get_statusbar_layer();
     if (!layer)
         return;
 
@@ -119,5 +119,5 @@ void wos_statusbar_init(void)
     s_timer = lv_timer_create(_tick_cb, WOS_STATUS_REFRESH_MS, NULL);
     lv_timer_set_repeat_count(s_timer, -1);
 
-    EOS_LOG_I("wos: top info bar initialized (1s refresh, 10s rotate: time+batt <-> date)");
+    COS_LOG_I("wos: top info bar initialized (1s refresh, 10s rotate: time+batt <-> date)");
 }

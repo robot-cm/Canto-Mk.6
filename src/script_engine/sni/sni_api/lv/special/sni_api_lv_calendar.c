@@ -7,7 +7,7 @@
 
 /* Includes ---------------------------------------------------*/
 #include <string.h>
-#include "eos_mem.h"
+#include "cos_mem.h"
 #include "lvgl.h"
 #include "sni_api_export.h"
 #include "sni_type_bridge.h"
@@ -40,11 +40,11 @@ static void sni_calendar_free_day_names(char **day_names, uint32_t day_count)
     {
         if (day_names[i])
         {
-            eos_free(day_names[i]);
+            cos_free(day_names[i]);
         }
     }
 
-    eos_free(day_names);
+    cos_free(day_names);
 }
 
 static void sni_calendar_release_ctx(lv_obj_t *obj)
@@ -65,9 +65,9 @@ static void sni_calendar_release_ctx(lv_obj_t *obj)
     sni_calendar_free_day_names(ctx->day_names, ctx->day_count);
     if (ctx->highlighted)
     {
-        eos_free(ctx->highlighted);
+        cos_free(ctx->highlighted);
     }
-    eos_free(ctx);
+    cos_free(ctx);
 }
 
 static sni_calendar_ctx_t *sni_calendar_find_or_create_ctx(lv_obj_t *obj)
@@ -83,7 +83,7 @@ static sni_calendar_ctx_t *sni_calendar_find_or_create_ctx(lv_obj_t *obj)
         return (sni_calendar_ctx_t *)cb->aux;
     }
 
-    sni_calendar_ctx_t *ctx = eos_malloc_zeroed(sizeof(sni_calendar_ctx_t));
+    sni_calendar_ctx_t *ctx = cos_malloc_zeroed(sizeof(sni_calendar_ctx_t));
     if (!ctx)
     {
         return NULL;
@@ -105,7 +105,7 @@ static char *sni_calendar_dup_js_string(jerry_value_t js_value)
     }
 
     len = jerry_string_size(js_value, JERRY_ENCODING_UTF8);
-    out = eos_malloc(len + 1);
+    out = cos_malloc(len + 1);
     if (!out)
     {
         return NULL;
@@ -133,7 +133,7 @@ static bool sni_calendar_build_day_names(jerry_value_t js_array, char ***out_nam
         return false;
     }
 
-    names = eos_malloc_zeroed(sizeof(char *) * 7);
+    names = cos_malloc_zeroed(sizeof(char *) * 7);
     if (!names)
     {
         return false;
@@ -209,7 +209,7 @@ static bool sni_calendar_build_highlighted_dates(jerry_value_t js_dates,
         return false;
     }
 
-    dates = eos_malloc_zeroed(sizeof(lv_calendar_date_t) * expected_count);
+    dates = cos_malloc_zeroed(sizeof(lv_calendar_date_t) * expected_count);
     if (!dates)
     {
         return false;
@@ -223,7 +223,7 @@ static bool sni_calendar_build_highlighted_dates(jerry_value_t js_dates,
 
         if (!ok)
         {
-            eos_free(dates);
+            cos_free(dates);
             return false;
         }
     }
@@ -314,13 +314,13 @@ jerry_value_t sni_api_lv_calendar_set_highlighted_dates(const jerry_call_info_t 
     ctx = sni_calendar_find_or_create_ctx(self_obj);
     if (!ctx)
     {
-        eos_free(dates);
+        cos_free(dates);
         return sni_api_throw_error("Out of memory");
     }
 
     if (ctx->highlighted)
     {
-        eos_free(ctx->highlighted);
+        cos_free(ctx->highlighted);
     }
     ctx->highlighted = dates;
     ctx->highlighted_count = date_num;

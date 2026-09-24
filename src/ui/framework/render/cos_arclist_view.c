@@ -1,10 +1,10 @@
 /**
- * @file eos_arclist_view.c
+ * @file cos_arclist_view.c
  * @brief ArcList LVGL renderer — Huawei-watch style arc app list on screen.
  */
-#include "eos_arclist_view.h"
-#include "eos_liquid_glass.h"
-#include "eos_mem.h"
+#include "cos_arclist_view.h"
+#include "cos_liquid_glass.h"
+#include "cos_mem.h"
 #include <string.h>
 #include <math.h>
 
@@ -13,7 +13,7 @@
 #endif
 
 /* Base card size in dp (scaled by profile.dp_scale at create time). */
-#define EOS_ARCLIST_CARD_DP 64.0f
+#define COS_ARCLIST_CARD_DP 64.0f
 
 static void _item_click_cb(lv_event_t *e);
 static void _root_pressed_cb(lv_event_t *e);
@@ -28,12 +28,12 @@ static void _get_point(lv_point_t *p)
     else { p->x = 0; p->y = 0; }
 }
 
-static void _apply(eos_arclist_view_t *v)
+static void _apply(cos_arclist_view_t *v)
 {
     float half = v->card_px * 0.5f;
-    int focus = eos_arclist_focus_index(&v->al);
+    int focus = cos_arclist_focus_index(&v->al);
     for (int i = 0; i < v->count; i++) {
-        const eos_arclist_item_t *it = &v->al.items[i];
+        const cos_arclist_item_t *it = &v->al.items[i];
         lv_obj_t *card = v->items[i].card;
         lv_obj_t *name = v->items[i].label;
         if (!it->visible) {
@@ -71,17 +71,17 @@ static void _apply(eos_arclist_view_t *v)
     }
 }
 
-eos_arclist_view_t *eos_arclist_view_create(lv_obj_t *parent,
-                                            const eos_display_profile_t *p,
+cos_arclist_view_t *cos_arclist_view_create(lv_obj_t *parent,
+                                            const cos_display_profile_t *p,
                                             const char **names, int n,
                                             const char **icon_paths)
 {
-    eos_arclist_view_t *v = (eos_arclist_view_t *)eos_malloc(sizeof(*v));
+    cos_arclist_view_t *v = (cos_arclist_view_t *)cos_malloc(sizeof(*v));
     if (!v) return NULL;
     memset(v, 0, sizeof(*v));
     v->profile = p;
-    v->count   = (n > EOS_ARCLIST_MAX) ? EOS_ARCLIST_MAX : n;
-    v->card_px = EOS_ARCLIST_CARD_DP * p->dp_scale;
+    v->count   = (n > COS_ARCLIST_MAX) ? COS_ARCLIST_MAX : n;
+    v->card_px = COS_ARCLIST_CARD_DP * p->dp_scale;
     v->last_focus = -1;   /* force an initial focus emit once wired */
 
     v->root = lv_obj_create(parent);
@@ -92,19 +92,19 @@ eos_arclist_view_t *eos_arclist_view_create(lv_obj_t *parent,
     lv_obj_add_flag(v->root, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
     lv_obj_set_style_bg_opa(v->root, 0, 0);
 
-    eos_arclist_init(&v->al, p, v->count);
+    cos_arclist_init(&v->al, p, v->count);
     /* Tighten the arc so the top items clear the status bar on small round
      * screens (less vertical reach) — avoids the arc curling under the bar. */
     v->al.visible_deg = 60.0f;
     /* Use the real card radius so the clamp keeps the *rendered* card inside. */
-    eos_arclist_set_item_radius(&v->al, v->card_px * 0.5f);
+    cos_arclist_set_item_radius(&v->al, v->card_px * 0.5f);
 
     for (int i = 0; i < v->count; i++) {
         lv_obj_t *card = lv_obj_create(v->root);
         lv_obj_remove_style_all(card);
         lv_obj_set_size(card, (int)v->card_px, (int)v->card_px);
         lv_obj_set_style_radius(card, LV_RADIUS_CIRCLE, 0);
-        eos_app_icon_solid(card);
+        cos_app_icon_solid(card);
         lv_obj_add_flag(card, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_event_cb(card, _item_click_cb, LV_EVENT_CLICKED, v);
 
@@ -144,59 +144,59 @@ eos_arclist_view_t *eos_arclist_view_create(lv_obj_t *parent,
     return v;
 }
 
-void eos_arclist_view_step(eos_arclist_view_t *v, float dt_ms)
+void cos_arclist_view_step(cos_arclist_view_t *v, float dt_ms)
 {
     if (!v) return;
-    eos_arclist_step(&v->al, dt_ms / 1000.0f);
+    cos_arclist_step(&v->al, dt_ms / 1000.0f);
     _apply(v);
 }
 
-void eos_arclist_view_drag(eos_arclist_view_t *v, float dy_px)
+void cos_arclist_view_drag(cos_arclist_view_t *v, float dy_px)
 {
     if (!v) return;
-    eos_arclist_drag(&v->al, dy_px, 0.016f);
+    cos_arclist_drag(&v->al, dy_px, 0.016f);
 }
 
-void eos_arclist_view_release(eos_arclist_view_t *v)
+void cos_arclist_view_release(cos_arclist_view_t *v)
 {
     if (!v) return;
-    eos_arclist_release(&v->al);
+    cos_arclist_release(&v->al);
 }
 
-void eos_arclist_view_focus(eos_arclist_view_t *v, int index)
+void cos_arclist_view_focus(cos_arclist_view_t *v, int index)
 {
     if (!v || index < 0 || index >= v->count) return;
     float target = (float)index * v->al.step_deg;
     v->al.scroller.pos = target;
     v->al.scroll = target;
-    eos_arclist_layout(&v->al);
+    cos_arclist_layout(&v->al);
     _apply(v);
 }
 
-int eos_arclist_view_focus_index(const eos_arclist_view_t *v)
+int cos_arclist_view_focus_index(const cos_arclist_view_t *v)
 {
-    return v ? eos_arclist_focus_index(&v->al) : -1;
+    return v ? cos_arclist_focus_index(&v->al) : -1;
 }
 
-int eos_arclist_view_count(const eos_arclist_view_t *v)
+int cos_arclist_view_count(const cos_arclist_view_t *v)
 {
     return v ? v->count : 0;
 }
 
-lv_obj_t *eos_arclist_view_card_at(const eos_arclist_view_t *v, int i)
+lv_obj_t *cos_arclist_view_card_at(const cos_arclist_view_t *v, int i)
 {
     if (!v || i < 0 || i >= v->count) return NULL;
     return v->items[i].card;
 }
 
-void eos_arclist_view_destroy(eos_arclist_view_t *v)
+void cos_arclist_view_destroy(cos_arclist_view_t *v)
 {
     if (!v) return;
     if (v->root) lv_obj_del(v->root);
-    eos_free(v);
+    cos_free(v);
 }
 
-void eos_arclist_view_set_on_select(eos_arclist_view_t *v,
+void cos_arclist_view_set_on_select(cos_arclist_view_t *v,
         void (*cb)(int index, void *user), void *user)
 {
     if (!v) return;
@@ -204,7 +204,7 @@ void eos_arclist_view_set_on_select(eos_arclist_view_t *v,
     v->user = user;
 }
 
-void eos_arclist_view_set_on_focus_change(eos_arclist_view_t *v,
+void cos_arclist_view_set_on_focus_change(cos_arclist_view_t *v,
         void (*cb)(int index, void *user), void *user)
 {
     if (!v) return;
@@ -216,12 +216,12 @@ void eos_arclist_view_set_on_focus_change(eos_arclist_view_t *v,
 
 static void _item_click_cb(lv_event_t *e)
 {
-    eos_arclist_view_t *v = (eos_arclist_view_t *)lv_event_get_user_data(e);
+    cos_arclist_view_t *v = (cos_arclist_view_t *)lv_event_get_user_data(e);
     if (!v) return;
     lv_obj_t *card = lv_event_get_target(e);
     for (int i = 0; i < v->count; i++) {
         if (v->items[i].card == card) {
-            eos_arclist_view_focus(v, i);
+            cos_arclist_view_focus(v, i);
             if (v->on_select) v->on_select(i, v->user);
             return;
         }
@@ -230,7 +230,7 @@ static void _item_click_cb(lv_event_t *e)
 
 static void _root_pressed_cb(lv_event_t *e)
 {
-    eos_arclist_view_t *v = (eos_arclist_view_t *)lv_event_get_user_data(e);
+    cos_arclist_view_t *v = (cos_arclist_view_t *)lv_event_get_user_data(e);
     if (!v) return;
     lv_point_t p;
     _get_point(&p);
@@ -241,7 +241,7 @@ static void _root_pressed_cb(lv_event_t *e)
 
 static void _root_pressing_cb(lv_event_t *e)
 {
-    eos_arclist_view_t *v = (eos_arclist_view_t *)lv_event_get_user_data(e);
+    cos_arclist_view_t *v = (cos_arclist_view_t *)lv_event_get_user_data(e);
     if (!v) return;
     lv_point_t p;
     _get_point(&p);
@@ -260,13 +260,13 @@ static void _root_pressing_cb(lv_event_t *e)
     int dy = p.y - v->last_y;
     v->last_y = p.y;
     if (dy != 0)
-        eos_arclist_view_drag(v, (float)dy);
+        cos_arclist_view_drag(v, (float)dy);
 }
 
 static void _root_released_cb(lv_event_t *e)
 {
-    eos_arclist_view_t *v = (eos_arclist_view_t *)lv_event_get_user_data(e);
+    cos_arclist_view_t *v = (cos_arclist_view_t *)lv_event_get_user_data(e);
     if (!v) return;
     v->dragging = false;
-    eos_arclist_view_release(v);
+    cos_arclist_view_release(v);
 }

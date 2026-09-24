@@ -1,15 +1,15 @@
 /**
- * @file eos_service_countdown.c
+ * @file cos_service_countdown.c
  * @brief Persistent countdown trigger service (Core)
  *
  * 触发链路（退出 App 后仍能到点提醒）：
  *
  *   Timer App (JS)                     Core (本服务, C)
  *   ──────────────────                 ─────────────────────────
- *   eos.config.setStr("countdown",...) ─► 写入 config.json
- *        （任务列表 JSON 字符串）         每 1s 轮询 eos_time_get()
+ *   cos.config.setStr("countdown",...) ─► 写入 config.json
+ *        （任务列表 JSON 字符串）         每 1s 轮询 cos_time_get()
  *        RUN 任务带 end（绝对秒）        匹配 state==RUN && end<=now
- *                                      命中 ─► eos_app_launch_immediately()
+ *                                      命中 ─► cos_app_launch_immediately()
  *   App 被拉回前台 ──────────────────── 由 JS 补算剩余时间并展示 DONE
  *
  * 数据契约（JS <-> C，仅读，C 绝不写回 App 数据）：
@@ -25,7 +25,7 @@
  * JS 侧收到 launch 后会把任务置为 DONE 并写回 config，服务读到
  * state!=RUN 即不再触发。
  */
-#include "eos_service_countdown.h"
+#include "cos_service_countdown.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -33,18 +33,18 @@
 #include "lvgl.h"
 #include "cJSON.h"
 
-#include "eos_service_time.h"
-#include "eos_service_storage.h"
-#include "eos_storage_paths.h"
-#include "eos_app_list.h"
+#include "cos_service_time.h"
+#include "cos_service_storage.h"
+#include "cos_storage_paths.h"
+#include "cos_app_list.h"
 #include "script_engine_core.h"
-#include "eos_log.h"
-#include "eos_mem.h"
+#include "cos_log.h"
+#include "cos_mem.h"
 
 /* Timer App 固定 id（与 apps/timer/manifest.json 的 id 一致） */
-#define EOS_COUNTDOWN_APP_ID "com.cantomk6.timer"
-/* App 私有配置路径：JS 侧 eos.config 读写的是同一文件 */
-#define EOS_COUNTDOWN_CFG_PATH EOS_APP_DATA_DIR EOS_COUNTDOWN_APP_ID "/config.json"
+#define COS_COUNTDOWN_APP_ID "com.cantomk6.timer"
+/* App 私有配置路径：JS 侧 cos.config 读写的是同一文件 */
+#define COS_COUNTDOWN_CFG_PATH COS_APP_DATA_DIR COS_COUNTDOWN_APP_ID "/config.json"
 
 static lv_timer_t *_countdown_timer = NULL;
 static int _last_id = -1;   /* 最近一次 launch 的任务 id */
@@ -63,7 +63,7 @@ static int64_t _date_to_sec(int y, int m, int d, int h, int mi, int s)
     return days * 86400 + h * 3600 + mi * 60 + s;
 }
 
-static int64_t _now_sec(eos_datetime_t t)
+static int64_t _now_sec(cos_datetime_t t)
 {
     return _date_to_sec(t.year, t.month, t.day, t.hour, t.min, t.sec);
 }
@@ -72,19 +72,19 @@ static void _countdown_tick_cb(lv_timer_t *timer)
 {
     (void)timer;
 
-    eos_datetime_t now = eos_time_get();
+    cos_datetime_t now = cos_time_get();
     if (now.year < 2000)
     {
         return; /* 时间未校准，不触发 */
     }
 
-    char *data = eos_storage_read_file(EOS_COUNTDOWN_CFG_PATH);
+    char *data = cos_storage_read_file(COS_COUNTDOWN_CFG_PATH);
     if (!data)
     {
         return;
     }
     cJSON *root = cJSON_Parse(data);
-    eos_free(data);
+    cos_free(data);
     if (!root)
     {
         return;
@@ -143,12 +143,12 @@ static void _countdown_tick_cb(lv_timer_t *timer)
 
     /* 前台已是 Timer App：JS 自行检测 DONE，无需 launch */
     char *cur = script_engine_get_current_script_id();
-    if (cur && strcmp(cur, EOS_COUNTDOWN_APP_ID) == 0)
+    if (cur && strcmp(cur, COS_COUNTDOWN_APP_ID) == 0)
     {
         return;
     }
 
-    if (eos_app_launch_immediately(EOS_COUNTDOWN_APP_ID) == EOS_OK)
+    if (cos_app_launch_immediately(COS_COUNTDOWN_APP_ID) == COS_OK)
     {
         _last_id = matched_id;
         _last_end = matched_end;
@@ -156,7 +156,7 @@ static void _countdown_tick_cb(lv_timer_t *timer)
     /* launch 失败（如切换动画中）→ 不记录去重键，下一 tick 重试 */
 }
 
-void eos_service_countdown_init(void)
+void cos_service_countdown_init(void)
 {
     if (_countdown_timer)
     {
@@ -164,5 +164,5 @@ void eos_service_countdown_init(void)
     }
     _countdown_timer = lv_timer_create(_countdown_tick_cb, 1000, NULL);
     lv_timer_set_repeat_count(_countdown_timer, -1);
-    EOS_LOG_I("Countdown service init (1s periodic check, app=%s)", EOS_COUNTDOWN_APP_ID);
+    COS_LOG_I("Countdown service init (1s periodic check, app=%s)", COS_COUNTDOWN_APP_ID);
 }

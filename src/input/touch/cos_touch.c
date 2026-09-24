@@ -1,9 +1,9 @@
 /**
- * @file eos_touch.c
+ * @file cos_touch.c
  * @brief Get touch device
  */
 
-#include "eos_touch.h"
+#include "cos_touch.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
@@ -15,7 +15,7 @@
 
 /* Function Implementations -----------------------------------*/
 
-lv_indev_t *eos_touch_get_indev(void)
+lv_indev_t *cos_touch_get_indev(void)
 {
     lv_indev_t *indev = lv_indev_get_next(NULL);
     while (indev)

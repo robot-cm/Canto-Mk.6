@@ -1,10 +1,10 @@
 /**
- * @file eos_app_list.h
+ * @file cos_app_list.h
  * @brief App list page
  */
 
-#ifndef EOS_APP_LIST_H
-#define EOS_APP_LIST_H
+#ifndef COS_APP_LIST_H
+#define COS_APP_LIST_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,59 +14,59 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 #include "lvgl.h"
-#include "eos_core.h"
-#include "eos_activity.h"
+#include "cos_core.h"
+#include "cos_activity.h"
 
 /* Public macros ----------------------------------------------*/
 
 /* Public typedefs --------------------------------------------*/
 
-typedef void (*eos_sys_app_entry_t)(void);
+typedef void (*cos_sys_app_entry_t)(void);
 
 enum
 {
-    EOS_SYS_APP_SETTINGS = 0,
-    EOS_SYS_APP_FLASH_LIGHT,
+    COS_SYS_APP_SETTINGS = 0,
+    COS_SYS_APP_FLASH_LIGHT,
 /* New system apps can be added here */
-#if EOS_ENABLE_TEST_APP
-    EOS_SYS_APP_TEST,
+#if COS_ENABLE_TEST_APP
+    COS_SYS_APP_TEST,
 #endif
-    EOS_SYS_APP_LAST
+    COS_SYS_APP_LAST
 };
 
 /* Native C apps (compiled into firmware, shown in the App page like plugins) */
 enum
 {
-    EOS_NATIVE_APP_ALBUM = 0,
-    EOS_NATIVE_APP_TEXTHUB,
-    EOS_NATIVE_APP_DICTIONARY,
+    COS_NATIVE_APP_ALBUM = 0,
+    COS_NATIVE_APP_TEXTHUB,
+    COS_NATIVE_APP_DICTIONARY,
 #if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
-    EOS_NATIVE_APP_USB_MSC,
+    COS_NATIVE_APP_USB_MSC,
 #endif
 #if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
-    EOS_NATIVE_APP_SPOTIFY,
+    COS_NATIVE_APP_SPOTIFY,
 #endif
 #if defined(CONFIG_PROFMONITOR_APP_ENABLE) && CONFIG_PROFMONITOR_APP_ENABLE
-    EOS_NATIVE_APP_PROFMONITOR,
+    COS_NATIVE_APP_PROFMONITOR,
 #endif
-    EOS_NATIVE_APP_EQSOLVER,
+    COS_NATIVE_APP_EQSOLVER,
 /* New native C apps can be added here */
-    EOS_NATIVE_APP_LAST
+    COS_NATIVE_APP_LAST
 };
 
-extern const char *eos_sys_app_id_list[EOS_SYS_APP_LAST];
-extern const char *eos_sys_app_icon_list[EOS_SYS_APP_LAST];
-extern const char *eos_native_app_id_list[EOS_NATIVE_APP_LAST];
-extern const char *eos_native_app_icon_list[EOS_NATIVE_APP_LAST];
+extern const char *cos_sys_app_id_list[COS_SYS_APP_LAST];
+extern const char *cos_sys_app_icon_list[COS_SYS_APP_LAST];
+extern const char *cos_native_app_id_list[COS_NATIVE_APP_LAST];
+extern const char *cos_native_app_icon_list[COS_NATIVE_APP_LAST];
 
 /* Public function prototypes --------------------------------*/
 
 /**
  * @brief Immediately launch the target app by id from any page
  * @param app_id Target app id
- * @return eos_result_t Launch result
+ * @return cos_result_t Launch result
  */
-eos_result_t eos_app_launch_immediately(const char *app_id);
+cos_result_t cos_app_launch_immediately(const char *app_id);
 /**
  * @brief Get the app id of the most recently launched app
  * @return const char* App id string, or NULL if no app was launched yet.
@@ -74,14 +74,14 @@ eos_result_t eos_app_launch_immediately(const char *app_id);
  *       current activity type to know whether an app is truly foreground.
  *       Used by the board layer to snapshot/restore UI across deep sleep.
  */
-const char *eos_app_list_get_last_launch_app_id(void);
+const char *cos_app_list_get_last_launch_app_id(void);
 /**
  * @brief Enter app list
- * @return eos_activity_t* App list activity object
+ * @return cos_activity_t* App list activity object
  */
-void eos_app_list_enter(void);
+void cos_app_list_enter(void);
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_APP_LIST_H */
+#endif /* COS_APP_LIST_H */

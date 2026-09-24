@@ -1,9 +1,9 @@
 /**
- * @file eos_dev_display_gc9a01.c
+ * @file cos_dev_display_gc9a01.c
  * @brief GC9A01 LCD 驱动(Canto Mk.6 设备 HAL + LVGL 端口)— 裸 SPI master 实现
  *
  * 位置:port/esp32s3/main/(板级专属,非 Core)。Core HAL 接口在
- * src/devices/display/eos_dev_display.h(平台无关)。
+ * src/devices/display/cos_dev_display.h(平台无关)。
  *
  * 移植背景(2026-08-23):
  *   原实现基于 ESP-IDF esp_lcd_panel_gc9a01 组件 + bit-bang 诊断,真机黑屏;
@@ -21,8 +21,8 @@
  */
 
 #include "board_xiao_esp32s3_round.h"
-#include "eos_dev_display_gc9a01.h"
-#include "eos_dev_display.h"
+#include "cos_dev_display_gc9a01.h"
+#include "cos_dev_display.h"
 
 #include <string.h>
 #include <stddef.h>   /* offsetof(flush_containing) */
@@ -44,7 +44,7 @@
 
 /* ════════════════════════════════════════════════════════════════
  *  引脚/总线配置
- *  依据: ElenixOS-main/src/port/esp32/eos_port_esp32.h(真机验证显示)
+ *  依据: CantoMk6-main/src/port/esp32/cos_port_esp32.h(真机验证显示)
  *  与 board_xiao_esp32s3_round.h 完全一致:
  *    MOSI=D10=GPIO9, SCLK=D8=GPIO7, CS=D1=GPIO2, DC=D3=GPIO4,
  *    BL=D6=GPIO43, MISO=D9=GPIO8(SD 共用,LCD 不读)
@@ -59,7 +59,7 @@
 #define DISPLAY_PIN_BL     BOARD_GC9A01_BL_PIN
 #define DISPLAY_PIN_RST    (-1)                    /* GC9A01 仅软件复位 */
 
-/* ElenixOS-main 真机验证的 SPI 参数 */
+/* CantoMk6-main 真机验证的 SPI 参数 */
 #define DISPLAY_SPI_CLK_HZ (26 * 1000 * 1000)
 #define DISPLAY_SPI_MODE   0
 #define DISPLAY_MAX_XFER   24000                   /* partial buffer 传输(实际最大 flush 19200B;
@@ -90,7 +90,7 @@ static void display_flush_wait_cb(lv_display_t *disp);
 static void display_flush_tx_init(void);
 
 /* ════════════════════════════════════════════════════════════════
- *  基本传输(ElenixOS-main 原样)
+ *  基本传输(CantoMk6-main 原样)
  *  DC 手动切换 + spi_device_transmit(硬件 CS)
  * ════════════════════════════════════════════════════════════════ */
 static void display_send_cmd(uint8_t cmd)
@@ -141,7 +141,7 @@ static void display_set_window(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y
 }
 
 /* ════════════════════════════════════════════════════════════════
- *  GC9A01 初始化 — 完整序列,逐字节照搬 ElenixOS-main(ElenixOS-main
+ *  GC9A01 初始化 — 完整序列,逐字节照搬 CantoMk6-main(CantoMk6-main
  *  注释:来自 lvgl_esp32_drivers,已在真机验证显示)
  * ════════════════════════════════════════════════════════════════ */
 static void display_init(void)
@@ -161,7 +161,7 @@ static void display_init(void)
         return;
     }
 
-    /* SPI 设备 — Mode 0, 26MHz(ElenixOS-main 稳定参数),硬件 CS。
+    /* SPI 设备 — Mode 0, 26MHz(CantoMk6-main 稳定参数),硬件 CS。
      * queue_size=16:每帧 6 个事务(2 窗口命令 + RAMWR + 像素等),双 slot
      * 峰值约 12 个在途,留余量。
      * pre_cb 是设备级(每个事务都触发,ISR 上下文):按 flush_trans_t 描述符
@@ -197,7 +197,7 @@ static void display_init(void)
     /* 初始化异步 flush 事务组(命令缓冲/DC pre_cb/长度) */
     display_flush_tx_init();
 
-    /* ── 完整 GC9A01 初始化序列(ElenixOS-main 原样) ── */
+    /* ── 完整 GC9A01 初始化序列(CantoMk6-main 原样) ── */
     display_send_cmd(0xEF);
     display_send_cmd(0xEB);
     uint8_t eb_data[] = {0x14};
@@ -338,7 +338,7 @@ static void display_init(void)
     display_send_cmd(0x29);
     vTaskDelay(pdMS_TO_TICKS(120));
 
-    /* 清屏黑,去除上电随机噪点(ElenixOS-main 原样:128px/块) */
+    /* 清屏黑,去除上电随机噪点(CantoMk6-main 原样:128px/块) */
     ESP_LOGI(TAG, "Clearing screen...");
     display_set_window(0, 0, BOARD_GC9A01_WIDTH - 1, BOARD_GC9A01_HEIGHT - 1);
     uint8_t black_chunk[256];
@@ -359,7 +359,7 @@ static void display_init(void)
 }
 
 /* ════════════════════════════════════════════════════════════════
- *  背光 LEDC(ElenixOS-main 原样)
+ *  背光 LEDC(CantoMk6-main 原样)
  * ════════════════════════════════════════════════════════════════ */
 static void display_backlight_init(void)
 {
@@ -508,9 +508,9 @@ static void display_power_off(void)
 }
 
 /* ════════════════════════════════════════════════════════════════
- *  设备 HAL ops(注册进 eos_dev_display)
+ *  设备 HAL ops(注册进 cos_dev_display)
  * ════════════════════════════════════════════════════════════════ */
-static const eos_dev_display_ops_t s_display_ops = {
+static const cos_dev_display_ops_t s_display_ops = {
     .set_brightness = display_set_brightness,
     .power_on       = display_power_on,
     .power_off      = display_power_off,
@@ -745,7 +745,7 @@ static void display_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t 
  * ════════════════════════════════════════════════════════════════ */
 
 /* GC9A01 驱动初始化:SPI bus + device + init 序列 + 清屏 + 背光 + 自检 */
-esp_err_t eos_dev_display_gc9a01_init(void)
+esp_err_t cos_dev_display_gc9a01_init(void)
 {
     ESP_LOGI(TAG, "Init: SCK=%d MOSI=%d CS=%d DC=%d BL=%d RST=none(sw)",
              DISPLAY_PIN_SCLK, DISPLAY_PIN_MOSI, DISPLAY_PIN_CS,
@@ -761,14 +761,14 @@ esp_err_t eos_dev_display_gc9a01_init(void)
     display_set_brightness(100);
 
     /* 注:曾有的红绿蓝黑自检闪烁已移除——开机颜色序列统一由
-     * UI 层开机动画(eos_boot_anim)负责,避免驱动自检与系统动画叠加造成色序混乱 */
+     * UI 层开机动画(cos_boot_anim)负责,避免驱动自检与系统动画叠加造成色序混乱 */
     return ESP_OK;
 }
 
-/* 注册到 ElenixOS 设备 HAL */
-void eos_dev_display_gc9a01_register(void)
+/* 注册到 CantoMk6 设备 HAL */
+void cos_dev_display_gc9a01_register(void)
 {
-    eos_dev_display_register(&s_display_ops);
+    cos_dev_display_register(&s_display_ops);
     ESP_LOGI(TAG, "Registered to device HAL (set_brightness/power_on/power_off)");
 }
 
@@ -796,7 +796,7 @@ static void display_drain_pending_tx(void)
  * (如非轮询唤醒的短暂状态),显示内容也是黑帧,肉眼不可见。
  * 实现:同步 spi_device_transmit 发送(先排空在途异步事务,驱动内部等待 bus
  * 空闲,无 DMA 竞争)。 */
-void eos_dev_display_gc9a01_fill_black(void)
+void cos_dev_display_gc9a01_fill_black(void)
 {
     if (!s_init_done) return;
 
@@ -823,7 +823,7 @@ void eos_dev_display_gc9a01_fill_black(void)
  * 正常开机 init 序列(0x11/0x29)会重新打开显示。
  * 比 fill_black 轻量(单条命令),避免深睡前大量 SPI 活动引发
  * esp_deep_sleep_start 失败(此前 fill_black 已实测触发该问题)。 */
-void eos_dev_display_gc9a01_display_off(void)
+void cos_dev_display_gc9a01_display_off(void)
 {
     if (!s_init_done) return;
 
@@ -843,7 +843,7 @@ void eos_dev_display_gc9a01_display_off(void)
  * board_power_set 的 DEV_POWER_STATE_SLEEP 分支)。
  * GRAM 内容保留,无需重跑 init 序列;同 display_off 一样先排空在途异步
  * flush,避免同步发送与 LVGL 渲染帧事务竞争触发 assert。 */
-void eos_dev_display_gc9a01_display_on(void)
+void cos_dev_display_gc9a01_display_on(void)
 {
     if (!s_init_done) return;
 
@@ -861,7 +861,7 @@ void eos_dev_display_gc9a01_display_on(void)
 }
 
 /* LVGL 显示初始化:lv_display_create + 双缓冲(PARTIAL) + flush_cb */
-esp_err_t eos_dev_display_gc9a01_lvgl_init(void)
+esp_err_t cos_dev_display_gc9a01_lvgl_init(void)
 {
     lv_display_t *disp = lv_display_create(BOARD_GC9A01_WIDTH, BOARD_GC9A01_HEIGHT);
     if (!disp) {

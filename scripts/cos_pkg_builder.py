@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-@file eos_pkg_builder.py
-@brief Package ElenixOS script apps and watchfaces into EAPK/EWPK files
+@file cos_pkg_builder.py
+@brief Package CantoMk6 script apps and watchfaces into EAPK/EWPK files
 """
 
 import os

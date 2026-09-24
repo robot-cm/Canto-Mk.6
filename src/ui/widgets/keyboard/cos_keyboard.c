@@ -1,12 +1,12 @@
 /**
- * @file eos_keyboard.c
+ * @file cos_keyboard.c
  * @brief System keyboard widget (English QWERTY + Chinese pinyin IME).
  */
 
-#include "eos_keyboard.h"
+#include "cos_keyboard.h"
 
 #include <string.h>
-#include "services/ime/eos_pinyin.h"
+#include "services/ime/cos_pinyin.h"
 
 /* Key string constants --------------------------------------*/
 #define KBK_BACK   "BACK"
@@ -24,12 +24,12 @@ typedef struct
     lv_obj_t *cand_label;         /* pinyin display (ZH mode) */
     lv_obj_t *num_btns[KBK_CAND_MAX];
     lv_obj_t *mode_btn;
-    eos_keyboard_mode_t mode;
+    cos_keyboard_mode_t mode;
     char      pybuf[KBK_PY_MAX];
     int       py_len;
     const char *cands[KBK_CAND_MAX];
     int       cand_count;
-} eos_keyboard_ctx_t;
+} cos_keyboard_ctx_t;
 
 /* Helpers ----------------------------------------------------*/
 
@@ -44,7 +44,7 @@ static void _insert_text(lv_obj_t *ta, const char *txt)
         lv_textarea_add_text(ta, txt);
 }
 
-static void _clear_candidates(eos_keyboard_ctx_t *c)
+static void _clear_candidates(cos_keyboard_ctx_t *c)
 {
     /* EN mode: number buttons become plain digit keys (1..9). */
     c->cand_count = 0;
@@ -63,17 +63,17 @@ static void _clear_candidates(eos_keyboard_ctx_t *c)
     }
 }
 
-static void _update_candidates(eos_keyboard_ctx_t *c)
+static void _update_candidates(cos_keyboard_ctx_t *c)
 {
     /* refresh number-button labels from the pinyin buffer */
-    if (c->mode != EOS_KB_MODE_ZH)
+    if (c->mode != COS_KB_MODE_ZH)
         return;
 
     c->cand_count = 0;
     if (c->py_len > 0)
     {
         c->pybuf[c->py_len] = '\0';
-        c->cand_count = eos_pinyin_lookup(c->pybuf, c->cands,
+        c->cand_count = cos_pinyin_lookup(c->pybuf, c->cands,
                                           KBK_CAND_MAX, &c->cand_count);
         if (c->cand_count > KBK_CAND_MAX)
             c->cand_count = KBK_CAND_MAX;
@@ -100,9 +100,9 @@ static void _update_candidates(eos_keyboard_ctx_t *c)
     }
 }
 
-static void _commit_candidate(eos_keyboard_ctx_t *c, int idx)
+static void _commit_candidate(cos_keyboard_ctx_t *c, int idx)
 {
-    if (c->mode != EOS_KB_MODE_ZH)
+    if (c->mode != COS_KB_MODE_ZH)
         return;
     if (idx < 0 || idx >= c->cand_count)
         return;
@@ -119,7 +119,7 @@ static void _btn_event_cb(lv_event_t *e)
     const char *key = (const char *)lv_obj_get_user_data(btn);
     lv_obj_t *kb = lv_event_get_user_data(e); /* set on the button's event */
     if (key && kb)
-        eos_keyboard_send_key(kb, key);
+        cos_keyboard_send_key(kb, key);
 }
 
 static lv_obj_t *_make_btn(lv_obj_t *row, const char *label, const char *key,
@@ -137,11 +137,11 @@ static lv_obj_t *_make_btn(lv_obj_t *row, const char *label, const char *key,
 
 /* Public API -------------------------------------------------*/
 
-lv_obj_t *eos_keyboard_create(lv_obj_t *parent)
+lv_obj_t *cos_keyboard_create(lv_obj_t *parent)
 {
-    eos_keyboard_ctx_t *c = lv_malloc(sizeof(eos_keyboard_ctx_t));
+    cos_keyboard_ctx_t *c = lv_malloc(sizeof(cos_keyboard_ctx_t));
     memset(c, 0, sizeof(*c));
-    c->mode = EOS_KB_MODE_EN;
+    c->mode = COS_KB_MODE_EN;
 
     lv_obj_t *kb = lv_obj_create(parent);
     lv_obj_set_size(kb, 232, 152);
@@ -202,20 +202,20 @@ lv_obj_t *eos_keyboard_create(lv_obj_t *parent)
     _make_btn(ctrl, "⌫", KBK_BACK, kb, 36);
     _make_btn(ctrl, "↵", KBK_ENTER, kb, 36);
 
-    eos_keyboard_set_mode(kb, EOS_KB_MODE_EN);
+    cos_keyboard_set_mode(kb, COS_KB_MODE_EN);
     return kb;
 }
 
-void eos_keyboard_set_textarea(lv_obj_t *kb, lv_obj_t *ta)
+void cos_keyboard_set_textarea(lv_obj_t *kb, lv_obj_t *ta)
 {
-    eos_keyboard_ctx_t *c = lv_obj_get_user_data(kb);
+    cos_keyboard_ctx_t *c = lv_obj_get_user_data(kb);
     if (c)
         c->ta = ta;
 }
 
-void eos_keyboard_set_mode(lv_obj_t *kb, eos_keyboard_mode_t mode)
+void cos_keyboard_set_mode(lv_obj_t *kb, cos_keyboard_mode_t mode)
 {
-    eos_keyboard_ctx_t *c = lv_obj_get_user_data(kb);
+    cos_keyboard_ctx_t *c = lv_obj_get_user_data(kb);
     if (!c)
         return;
     c->mode = mode;
@@ -224,34 +224,34 @@ void eos_keyboard_set_mode(lv_obj_t *kb, eos_keyboard_mode_t mode)
     {
         lv_obj_t *lbl = lv_obj_get_child(c->mode_btn, 0);
         if (lbl)
-            lv_label_set_text(lbl, mode == EOS_KB_MODE_EN ? "中" : "EN");
+            lv_label_set_text(lbl, mode == COS_KB_MODE_EN ? "中" : "EN");
     }
-    if (mode == EOS_KB_MODE_ZH)
+    if (mode == COS_KB_MODE_ZH)
         _update_candidates(c);
     else
         _clear_candidates(c);
 }
 
-eos_keyboard_mode_t eos_keyboard_get_mode(lv_obj_t *kb)
+cos_keyboard_mode_t cos_keyboard_get_mode(lv_obj_t *kb)
 {
-    eos_keyboard_ctx_t *c = lv_obj_get_user_data(kb);
-    return c ? c->mode : EOS_KB_MODE_EN;
+    cos_keyboard_ctx_t *c = lv_obj_get_user_data(kb);
+    return c ? c->mode : COS_KB_MODE_EN;
 }
 
-void eos_keyboard_send_key(lv_obj_t *kb, const char *key)
+void cos_keyboard_send_key(lv_obj_t *kb, const char *key)
 {
-    eos_keyboard_ctx_t *c = lv_obj_get_user_data(kb);
+    cos_keyboard_ctx_t *c = lv_obj_get_user_data(kb);
     if (!c || !key)
         return;
 
     if (strcmp(key, KBK_MODE) == 0)
     {
-        eos_keyboard_set_mode(kb, c->mode == EOS_KB_MODE_EN
-                                     ? EOS_KB_MODE_ZH : EOS_KB_MODE_EN);
+        cos_keyboard_set_mode(kb, c->mode == COS_KB_MODE_EN
+                                     ? COS_KB_MODE_ZH : COS_KB_MODE_EN);
         return;
     }
 
-    if (c->mode == EOS_KB_MODE_ZH)
+    if (c->mode == COS_KB_MODE_ZH)
     {
         if (strcmp(key, KBK_BACK) == 0)
         {

@@ -1,8 +1,8 @@
-# Canto Mk.6 (ElenixOS) — Coding Agent 架构概览
+# Canto Mk.6 (CantoMk6) — Coding Agent 架构概览
 
 > 本文档面向需要修改本仓库代码的 coding agent。
 > 阅读顺序建议：先读「第 0 章 关键约束」，再按需查阅后面章节。
-> 仓库历史命名 `ElenixOS`，新项目名 `Canto Mk.6`；代码中仍以 `EOS_*` / `elenix` 前缀为主。
+> 仓库历史命名 `CantoMk6`，新项目名 `Canto Mk.6`；代码中仍以 `COS_*` / `cantomk6` 前缀为主。
 
 ---
 
@@ -10,14 +10,14 @@
 
 1. **先搜索，再修改。** 不要猜测 GPIO / SPI / I2C / LCD 引脚 / LVGL API / Plugin API。
    硬件与驱动信息以 `port/esp32s3/main/*.c` 与 `src/` 现有符号为准。
-2. **Core 与 Script Engine 强耦合。** `eos_core.c`、`apps`、`widgets`、`basic_widgets` 均
+2. **Core 与 Script Engine 强耦合。** `cos_core.c`、`apps`、`widgets`、`basic_widgets` 均
    直接 `#include script_engine_core.h → jerryscript.h`。**不能**单独剔除脚本引擎。
 3. **可安装的 UI App 是 JavaScript**，经 JerryScript 引擎在 C 侧用 SNI 桥接调用 LVGL；
    资源（`.js` + `manifest.json` + `icon.bin`）打包为 `.eapk`，存于 Flash 内 SPIFFS
    （挂载为 `/sdcard`；默认是内部 SPIFFS，**插入物理 SD 卡时 `board_sd` 会覆盖挂载为真实 SD 卡**，
    无卡时退回 SPIFFS。详见 `agent-experience.md` §17）。
    **但本系统同时包含若干内置原生 C App**（Texthub、Album、Control Center 等），它们直接编译进
-   Flash（`EOS_NATIVE_APP_*` 枚举，`src/framework/app/eos_app_list.h`），**不是** `.eapk`，
+   Flash（`COS_NATIVE_APP_*` 枚举，`src/framework/app/cos_app_list.h`），**不是** `.eapk`，
    图标走 `/sdcard/theme/icons/*.bin`。详见 `agent-experience.md` §9（Texthub 改回原生 C）、§12（Album 改回原生 C）。
 4. **Shell 属于 Core，不依赖 SD/脚本。** 即使脚本引擎崩溃，底层 Shell 仍可用。
 5. **ESP-IDF v5.3.1**，目标 `XIAO ESP32-S3`（ESP32-S3R8：8MB Flash / 8MB PSRAM）。
@@ -34,9 +34,9 @@
 | MCU | ESP32-S3R8 (Xtensa LX7, 240MHz, 8MB Flash, 8MB PSRAM) | `partitions.csv` 注释 |
 | C 标准库 | newlib (ESP-IDF VFS) | jerry-port 注释 |
 | 脚本引擎 | **JerryScript**（内部堆模式，512KB 外部 context） | `main/CMakeLists.txt` 编译宏 |
-| UI 库 | **LVGL**（v9.x API：`lv_display_*`） | `eos_dev_display_gc9a01.c` |
+| UI 库 | **LVGL**（v9.x API：`lv_display_*`） | `cos_dev_display_gc9a01.c` |
 | 构建主机 | Linux (Bash)，`idf.py -p /dev/ttyACM0 build flash monitor` | README |
-| 打包脚本 | Python 3 (`scripts/eos_pkg_builder.py`) 生成 `.eapk` | BUILD.md |
+| 打包脚本 | Python 3 (`scripts/cos_pkg_builder.py`) 生成 `.eapk` | BUILD.md |
 | 模拟器构建（可选） | CMake + MinGW + SDL2（WASM / Native 分支） | BUILD.md |
 
 ### JerryScript 编译宏（来自 `port/esp32s3/main/CMakeLists.txt`）
@@ -52,7 +52,7 @@ JERRY_EXTERNAL_CONTEXT=1     # 512KB 堆走 jerry_port_context_alloc（放入 PS
 JERRY_CPOINTER_32_BIT=1     # 要求 8 字节对齐
 ```
 
-> 注意：`malloc/free/realloc/calloc` 被 `--wrap` 重定向到 `eos_mem_align.c`
+> 注意：`malloc/free/realloc/calloc` 被 `--wrap` 重定向到 `cos_mem_align.c`
 > 提供的 8 字节对齐实现（ESP-IDF 默认仅 4 字节对齐，不满足 JerryScript 要求）。
 > **不要移除这些 `--wrap` 链接选项。**
 
@@ -73,33 +73,33 @@ JERRY_CPOINTER_32_BIT=1     # 要求 8 字节对齐
 ## 2. 目录结构
 
 ```
-ElenixOS-fork-stable/
+CantoMk6-fork-stable/
 ├── port/esp32s3/                # 板级（真机）专属，非 Core
 │   ├── CMakeLists.txt           # 全量编译 src/ + JerryScript + 字体
 │   ├── partitions.csv           # 分区表（无 OTA，单 factory）
 │   └── main/
-│       ├── main.c               # ESP-IDF 入口、外设初始化、eos_init/loop
-│       ├── eos_dev_display_gc9a01.c   # GC9A01 SPI LCD + LVGL 注册
-│       ├── eos_dev_touch_chsc6x.c     # 电容触摸
-│       ├── eos_dev_rtc_bm8563.c       # RTC
-│       ├── eos_net_wifi_esp32.c       # Wi-Fi 后端（esp_wifi）
-│       ├── eos_bt_esp32.c            # NimBLE 后端
-│       ├── eos_mem_align.c           # --wrap malloc 8字节对齐
+│       ├── main.c               # ESP-IDF 入口、外设初始化、cos_init/loop
+│       ├── cos_dev_display_gc9a01.c   # GC9A01 SPI LCD + LVGL 注册
+│       ├── cos_dev_touch_chsc6x.c     # 电容触摸
+│       ├── cos_dev_rtc_bm8563.c       # RTC
+│       ├── cos_net_wifi_esp32.c       # Wi-Fi 后端（esp_wifi）
+│       ├── cos_bt_esp32.c            # NimBLE 后端
+│       ├── cos_mem_align.c           # --wrap malloc 8字节对齐
 │       └── lv_conf.h
 ├── src/                         # Core（平台无关，除 port/ 子目录）
 │   ├── kernel/
-│   │   ├── core/eos_core.c      # 系统初始化 + 主循环 + activity 根
-│   │   ├── memory/              # eos_mem.h/c（分配器抽象、追踪）
+│   │   ├── core/cos_core.c      # 系统初始化 + 主循环 + activity 根
+│   │   ├── memory/              # cos_mem.h/c（分配器抽象、追踪）
 │   │   └── ...
 │   ├── framework/
-│   │   ├── app/                 # App 生命周期（eos_app.h/c）
-│   │   └── activity/            # Activity 栈/控制器（eos_activity.h）
+│   │   ├── app/                 # App 生命周期（cos_app.h/c）
+│   │   └── activity/            # Activity 栈/控制器（cos_activity.h）
 │   ├── script_engine/
 │   │   ├── core/script_engine_core.h   # 脚本引擎核心（SEC）
 │   │   ├── sni/                 # Script Native Interface（JS↔C 桥）
 │   │   └── spm/spm.h/c          # Script Program Manager（生命周期闸门）
 │   ├── services/                # Wi-Fi / 存储 / 插件 / 网络 / 代理
-│   │   └── plugin/              # eos_plugin_manager（扫描 eapk）
+│   │   └── plugin/              # cos_plugin_manager（扫描 eapk）
 │   ├── ui/                      # System UI 组件（基于 LVGL）
 │   ├── shell/                   # 底层 USB/UART Shell
 │   ├── port/memory/mem_mgr.h/c  # PSRAM 大块分配管理器
@@ -110,13 +110,13 @@ ElenixOS-fork-stable/
 ├── resources/                   # 编译进 Flash 的字体/图标/图片（C 数组）
 │   └── font/  images/  ...
 ├── third_party/                 # lvgl / jerryscript / cJSON（源码编入）
-├── scripts/                     # eos_pkg_builder.py 等打包工具
+├── scripts/                     # cos_pkg_builder.py 等打包工具
 └── eapk-target/  examples-sdcard/   # 打包产物与示例
 ```
 
 **构建事实**：`port/esp32s3/main/CMakeLists.txt` 用 `file(GLOB_RECURSE src/**/*.c)`
 全量编译 `src/`，并递归编译 `third_party/jerryscript`，仅排除模拟器专属文件
-（`eos_sim_hw_mock.c` / `eos_virtual_display.c` / `eos_net_sock_sim.c`）。
+（`cos_sim_hw_mock.c` / `cos_virtual_display.c` / `cos_net_sock_sim.c`）。
 
 ---
 
@@ -127,11 +127,11 @@ ElenixOS-fork-stable/
 ```
 应用/Core
    │
-   ├─ eos_malloc / eos_free / eos_realloc / eos_calloc   (eos_mem.h)
-   │     └─ `eos_mem_auto.c`：每次分配前置 8 字节头(`EOS_MEM_HEADER_MAGIC=0xE5A0`)；
-   │        `eos_free` 校验 magic，foreign pointer(非 eos 分配)直接拒绝并泄漏(计数见
-   │        `agent-experience.md` §3)；可开追踪(EOS_MEM_TRACK_ENABLE)
-   │        与 LVGL stdlib 替换(EOS_OVERRIDE_LVGL_STDLIB_MALLOC_ENABLE)
+   ├─ cos_malloc / cos_free / cos_realloc / cos_calloc   (cos_mem.h)
+   │     └─ `cos_mem_auto.c`：每次分配前置 8 字节头(`COS_MEM_HEADER_MAGIC=0xE5A0`)；
+   │        `cos_free` 校验 magic，foreign pointer(非 cos 分配)直接拒绝并泄漏(计数见
+   │        `agent-experience.md` §3)；可开追踪(COS_MEM_TRACK_ENABLE)
+   │        与 LVGL stdlib 替换(COS_OVERRIDE_LVGL_STDLIB_MALLOC_ENABLE)
    │
    ├─ mem_mgr_alloc / mem_mgr_free   (port/memory/mem_mgr.h)
    │     └─ 大块分配：heap_caps_malloc(MALLOC_CAP_SPIRAM)
@@ -154,7 +154,7 @@ ElenixOS-fork-stable/
 
 - **LVGL draw buffer**：1/6 屏（40 行）双缓冲，优先 `MALLOC_CAP_SPIRAM`，
   **不要**组合 `MALLOC_CAP_DMA`（`CONFIG_SPIRAM_DMA_CAPABLE` 未开时必失败回退 internal，
-  57.6KB 会挤掉 `ui_task` 的 48KB 栈 → UI 全灭）。回退顺序见 `eos_dev_display_gc9a01.c:882`。
+  57.6KB 会挤掉 `ui_task` 的 48KB 栈 → UI 全灭）。回退顺序见 `cos_dev_display_gc9a01.c:882`。
 - **JerryScript 堆**：必须用 `JERRY_EXTERNAL_CONTEXT=1` + `SYSTEM_ALLOCATOR=0`，
   使 512KB 走一次大分配进 PSRAM。若用 `SYSTEM_ALLOCATOR=1`，小对象会碎片化 DMA RAM
   （largest 30KB→32B，是 SD/FATFS 写失败的根因）。
@@ -162,7 +162,7 @@ ElenixOS-fork-stable/
 
 ### 3.4 malloc 对齐
 
-`eos_mem_align.c` 用 `--wrap=malloc/free/realloc/calloc` 强制 8 字节对齐，
+`cos_mem_align.c` 用 `--wrap=malloc/free/realloc/calloc` 强制 8 字节对齐，
 满足 `JERRY_CPOINTER_32_BIT`（JMEM_ALIGNMENT=8）。**链接选项不可删。**
 
 ---
@@ -172,15 +172,15 @@ ElenixOS-fork-stable/
 ### 4.1 形态
 
 - **可安装 App** = **JavaScript 脚本** + `manifest.json` + `icon.bin`。
-- 打包为 `.eapk`（由 `scripts/eos_pkg_builder.py` 生成），存于 SPIFFS `/sdcard/apps/...`。
+- 打包为 `.eapk`（由 `scripts/cos_pkg_builder.py` 生成），存于 SPIFFS `/sdcard/apps/...`。
 - **内置系统 App**（Texthub / Album / Control Center 等）= 原生 C，编译进 Flash
-  (`EOS_NATIVE_APP_*`)，不打包为 `.eapk`，入口由 C 直接注册（见 `agent-experience.md` §9 / §12）。
+  (`COS_NATIVE_APP_*`)，不打包为 `.eapk`，入口由 C 直接注册（见 `agent-experience.md` §9 / §12）。
 - 运行时经 **JerryScript** 执行；JS 通过 **SNI（Script Native Interface）** 调用 C 侧 LVGL/服务。
 
 ### 4.2 三层管理架构
 
 ```
-eos_app (framework/app)         ← 上层业务语义（启动/停止/挂起）
+cos_app (framework/app)         ← 上层业务语义（启动/停止/挂起）
    │
 spm (script_engine/spm)         ← 唯一所有者：脚本程序生命周期闸门
    │   - program_list 双向链表
@@ -192,7 +192,7 @@ script_engine_core (SEC)         ← 实际 jerry_* 执行（IDLE/RUNNING 状态
 jerryscript (third_party)        ← JS VM + 512KB 堆
 ```
 
-> 架构约束：上层（`eos_app` / `eos_watchface_js`）**只能**用 `spm_app_*` /
+> 架构约束：上层（`cos_app` / `cos_watchface_js`）**只能**用 `spm_app_*` /
 > `spm_watchface_*` 便捷 API，禁止直接调 Core。
 
 ### 4.3 状态机（`script_program_state_t`）
@@ -211,7 +211,7 @@ jerryscript (third_party)        ← JS VM + 512KB 堆
   创建 `sni_context`、链入 `program_list`、委托 SEC parse+execute、置 `ACTIVE`。
 - **挂起/恢复**：仅 WatchFace 支持；保存/恢复 `realm`，暂停/恢复 SNI 回调。
 - **终止**：`spm_terminate_program()` 置 `STOPPING`（异步等 Core 停）→ `TERMINATED`；
-  清理顺序：`sni_ctx` 事件与 sweep → `jerry_value_free(realm)` → `_script_free` → `eos_free(prog)`。
+  清理顺序：`sni_ctx` 事件与 sweep → `jerry_value_free(realm)` → `_script_free` → `cos_free(prog)`。
 - **引擎致命恢复**：SEC 内 `setjmp/longjmp` 恢复块调用 `spm_handle_engine_reset()`，
   在 `jerry_init()` 清空堆**之前**遍历 program_list 释放所有 JS handle 与 C 资源。
 
@@ -230,9 +230,9 @@ jerryscript (third_party)        ← JS VM + 512KB 堆
 
 ```
 main.c (ESP-IDF app_main)
-   └─ eos_init()  [src/kernel/core/eos_core.c]
+   └─ cos_init()  [src/kernel/core/cos_core.c]
         └─ 外设/显示初始化
-             └─ eos_dev_display_gc9a01_lvgl_init()   [port/.../eos_dev_display_gc9a01.c:864]
+             └─ cos_dev_display_gc9a01_lvgl_init()   [port/.../cos_dev_display_gc9a01.c:864]
                   ├─ lv_display_create(240, 240)
                   ├─ lv_display_set_buffers(disp, buf1, buf2,
                   │     240*40 px, LV_DISPLAY_RENDER_MODE_PARTIAL)   // 1/6 屏双缓冲
@@ -244,7 +244,7 @@ main.c (ESP-IDF app_main)
 ### 5.2 显示硬件（GC9A01）
 
 - 1.28" 圆形 240×240，SPI，`SPI_DMA_CH_AUTO`。
-- 初始化序列逐字节照搬已验证参数（`eos_dev_display_gc9a01.c:147` `display_init()`）。
+- 初始化序列逐字节照搬已验证参数（`cos_dev_display_gc9a01.c:147` `display_init()`）。
 - 颜色：RGB565，面板 BGR 线序（`0x36` MADCTL=0x08 补偿），flush 时自行字节交换。
 - 异步 flush：`flush_cb` 只把 SPI 事务排队（不调 `lv_display_flush_ready`）；
   完成同步在 LVGL 任务上下文由 `flush_wait_cb` 用 `get_trans_result` 取回在途事务
@@ -253,17 +253,17 @@ main.c (ESP-IDF app_main)
 ### 5.3 主循环与 Tick
 
 ```c
-// eos_core.c:365
-uint32_t eos_main_loop(void) {
+// cos_core.c:365
+uint32_t cos_main_loop(void) {
     ...
-    eos_dispatch_tick();     // 事件分发
+    cos_dispatch_tick();     // 事件分发
     return lv_timer_handler(); // LVGL 心跳（必须在 LVGL 任务上下文调用）
 }
-uint32_t eos_tick_get(void) { return lv_tick_get(); }
+uint32_t cos_tick_get(void) { return lv_tick_get(); }
 ```
 
 - `lv_tick` 由 ESP-IDF `esp_timer` 提供（Light Sleep 内保持连续）。
-- `eos_main_loop()` 由 `ui_task` 周期性调用；所有 LVGL / JS 回调必须在其任务上下文执行。
+- `cos_main_loop()` 由 `ui_task` 周期性调用；所有 LVGL / JS 回调必须在其任务上下文执行。
 
 ### 5.4 UI 组件
 
@@ -293,12 +293,12 @@ uint32_t eos_tick_get(void) { return lv_tick_get(); }
 ## 7. 插件 / 脚本加载流程
 
 ```
-Plugin Manager (src/services/plugin/eos_plugin_manager)
+Plugin Manager (src/services/plugin/cos_plugin_manager)
    └─ 扫描 SPIFFS /sdcard/apps/*.eapk
         ├─ 解析 manifest（id/version/permissions/min_api_level）
         ├─ 校验（pkg_id 合法、路径穿越、大小限制；入口恒为 main.js，不存在 entry 字段概念）
         └─ 构建 script_pkg_t
-             └─ eos_app_run() → spm_app_run() → spm_start_program()
+             └─ cos_app_run() → spm_app_run() → spm_start_program()
                   └─ SEC: jerry_parse + jerry_run (512KB 外部堆)
                        └─ 注册 SNI 回调（on_create/on_resume/...）
 ```
@@ -307,24 +307,24 @@ Plugin Manager (src/services/plugin/eos_plugin_manager)
 
 ## 7.5 USB MSC App（把 SD 卡作为 U 盘暴露给 PC）
 
-一个 **native C App**（`EOS_NATIVE_APP_USB_MSC`），编译宏 `CONFIG_USB_MSC_APP_ENABLE`
-（在 `port/esp32s3/main/CMakeLists.txt` 里 `EOS_USB_MSC_APP_ENABLE` 控制；**不是**
+一个 **native C App**（`COS_NATIVE_APP_USB_MSC`），编译宏 `CONFIG_USB_MSC_APP_ENABLE`
+（在 `port/esp32s3/main/CMakeLists.txt` 里 `COS_USB_MSC_APP_ENABLE` 控制；**不是**
 Kconfig）。功能本身是运行时由用户在 App 列表打开/关闭。
 
 ### 目录
 
 ```
 src/apps/usb_msc/
-├── eos_usb_msc_board.h   板级能力接口(由 main.c 实现)
-├── eos_usb_msc_drv.h/.c  TinyUSB MSC + SD 裸扇区 + 互斥/释放
-└── eos_usb_msc.h/.c      App 状态机 + 全屏状态页(图标/errcode/errmsg)
+├── cos_usb_msc_board.h   板级能力接口(由 main.c 实现)
+├── cos_usb_msc_drv.h/.c  TinyUSB MSC + SD 裸扇区 + 互斥/释放
+└── cos_usb_msc.h/.c      App 状态机 + 全屏状态页(图标/errcode/errmsg)
 ```
 
 ### 分层与流向
 
 ```
 App(状态机, ui_task 内 lv_timer 驱动)
-  ↓ eos_usb_msc_drv_*()
+  ↓ cos_usb_msc_drv_*()
 驱动层(TinyUSB MSC + sdmmc_read/write_sectors)
   ↓ board_sd_release()/board_sd_get_card()/board_sd_acquire()
 板级(port/esp32s3/main/main.c:SDSPI 卡句柄 / FATFS 卸载重挂)
@@ -342,14 +342,14 @@ TinyUSB **不是** ESP-IDF 内置组件,通过 IDF Component Manager 从 Espress
   并更新 `dependencies.lock`。CI/离线机需提前缓存该目录。
 - 用户端文件(`espressif/tinyusb` 组件要求项目提供):
   - `port/esp32s3/main/tusb_config.h` — `CFG_TUD_*` 类开关(MSC 开启,其余关)
-  - `port/esp32s3/main/eos_usb_msc_descriptors.c` — 设备/字符串描述符回调
+  - `port/esp32s3/main/cos_usb_msc_descriptors.c` — 设备/字符串描述符回调
   两者已加入 main 组件 `SRCS`。`sdkconfig.defaults` 不再写 `CONFIG_TINYUSB_*`
   (托管组件不读这些 Kconfig 项,开关在 tusb_config.h)。
 
 ### 状态机
 
 `INIT → (SD? JTAG?) → begin() → WAIT_ENUM → ACTIVE → 退出`
-失败任一步 → 全屏 `eos_icon_usb_err` + `Error code: NNN` + 英文 errmsg。
+失败任一步 → 全屏 `cos_icon_usb_err` + `Error code: NNN` + 英文 errmsg。
 
 errcode：`201` 无 SD / `202` 调试器占用 USB / `203` TinyUSB 失败 /
 `204` 未枚举(纯充电) / `205` 释放 SD 失败 / `206` 重挂载失败。
@@ -381,7 +381,7 @@ errcode：`201` 无 SD / `202` 调试器占用 USB / `203` TinyUSB 失败 /
 
 ### 完全移除该 App
 
-`port/esp32s3/main/CMakeLists.txt` 中把 `set(EOS_USB_MSC_APP_ENABLE 1)` 改成 `0`
+`port/esp32s3/main/CMakeLists.txt` 中把 `set(COS_USB_MSC_APP_ENABLE 1)` 改成 `0`
 （并用 `idf.py reconfigure`）。关闭后所有新增/修改点（app_list 枚举、图标资源、
 drv、main.c 板级函数、PM 保持、swipe 等）都不编译，产物与改动前一致。
 
@@ -389,13 +389,13 @@ drv、main.c 板级函数、PM 保持、swipe 等）都不编译，产物与改�
 
 ## 8. 给 coding agent 的修改检查清单
 
-1. **加/改内存分配**：大对象走 `mem_mgr_*`（PSRAM）；小对象走 `eos_malloc`。
+1. **加/改内存分配**：大对象走 `mem_mgr_*`（PSRAM）；小对象走 `cos_malloc`。
    不要无脑 malloc，也不要无脑 PSRAM——考虑 DMA / 访问速度 / 生命周期。
 2. **加硬件驱动**：放 `port/esp32s3/main/`，不要混入 `src/`（Core 应平台无关）。
-   引脚/时序以现有 `eos_dev_*` 为准，禁止猜测。
-3. **加/改 App**：写 JS + manifest + icon，用 `scripts/eos_pkg_builder.py` 打包 eapk，
+   引脚/时序以现有 `cos_dev_*` 为准，禁止猜测。
+3. **加/改 App**：写 JS + manifest + icon，用 `scripts/cos_pkg_builder.py` 打包 eapk，
    经 Plugin Manager 加载。不要直接改 Core 编入新 App（除非是 Launcher/Settings/Clock 等核心 App）。
-4. **加 LVGL 调用**：必须在 `ui_task` 上下文（`eos_main_loop` 调用链内）；
+4. **加 LVGL 调用**：必须在 `ui_task` 上下文（`cos_main_loop` 调用链内）；
    不要扩大 draw buffer 或改 PSRAM 分配策略而不重新验证 internal largest-free-block。
 5. **改构建**：编辑 `port/esp32s3/main/CMakeLists.txt`；
    字体（~2MB+）编进 Flash，留意 factory 余量。
@@ -407,16 +407,16 @@ drv、main.c 板级函数、PM 保持、swipe 等）都不编译，产物与改�
 
 | 关注点 | 文件 |
 |---|---|
-| 系统启动/主循环 | `src/kernel/core/eos_core.c` |
-| 内存分配器 | `src/kernel/memory/eos_mem.h`, `src/port/memory/mem_mgr.h` |
-| App 生命周期 | `src/framework/app/eos_app.c`, `src/script_engine/spm/spm.c` |
+| 系统启动/主循环 | `src/kernel/core/cos_core.c` |
+| 内存分配器 | `src/kernel/memory/cos_mem.h`, `src/port/memory/mem_mgr.h` |
+| App 生命周期 | `src/framework/app/cos_app.c`, `src/script_engine/spm/spm.c` |
 | 脚本引擎 | `src/script_engine/core/script_engine_core.h`, `third_party/jerryscript` |
 | JS↔C 桥 | `src/script_engine/sni/` |
-| LVGL 注册/显示 | `port/esp32s3/main/eos_dev_display_gc9a01.c`, `main/lv_conf.h` |
+| LVGL 注册/显示 | `port/esp32s3/main/cos_dev_display_gc9a01.c`, `main/lv_conf.h` |
 | 分区 | `port/esp32s3/partitions.csv` |
 | 构建 | `port/esp32s3/main/CMakeLists.txt`, `port/esp32s3/CMakeLists.txt` |
-| 插件管理 | `src/services/plugin/eos_plugin_manager.h` |
-| USB MSC App | `src/apps/usb_msc/eos_usb_msc*.c/.h` |
+| 插件管理 | `src/services/plugin/cos_plugin_manager.h` |
+| USB MSC App | `src/apps/usb_msc/cos_usb_msc*.c/.h` |
 | USB MSC 板级支持 | `port/esp32s3/main/main.c`（`board_sd_*` / `board_pm_usb_msc_*`） |
 | 底层 Shell | `src/shell/` |
-| 打包 | `scripts/eos_pkg_builder.py` |
+| 打包 | `scripts/cos_pkg_builder.py` |

@@ -1,8 +1,8 @@
 /**
- * @file eos_net_wifi_esp32.c
+ * @file cos_net_wifi_esp32.c
  * @brief Real Wi-Fi backend for ESP32 (ESP-IDF esp_wifi_*)
  *
- * Implements the platform half of eos_net_wifi.c:
+ * Implements the platform half of cos_net_wifi.c:
  *   - lazy init: NVS + default event loop + netif + esp_wifi_init + STA mode
  *   - real active scan (esp_wifi_scan_start / get_ap_records), RSSI-sorted
  *   - real connect: esp_wifi_connect + wait for GOT_IP event (blocking)
@@ -13,7 +13,7 @@
  * callback, per AGENTS.md §19 (no long blocking I/O on the UI task).
  */
 
-#include "eos_net_wifi_esp32.h"
+#include "cos_net_wifi_esp32.h"
 
 #include <string.h>
 
@@ -79,7 +79,7 @@ static void _ip_event_handler(void *arg, esp_event_base_t base,
 /* ------------------------------------------------------------------ */
 /*  init                                                               */
 /* ------------------------------------------------------------------ */
-esp_err_t eos_net_wifi_esp32_init(void)
+esp_err_t cos_net_wifi_esp32_init(void)
 {
     if (s_wifi_inited) {
         if (s_wifi_started) {
@@ -218,7 +218,7 @@ err_after_wifi:
     return ret;
 }
 
-esp_err_t eos_net_wifi_esp32_stop(void)
+esp_err_t cos_net_wifi_esp32_stop(void)
 {
     if (!s_wifi_inited || !s_wifi_started) {
         return ESP_OK;
@@ -242,42 +242,42 @@ esp_err_t eos_net_wifi_esp32_stop(void)
 }
 
 /* ------------------------------------------------------------------ */
-/*  early init (app_main calls before eos_init, internal RAM contiguous) */
+/*  early init (app_main calls before cos_init, internal RAM contiguous) */
 /* ------------------------------------------------------------------ */
 
-/* 提前初始化入口:由 app_main 在 eos_init() 之前、internal RAM 尚连续时调用,
- * 与 eos_bt_esp32_early_init() 同理——esp_wifi_init 的 static RX buffer 等
+/* 提前初始化入口:由 app_main 在 cos_init() 之前、internal RAM 尚连续时调用,
+ * 与 cos_bt_esp32_early_init() 同理——esp_wifi_init 的 static RX buffer 等
  * 必须 internal DMA 连续内存,系统运行后碎片化(largest 只剩几 KB)时必然
  * ESP_ERR_NO_MEM。
  *
  * 内存门控:internal largest 低于阈值即跳过、保持懒初始化,绝不挤占
- * eos_init()/LVGL UI 加载所需的 internal 空间。
+ * cos_init()/LVGL UI 加载所需的 internal 空间。
  *
- * 预算分析(与 eos_net_wifi_esp32_init 内注释一致):
+ * 预算分析(与 cos_net_wifi_esp32_init 内注释一致):
  *   - esp_wifi_init 压缩后 internal 需求 ≈7.6KB
- *   - BT early init 后 largest ≈15KB,eos_init() 后 ≈7KB
+ *   - BT early init 后 largest ≈15KB,cos_init() 后 ≈7KB
  * 门控取 12KB:BT 之后 largest≥12KB 时 early init 尝试成功,且成功后
- * 剩余 ≈7KB 与"仅 BT"现状持平,eos_init()/UI 不受影响;不足 12KB 则
+ * 剩余 ≈7KB 与"仅 BT"现状持平,cos_init()/UI 不受影响;不足 12KB 则
  * 跳过保持懒初始化(需求 7.6KB,碎片化时成功率也更高)。
  * 失败/跳过均不致命:s_wifi_inited 保持 false,scan/connect 时仍会重试。 */
-#define EOS_NET_WIFI_EARLY_MIN_LARGEST (12 * 1024)
+#define COS_NET_WIFI_EARLY_MIN_LARGEST (12 * 1024)
 
-esp_err_t eos_net_wifi_esp32_early_init(void)
+esp_err_t cos_net_wifi_esp32_early_init(void)
 {
     if (s_wifi_inited) {
         return ESP_OK;
     }
 
     size_t l_i = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-    if (l_i < EOS_NET_WIFI_EARLY_MIN_LARGEST) {
+    if (l_i < COS_NET_WIFI_EARLY_MIN_LARGEST) {
         ESP_LOGW(TAG, "early init SKIPPED: internal largest=%u < %u "
                       "(keep lazy init; UI/RAM budget takes priority)",
-                 (unsigned)l_i, (unsigned)EOS_NET_WIFI_EARLY_MIN_LARGEST);
+                 (unsigned)l_i, (unsigned)COS_NET_WIFI_EARLY_MIN_LARGEST);
         return ESP_ERR_NO_MEM;
     }
     ESP_LOGI(TAG, "early init: internal largest=%u, calling esp_wifi_init ...",
              (unsigned)l_i);
-    esp_err_t ret = eos_net_wifi_esp32_init();
+    esp_err_t ret = cos_net_wifi_esp32_init();
     ESP_LOGI(TAG, "early init -> %s", esp_err_to_name(ret));
     return ret;
 }
@@ -285,35 +285,35 @@ esp_err_t eos_net_wifi_esp32_early_init(void)
 /* ------------------------------------------------------------------ */
 /*  auth mapping                                                       */
 /* ------------------------------------------------------------------ */
-static eos_wifi_auth_t _map_auth(wifi_auth_mode_t m)
+static cos_wifi_auth_t _map_auth(wifi_auth_mode_t m)
 {
     switch (m) {
-    case WIFI_AUTH_OPEN: return EOS_WIFI_AUTH_OPEN;
-    case WIFI_AUTH_WEP:  return EOS_WIFI_AUTH_WEP;
+    case WIFI_AUTH_OPEN: return COS_WIFI_AUTH_OPEN;
+    case WIFI_AUTH_WEP:  return COS_WIFI_AUTH_WEP;
     case WIFI_AUTH_WPA_PSK:
     case WIFI_AUTH_WPA2_PSK:
     case WIFI_AUTH_WPA_WPA2_PSK:
     case WIFI_AUTH_WPA2_ENTERPRISE:
-        return EOS_WIFI_AUTH_WPA;
+        return COS_WIFI_AUTH_WPA;
     case WIFI_AUTH_WPA3_PSK:
     case WIFI_AUTH_WPA2_WPA3_PSK:
     case WIFI_AUTH_WAPI_PSK:
-        return EOS_WIFI_AUTH_WPA3;
+        return COS_WIFI_AUTH_WPA3;
     default:
-        return EOS_WIFI_AUTH_WPA;
+        return COS_WIFI_AUTH_WPA;
     }
 }
 
 /* ------------------------------------------------------------------ */
 /*  scan                                                               */
 /* ------------------------------------------------------------------ */
-esp_err_t eos_net_wifi_esp32_scan(eos_wifi_ap_t *out_aps,
+esp_err_t cos_net_wifi_esp32_scan(cos_wifi_ap_t *out_aps,
                                   uint32_t max_aps, uint32_t *out_count)
 {
     if (!out_aps || !out_count || max_aps == 0) {
         return ESP_ERR_INVALID_ARG;
     }
-    esp_err_t ret = eos_net_wifi_esp32_init();
+    esp_err_t ret = cos_net_wifi_esp32_init();
     if (ret != ESP_OK) {
         return ret;
     }
@@ -364,9 +364,9 @@ esp_err_t eos_net_wifi_esp32_scan(eos_wifi_ap_t *out_aps,
         if (recs[i].ssid[0] == '\0') {
             continue;                       /* hidden AP */
         }
-        eos_wifi_ap_t *ap = &out_aps[n];
-        strncpy(ap->ssid, (const char *)recs[i].ssid, EOS_NET_WIFI_SSID_MAX);
-        ap->ssid[EOS_NET_WIFI_SSID_MAX] = '\0';
+        cos_wifi_ap_t *ap = &out_aps[n];
+        strncpy(ap->ssid, (const char *)recs[i].ssid, COS_NET_WIFI_SSID_MAX);
+        ap->ssid[COS_NET_WIFI_SSID_MAX] = '\0';
         ap->rssi    = recs[i].rssi;
         ap->channel = recs[i].primary;
         ap->auth    = (uint8_t)_map_auth(recs[i].authmode);
@@ -376,7 +376,7 @@ esp_err_t eos_net_wifi_esp32_scan(eos_wifi_ap_t *out_aps,
 
     /* Sort by RSSI, strongest first (insertion sort, n is small) */
     for (uint32_t i = 1; i < n; i++) {
-        eos_wifi_ap_t key = out_aps[i];
+        cos_wifi_ap_t key = out_aps[i];
         int32_t j = (int32_t)i - 1;
         while (j >= 0 && out_aps[j].rssi < key.rssi) {
             out_aps[j + 1] = out_aps[j];
@@ -393,13 +393,13 @@ esp_err_t eos_net_wifi_esp32_scan(eos_wifi_ap_t *out_aps,
 /* ------------------------------------------------------------------ */
 /*  connect / disconnect                                               */
 /* ------------------------------------------------------------------ */
-esp_err_t eos_net_wifi_esp32_connect(const char *ssid, const char *password,
+esp_err_t cos_net_wifi_esp32_connect(const char *ssid, const char *password,
                                      char *ip, size_t ip_len, int8_t *rssi)
 {
     if (!ssid || ssid[0] == '\0') {
         return ESP_ERR_INVALID_ARG;
     }
-    esp_err_t ret = eos_net_wifi_esp32_init();
+    esp_err_t ret = cos_net_wifi_esp32_init();
     if (ret != ESP_OK) {
         return ret;
     }
@@ -450,9 +450,9 @@ esp_err_t eos_net_wifi_esp32_connect(const char *ssid, const char *password,
     return ESP_FAIL;
 }
 
-esp_err_t eos_net_wifi_esp32_disconnect(void)
+esp_err_t cos_net_wifi_esp32_disconnect(void)
 {
-    esp_err_t ret = eos_net_wifi_esp32_init();
+    esp_err_t ret = cos_net_wifi_esp32_init();
     if (ret != ESP_OK) {
         return ret;
     }

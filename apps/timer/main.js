@@ -5,7 +5,7 @@
 // New    : three vertical wheels (HR / MIN / SEC) - scroll to pick, then OK.
 //          The created task gets an id (#N) shown in a toast right away.
 // Background: tasks persist in config.json ("countdown"). A Core service
-//          (eos_service_countdown.c) polls the clock every 1s and relaunches
+//          (cos_service_countdown.c) polls the clock every 1s and relaunches
 //          this app when a RUN task reaches its end timestamp, so a timer
 //          still fires after the app was closed (same scheme as Alarm).
 //
@@ -20,9 +20,9 @@
 // Red lines: no arc / no border / radius<54 / no flex / anim<=6.
 // EVENT_CLICKED broken in this fork -> use EVENT_PRESSED.
 
-var activity = eos.activity.current();
-var view = eos.activity.getView(activity);
-eos.activity.setTitle(activity, "Timer");
+var activity = cos.activity.current();
+var view = cos.activity.getView(activity);
+cos.activity.setTitle(activity, "Timer");
 
 function pad2(n) { return (n < 10 ? "0" : "") + n; }
 function hex(v) { return lv.color.hex(v); }
@@ -41,11 +41,11 @@ function dateToSec(y, m, d, h, mi, s) {
     return ((era * 146097 + doe - 719468) * 86400) + h * 3600 + mi * 60 + s;
 }
 function nowMs() {
-    var t = eos.time.getNow();
+    var t = cos.time.getNow();
     return dateToSec(t.year, t.month, t.day, t.hour, t.min, t.sec) * 1000 + (t.ms || 0);
 }
 function nowSec() {
-    var t = eos.time.getNow();
+    var t = cos.time.getNow();
     return dateToSec(t.year, t.month, t.day, t.hour, t.min, t.sec);
 }
 function fmt(sec) {
@@ -59,7 +59,7 @@ function fmt(sec) {
 var root = new lv.obj(view);
 root.setSize(240, 240);
 root.setPos(0, 0);
-eos.roundClip(root);   /* round the background + black out the bezel corners */
+cos.roundClip(root);   /* round the background + black out the bezel corners */
 root.setStyleBgOpa(255, 0);
 root.setStyleBgColor(hex(BG), 0);
 root.setStylePadAll(0, 0);
@@ -119,7 +119,7 @@ var nextId = 1;
 
 function loadTasks() {
     try {
-        var s = eos.config.getStr("countdown");
+        var s = cos.config.getStr("countdown");
         if (s) { tasks = JSON.parse(s); if (!Array.isArray(tasks)) tasks = []; }
     } catch (e) { tasks = []; }
     nextId = 1;
@@ -137,7 +137,7 @@ function loadTasks() {
     }
     if (dirty) saveTasks();
 }
-function saveTasks() { try { eos.config.setStr("countdown", JSON.stringify(tasks)); } catch (e) {} }
+function saveTasks() { try { cos.config.setStr("countdown", JSON.stringify(tasks)); } catch (e) {} }
 
 function stateCol(st) {
     return st === "RUN" ? BLUE : st === "PAUSE" ? ORANGE : st === "DONE" ? RED : GREY;
@@ -462,7 +462,7 @@ function okNew() {
 }
 
 /* ================= page switching ================= */
-function setTitle(s) { try { eos.activity.setTitle(activity, s); } catch (e) {} }
+function setTitle(s) { try { cos.activity.setTitle(activity, s); } catch (e) {} }
 function showHome() {
     homeC.removeFlag(lv.OBJ_FLAG_HIDDEN);
     editC.addFlag(lv.OBJ_FLAG_HIDDEN);
@@ -527,4 +527,4 @@ buildHome();
 buildEdit();
 paintHome();
 showHome();
-eos.console.log("[timer] multi-countdown v0.2 loaded");
+cos.console.log("[timer] multi-countdown v0.2 loaded");

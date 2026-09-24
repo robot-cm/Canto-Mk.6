@@ -1,5 +1,5 @@
 /**
- * @file eos_usb_msc_descriptors.c
+ * @file cos_usb_msc_descriptors.c
  * @brief USB 设备描述符 / 配置描述符 / 字符串描述符(espressif/tinyusb 组件要求用户提供)。
  *
  * 设备只暴露一个 MSC 接口(单一逻辑单元 = 一张 SD 卡),无 CDC/HID。

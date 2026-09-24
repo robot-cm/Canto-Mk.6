@@ -1,29 +1,29 @@
 /**
- * @file eos_app_header.c
+ * @file cos_app_header.c
  * @brief Application top navigation header
  */
 
-#include "eos_app_header.h"
-#include "eos_config.h"
+#include "cos_app_header.h"
+#include "cos_config.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
-#define EOS_LOG_TAG "AppHeader"
-#include "eos_log.h"
-#include "eos_core.h"
-#include "eos_port.h"
-#include "eos_lang.h"
-#include "eos_image.h"
-#include "eos_theme.h"
-#include "eos_font.h"
-#include "eos_basic_widgets.h"
-#include "eos_mem.h"
-#include "eos_activity.h"
-#include "eos_service_time.h"
-#include "eos_event.h"
-#include "eos_overlay_layer.h"
-#include "eos_service_cache.h"
+#define COS_LOG_TAG "AppHeader"
+#include "cos_log.h"
+#include "cos_core.h"
+#include "cos_port.h"
+#include "cos_lang.h"
+#include "cos_image.h"
+#include "cos_theme.h"
+#include "cos_font.h"
+#include "cos_basic_widgets.h"
+#include "cos_mem.h"
+#include "cos_activity.h"
+#include "cos_service_time.h"
+#include "cos_event.h"
+#include "cos_overlay_layer.h"
+#include "cos_service_cache.h"
 
 /* Macros and Definitions -------------------------------------*/
 #define _HEADER_HEIGHT 120
@@ -35,7 +35,7 @@
 
 #define _TITLE_LABEL_Y_OFFSET 20
 #define _TITLE_LABEL_X_OFFSET -_HEADER_MARGIN_RIGHT
-#define _ANIM_DURATION EOS_VIEW_SWITCH_DURATION
+#define _ANIM_DURATION COS_VIEW_SWITCH_DURATION
 
 #define _BACK_BTN_MARGIN_LEFT 20
 
@@ -58,10 +58,10 @@ typedef struct
     bool is_anim_entering; // Animation direction
     bool attached_to_view; // Whether attached to View
     lv_image_dsc_t *grad_bg_img; // Pre-rendered gradient background (ARGB8888 full-size)
-} eos_app_header_t;
+} cos_app_header_t;
 
 /* Variables --------------------------------------------------*/
-static eos_app_header_t *app_header = NULL;
+static cos_app_header_t *app_header = NULL;
 static bool _back_btn_visible = true; /**< Master switch for the back button
     (apps use swipe-back, so the header back button is hidden while an app runs) */
 static bool _clock_visible = true; /**< Master switch for the header clock label
@@ -97,18 +97,18 @@ static void _app_header_fade_out_ready_cb(lv_anim_t *a)
     lv_obj_set_style_opa(obj, LV_OPA_COVER, 0);
 }
 
-static void _app_header_apply_activity_mode(eos_activity_t *activity)
+static void _app_header_apply_activity_mode(cos_activity_t *activity)
 {
-    EOS_CHECK_PTR_RETURN(app_header);
+    COS_CHECK_PTR_RETURN(app_header);
 
     bool time_only = false;
-    lv_color_t clock_color = EOS_COLOR_WHITE;
+    lv_color_t clock_color = COS_COLOR_WHITE;
     if (activity)
     {
-        time_only = eos_activity_is_app_header_time_only(activity);
+        time_only = cos_activity_is_app_header_time_only(activity);
         if (time_only)
         {
-            clock_color = eos_activity_get_app_header_time_only_text_color(activity);
+            clock_color = cos_activity_get_app_header_time_only_text_color(activity);
         }
     }
 
@@ -144,7 +144,7 @@ static void _app_header_apply_activity_mode(eos_activity_t *activity)
     }
 }
 
-void eos_app_header_set_back_btn_visible(bool visible)
+void cos_app_header_set_back_btn_visible(bool visible)
 {
     _back_btn_visible = visible;
     if (app_header && app_header->back_btn && lv_obj_is_valid(app_header->back_btn))
@@ -156,7 +156,7 @@ void eos_app_header_set_back_btn_visible(bool visible)
     }
 }
 
-void eos_app_header_set_clock_visible(bool visible)
+void cos_app_header_set_clock_visible(bool visible)
 {
     _clock_visible = visible;
     if (app_header && app_header->clock_label && lv_obj_is_valid(app_header->clock_label))
@@ -178,13 +178,13 @@ static bool _app_header_can_reparent(lv_obj_t *new_parent)
     if (!app_header->container || !lv_obj_is_valid(app_header->container))
     {
         app_header->attached_to_view = false;
-        EOS_LOG_E("AppHeader container is invalid");
+        COS_LOG_E("AppHeader container is invalid");
         return false;
     }
 
     if (!new_parent || !lv_obj_is_valid(new_parent))
     {
-        EOS_LOG_E("AppHeader target parent is invalid");
+        COS_LOG_E("AppHeader target parent is invalid");
         return false;
     }
 
@@ -193,14 +193,14 @@ static bool _app_header_can_reparent(lv_obj_t *new_parent)
 
 static void _set_title_style(lv_obj_t *label)
 {
-    lv_obj_add_style(label, eos_theme_get_label_style(), 0);
+    lv_obj_add_style(label, cos_theme_get_label_style(), 0);
     lv_obj_set_width(label, _HEADER_TITLE_WIDTH);
     lv_label_set_text(label, "");
-    eos_label_set_font_size(label, EOS_FONT_SIZE_LARGE);
+    cos_label_set_font_size(label, COS_FONT_SIZE_LARGE);
 
     lv_label_set_long_mode(label, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_style_text_color(label, EOS_THEME_PRIMARY_COLOR, 0);
+    lv_obj_set_style_text_color(label, COS_THEME_PRIMARY_COLOR, 0);
     lv_obj_align(label, LV_ALIGN_RIGHT_MID, _TITLE_LABEL_X_OFFSET, _TITLE_LABEL_Y_OFFSET);
 }
 
@@ -208,7 +208,7 @@ static void _set_back_btn_style(lv_obj_t *btn)
 {
     lv_obj_set_size(btn, 64, 64);
     lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(btn, EOS_THEME_SECONDARY_COLOR, 0);
+    lv_obj_set_style_bg_color(btn, COS_THEME_SECONDARY_COLOR, 0);
     lv_obj_align(btn, LV_ALIGN_LEFT_MID, _BACK_BTN_MARGIN_LEFT, 0);
 }
 
@@ -222,18 +222,18 @@ static void _ah_set_opa_layered_cb(void *var, int32_t v)
     lv_obj_set_style_opa_layered((lv_obj_t *)var, (lv_opa_t)v, 0);
 }
 
-void _play_title_changed_anim(eos_activity_t *from,
-                              eos_activity_t *to,
+void _play_title_changed_anim(cos_activity_t *from,
+                              cos_activity_t *to,
                               bool need_anim,
                               bool reverse_anim,
                               lv_anim_timeline_t *at)
 {
-    EOS_CHECK_PTR_RETURN(app_header);
+    COS_CHECK_PTR_RETURN(app_header);
     if (!(lv_obj_is_valid(app_header->title_label) && lv_obj_has_class(app_header->title_label, &lv_label_class)))
         return;
 
-    bool from_time_only = from ? eos_activity_is_app_header_time_only(from) : false;
-    bool to_time_only = to ? eos_activity_is_app_header_time_only(to) : false;
+    bool from_time_only = from ? cos_activity_is_app_header_time_only(from) : false;
+    bool to_time_only = to ? cos_activity_is_app_header_time_only(to) : false;
 
     if (from_time_only || to_time_only)
     {
@@ -242,11 +242,11 @@ void _play_title_changed_anim(eos_activity_t *from,
 
     if (!need_anim || !at)
     {
-        const char *new_title = eos_activity_get_title(to);
-        EOS_LOG_D("New title: %s", new_title ? new_title : "(null)");
+        const char *new_title = cos_activity_get_title(to);
+        COS_LOG_D("New title: %s", new_title ? new_title : "(null)");
         lv_label_set_text(app_header->title_label, new_title ? new_title : "");
 
-        lv_color_t color = eos_activity_get_title_color(to);
+        lv_color_t color = cos_activity_get_title_color(to);
         lv_obj_set_style_text_color(app_header->title_label, color, 0);
         _app_header_apply_activity_mode(to);
         return;
@@ -332,14 +332,14 @@ void _play_title_changed_anim(eos_activity_t *from,
     lv_obj_t *new_l = lv_label_create(parent);
     _set_title_style(new_l);
 
-    const char *new_title = eos_activity_get_title(to);
-    EOS_LOG_D("New title: %s", new_title ? new_title : "(null)");
+    const char *new_title = cos_activity_get_title(to);
+    COS_LOG_D("New title: %s", new_title ? new_title : "(null)");
     lv_label_set_text(new_l, new_title ? new_title : "");
 
-    lv_color_t color = eos_activity_get_title_color(to);
+    lv_color_t color = cos_activity_get_title_color(to);
     lv_obj_set_style_text_color(new_l, color, 0);
 
-    lv_obj_t *new_back_btn = eos_back_btn_create(parent, false);
+    lv_obj_t *new_back_btn = cos_back_btn_create(parent, false);
     _set_back_btn_style(new_back_btn);
 
     int32_t new_title_start_x, new_title_end_x = 0;
@@ -402,7 +402,7 @@ void _play_title_changed_anim(eos_activity_t *from,
  */
 static inline void _app_header_update_clock_label(lv_obj_t *label)
 {
-    eos_datetime_t dt = eos_time_get();
+    cos_datetime_t dt = cos_time_get();
     uint32_t next_ms = (uint32_t)((_HEADER_CLOCK_UPDATE_PERIOD_MINUTES * 60) - dt.sec) * 1000;
     lv_timer_set_period(app_header->clock_timer, next_ms);
     lv_label_set_text_fmt(label, "%02d:%02d", dt.hour, dt.min);
@@ -414,7 +414,7 @@ static inline void _app_header_update_clock_label(lv_obj_t *label)
 static void _clock_update_cb(lv_timer_t *timer)
 {
     lv_obj_t *label = lv_timer_get_user_data(timer);
-    EOS_CHECK_PTR_RETURN(app_header && label);
+    COS_CHECK_PTR_RETURN(app_header && label);
     if (!(app_header->container && lv_obj_is_valid(app_header->container)))
     {
         return;
@@ -427,17 +427,17 @@ static void _clock_update_cb(lv_timer_t *timer)
     _app_header_update_clock_label(label);
 }
 
-void eos_app_header_hide(void)
+void cos_app_header_hide(void)
 {
-    EOS_CHECK_PTR_RETURN(app_header);
-    EOS_LOG_D("Hide app header");
+    COS_CHECK_PTR_RETURN(app_header);
+    COS_LOG_D("Hide app header");
     // If attached to a View, restore the parent object first
     if (app_header->attached_to_view)
     {
         lv_obj_t *restore_parent = app_header->original_parent;
         if (!restore_parent || !lv_obj_is_valid(restore_parent))
         {
-            restore_parent = eos_overlay_get_header_layer();
+            restore_parent = cos_overlay_get_header_layer();
             app_header->original_parent = restore_parent;
         }
 
@@ -454,26 +454,26 @@ void eos_app_header_hide(void)
     }
 }
 
-void eos_app_header_show(eos_activity_t *a)
+void cos_app_header_show(cos_activity_t *a)
 {
-    EOS_CHECK_PTR_RETURN(app_header);
+    COS_CHECK_PTR_RETURN(app_header);
 
     // Check if it is a Watchface Activity; if so, hide AppHeader
-    eos_activity_t *target_activity = a;
+    cos_activity_t *target_activity = a;
     if (!target_activity)
-        target_activity = eos_activity_get_current();
+        target_activity = cos_activity_get_current();
 
-    if (target_activity && target_activity == eos_activity_get_watchface())
+    if (target_activity && target_activity == cos_activity_get_watchface())
     {
-        EOS_LOG_D("Skip showing app header for watchface activity");
+        COS_LOG_D("Skip showing app header for watchface activity");
         return;
     }
 
-    EOS_LOG_D("Show app header");
+    COS_LOG_D("Show app header");
     if (!(app_header->container && lv_obj_is_valid(app_header->container)))
     {
         app_header->attached_to_view = false;
-        EOS_LOG_E("AppHeader container is invalid");
+        COS_LOG_E("AppHeader container is invalid");
         return;
     }
 
@@ -482,7 +482,7 @@ void eos_app_header_show(eos_activity_t *a)
         lv_obj_t *restore_parent = app_header->original_parent;
         if (!restore_parent || !lv_obj_is_valid(restore_parent))
         {
-            restore_parent = eos_overlay_get_header_layer();
+            restore_parent = cos_overlay_get_header_layer();
             app_header->original_parent = restore_parent;
         }
 
@@ -495,19 +495,19 @@ void eos_app_header_show(eos_activity_t *a)
     // Get title text from current Activity
     const char *title = NULL;
     if (a)
-        title = eos_activity_get_title(a);
+        title = cos_activity_get_title(a);
     else
-        title = eos_activity_get_title(eos_activity_get_current());
+        title = cos_activity_get_title(cos_activity_get_current());
     if (title)
         lv_label_set_text(app_header->title_label, title);
     else
         lv_label_set_text(app_header->title_label, "");
     // Get title color from current Activity
-    lv_color_t color = EOS_COLOR_WHITE;
+    lv_color_t color = COS_COLOR_WHITE;
     if (a)
-        color = eos_activity_get_title_color(a);
+        color = cos_activity_get_title_color(a);
     else
-        color = eos_activity_get_title_color(eos_activity_get_current());
+        color = cos_activity_get_title_color(cos_activity_get_current());
     if (lv_obj_is_valid(app_header->title_label))
         lv_obj_set_style_text_color(app_header->title_label, color, 0);
 
@@ -516,9 +516,9 @@ void eos_app_header_show(eos_activity_t *a)
     lv_obj_remove_flag(app_header->container, LV_OBJ_FLAG_HIDDEN);
 }
 
-void eos_app_header_set_visible_animated(eos_activity_t *a, bool visible, uint32_t duration_ms)
+void cos_app_header_set_visible_animated(cos_activity_t *a, bool visible, uint32_t duration_ms)
 {
-    EOS_CHECK_PTR_RETURN(app_header);
+    COS_CHECK_PTR_RETURN(app_header);
 
     if (!(app_header->container && lv_obj_is_valid(app_header->container)))
         return;
@@ -526,9 +526,9 @@ void eos_app_header_set_visible_animated(eos_activity_t *a, bool visible, uint32
     if (duration_ms == 0)
     {
         if (visible)
-            eos_app_header_show(a);
+            cos_app_header_show(a);
         else
-            eos_app_header_hide();
+            cos_app_header_hide();
         return;
     }
 
@@ -543,7 +543,7 @@ void eos_app_header_set_visible_animated(eos_activity_t *a, bool visible, uint32
 
     if (visible)
     {
-        eos_app_header_show(a);
+        cos_app_header_show(a);
         lv_obj_set_style_opa(container, LV_OPA_TRANSP, 0);
         lv_anim_set_values(&anim, LV_OPA_TRANSP, LV_OPA_COVER);
         lv_anim_start(&anim);
@@ -572,9 +572,9 @@ static void _app_header_slide_hide_ready_cb(lv_anim_t *a)
     lv_obj_set_style_translate_y(container, 0, 0);
 }
 
-void eos_app_header_slide_visible_animated(eos_activity_t *a, bool visible, uint32_t duration_ms)
+void cos_app_header_slide_visible_animated(cos_activity_t *a, bool visible, uint32_t duration_ms)
 {
-    EOS_CHECK_PTR_RETURN(app_header);
+    COS_CHECK_PTR_RETURN(app_header);
 
     if (!(app_header->container && lv_obj_is_valid(app_header->container)))
     {
@@ -585,11 +585,11 @@ void eos_app_header_slide_visible_animated(eos_activity_t *a, bool visible, uint
     {
         if (visible)
         {
-            eos_app_header_show(a);
+            cos_app_header_show(a);
         }
         else
         {
-            eos_app_header_hide();
+            cos_app_header_hide();
         }
         return;
     }
@@ -613,7 +613,7 @@ void eos_app_header_slide_visible_animated(eos_activity_t *a, bool visible, uint
 
     if (visible)
     {
-        eos_app_header_show(a);
+        cos_app_header_show(a);
         lv_obj_remove_flag(container, LV_OBJ_FLAG_HIDDEN);
         lv_obj_set_style_translate_y(container, -header_height, 0);
         lv_anim_set_values(&anim, -header_height, 0);
@@ -636,9 +636,9 @@ void eos_app_header_slide_visible_animated(eos_activity_t *a, bool visible, uint
  * @brief Attach app header to specified View
  * @param view View to attach to
  */
-void eos_app_header_attach_to_view(lv_obj_t *view)
+void cos_app_header_attach_to_view(lv_obj_t *view)
 {
-    EOS_CHECK_PTR_RETURN(app_header && view);
+    COS_CHECK_PTR_RETURN(app_header && view);
 
     if (!_app_header_can_reparent(view))
     {
@@ -657,7 +657,7 @@ void eos_app_header_attach_to_view(lv_obj_t *view)
 
     if (!app_header->original_parent || !lv_obj_is_valid(app_header->original_parent))
     {
-        app_header->original_parent = eos_overlay_get_header_layer();
+        app_header->original_parent = cos_overlay_get_header_layer();
     }
 
     lv_obj_set_parent(app_header->container, view);
@@ -667,9 +667,9 @@ void eos_app_header_attach_to_view(lv_obj_t *view)
 /**
  * @brief Detach app header from View, restore to original parent object
  */
-void eos_app_header_detach_from_view(void)
+void cos_app_header_detach_from_view(void)
 {
-    EOS_CHECK_PTR_RETURN(app_header);
+    COS_CHECK_PTR_RETURN(app_header);
     if (!app_header->attached_to_view)
     {
         return;
@@ -678,7 +678,7 @@ void eos_app_header_detach_from_view(void)
     lv_obj_t *restore_parent = app_header->original_parent;
     if (!restore_parent || !lv_obj_is_valid(restore_parent))
     {
-        restore_parent = eos_overlay_get_header_layer();
+        restore_parent = cos_overlay_get_header_layer();
         app_header->original_parent = restore_parent;
     }
 
@@ -689,15 +689,15 @@ void eos_app_header_detach_from_view(void)
     app_header->attached_to_view = false;
 }
 
-bool eos_app_header_is_attached_to_view(void)
+bool cos_app_header_is_attached_to_view(void)
 {
-    EOS_CHECK_PTR_RETURN_VAL(app_header, false);
+    COS_CHECK_PTR_RETURN_VAL(app_header, false);
     return app_header->attached_to_view;
 }
 
-bool eos_app_header_is_visible(void)
+bool cos_app_header_is_visible(void)
 {
-    EOS_CHECK_PTR_RETURN_VAL(app_header, false);
+    COS_CHECK_PTR_RETURN_VAL(app_header, false);
     if (!app_header->container || !lv_obj_is_valid(app_header->container))
     {
         return false;
@@ -707,7 +707,7 @@ bool eos_app_header_is_visible(void)
 
 static void _update_title_label(lv_event_t *e)
 {
-    const char *title = eos_activity_get_title(eos_activity_get_current());
+    const char *title = cos_activity_get_title(cos_activity_get_current());
     if (title)
         lv_label_set_text(app_header->title_label, title);
     else
@@ -716,15 +716,15 @@ static void _update_title_label(lv_event_t *e)
 
 static lv_image_dsc_t *_create_gradient_bg(void)
 {
-    const lv_coord_t img_w = EOS_DISPLAY_WIDTH;
+    const lv_coord_t img_w = COS_DISPLAY_WIDTH;
     const lv_coord_t img_h = _HEADER_HEIGHT;
     const uint32_t cf_bytes = 4;
     const uint32_t buf_size = (uint32_t)img_w * img_h * cf_bytes;
 
-    uint8_t *buf = eos_cache_buf_alloc(buf_size);
+    uint8_t *buf = cos_cache_buf_alloc(buf_size);
     if (!buf)
     {
-        EOS_LOG_E("Failed to allocate gradient bg buffer");
+        COS_LOG_E("Failed to allocate gradient bg buffer");
         return NULL;
     }
 
@@ -746,10 +746,10 @@ static lv_image_dsc_t *_create_gradient_bg(void)
         }
     }
 
-    lv_image_dsc_t *dsc = eos_malloc_zeroed(sizeof(lv_image_dsc_t));
+    lv_image_dsc_t *dsc = cos_malloc_zeroed(sizeof(lv_image_dsc_t));
     if (!dsc)
     {
-        eos_cache_buf_free(buf);
+        cos_cache_buf_free(buf);
         return NULL;
     }
 
@@ -770,8 +770,8 @@ static void _grad_bg_img_delete_cb(lv_event_t *e)
     if (dsc)
     {
         if (dsc->data)
-            eos_cache_buf_free((void *)dsc->data);
-        eos_free(dsc);
+            cos_cache_buf_free((void *)dsc->data);
+        cos_free(dsc);
     }
 }
 
@@ -783,7 +783,7 @@ static void _app_header_container_delete_cb(lv_event_t *e)
         return;
     }
     /* container 被删除时清空子对象指针,防止后续悬垂访问
-     * (日志实证:转场 snapshot 时 eos_app_header_is_visible 访问已释放的
+     * (日志实证:转场 snapshot 时 cos_app_header_is_visible 访问已释放的
      *  container → lv_obj_has_flag(NULL) assert → LV_ASSERT_HANDLER 死循环) */
     app_header->container = NULL;
     app_header->title_label = NULL;
@@ -791,26 +791,26 @@ static void _app_header_container_delete_cb(lv_event_t *e)
     app_header->clock_label = NULL;
 }
 
-void eos_app_header_init(void)
+void cos_app_header_init(void)
 {
-    EOS_LOG_D("Init eos_app_header");
-    app_header = eos_malloc_zeroed(sizeof(eos_app_header_t));
-    EOS_CHECK_PTR_RETURN_FREE(app_header, app_header);
+    COS_LOG_D("Init cos_app_header");
+    app_header = cos_malloc_zeroed(sizeof(cos_app_header_t));
+    COS_CHECK_PTR_RETURN_FREE(app_header, app_header);
 
     app_header->grad_bg_img = _create_gradient_bg();
     if (!app_header->grad_bg_img)
     {
         /* 降级继续:渐变背景缺失不影响 header 基本功能(标题/返回键/时钟)。
-         * 原 EOS_CHECK 直接返回导致整个组件瘫痪(container=NULL → 后续
+         * 原 COS_CHECK 直接返回导致整个组件瘫痪(container=NULL → 后续
          * Show/Hide/SetTitle 全部报 "container is invalid",污染每帧渲染)。 */
-        EOS_LOG_W("Gradient bg unavailable, app header runs without background");
+        COS_LOG_W("Gradient bg unavailable, app header runs without background");
     }
 
     // Semi-transparent container
-    app_header->container = lv_obj_create(eos_overlay_get_header_layer());
+    app_header->container = lv_obj_create(cos_overlay_get_header_layer());
     app_header->original_parent = lv_obj_get_parent(app_header->container); // Save original parent object
     lv_obj_remove_style_all(app_header->container);
-    lv_obj_set_size(app_header->container, EOS_DISPLAY_WIDTH, _HEADER_HEIGHT);
+    lv_obj_set_size(app_header->container, COS_DISPLAY_WIDTH, _HEADER_HEIGHT);
     lv_obj_align(app_header->container, LV_ALIGN_TOP_MID, 0, 0);
     lv_obj_set_style_bg_image_src(app_header->container, app_header->grad_bg_img, 0);
     lv_obj_set_style_bg_image_opa(app_header->container, LV_OPA_COVER, 0);
@@ -822,12 +822,12 @@ void eos_app_header_init(void)
     lv_obj_add_event_cb(app_header->container, _app_header_container_delete_cb, LV_EVENT_DELETE, NULL);
 
     // Back button
-    app_header->back_btn = eos_back_btn_create(app_header->container, false);
+    app_header->back_btn = cos_back_btn_create(app_header->container, false);
     _set_back_btn_style(app_header->back_btn);
 
     // Clock label
     app_header->clock_label = lv_label_create(app_header->container);
-    lv_obj_add_style(app_header->clock_label, eos_theme_get_label_style(), 0);
+    lv_obj_add_style(app_header->clock_label, cos_theme_get_label_style(), 0);
     app_header->clock_timer =
         lv_timer_create(_clock_update_cb, _HEADER_CLOCK_UPDATE_PERIOD_MINUTES * 60 * 1000, app_header->clock_label);
     lv_timer_set_repeat_count(app_header->clock_timer, -1);

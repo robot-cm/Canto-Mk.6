@@ -1,10 +1,10 @@
 /**
- * @file eos_ww_clock_hand.h
+ * @file cos_ww_clock_hand.h
  * @brief Clock hand
  */
 
-#ifndef EOS_WW_CLOCK_HAND_H
-#define EOS_WW_CLOCK_HAND_H
+#ifndef COS_WW_CLOCK_HAND_H
+#define COS_WW_CLOCK_HAND_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,10 +19,10 @@ extern "C" {
 /* Public typedefs --------------------------------------------*/
 typedef enum
 {
-    EOS_CLOCK_HAND_HOUR,
-    EOS_CLOCK_HAND_MINUTE,
-    EOS_CLOCK_HAND_SECOND,
-} eos_clock_hand_type_t;
+    COS_CLOCK_HAND_HOUR,
+    COS_CLOCK_HAND_MINUTE,
+    COS_CLOCK_HAND_SECOND,
+} cos_clock_hand_type_t;
 /* Public function prototypes --------------------------------*/
 
 /**
@@ -31,26 +31,26 @@ typedef enum
  * @param target_x x
  * @param target_y y
  */
-void eos_clock_hand_place_pivot(lv_obj_t *hand, lv_coord_t target_x, lv_coord_t target_y);
+void cos_clock_hand_place_pivot(lv_obj_t *hand, lv_coord_t target_x, lv_coord_t target_y);
 
 /**
  * @brief Center relative to parent object using pointer rotation center as anchor
  * @param hand Pointer object
  */
-void eos_clock_hand_center(lv_obj_t *hand);
+void cos_clock_hand_center(lv_obj_t *hand);
 
 /**
  * @brief Create a clock hand
  * @param parent Pointer parent object
  * @param src Pointer image source
- * @param t Pointer type `eos_clock_hand_type_t`
+ * @param t Pointer type `cos_clock_hand_type_t`
  * @param hand_pivot_x Rotation center x coordinate (relative to image)
  * @param hand_pivot_y Rotation center y coordinate (relative to image)
  * @return lv_obj_t* Returns created pointer image object
  */
-lv_obj_t *eos_clock_hand_create(lv_obj_t *parent,
+lv_obj_t *cos_clock_hand_create(lv_obj_t *parent,
                                 const char *src,
-                                eos_clock_hand_type_t t,
+                                cos_clock_hand_type_t t,
                                 lv_coord_t hand_pivot_x,
                                 lv_coord_t hand_pivot_y);
 
@@ -66,12 +66,12 @@ lv_obj_t *eos_clock_hand_create(lv_obj_t *parent,
  * @param t     Hand type (hour / minute / second)
  * @return      The created LVGL timer (or NULL on failure)
  */
-lv_timer_t *eos_clock_hand_attach(lv_obj_t *hand, eos_clock_hand_type_t t);
+lv_timer_t *cos_clock_hand_attach(lv_obj_t *hand, cos_clock_hand_type_t t);
 
 /**
  * @brief Center a style-driven hand relative to its parent.
  *
- * Like eos_clock_hand_center() but uses an explicit pivot value instead
+ * Like cos_clock_hand_center() but uses an explicit pivot value instead
  * of reading lv_image_get_pivot().  Call this AFTER setting the
  * transform pivot on the hand.
  *
@@ -79,10 +79,10 @@ lv_timer_t *eos_clock_hand_attach(lv_obj_t *hand, eos_clock_hand_type_t t);
  * @param pivot_x  Rotation-centre X in the object's local coordinates
  * @param pivot_y  Rotation-centre Y in the object's local coordinates
  */
-void eos_clock_hand_center_style(lv_obj_t *hand, lv_coord_t pivot_x, lv_coord_t pivot_y);
+void cos_clock_hand_center_style(lv_obj_t *hand, lv_coord_t pivot_x, lv_coord_t pivot_y);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_WW_CLOCK_HAND_H */
+#endif /* COS_WW_CLOCK_HAND_H */

@@ -1,5 +1,5 @@
 /**
- * @file eos_spotify_audio.c
+ * @file cos_spotify_audio.c
  * @brief Spotify 音频管线实现:WAV 解析 + MP3 解码 + PCM 环形缓冲 + UAC 推送。
  *
  * 交付批次:Batch 3。
@@ -16,7 +16,7 @@
  *   而 UAC 等时端点发送本身在 TinyUSB 任务里异步进行,故 write() 返回后
  *   缓冲即视为已消费(等时语义允许丢帧)。
  */
-#include "eos_spotify_audio.h"
+#include "cos_spotify_audio.h"
 
 #if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
 
@@ -27,14 +27,14 @@
 
 #include "esp_heap_caps.h"
 
-#define EOS_LOG_TAG "SpotifyAudio"
-#include "eos_log.h"
+#define COS_LOG_TAG "SpotifyAudio"
+#include "cos_log.h"
 
-#include "eos_mem.h"
-#include "eos_service_storage.h"
-#include "eos_service_config.h"
-#include "eos_spotify_uac.h"
-#include "eos_spotify_mp3.h"
+#include "cos_mem.h"
+#include "cos_service_storage.h"
+#include "cos_service_config.h"
+#include "cos_spotify_uac.h"
+#include "cos_spotify_mp3.h"
 
 /* ── PCM 环形缓冲(内部 RAM + DMA 安全) ───────────────────── */
 
@@ -48,13 +48,13 @@ static uint32_t _ring_used(void)
     {
         return s_ring_head - s_ring_tail;
     }
-    return EOS_SPOTIFY_PCM_RING_BYTES - s_ring_tail + s_ring_head;
+    return COS_SPOTIFY_PCM_RING_BYTES - s_ring_tail + s_ring_head;
 }
 
 static uint32_t _ring_free(void)
 {
     /* 留 1 字节区分空/满 */
-    return EOS_SPOTIFY_PCM_RING_BYTES - 1 - _ring_used();
+    return COS_SPOTIFY_PCM_RING_BYTES - 1 - _ring_used();
 }
 
 static void _ring_reset(void)
@@ -66,11 +66,11 @@ static void _ring_reset(void)
 /** 向环形缓冲写入 n 字节(不做容量检查,调用方先查 _ring_free)。 */
 static void _ring_write(const uint8_t *src, uint32_t n)
 {
-    uint32_t first = EOS_SPOTIFY_PCM_RING_BYTES - s_ring_head;
+    uint32_t first = COS_SPOTIFY_PCM_RING_BYTES - s_ring_head;
     if (n <= first)
     {
         memcpy(s_ring + s_ring_head, src, n);
-        s_ring_head = (s_ring_head + n) % EOS_SPOTIFY_PCM_RING_BYTES;
+        s_ring_head = (s_ring_head + n) % COS_SPOTIFY_PCM_RING_BYTES;
     }
     else
     {
@@ -83,14 +83,14 @@ static void _ring_write(const uint8_t *src, uint32_t n)
 /** 从环形缓冲取出 n 字节并推进 tail。 */
 static void _ring_consume(uint32_t n)
 {
-    s_ring_tail = (s_ring_tail + n) % EOS_SPOTIFY_PCM_RING_BYTES;
+    s_ring_tail = (s_ring_tail + n) % COS_SPOTIFY_PCM_RING_BYTES;
 }
 
 /* ── 状态 ─────────────────────────────────────────────────── */
 
-static eos_spotify_fmt_t s_fmt = EOS_SPOTIFY_FMT_UNKNOWN;
+static cos_spotify_fmt_t s_fmt = COS_SPOTIFY_FMT_UNKNOWN;
 static bool s_open = false;
-static eos_file_t s_fp_handle = EOS_FILE_INVALID;   /* 当前打开的文件句柄 */
+static cos_file_t s_fp_handle = COS_FILE_INVALID;   /* 当前打开的文件句柄 */
 
 /* WAV 解析结果 */
 static uint32_t s_wav_data_off = 0;    /* data chunk 起始偏移 */
@@ -105,7 +105,7 @@ static uint32_t s_duration_ms = 0;
 static uint32_t s_position_ms = 0;
 
 /* 解码器状态 */
-static eos_spotify_mp3_t *s_mp3 = NULL;
+static cos_spotify_mp3_t *s_mp3 = NULL;
 static uint8_t *s_read_buf = NULL;      /* 文件读取缓冲(SD 到解码器)   */
 static int16_t *s_pcm_buf = NULL;       /* 解码输出 PCM(交错立体声)    */
 
@@ -122,7 +122,7 @@ static int s_volume = -1;                 /* -1 = 尚未从配置加载 */
 
 /* ── 音量 ─────────────────────────────────────────────────── */
 
-void eos_spotify_audio_set_volume(int vol)
+void cos_spotify_audio_set_volume(int vol)
 {
     if (vol < 0)
     {
@@ -134,14 +134,14 @@ void eos_spotify_audio_set_volume(int vol)
     }
     s_volume = vol;
     /* 复用系统音量配置键,保证与系统静音/音量策略一致 */
-    eos_config_set_number(EOS_CONFIG_KEY_SPEAKER_VOLUME_NUMBER, vol);
+    cos_config_set_number(COS_CONFIG_KEY_SPEAKER_VOLUME_NUMBER, vol);
 }
 
-int eos_spotify_audio_get_volume(void)
+int cos_spotify_audio_get_volume(void)
 {
     if (s_volume < 0)
     {
-        int v = (int)eos_config_get_number(EOS_CONFIG_KEY_SPEAKER_VOLUME_NUMBER, 50);
+        int v = (int)cos_config_get_number(COS_CONFIG_KEY_SPEAKER_VOLUME_NUMBER, 50);
         if (v < 0)
         {
             v = 0;
@@ -155,9 +155,9 @@ int eos_spotify_audio_get_volume(void)
     return s_volume;
 }
 
-bool eos_spotify_audio_is_muted(void)
+bool cos_spotify_audio_is_muted(void)
 {
-    return eos_config_get_bool(EOS_CONFIG_KEY_MUTE_BOOL, false);
+    return cos_config_get_bool(COS_CONFIG_KEY_MUTE_BOOL, false);
 }
 
 /**
@@ -169,8 +169,8 @@ bool eos_spotify_audio_is_muted(void)
  */
 static void _apply_volume(int16_t *pcm, uint32_t bytes)
 {
-    int vol = eos_spotify_audio_get_volume();
-    if (eos_spotify_audio_is_muted())
+    int vol = cos_spotify_audio_get_volume();
+    if (cos_spotify_audio_is_muted())
     {
         vol = 0;
     }
@@ -210,20 +210,20 @@ static void _apply_volume(int16_t *pcm, uint32_t bytes)
 
 /* 在 RIFF 容器内定位 fmt / data chunk。
  * 返回 true 并填好 s_sample_rate / s_channels / s_bits / s_wav_data_*。 */
-static bool _wav_parse(eos_file_t fp, uint32_t size)
+static bool _wav_parse(cos_file_t fp, uint32_t size)
 {
     uint8_t hdr[12];
-    if (eos_storage_file_seek(fp, 0) != EOS_OK)
+    if (cos_storage_file_seek(fp, 0) != COS_OK)
     {
         return false;
     }
-    if (eos_storage_file_read(fp, hdr, sizeof(hdr)) != (ssize_t)sizeof(hdr))
+    if (cos_storage_file_read(fp, hdr, sizeof(hdr)) != (ssize_t)sizeof(hdr))
     {
         return false;
     }
     if (memcmp(hdr, "RIFF", 4) != 0 || memcmp(hdr + 8, "WAVE", 4) != 0)
     {
-        EOS_LOG_W("WAV: bad RIFF/WAVE magic");
+        COS_LOG_W("WAV: bad RIFF/WAVE magic");
         return false;
     }
 
@@ -235,11 +235,11 @@ static bool _wav_parse(eos_file_t fp, uint32_t size)
     while (off + 8 <= size)
     {
         uint8_t chdr[8];
-        if (eos_storage_file_seek(fp, off) != EOS_OK)
+        if (cos_storage_file_seek(fp, off) != COS_OK)
         {
             return false;
         }
-        if (eos_storage_file_read(fp, chdr, 8) != 8)
+        if (cos_storage_file_read(fp, chdr, 8) != 8)
         {
             break;
         }
@@ -250,7 +250,7 @@ static bool _wav_parse(eos_file_t fp, uint32_t size)
         if (memcmp(chdr, "fmt ", 4) == 0 && clen >= 16)
         {
             uint8_t fmt[16];
-            if (eos_storage_file_read(fp, fmt, 16) != 16)
+            if (cos_storage_file_read(fp, fmt, 16) != 16)
             {
                 return false;
             }
@@ -278,36 +278,36 @@ static bool _wav_parse(eos_file_t fp, uint32_t size)
 
     if (!got_fmt || !got_data)
     {
-        EOS_LOG_W("WAV: missing fmt(%d)/data(%d)", got_fmt, got_data);
+        COS_LOG_W("WAV: missing fmt(%d)/data(%d)", got_fmt, got_data);
         return false;
     }
     /* 只支持 PCM(1) 与 IEEE float 之外的 PCM 16bit。
      * 0xFFFE = WAVE_FORMAT_EXTENSIBLE,按 PCM 处理(常见于 48k 立体声)。 */
     if (audio_format != 1 && audio_format != 0xFFFE)
     {
-        EOS_LOG_W("WAV: unsupported format tag 0x%04X", audio_format);
+        COS_LOG_W("WAV: unsupported format tag 0x%04X", audio_format);
         return false;
     }
     if (s_bits != 16)
     {
-        EOS_LOG_W("WAV: unsupported bits=%u (need 16)", s_bits);
+        COS_LOG_W("WAV: unsupported bits=%u (need 16)", s_bits);
         return false;
     }
     if (s_channels != 1 && s_channels != 2)
     {
-        EOS_LOG_W("WAV: unsupported channels=%u", s_channels);
+        COS_LOG_W("WAV: unsupported channels=%u", s_channels);
         return false;
     }
     if (s_sample_rate < 8000 || s_sample_rate > 96000)
     {
-        EOS_LOG_W("WAV: unsupported rate=%lu", (unsigned long)s_sample_rate);
+        COS_LOG_W("WAV: unsupported rate=%lu", (unsigned long)s_sample_rate);
         return false;
     }
 
     s_wav_read_off = 0;
     uint32_t bytes_per_sec = s_sample_rate * s_channels * 2u;
     s_duration_ms = bytes_per_sec ? (uint32_t)(((uint64_t)s_wav_data_len * 1000u) / bytes_per_sec) : 0;
-    EOS_LOG_I("WAV: %lu Hz %u ch %u bit, %lu ms",
+    COS_LOG_I("WAV: %lu Hz %u ch %u bit, %lu ms",
               (unsigned long)s_sample_rate, s_channels, s_bits,
               (unsigned long)s_duration_ms);
     return true;
@@ -315,7 +315,7 @@ static bool _wav_parse(eos_file_t fp, uint32_t size)
 
 /* ── WAV 解码分片 ─────────────────────────────────────────── */
 
-static int32_t _pump_wav(eos_file_t fp)
+static int32_t _pump_wav(cos_file_t fp)
 {
     if (s_wav_read_off >= s_wav_data_len)
     {
@@ -351,11 +351,11 @@ static int32_t _pump_wav(eos_file_t fp)
         return -1;
     }
 
-    if (eos_storage_file_seek(fp, s_wav_data_off + s_wav_read_off) != EOS_OK)
+    if (cos_storage_file_seek(fp, s_wav_data_off + s_wav_read_off) != COS_OK)
     {
         return -2;
     }
-    ssize_t rd = eos_storage_file_read(fp, s_read_buf, want);
+    ssize_t rd = cos_storage_file_read(fp, s_read_buf, want);
     if (rd <= 0)
     {
         return -2;
@@ -380,53 +380,53 @@ static int32_t _pump_wav(eos_file_t fp)
 
 /* ── 对外 API ─────────────────────────────────────────────── */
 
-eos_spotify_fmt_t eos_spotify_audio_probe(const char *path)
+cos_spotify_fmt_t cos_spotify_audio_probe(const char *path)
 {
     if (!path)
     {
-        return EOS_SPOTIFY_FMT_UNKNOWN;
+        return COS_SPOTIFY_FMT_UNKNOWN;
     }
     const char *dot = strrchr(path, '.');
     if (!dot)
     {
-        return EOS_SPOTIFY_FMT_UNKNOWN;
+        return COS_SPOTIFY_FMT_UNKNOWN;
     }
     if (strcasecmp(dot, ".mp3") == 0)
     {
-        return EOS_SPOTIFY_FMT_MP3;
+        return COS_SPOTIFY_FMT_MP3;
     }
     if (strcasecmp(dot, ".wav") == 0)
     {
-        return EOS_SPOTIFY_FMT_WAV;
+        return COS_SPOTIFY_FMT_WAV;
     }
-    return EOS_SPOTIFY_FMT_UNKNOWN;
+    return COS_SPOTIFY_FMT_UNKNOWN;
 }
 
-bool eos_spotify_audio_open(const char *path, eos_spotify_ade_err_t *out_err)
+bool cos_spotify_audio_open(const char *path, cos_spotify_ade_err_t *out_err)
 {
     if (out_err)
     {
-        *out_err = EOS_SPOTIFY_ADE_OK;
+        *out_err = COS_SPOTIFY_ADE_OK;
     }
     if (!path)
     {
         if (out_err)
-            *out_err = EOS_SPOTIFY_ADE_ERR_OPEN;
+            *out_err = COS_SPOTIFY_ADE_ERR_OPEN;
         return false;
     }
 
-    eos_spotify_audio_close();
+    cos_spotify_audio_close();
 
     /* 懒惰分配内部缓冲(首次打开时) */
     if (s_ring == NULL)
     {
-        s_ring = (uint8_t *)heap_caps_malloc(EOS_SPOTIFY_PCM_RING_BYTES,
+        s_ring = (uint8_t *)heap_caps_malloc(COS_SPOTIFY_PCM_RING_BYTES,
                                              MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
         if (s_ring == NULL)
         {
-            EOS_LOG_E("audio: ring alloc failed (%u B)", EOS_SPOTIFY_PCM_RING_BYTES);
+            COS_LOG_E("audio: ring alloc failed (%u B)", COS_SPOTIFY_PCM_RING_BYTES);
             if (out_err)
-                *out_err = EOS_SPOTIFY_ADE_ERR_MEM;
+                *out_err = COS_SPOTIFY_ADE_ERR_MEM;
             return false;
         }
     }
@@ -436,9 +436,9 @@ bool eos_spotify_audio_open(const char *path, eos_spotify_ade_err_t *out_err)
                                                  MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
         if (s_read_buf == NULL)
         {
-            EOS_LOG_E("audio: read buf alloc failed");
+            COS_LOG_E("audio: read buf alloc failed");
             if (out_err)
-                *out_err = EOS_SPOTIFY_ADE_ERR_MEM;
+                *out_err = COS_SPOTIFY_ADE_ERR_MEM;
             return false;
         }
     }
@@ -449,13 +449,13 @@ bool eos_spotify_audio_open(const char *path, eos_spotify_ade_err_t *out_err)
                                                 MALLOC_CAP_SPIRAM);
         if (s_pcm_buf == NULL)
         {
-            s_pcm_buf = (int16_t *)eos_malloc(AUDIO_PCM_FRAMES * 2 * sizeof(int16_t));
+            s_pcm_buf = (int16_t *)cos_malloc(AUDIO_PCM_FRAMES * 2 * sizeof(int16_t));
         }
         if (s_pcm_buf == NULL)
         {
-            EOS_LOG_E("audio: pcm buf alloc failed");
+            COS_LOG_E("audio: pcm buf alloc failed");
             if (out_err)
-                *out_err = EOS_SPOTIFY_ADE_ERR_MEM;
+                *out_err = COS_SPOTIFY_ADE_ERR_MEM;
             return false;
         }
     }
@@ -468,103 +468,103 @@ bool eos_spotify_audio_open(const char *path, eos_spotify_ade_err_t *out_err)
     s_wav_read_off = 0;
     s_speed_acc = 0;
 
-    eos_file_t fp = eos_storage_file_open_read(path);
-    if (fp == EOS_FILE_INVALID)
+    cos_file_t fp = cos_storage_file_open_read(path);
+    if (fp == COS_FILE_INVALID)
     {
-        EOS_LOG_W("audio: open fail %s", path);
+        COS_LOG_W("audio: open fail %s", path);
         if (out_err)
-            *out_err = EOS_SPOTIFY_ADE_ERR_OPEN;
+            *out_err = COS_SPOTIFY_ADE_ERR_OPEN;
         return false;
     }
 
     uint32_t size = 0;
-    if (eos_storage_file_size(fp, &size) != EOS_OK || size == 0)
+    if (cos_storage_file_size(fp, &size) != COS_OK || size == 0)
     {
-        eos_storage_file_close(fp);
+        cos_storage_file_close(fp);
         if (out_err)
-            *out_err = EOS_SPOTIFY_ADE_ERR_OPEN;
+            *out_err = COS_SPOTIFY_ADE_ERR_OPEN;
         return false;
     }
-    if (size > EOS_SPOTIFY_MAX_FILE_BYTES)
+    if (size > COS_SPOTIFY_MAX_FILE_BYTES)
     {
-        EOS_LOG_W("audio: too big %lu B", (unsigned long)size);
-        eos_storage_file_close(fp);
+        COS_LOG_W("audio: too big %lu B", (unsigned long)size);
+        cos_storage_file_close(fp);
         if (out_err)
-            *out_err = EOS_SPOTIFY_ADE_ERR_FORMAT;
-        return false;
-    }
-
-    eos_spotify_fmt_t fmt = eos_spotify_audio_probe(path);
-    if (fmt == EOS_SPOTIFY_FMT_UNKNOWN)
-    {
-        eos_storage_file_close(fp);
-        if (out_err)
-            *out_err = EOS_SPOTIFY_ADE_ERR_FORMAT;
+            *out_err = COS_SPOTIFY_ADE_ERR_FORMAT;
         return false;
     }
 
-    if (fmt == EOS_SPOTIFY_FMT_WAV)
+    cos_spotify_fmt_t fmt = cos_spotify_audio_probe(path);
+    if (fmt == COS_SPOTIFY_FMT_UNKNOWN)
+    {
+        cos_storage_file_close(fp);
+        if (out_err)
+            *out_err = COS_SPOTIFY_ADE_ERR_FORMAT;
+        return false;
+    }
+
+    if (fmt == COS_SPOTIFY_FMT_WAV)
     {
         if (!_wav_parse(fp, size))
         {
-            eos_storage_file_close(fp);
+            cos_storage_file_close(fp);
             if (out_err)
-                *out_err = EOS_SPOTIFY_ADE_ERR_FORMAT;
+                *out_err = COS_SPOTIFY_ADE_ERR_FORMAT;
             return false;
         }
-        s_fmt = EOS_SPOTIFY_FMT_WAV;
+        s_fmt = COS_SPOTIFY_FMT_WAV;
     }
     else   /* MP3 */
     {
-        s_mp3 = eos_spotify_mp3_create();
+        s_mp3 = cos_spotify_mp3_create();
         if (s_mp3 == NULL)
         {
-            eos_storage_file_close(fp);
+            cos_storage_file_close(fp);
             if (out_err)
-                *out_err = EOS_SPOTIFY_ADE_ERR_MEM;
+                *out_err = COS_SPOTIFY_ADE_ERR_MEM;
             return false;
         }
-        if (!eos_spotify_mp3_open(s_mp3, fp, size))
+        if (!cos_spotify_mp3_open(s_mp3, fp, size))
         {
-            EOS_LOG_W("audio: mp3 open/parse failed %s", path);
+            COS_LOG_W("audio: mp3 open/parse failed %s", path);
             s_mp3 = NULL;
-            eos_storage_file_close(fp);
+            cos_storage_file_close(fp);
             if (out_err)
-                *out_err = EOS_SPOTIFY_ADE_ERR_DECODE;
+                *out_err = COS_SPOTIFY_ADE_ERR_DECODE;
             return false;
         }
-        s_sample_rate = eos_spotify_mp3_sample_rate(s_mp3);
-        s_channels = eos_spotify_mp3_channels(s_mp3);
+        s_sample_rate = cos_spotify_mp3_sample_rate(s_mp3);
+        s_channels = cos_spotify_mp3_channels(s_mp3);
         s_bits = 16;
-        s_duration_ms = eos_spotify_mp3_duration_ms(s_mp3);
-        s_fmt = EOS_SPOTIFY_FMT_MP3;
+        s_duration_ms = cos_spotify_mp3_duration_ms(s_mp3);
+        s_fmt = COS_SPOTIFY_FMT_MP3;
     }
 
     s_fp_handle = fp;   /* 保存句柄,供 pump/seek 使用 */
     s_open = true;
-    EOS_LOG_I("audio: opened %s (%s) %lu Hz %u ch %lu ms",
+    COS_LOG_I("audio: opened %s (%s) %lu Hz %u ch %lu ms",
               path,
-              s_fmt == EOS_SPOTIFY_FMT_MP3 ? "MP3" : "WAV",
+              s_fmt == COS_SPOTIFY_FMT_MP3 ? "MP3" : "WAV",
               (unsigned long)s_sample_rate, s_channels,
               (unsigned long)s_duration_ms);
     return true;
 }
 
-void eos_spotify_audio_close(void)
+void cos_spotify_audio_close(void)
 {
-    if (s_fp_handle != EOS_FILE_INVALID)
+    if (s_fp_handle != COS_FILE_INVALID)
     {
-        eos_storage_file_close(s_fp_handle);
-        s_fp_handle = EOS_FILE_INVALID;
+        cos_storage_file_close(s_fp_handle);
+        s_fp_handle = COS_FILE_INVALID;
     }
     if (s_mp3)
     {
-        eos_spotify_mp3_destroy(s_mp3);
+        cos_spotify_mp3_destroy(s_mp3);
         s_mp3 = NULL;
     }
     _ring_reset();
     s_open = false;
-    s_fmt = EOS_SPOTIFY_FMT_UNKNOWN;
+    s_fmt = COS_SPOTIFY_FMT_UNKNOWN;
     s_position_ms = 0;
     s_duration_ms = 0;
     s_wav_read_off = 0;
@@ -611,9 +611,9 @@ static uint32_t _apply_speed(const int16_t *src, uint32_t frames,
     return out_n;
 }
 
-int32_t eos_spotify_audio_pump(void)
+int32_t cos_spotify_audio_pump(void)
 {
-    if (!s_open || s_fp_handle == EOS_FILE_INVALID)
+    if (!s_open || s_fp_handle == COS_FILE_INVALID)
     {
         return -1;
     }
@@ -622,7 +622,7 @@ int32_t eos_spotify_audio_pump(void)
         return 0;   /* 缓冲接近满,本片不产出 */
     }
 
-    if (s_fmt == EOS_SPOTIFY_FMT_WAV)
+    if (s_fmt == COS_SPOTIFY_FMT_WAV)
     {
         /* WAV 若速度不是 1.0x,也需变速处理 */
         if (s_speed >= 0.999f && s_speed <= 1.001f)
@@ -642,11 +642,11 @@ int32_t eos_spotify_audio_pump(void)
         {
             return -1;
         }
-        if (eos_storage_file_seek(s_fp_handle, s_wav_data_off + s_wav_read_off) != EOS_OK)
+        if (cos_storage_file_seek(s_fp_handle, s_wav_data_off + s_wav_read_off) != COS_OK)
         {
             return -2;
         }
-        ssize_t rd = eos_storage_file_read(s_fp_handle, s_read_buf, want);
+        ssize_t rd = cos_storage_file_read(s_fp_handle, s_read_buf, want);
         if (rd <= 0)
         {
             return -2;
@@ -674,7 +674,7 @@ int32_t eos_spotify_audio_pump(void)
     int frames = 0;
     uint32_t sr = 0;
     uint8_t ch = 0;
-    int r = eos_spotify_mp3_read_frame(s_mp3, s_pcm_buf, AUDIO_PCM_FRAMES,
+    int r = cos_spotify_mp3_read_frame(s_mp3, s_pcm_buf, AUDIO_PCM_FRAMES,
                                       &frames, &sr, &ch);
     if (r < 0)
     {
@@ -729,7 +729,7 @@ int32_t eos_spotify_audio_pump(void)
     return (int32_t)out_bytes;
 }
 
-int32_t eos_spotify_audio_flush_to_uac(void)
+int32_t cos_spotify_audio_flush_to_uac(void)
 {
     if (!s_ring)
     {
@@ -742,13 +742,13 @@ int32_t eos_spotify_audio_flush_to_uac(void)
     }
 
     /* 等时端点要求每次发送连续内存;环形缓冲跨界时分两段发送 */
-    uint32_t first = EOS_SPOTIFY_PCM_RING_BYTES - s_ring_tail;
+    uint32_t first = COS_SPOTIFY_PCM_RING_BYTES - s_ring_tail;
     if (first > used)
     {
         first = used;
     }
 
-    int32_t sent = eos_spotify_uac_write(s_ring + s_ring_tail, first);
+    int32_t sent = cos_spotify_uac_write(s_ring + s_ring_tail, first);
     if (sent > 0)
     {
         _ring_consume((uint32_t)sent);
@@ -756,15 +756,15 @@ int32_t eos_spotify_audio_flush_to_uac(void)
     return sent > 0 ? sent : 0;
 }
 
-void eos_spotify_audio_seek_ms(uint32_t ms)
+void cos_spotify_audio_seek_ms(uint32_t ms)
 {
-    if (!s_open || s_fp_handle == EOS_FILE_INVALID)
+    if (!s_open || s_fp_handle == COS_FILE_INVALID)
     {
         return;
     }
     _ring_reset();
 
-    if (s_fmt == EOS_SPOTIFY_FMT_WAV)
+    if (s_fmt == COS_SPOTIFY_FMT_WAV)
     {
         uint32_t frame = s_channels * 2u;
         uint32_t bytes_per_ms = (s_sample_rate * frame) / 1000u;
@@ -776,7 +776,7 @@ void eos_spotify_audio_seek_ms(uint32_t ms)
         }
         s_wav_read_off = off;
         s_position_ms = ms;
-        EOS_LOG_I("audio: seek WAV -> %lu ms (off=%lu)", (unsigned long)ms, (unsigned long)off);
+        COS_LOG_I("audio: seek WAV -> %lu ms (off=%lu)", (unsigned long)ms, (unsigned long)off);
         return;
     }
 
@@ -785,13 +785,13 @@ void eos_spotify_audio_seek_ms(uint32_t ms)
     {
         /* MP3 seek 依赖帧索引;这里采用"重建 + 线性跳过"的近似实现,
          * 由 mp3 层负责内部帧跳过。 */
-        eos_spotify_mp3_seek_ms(s_mp3, ms);
+        cos_spotify_mp3_seek_ms(s_mp3, ms);
         s_position_ms = ms;
-        EOS_LOG_I("audio: seek MP3 -> %lu ms", (unsigned long)ms);
+        COS_LOG_I("audio: seek MP3 -> %lu ms", (unsigned long)ms);
     }
 }
 
-void eos_spotify_audio_seek_relative_ms(int32_t delta_ms)
+void cos_spotify_audio_seek_relative_ms(int32_t delta_ms)
 {
     int64_t target = (int64_t)s_position_ms + delta_ms;
     if (target < 0)
@@ -802,10 +802,10 @@ void eos_spotify_audio_seek_relative_ms(int32_t delta_ms)
     {
         target = (int64_t)s_duration_ms;
     }
-    eos_spotify_audio_seek_ms((uint32_t)target);
+    cos_spotify_audio_seek_ms((uint32_t)target);
 }
 
-void eos_spotify_audio_set_speed(float speed)
+void cos_spotify_audio_set_speed(float speed)
 {
     if (speed < 0.5f)
     {
@@ -819,39 +819,39 @@ void eos_spotify_audio_set_speed(float speed)
     s_speed_acc = 0;
 }
 
-float eos_spotify_audio_get_speed(void)
+float cos_spotify_audio_get_speed(void)
 {
     return s_speed;
 }
 
-uint32_t eos_spotify_audio_position_ms(void)
+uint32_t cos_spotify_audio_position_ms(void)
 {
     return s_position_ms;
 }
 
-uint32_t eos_spotify_audio_duration_ms(void)
+uint32_t cos_spotify_audio_duration_ms(void)
 {
     return s_duration_ms;
 }
 
-bool eos_spotify_audio_eos(void)
+bool cos_spotify_audio_cos(void)
 {
     if (!s_open)
     {
         return true;
     }
-    bool file_end = (s_fmt == EOS_SPOTIFY_FMT_WAV)
+    bool file_end = (s_fmt == COS_SPOTIFY_FMT_WAV)
                         ? (s_wav_read_off >= s_wav_data_len)
-                        : eos_spotify_mp3_eos(s_mp3);
+                        : cos_spotify_mp3_cos(s_mp3);
     return file_end && (_ring_used() == 0);
 }
 
-uint8_t eos_spotify_audio_channels(void)
+uint8_t cos_spotify_audio_channels(void)
 {
     return s_channels;
 }
 
-uint32_t eos_spotify_audio_sample_rate(void)
+uint32_t cos_spotify_audio_sample_rate(void)
 {
     return s_sample_rate;
 }

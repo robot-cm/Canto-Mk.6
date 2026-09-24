@@ -1,5 +1,5 @@
 /**
- * @file eos_service_cc_snapshot.h
+ * @file cos_service_cc_snapshot.h
  * @brief Control-Center settings snapshot on the SD card (``/sdcard/history/cc/``)
  *
  * Four Control-Center settings — display brightness, Bluetooth switch, Wi-Fi
@@ -32,8 +32,8 @@
  *     power=beast
  */
 
-#ifndef EOS_SERVICE_CC_SNAPSHOT_H
-#define EOS_SERVICE_CC_SNAPSHOT_H
+#ifndef COS_SERVICE_CC_SNAPSHOT_H
+#define COS_SERVICE_CC_SNAPSHOT_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,28 +42,28 @@ extern "C" {
 /* Includes ---------------------------------------------------*/
 #include <stdbool.h>
 #include <stdint.h>
-#include "eos_core.h"
+#include "cos_core.h"
 
 /* Public macros ----------------------------------------------*/
 /** @brief Snapshot directory on the SD card */
-#define EOS_CC_SNAPSHOT_DIR  "/sdcard/history/cc"
-/** @brief Snapshot file inside EOS_CC_SNAPSHOT_DIR */
-#define EOS_CC_SNAPSHOT_FILE EOS_CC_SNAPSHOT_DIR "/settings.txt"
+#define COS_CC_SNAPSHOT_DIR  "/sdcard/history/cc"
+/** @brief Snapshot file inside COS_CC_SNAPSHOT_DIR */
+#define COS_CC_SNAPSHOT_FILE COS_CC_SNAPSHOT_DIR "/settings.txt"
 
 /* Public typedefs --------------------------------------------*/
 
 /**
  * @brief Power mode as shown by the Control Center
  *
- * ``EOS_CC_POWER_SMART`` is the system default: neither the power-save nor the
- * beast-mode service is active (see eos_service_beast_mode.h).
+ * ``COS_CC_POWER_SMART`` is the system default: neither the power-save nor the
+ * beast-mode service is active (see cos_service_beast_mode.h).
  */
 typedef enum
 {
-    EOS_CC_POWER_SMART = 0, /**< 智能模式(默认:DFS 80-160MHz) */
-    EOS_CC_POWER_SAVE,      /**< 省电模式 */
-    EOS_CC_POWER_BEAST      /**< 性能模式 */
-} eos_cc_power_mode_t;
+    COS_CC_POWER_SMART = 0, /**< 智能模式(默认:DFS 80-160MHz) */
+    COS_CC_POWER_SAVE,      /**< 省电模式 */
+    COS_CC_POWER_BEAST      /**< 性能模式 */
+} cos_cc_power_mode_t;
 
 /**
  * @brief Decoded snapshot contents
@@ -84,29 +84,29 @@ typedef struct
     bool    wifi;            /**< Wi-Fi switch */
 
     bool    has_power;
-    eos_cc_power_mode_t power; /**< eos_cc_power_mode_t */
-} eos_cc_snapshot_t;
+    cos_cc_power_mode_t power; /**< cos_cc_power_mode_t */
+} cos_cc_snapshot_t;
 
 /* Public function prototypes --------------------------------*/
 
 /** @brief Register the log tag / reset state. Safe to call more than once. */
-void eos_cc_snapshot_init(void);
+void cos_cc_snapshot_init(void);
 
 /**
  * @brief Probe whether the mounted volume is a real SD card
  *
  * The board layer exposes ``board_sd_is_real()``; when that hook is absent
  * (simulator, or a build without USB-MSC support) the probe falls back to a
- * writability test on EOS_CC_SNAPSHOT_DIR.
+ * writability test on COS_CC_SNAPSHOT_DIR.
  *
  * @return true when a real SD card is writable and snapshots are enabled
  */
-bool eos_cc_snapshot_storage_available(void);
+bool cos_cc_snapshot_storage_available(void);
 
 /**
  * @brief Drop any cached probe/snapshot state (call when the card is swapped)
  */
-void eos_cc_snapshot_invalidate(void);
+void cos_cc_snapshot_invalidate(void);
 
 /**
  * @brief Serialize one decoded snapshot to key=value text
@@ -118,10 +118,10 @@ void eos_cc_snapshot_invalidate(void);
  * @param cap  Destination capacity
  * @return Number of bytes that would be written, or -1 on invalid arguments
  */
-int eos_cc_snapshot_format(const eos_cc_snapshot_t *snap, char *buf, size_t cap);
+int cos_cc_snapshot_format(const cos_cc_snapshot_t *snap, char *buf, size_t cap);
 
 /**
- * @brief Parse key=value text produced by eos_cc_snapshot_format()
+ * @brief Parse key=value text produced by cos_cc_snapshot_format()
  *
  * Unknown keys and malformed lines are ignored, so the file stays forward and
  * backward compatible.
@@ -130,7 +130,7 @@ int eos_cc_snapshot_format(const eos_cc_snapshot_t *snap, char *buf, size_t cap)
  * @param snap Destination (fields reset to "missing" first)
  * @return true when the text was non-empty
  */
-bool eos_cc_snapshot_parse(const char *text, eos_cc_snapshot_t *snap);
+bool cos_cc_snapshot_parse(const char *text, cos_cc_snapshot_t *snap);
 
 /**
  * @brief Read the snapshot from the SD card
@@ -140,26 +140,26 @@ bool eos_cc_snapshot_parse(const char *text, eos_cc_snapshot_t *snap);
  *                   sleeping, where the card may have been swapped)
  * @return true when a snapshot file was found and parsed
  */
-bool eos_cc_snapshot_load(eos_cc_snapshot_t *snap, bool force_sync);
+bool cos_cc_snapshot_load(cos_cc_snapshot_t *snap, bool force_sync);
 
 /**
  * @brief Write one setting into the snapshot file
  *
  * Reads the current file, updates the single key and writes it back through
- * ``eos_storage_write_file_immediate()``. No-op (returns EOS_OK) when no real
+ * ``cos_storage_write_file_immediate()``. No-op (returns COS_OK) when no real
  * SD card is present, so callers can call it unconditionally.
  *
  * @param key        One of "brightness" / "bt" / "wifi" / "power"
  * @param value_text Textual value (e.g. "42", "1", "beast")
- * @return EOS_OK when written or intentionally skipped
+ * @return COS_OK when written or intentionally skipped
  */
-eos_result_t eos_cc_snapshot_store_kv(const char *key, const char *value_text);
+cos_result_t cos_cc_snapshot_store_kv(const char *key, const char *value_text);
 
 /** @brief Convenience wrappers for the four supported keys */
-eos_result_t eos_cc_snapshot_store_brightness(uint8_t percent);
-eos_result_t eos_cc_snapshot_store_bt(bool enabled);
-eos_result_t eos_cc_snapshot_store_wifi(bool enabled);
-eos_result_t eos_cc_snapshot_store_power(eos_cc_power_mode_t mode);
+cos_result_t cos_cc_snapshot_store_brightness(uint8_t percent);
+cos_result_t cos_cc_snapshot_store_bt(bool enabled);
+cos_result_t cos_cc_snapshot_store_wifi(bool enabled);
+cos_result_t cos_cc_snapshot_store_power(cos_cc_power_mode_t mode);
 
 /**
  * @brief Snapshot all four settings from the live services / config
@@ -167,9 +167,9 @@ eos_result_t eos_cc_snapshot_store_power(eos_cc_power_mode_t mode);
  * Intended for the sleep paths (deep sleep, power-off, L2 standby) and for
  * explicit "persist now" requests.
  *
- * @return EOS_OK unless the underlying write failed
+ * @return COS_OK unless the underlying write failed
  */
-eos_result_t eos_cc_snapshot_capture_now(void);
+cos_result_t cos_cc_snapshot_capture_now(void);
 
 /**
  * @brief Restore the four settings from the snapshot
@@ -178,15 +178,15 @@ eos_result_t eos_cc_snapshot_capture_now(void);
  * services and enters the recorded power mode. Values that the snapshot does
  * not contain are left untouched, so existing cfg.json keeps working.
  *
- * @return EOS_OK when applied; EOS_ERR when no snapshot was available
+ * @return COS_OK when applied; COS_ERR when no snapshot was available
  */
-eos_result_t eos_cc_snapshot_restore_now(void);
+cos_result_t cos_cc_snapshot_restore_now(void);
 
 /** @brief Append a diagnostic line about snapshot state to @p out */
-void eos_cc_snapshot_dump(char *out, size_t cap);
+void cos_cc_snapshot_dump(char *out, size_t cap);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_SERVICE_CC_SNAPSHOT_H */
+#endif /* COS_SERVICE_CC_SNAPSHOT_H */

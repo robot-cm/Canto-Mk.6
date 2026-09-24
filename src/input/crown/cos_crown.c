@@ -1,30 +1,30 @@
 /**
- * @file eos_crown.c
+ * @file cos_crown.c
  * @brief Crown
  */
 
-#include "eos_crown.h"
+#include "cos_crown.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
-#include "eos_dispatcher.h"
-#define EOS_LOG_DISABLE
-#define EOS_LOG_TAG "Crown"
-#include "eos_log.h"
-#include "eos_service_pm.h"
-#include "eos_service_haptic.h"
-#include "eos_theme.h"
-#include "eos_touch.h"
-#include "input/eos_input.h"
-#include "eos_anim.h"
-#include "eos_activity.h"
-#include "eos_chrome_manager.h"
-#include "eos_control_center.h"
-#include "eos_msg_list.h"
-#include "eos_swipe_panel.h"
-#include "eos_slide_widget.h"
-#include "eos_event.h"
+#include "cos_dispatcher.h"
+#define COS_LOG_DISABLE
+#define COS_LOG_TAG "Crown"
+#include "cos_log.h"
+#include "cos_service_pm.h"
+#include "cos_service_haptic.h"
+#include "cos_theme.h"
+#include "cos_touch.h"
+#include "input/cos_input.h"
+#include "cos_anim.h"
+#include "cos_activity.h"
+#include "cos_chrome_manager.h"
+#include "cos_control_center.h"
+#include "cos_msg_list.h"
+#include "cos_swipe_panel.h"
+#include "cos_slide_widget.h"
+#include "cos_event.h"
 /* Macros and Definitions -------------------------------------*/
 #define _CROWN_ENCODER_SCROLL_COEFFICIENT 50
 #define _VIBRATOR_TICK_DY_THRESHOLD 15
@@ -51,7 +51,7 @@ static void _scrollable_obj_scroll_start_cb(lv_event_t *e);
 static void _scrollable_obj_scroll_end_cb(lv_event_t *e);
 static void _clear_scrollable_obj_cb(lv_event_t *e);
 static void _clear_scrollable_obj_async_cb(void *user_data);
-static void _activity_view_switched_cb(eos_event_t *e);
+static void _activity_view_switched_cb(cos_event_t *e);
 static void _activity_view_switched_async_cb(void *user_data);
 static void _apply_pending_rebind_async_cb(void *user_data);
 static void _scrollbar_hide_timer_cb(lv_timer_t *t);
@@ -93,7 +93,7 @@ static void _scrollbar_show_now(void)
     lv_anim_delete(scrollbar, NULL);
     lv_obj_remove_flag(scrollbar, LV_OBJ_FLAG_HIDDEN);
 
-    eos_lite_anim_fade_layered_start(scrollbar,
+    cos_lite_anim_fade_layered_start(scrollbar,
                                      lv_obj_get_style_opa_layered(scrollbar, 0),
                                      LV_OPA_100,
                                      _SCROLLBAR_FADE_IN_DURATION,
@@ -136,7 +136,7 @@ static void _scrollbar_hide_timer_cb(lv_timer_t *t)
         return;
 
     lv_anim_delete(scrollbar, NULL);
-    eos_lite_anim_fade_layered_start(scrollbar,
+    cos_lite_anim_fade_layered_start(scrollbar,
                                      lv_obj_get_style_opa_layered(scrollbar, 0),
                                      LV_OPA_0,
                                      _SCROLLBAR_FADE_OUT_DURATION,
@@ -196,16 +196,16 @@ static void _scrollbar_set_focused(void)
 {
     if (!(scrollbar && lv_obj_is_valid(scrollbar)))
         return;
-    lv_obj_set_style_bg_color(scrollbar, EOS_COLOR_TEXT_GREY, LV_PART_MAIN);
-    lv_obj_set_style_bg_color(scrollbar, EOS_COLOR_TEXT_GREY, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(scrollbar, COS_COLOR_TEXT_GREY, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(scrollbar, COS_COLOR_TEXT_GREY, LV_PART_INDICATOR);
 }
 
 static void _scrollbar_set_unfocused(void)
 {
     if (!(scrollbar && lv_obj_is_valid(scrollbar)))
         return;
-    lv_obj_set_style_bg_color(scrollbar, EOS_COLOR_WHITE, LV_PART_MAIN);
-    lv_obj_set_style_bg_color(scrollbar, EOS_COLOR_WHITE, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(scrollbar, COS_COLOR_WHITE, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(scrollbar, COS_COLOR_WHITE, LV_PART_INDICATOR);
 }
 
 static void _scrollbar_hide_set_anim(void)
@@ -215,11 +215,11 @@ static void _scrollbar_hide_set_anim(void)
 
 static void _crown_button_async_cb(void *user_data)
 {
-    eos_button_state_t state = (eos_button_state_t)(intptr_t)user_data;
+    cos_button_state_t state = (cos_button_state_t)(intptr_t)user_data;
     switch (state)
     {
-        case EOS_BUTTON_STATE_CLICKED:
-            eos_chrome_manager_handle_crown_click();
+        case COS_BUTTON_STATE_CLICKED:
+            cos_chrome_manager_handle_crown_click();
             break;
         default:
             break;
@@ -241,11 +241,11 @@ static void _crown_encoder_async_cb(void *user_data)
             return;
         }
 
-        eos_crown_encoder_diff_t diff = (eos_crown_encoder_diff_t)(intptr_t)user_data;
+        cos_crown_encoder_diff_t diff = (cos_crown_encoder_diff_t)(intptr_t)user_data;
         int32_t dy = diff * encoder_reverse * _CROWN_ENCODER_SCROLL_COEFFICIENT;
         if (abs(dy) > _VIBRATOR_TICK_DY_THRESHOLD)
         {
-            eos_haptic_tick();
+            cos_haptic_tick();
             _scrollbar_set_focused();
         }
         if (scrollable_obj && lv_obj_is_valid(scrollable_obj))
@@ -293,7 +293,7 @@ static void _scrollable_obj_scrolled_cb(lv_event_t *e)
     int32_t val = LV_CLAMP(0, bar_top + bar_size, _SCROLLBAR_HEIGHT - 2);
     lv_bar_set_start_value(scrollbar, start_val, LV_ANIM_OFF);
     lv_bar_set_value(scrollbar, val, LV_ANIM_OFF);
-    EOS_LOG_D("Bar[%d-%d]/[0-%d]", start_val, val, _SCROLLBAR_HEIGHT);
+    COS_LOG_D("Bar[%d-%d]/[0-%d]", start_val, val, _SCROLLBAR_HEIGHT);
 }
 
 static void _indev_touched_cb(lv_event_t *e)
@@ -314,16 +314,16 @@ static void _scrollable_obj_scroll_end_cb(lv_event_t *e)
     _scrollbar_schedule_hide();
 }
 
-static void _activity_view_switched_cb(eos_event_t *e)
+static void _activity_view_switched_cb(cos_event_t *e)
 {
-    lv_obj_t *view = (lv_obj_t *)eos_event_get_param(e);
+    lv_obj_t *view = (lv_obj_t *)cos_event_get_param(e);
     lv_async_call(_activity_view_switched_async_cb, view);
 }
 
 static void _activity_view_switched_async_cb(void *user_data)
 {
     lv_obj_t *view = (lv_obj_t *)user_data;
-    eos_crown_encoder_set_target_view(view);
+    cos_crown_encoder_set_target_view(view);
 }
 
 static void _slide_widget_state_changed_cb(lv_event_t *e)
@@ -333,26 +333,26 @@ static void _slide_widget_state_changed_cb(lv_event_t *e)
 
 static void _slide_widget_state_changed_async_cb(void *user_data)
 {
-    eos_slide_widget_t *sw = (eos_slide_widget_t *)user_data;
-    lv_obj_t *target_obj = eos_slide_widget_get_target_obj(sw);
-    if (sw && eos_slide_widget_get_state(sw) == EOS_SLIDE_WIDGET_STATE_OPEN && target_obj
+    cos_slide_widget_t *sw = (cos_slide_widget_t *)user_data;
+    lv_obj_t *target_obj = cos_slide_widget_get_target_obj(sw);
+    if (sw && cos_slide_widget_get_state(sw) == COS_SLIDE_WIDGET_STATE_OPEN && target_obj
         && lv_obj_is_valid(target_obj))
     {
         lv_obj_t *target = _find_scrollable_obj(target_obj);
         if (target)
         {
-            eos_crown_encoder_set_target_obj(target);
+            cos_crown_encoder_set_target_obj(target);
             return;
         }
     }
 }
 
-void eos_crown_encoder_register_slide_widget(eos_slide_widget_t *sw)
+void cos_crown_encoder_register_slide_widget(cos_slide_widget_t *sw)
 {
     if (!sw)
         return;
 
-    eos_slide_widget_add_event_cb_opened(sw, _slide_widget_state_changed_cb, NULL);
+    cos_slide_widget_add_event_cb_opened(sw, _slide_widget_state_changed_cb, NULL);
 }
 
 static bool _obj_is_visible_for_crown(lv_obj_t *obj)
@@ -416,10 +416,10 @@ static void _apply_scrollable_obj(lv_obj_t *obj, bool enforce_active_view_scope)
 
     if (enforce_active_view_scope)
     {
-        active_view = eos_view_active();
+        active_view = cos_view_active();
         if (!(active_view && lv_obj_is_valid(active_view) && _is_descendant_of(obj, active_view)))
         {
-            EOS_LOG_D("Skip non-active-view scrollable: obj=%p view=%p", obj, active_view);
+            COS_LOG_D("Skip non-active-view scrollable: obj=%p view=%p", obj, active_view);
             _clear_scrollable_obj();
             return;
         }
@@ -489,7 +489,7 @@ static void _set_target_view_immediate(lv_obj_t *view)
     if (view && lv_obj_is_valid(view) && lv_obj_has_class(view, &lv_obj_class))
     {
         lv_obj_t *target = _find_scrollable_obj(view);
-        EOS_LOG_D("Scrollable target=%p", target);
+        COS_LOG_D("Scrollable target=%p", target);
         if (target)
         {
             _apply_scrollable_obj(target, true);
@@ -500,7 +500,7 @@ static void _set_target_view_immediate(lv_obj_t *view)
     _clear_scrollable_obj();
 }
 
-void eos_crown_encoder_set_target_obj(lv_obj_t *obj)
+void cos_crown_encoder_set_target_obj(lv_obj_t *obj)
 {
     pending_rebind_target = obj;
     pending_rebind_is_view = false;
@@ -513,7 +513,7 @@ void eos_crown_encoder_set_target_obj(lv_obj_t *obj)
     lv_async_call(_apply_pending_rebind_async_cb, NULL);
 }
 
-void eos_crown_encoder_set_target_view(lv_obj_t *view)
+void cos_crown_encoder_set_target_view(lv_obj_t *view)
 {
     pending_rebind_target = view;
     pending_rebind_is_view = true;
@@ -526,23 +526,23 @@ void eos_crown_encoder_set_target_view(lv_obj_t *view)
     lv_async_call(_apply_pending_rebind_async_cb, NULL);
 }
 
-void eos_crown_encoder_activate_current_overlay_scrollable(void)
+void cos_crown_encoder_activate_current_overlay_scrollable(void)
 {
-    const eos_chrome_overlay_t *top = eos_chrome_manager_get_top_overlay();
+    const cos_chrome_overlay_t *top = cos_chrome_manager_get_top_overlay();
     if (top && top->get_scrollable)
     {
         lv_obj_t *scrollable = top->get_scrollable();
         if (scrollable && _obj_is_visible_for_crown(scrollable))
         {
-            eos_crown_encoder_set_target_obj(scrollable);
+            cos_crown_encoder_set_target_obj(scrollable);
             return;
         }
     }
 
-    eos_crown_encoder_set_target_view(eos_view_active());
+    cos_crown_encoder_set_target_view(cos_view_active());
 }
 
-void eos_crown_encoder_set_reverse(bool reverse)
+void cos_crown_encoder_set_reverse(bool reverse)
 {
     if (reverse)
     {
@@ -554,17 +554,17 @@ void eos_crown_encoder_set_reverse(bool reverse)
     }
 }
 
-void eos_crown_encoder_report(eos_crown_encoder_diff_t diff)
+void cos_crown_encoder_report(cos_crown_encoder_diff_t diff)
 {
-    eos_dispatcher_call(_crown_encoder_async_cb, (void *)(intptr_t)diff);
+    cos_dispatcher_call(_crown_encoder_async_cb, (void *)(intptr_t)diff);
 }
 
-void eos_crown_button_report(eos_button_state_t state)
+void cos_crown_button_report(cos_button_state_t state)
 {
-    eos_dispatcher_call(_crown_button_async_cb, (void *)(intptr_t)state);
+    cos_dispatcher_call(_crown_button_async_cb, (void *)(intptr_t)state);
 }
 
-void eos_crown_init(void)
+void cos_crown_init(void)
 {
     scrollbar = lv_bar_create(lv_layer_sys());
     lv_bar_set_mode(scrollbar, LV_BAR_MODE_RANGE);
@@ -575,7 +575,7 @@ void eos_crown_init(void)
     _scrollbar_set_focused();
     /* Touch indev may be absent (e.g. ESP32 touch stub); NULL would trigger
      * LVGL LV_ASSERT_NULL -> while(1) hang + task watchdog. */
-    lv_indev_t *touch = eos_touch_get_indev();
+    lv_indev_t *touch = cos_touch_get_indev();
     if (touch)
     {
         lv_indev_add_event_cb(touch, _indev_touched_cb, LV_EVENT_PRESSED, NULL);
@@ -588,5 +588,5 @@ void eos_crown_init(void)
         lv_timer_pause(scrollbar_hide_timer);
     }
 
-    eos_event_subscribe(EOS_EVENT_ACTIVITY_SCREEN_SWITCHED, _activity_view_switched_cb, NULL);
+    cos_event_subscribe(COS_EVENT_ACTIVITY_SCREEN_SWITCHED, _activity_view_switched_cb, NULL);
 }

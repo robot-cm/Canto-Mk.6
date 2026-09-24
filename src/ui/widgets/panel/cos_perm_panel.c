@@ -1,5 +1,5 @@
 /**
- * @file eos_perm_panel.c
+ * @file cos_perm_panel.c
  * @brief Permission request panel implementation
  *
  * Creates a full-screen overlay on lv_layer_top() with:
@@ -12,21 +12,21 @@
  * naturally obscures the app header without any hide/show coordination.
  * Side key and crown are disabled while the panel is shown (via overlay registration).
  */
-#include "eos_perm_panel.h"
+#include "cos_perm_panel.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <string.h>
-#include "eos_theme.h"
-#include "eos_icon.h"
-#include "eos_lang.h"
-#include "eos_font.h"
-#include "eos_mem.h"
-#include "eos_activity.h"
-#include "eos_overlay_layer.h"
-#include "eos_chrome_manager.h"
-#define EOS_LOG_TAG "PermPanel"
-#include "eos_log.h"
+#include "cos_theme.h"
+#include "cos_icon.h"
+#include "cos_lang.h"
+#include "cos_font.h"
+#include "cos_mem.h"
+#include "cos_activity.h"
+#include "cos_overlay_layer.h"
+#include "cos_chrome_manager.h"
+#define COS_LOG_TAG "PermPanel"
+#include "cos_log.h"
 
 /* Macros and Definitions -------------------------------------*/
 #define _PERM_PANEL_PAD_HORIZ 40
@@ -41,9 +41,9 @@ static void _perm_panel_pull_back(void);
 static void _perm_panel_hide(void);
 
 /* ---- Overlay descriptor for chrome manager ---- */
-static eos_perm_panel_t *_active_panel = NULL;
+static cos_perm_panel_t *_active_panel = NULL;
 
-static const eos_chrome_overlay_t s_perm_overlay = {
+static const cos_chrome_overlay_t s_perm_overlay = {
     .pull_back = _perm_panel_pull_back,
     .hide = _perm_panel_hide,
     .on_focus = NULL,
@@ -55,28 +55,28 @@ static const eos_chrome_overlay_t s_perm_overlay = {
 
 /* Function Implementations -----------------------------------*/
 
-eos_perm_panel_t *eos_perm_panel_create(const eos_perm_panel_cfg_t *cfg)
+cos_perm_panel_t *cos_perm_panel_create(const cos_perm_panel_cfg_t *cfg)
 {
     if (!cfg || !cfg->app_name)
         return NULL;
 
-    eos_perm_panel_t *p = (eos_perm_panel_t *)eos_malloc(sizeof(eos_perm_panel_t));
+    cos_perm_panel_t *p = (cos_perm_panel_t *)cos_malloc(sizeof(cos_perm_panel_t));
     if (!p)
         return NULL;
-    memset(p, 0, sizeof(eos_perm_panel_t));
+    memset(p, 0, sizeof(cos_perm_panel_t));
     p->cfg = *cfg;
 
     /* Register as overlay to disable side key / crown */
     _active_panel = p;
-    eos_chrome_manager_notify_overlay_opened(&s_perm_overlay);
+    cos_chrome_manager_notify_overlay_opened(&s_perm_overlay);
 
     /* ---- Full-screen container on overlay layer (above header_layer) ---- */
-    p->container = lv_obj_create(eos_overlay_get_overlay_layer());
+    p->container = lv_obj_create(cos_overlay_get_overlay_layer());
     lv_obj_remove_style_all(p->container);
     lv_obj_set_size(p->container, lv_pct(100), lv_pct(100));
     lv_obj_set_flex_flow(p->container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(p->container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_bg_color(p->container, EOS_COLOR_BLACK, 0);
+    lv_obj_set_style_bg_color(p->container, COS_COLOR_BLACK, 0);
     lv_obj_set_style_bg_opa(p->container, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(p->container, 0, 0);
     lv_obj_set_style_pad_hor(p->container, _PERM_PANEL_PAD_HORIZ, 0);
@@ -95,12 +95,12 @@ eos_perm_panel_t *eos_perm_panel_create(const eos_perm_panel_cfg_t *cfg)
     lv_obj_set_style_text_align(p->title, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_pad_top(p->title, 24, 0);
     lv_obj_set_style_pad_bottom(p->title, _PERM_PANEL_GAP, 0);
-    eos_label_set_font_size(p->title, EOS_FONT_SIZE_LARGE);
-    lv_obj_set_style_text_color(p->title, EOS_COLOR_WHITE, 0);
+    cos_label_set_font_size(p->title, COS_FONT_SIZE_LARGE);
+    lv_obj_set_style_text_color(p->title, COS_COLOR_WHITE, 0);
 
-    const char *perm_name = eos_permission_category_name(cfg->category);
+    const char *perm_name = cos_permission_category_name(cfg->category);
     lv_label_set_text_fmt(p->title,
-                          eos_lang_get_text(STR_ID_PERM_REQUEST_TITLE),
+                          cos_lang_get_text(STR_ID_PERM_REQUEST_TITLE),
                           cfg->app_name,
                           perm_name ? perm_name : "");
 
@@ -109,10 +109,10 @@ eos_perm_panel_t *eos_perm_panel_create(const eos_perm_panel_cfg_t *cfg)
     lv_obj_set_width(p->message, lv_pct(100));
     lv_label_set_long_mode(p->message, LV_LABEL_LONG_WRAP);
     lv_obj_set_style_text_align(p->message, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_color(p->message, EOS_COLOR_GREY, 0);
+    lv_obj_set_style_text_color(p->message, COS_COLOR_GREY, 0);
     lv_obj_set_style_pad_bottom(p->message, _PERM_PANEL_GAP, 0);
 
-    const char *desc = eos_permission_category_desc(cfg->category);
+    const char *desc = cos_permission_category_desc(cfg->category);
     lv_label_set_text(p->message, desc ? desc : "");
 
     /* ---- Push buttons to bottom with a spacer ---- */
@@ -134,39 +134,39 @@ eos_perm_panel_t *eos_perm_panel_create(const eos_perm_panel_cfg_t *cfg)
 
     /* ---- Allow Once button ---- */
     p->allow_once_btn = lv_button_create(actions);
-    lv_obj_set_size(p->allow_once_btn, lv_pct(100), EOS_PERM_PANEL_BUTTON_HEIGHT);
+    lv_obj_set_size(p->allow_once_btn, lv_pct(100), COS_PERM_PANEL_BUTTON_HEIGHT);
     lv_obj_set_style_radius(p->allow_once_btn, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(p->allow_once_btn, EOS_THEME_BUTTON_COLOR, 0);
+    lv_obj_set_style_bg_color(p->allow_once_btn, COS_THEME_BUTTON_COLOR, 0);
 
     lv_obj_t *allow_once_label = lv_label_create(p->allow_once_btn);
-    lv_label_set_text(allow_once_label, eos_lang_get_text(STR_ID_PERM_ALLOW_ONCE));
-    lv_obj_set_style_text_color(allow_once_label, EOS_COLOR_WHITE, 0);
+    lv_label_set_text(allow_once_label, cos_lang_get_text(STR_ID_PERM_ALLOW_ONCE));
+    lv_obj_set_style_text_color(allow_once_label, COS_COLOR_WHITE, 0);
     lv_obj_center(allow_once_label);
     lv_obj_add_event_cb(p->allow_once_btn, _perm_any_button_cb, LV_EVENT_CLICKED, p);
     lv_obj_add_event_cb(p->allow_once_btn, cfg->allow_once_cb, LV_EVENT_CLICKED, p);
 
     /* ---- Allow While Using App button ---- */
     p->allow_foreground_btn = lv_button_create(actions);
-    lv_obj_set_size(p->allow_foreground_btn, lv_pct(100), EOS_PERM_PANEL_BUTTON_HEIGHT);
+    lv_obj_set_size(p->allow_foreground_btn, lv_pct(100), COS_PERM_PANEL_BUTTON_HEIGHT);
     lv_obj_set_style_radius(p->allow_foreground_btn, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(p->allow_foreground_btn, EOS_THEME_BUTTON_COLOR, 0);
+    lv_obj_set_style_bg_color(p->allow_foreground_btn, COS_THEME_BUTTON_COLOR, 0);
 
     lv_obj_t *allow_fg_label = lv_label_create(p->allow_foreground_btn);
-    lv_label_set_text(allow_fg_label, eos_lang_get_text(STR_ID_PERM_ALLOW_FOREGROUND));
-    lv_obj_set_style_text_color(allow_fg_label, EOS_COLOR_WHITE, 0);
+    lv_label_set_text(allow_fg_label, cos_lang_get_text(STR_ID_PERM_ALLOW_FOREGROUND));
+    lv_obj_set_style_text_color(allow_fg_label, COS_COLOR_WHITE, 0);
     lv_obj_center(allow_fg_label);
     lv_obj_add_event_cb(p->allow_foreground_btn, _perm_any_button_cb, LV_EVENT_CLICKED, p);
     lv_obj_add_event_cb(p->allow_foreground_btn, cfg->allow_foreground_cb, LV_EVENT_CLICKED, p);
 
     /* ---- Don't Allow button ---- */
     p->deny_btn = lv_button_create(actions);
-    lv_obj_set_size(p->deny_btn, lv_pct(100), EOS_PERM_PANEL_BUTTON_HEIGHT);
+    lv_obj_set_size(p->deny_btn, lv_pct(100), COS_PERM_PANEL_BUTTON_HEIGHT);
     lv_obj_set_style_radius(p->deny_btn, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(p->deny_btn, EOS_THEME_BUTTON_COLOR, 0);
+    lv_obj_set_style_bg_color(p->deny_btn, COS_THEME_BUTTON_COLOR, 0);
 
     lv_obj_t *deny_label = lv_label_create(p->deny_btn);
-    lv_label_set_text(deny_label, eos_lang_get_text(STR_ID_PERM_DENY));
-    lv_obj_set_style_text_color(deny_label, EOS_COLOR_WHITE, 0);
+    lv_label_set_text(deny_label, cos_lang_get_text(STR_ID_PERM_DENY));
+    lv_obj_set_style_text_color(deny_label, COS_COLOR_WHITE, 0);
     lv_obj_center(deny_label);
     lv_obj_add_event_cb(p->deny_btn, _perm_any_button_cb, LV_EVENT_CLICKED, p);
     lv_obj_add_event_cb(p->deny_btn, cfg->deny_cb, LV_EVENT_CLICKED, p);
@@ -174,11 +174,11 @@ eos_perm_panel_t *eos_perm_panel_create(const eos_perm_panel_cfg_t *cfg)
     /* Auto-free on container delete */
     lv_obj_add_event_cb(p->container, _perm_panel_container_delete_cb, LV_EVENT_DELETE, p);
 
-    EOS_LOG_D("Permission panel created for app '%s', category %d", cfg->app_name, cfg->category);
+    COS_LOG_D("Permission panel created for app '%s', category %d", cfg->app_name, cfg->category);
     return p;
 }
 
-void eos_perm_panel_delete(eos_perm_panel_t *panel)
+void cos_perm_panel_delete(cos_perm_panel_t *panel)
 {
     if (!panel)
         return;
@@ -187,7 +187,7 @@ void eos_perm_panel_delete(eos_perm_panel_t *panel)
     if (_active_panel == panel)
     {
         _active_panel = NULL;
-        eos_chrome_manager_notify_overlay_closed(&s_perm_overlay);
+        cos_chrome_manager_notify_overlay_closed(&s_perm_overlay);
     }
 
     if (panel->container && lv_obj_is_valid(panel->container))
@@ -196,7 +196,7 @@ void eos_perm_panel_delete(eos_perm_panel_t *panel)
         lv_obj_delete(panel->container);
     }
 
-    eos_free(panel);
+    cos_free(panel);
 }
 
 /* ---- Internal callbacks ---- */
@@ -214,7 +214,7 @@ static void _perm_any_button_cb(lv_event_t *e)
 
 static void _perm_panel_container_delete_cb(lv_event_t *e)
 {
-    eos_perm_panel_t *panel = (eos_perm_panel_t *)lv_event_get_user_data(e);
+    cos_perm_panel_t *panel = (cos_perm_panel_t *)lv_event_get_user_data(e);
     if (!panel)
         return;
 
@@ -224,11 +224,11 @@ static void _perm_panel_container_delete_cb(lv_event_t *e)
         if (_active_panel == panel)
         {
             _active_panel = NULL;
-            eos_chrome_manager_notify_overlay_closed(&s_perm_overlay);
+            cos_chrome_manager_notify_overlay_closed(&s_perm_overlay);
         }
         panel->container = NULL;
-        eos_free(panel);
-        EOS_LOG_D("PermPanel auto-freed");
+        cos_free(panel);
+        COS_LOG_D("PermPanel auto-freed");
     }
 }
 
@@ -244,5 +244,5 @@ static void _perm_panel_hide(void)
 {
     if (!_active_panel)
         return;
-    eos_perm_panel_delete(_active_panel);
+    cos_perm_panel_delete(_active_panel);
 }

@@ -1,5 +1,5 @@
 /**
- * @file eos_net_wifi.h
+ * @file cos_net_wifi.h
  * @brief Wi-Fi service (Core system service)
  *
  * Wi-Fi is a Core / System Service. On real hardware it drives the ESP-IDF
@@ -16,8 +16,8 @@
  * Network API (this service), exactly as required by AGENTS.md.
  */
 
-#ifndef EOS_NET_WIFI_H
-#define EOS_NET_WIFI_H
+#ifndef COS_NET_WIFI_H
+#define COS_NET_WIFI_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,83 +27,83 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include "eos_core.h"
+#include "cos_core.h"
 
 /* Public macros ----------------------------------------------*/
-#define EOS_NET_WIFI_KEY_ENABLED     "wifi.enabled"
-#define EOS_NET_WIFI_KEY_SSID        "wifi.ssid"
-#define EOS_NET_WIFI_KEY_PASSWORD    "wifi.password"
-#define EOS_NET_WIFI_KEY_AUTO        "wifi.auto_connect"
+#define COS_NET_WIFI_KEY_ENABLED     "wifi.enabled"
+#define COS_NET_WIFI_KEY_SSID        "wifi.ssid"
+#define COS_NET_WIFI_KEY_PASSWORD    "wifi.password"
+#define COS_NET_WIFI_KEY_AUTO        "wifi.auto_connect"
 
-#define EOS_NET_WIFI_SSID_MAX  32
-#define EOS_NET_WIFI_PASS_MAX  64
-#define EOS_NET_WIFI_IP_MAX    16   /* "255.255.255.255\0" */
-#define EOS_NET_WIFI_SCAN_MAX  16   /* max APs returned per scan */
+#define COS_NET_WIFI_SSID_MAX  32
+#define COS_NET_WIFI_PASS_MAX  64
+#define COS_NET_WIFI_IP_MAX    16   /* "255.255.255.255\0" */
+#define COS_NET_WIFI_SCAN_MAX  16   /* max APs returned per scan */
 
 /* Public typedefs --------------------------------------------*/
 typedef enum
 {
-    EOS_WIFI_DISABLED = 0,   /**< radio off */
-    EOS_WIFI_IDLE,           /**< enabled, not connected */
-    EOS_WIFI_SCANNING,       /**< scan in progress */
-    EOS_WIFI_CONNECTING,     /**< association in progress */
-    EOS_WIFI_CONNECTED,      /**< associated + IP obtained */
-    EOS_WIFI_DISCONNECTED,   /**< was connected, now dropped */
-    EOS_WIFI_ERROR           /**< last operation failed */
-} eos_wifi_state_t;
+    COS_WIFI_DISABLED = 0,   /**< radio off */
+    COS_WIFI_IDLE,           /**< enabled, not connected */
+    COS_WIFI_SCANNING,       /**< scan in progress */
+    COS_WIFI_CONNECTING,     /**< association in progress */
+    COS_WIFI_CONNECTED,      /**< associated + IP obtained */
+    COS_WIFI_DISCONNECTED,   /**< was connected, now dropped */
+    COS_WIFI_ERROR           /**< last operation failed */
+} cos_wifi_state_t;
 
 /* Authentication mode (simplified) */
 typedef enum
 {
-    EOS_WIFI_AUTH_OPEN = 0,
-    EOS_WIFI_AUTH_WEP,
-    EOS_WIFI_AUTH_WPA,   /* WPA / WPA2-PSK */
-    EOS_WIFI_AUTH_WPA3  /* WPA3-SAE */
-} eos_wifi_auth_t;
+    COS_WIFI_AUTH_OPEN = 0,
+    COS_WIFI_AUTH_WEP,
+    COS_WIFI_AUTH_WPA,   /* WPA / WPA2-PSK */
+    COS_WIFI_AUTH_WPA3  /* WPA3-SAE */
+} cos_wifi_auth_t;
 
 typedef struct
 {
-    char     ssid[EOS_NET_WIFI_SSID_MAX + 1];
+    char     ssid[COS_NET_WIFI_SSID_MAX + 1];
     int8_t   rssi;       /**< dBm (negative; 0 = unknown) */
     uint8_t  channel;
-    uint8_t  auth;       /**< eos_wifi_auth_t */
-} eos_wifi_ap_t;
+    uint8_t  auth;       /**< cos_wifi_auth_t */
+} cos_wifi_ap_t;
 
 /* Public function prototypes --------------------------------*/
-void eos_net_wifi_init(void);
+void cos_net_wifi_init(void);
 
-eos_wifi_state_t eos_net_wifi_state(void);
-const char *eos_net_wifi_state_str(eos_wifi_state_t s);
-bool eos_net_wifi_is_enabled(void);
+cos_wifi_state_t cos_net_wifi_state(void);
+const char *cos_net_wifi_state_str(cos_wifi_state_t s);
+bool cos_net_wifi_is_enabled(void);
 
-eos_result_t eos_net_wifi_set_enabled(bool enabled);
-eos_result_t eos_net_wifi_set_credentials(const char *ssid, const char *password);
-eos_result_t eos_net_wifi_save(void);
+cos_result_t cos_net_wifi_set_enabled(bool enabled);
+cos_result_t cos_net_wifi_set_credentials(const char *ssid, const char *password);
+cos_result_t cos_net_wifi_save(void);
 
-eos_result_t eos_net_wifi_scan(eos_wifi_ap_t *out_aps,
+cos_result_t cos_net_wifi_scan(cos_wifi_ap_t *out_aps,
                                uint32_t max_aps, uint32_t *out_count);
-eos_result_t eos_net_wifi_connect(const char *ssid, const char *password);
-eos_result_t eos_net_wifi_disconnect(void);
+cos_result_t cos_net_wifi_connect(const char *ssid, const char *password);
+cos_result_t cos_net_wifi_disconnect(void);
 
 /* ── 异步版本(实机):立即返回,后台 worker 执行阻塞的 esp_wifi_scan/connect,
  *    供 LVGL/UI 线程调用,避免屏幕冻结(AGENTS.md §19)。 ── */
-eos_result_t eos_net_wifi_scan_async(void);   /* 投递扫描;完成前 eos_net_wifi_scan_busy()=true */
-bool         eos_net_wifi_scan_busy(void);
-eos_result_t eos_net_wifi_scan_take(eos_wifi_ap_t *out_aps,
+cos_result_t cos_net_wifi_scan_async(void);   /* 投递扫描;完成前 cos_net_wifi_scan_busy()=true */
+bool         cos_net_wifi_scan_busy(void);
+cos_result_t cos_net_wifi_scan_take(cos_wifi_ap_t *out_aps,
                                     uint32_t max_aps, uint32_t *out_count); /* 取上次结果 */
-eos_result_t eos_net_wifi_connect_async(const char *ssid, const char *password);
+cos_result_t cos_net_wifi_connect_async(const char *ssid, const char *password);
 
 /* AP 连接记忆(保存到 SD /history/wifi/history.txt;无 SD 则忽略) */
-eos_result_t eos_net_wifi_save_history(const char *ssid, int8_t rssi, const char *password);
+cos_result_t cos_net_wifi_save_history(const char *ssid, int8_t rssi, const char *password);
 /* 扫描后自动连接记忆中信号最强的可见 AP,成功后刷新记忆 */
-eos_result_t eos_net_wifi_connect_from_history(void);
+cos_result_t cos_net_wifi_connect_from_history(void);
 
-eos_result_t eos_net_wifi_get_ip(char *buf, size_t buflen);
-int8_t       eos_net_wifi_rssi(void);
-const char * eos_net_wifi_connected_ssid(void);
+cos_result_t cos_net_wifi_get_ip(char *buf, size_t buflen);
+int8_t       cos_net_wifi_rssi(void);
+const char * cos_net_wifi_connected_ssid(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_NET_WIFI_H */
+#endif /* COS_NET_WIFI_H */

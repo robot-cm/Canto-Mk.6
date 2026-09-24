@@ -1,9 +1,9 @@
 /**
- * @file eos_eqsolver_parser.c
+ * @file cos_eqsolver_parser.c
  * @brief Recursive-descent parser for equation strings.
  */
 
-#include "eos_eqsolver_parser.h"
+#include "cos_eqsolver_parser.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -11,7 +11,7 @@
 #include <string.h>
 #include <math.h>
 
-#include "eos_mem.h"
+#include "cos_mem.h"
 
 /* ---------------- tokenizer ---------------- */
 
@@ -279,7 +279,7 @@ static bool _insert_implicit_mul(parser_t *p)
 
 static eq_node_t *_mk_node(parser_t *p, eq_node_kind_t kind)
 {
-    eq_node_t *n = (eq_node_t *)eos_malloc(sizeof(eq_node_t));
+    eq_node_t *n = (eq_node_t *)cos_malloc(sizeof(eq_node_t));
     if (!n)
     {
         _set_err(p, "Out of memory");
@@ -652,7 +652,7 @@ void eq_ast_free(eq_node_t *node)
     }
     eq_ast_free(node->a);
     eq_ast_free(node->b);
-    eos_free(node);
+    cos_free(node);
 }
 
 /* Variable collection with de-duplication (iterative DFS). */

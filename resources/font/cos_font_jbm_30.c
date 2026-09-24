@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 30 px
  * Bpp: 4
- * Opts: --bpp 4 --size 30 --format lvgl --no-compress --font JetBrainsMono-Medium.ttf -r 0x20-0x7e,0xa0-0xff,0x2013-0x2026,0x2190-0x2193 --lv-fallback source_han_sans_30 --lv-font-name eos_font_jbm_30 -o ../eos_font_jbm_30.c
+ * Opts: --bpp 4 --size 30 --format lvgl --no-compress --font JetBrainsMono-Medium.ttf -r 0x20-0x7e,0xa0-0xff,0x2013-0x2026,0x2190-0x2193 --lv-fallback source_han_sans_30 --lv-font-name cos_font_jbm_30 -o ../cos_font_jbm_30.c
  ******************************************************************************/
 
 #ifdef LV_LVGL_H_INCLUDE_SIMPLE
@@ -10,13 +10,13 @@
 #include "lvgl/lvgl.h"
 #endif
 
-LV_FONT_DECLARE(eos_font_icon);
+LV_FONT_DECLARE(cos_font_icon);
 
-#ifndef EOS_FONT_JBM_30
-#define EOS_FONT_JBM_30 1
+#ifndef COS_FONT_JBM_30
+#define COS_FONT_JBM_30 1
 #endif
 
-#if EOS_FONT_JBM_30
+#if COS_FONT_JBM_30
 
 /*-----------------
  *    BITMAPS
@@ -4610,9 +4610,9 @@ extern const lv_font_t source_han_sans_30;
 
 /*Initialize a public general font descriptor*/
 #if LVGL_VERSION_MAJOR >= 8
-const lv_font_t eos_font_jbm_30 = {
+const lv_font_t cos_font_jbm_30 = {
 #else
-lv_font_t eos_font_jbm_30 = {
+lv_font_t cos_font_jbm_30 = {
 #endif
     .get_glyph_dsc = lv_font_get_glyph_dsc_fmt_txt,    /*Function pointer to get glyph's data*/
     .get_glyph_bitmap = lv_font_get_bitmap_fmt_txt,    /*Function pointer to get glyph's bitmap*/
@@ -4627,13 +4627,13 @@ lv_font_t eos_font_jbm_30 = {
 #endif
     .dsc = &font_dsc,          /*The custom font data. Will be accessed by `get_glyph_bitmap/dsc` */
 #if LV_VERSION_CHECK(8, 2, 0) || LVGL_VERSION_MAJOR >= 9
-    /* 图标字体子集(eos_font_icon), 覆盖 RI_* 和 LV_SYMBOL_* 字符 */
-    .fallback = &eos_font_icon,
+    /* 图标字体子集(cos_font_icon), 覆盖 RI_* 和 LV_SYMBOL_* 字符 */
+    .fallback = &cos_font_icon,
 #endif
     .user_data = NULL,
 };
 
 
 
-#endif /*#if EOS_FONT_JBM_30*/
+#endif /*#if COS_FONT_JBM_30*/
 

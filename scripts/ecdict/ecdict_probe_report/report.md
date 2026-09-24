@@ -4,7 +4,7 @@ Generated: `2026-08-29T19:46:05.622068`
 
 ## Database
 
-- File: `/home/erashaperavm/下载/ElenixOS-fork/resources/ecdict-sqlite-28/stardict.db`
+- File: `/home/erashaperavm/下载/CantoMk6-fork/resources/ecdict-sqlite-28/stardict.db`
 - Size: `811.852 MB`
 - SQLite page size: `1024`
 - Page count: `831336`

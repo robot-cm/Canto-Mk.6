@@ -7,15 +7,15 @@
 
 /* Includes ---------------------------------------------------*/
 #include <stdlib.h>
-#include "eos_mem.h"
+#include "cos_mem.h"
 #include "sni_types.h"
 #include "lvgl.h"
 #include "sni_callback_runtime.h"
 #include "sni_type_bridge.h"
 #include "script_engine_core.h"
 #include "jerryscript.h"
-#define EOS_LOG_TAG "SNI-Context"
-#include "eos_log.h"
+#define COS_LOG_TAG "SNI-Context"
+#include "cos_log.h"
 
 /* Macros and Definitions -------------------------------------*/
 
@@ -26,7 +26,7 @@
         {                                                                                                   \
             jerry_heap_stats_t _s = {0};                                                                    \
             if (jerry_heap_stats(&_s))                                                                      \
-                EOS_LOG_I("[HEAP] %s: alloc=%u peak=%u", tag, _s.allocated_bytes, _s.peak_allocated_bytes); \
+                COS_LOG_I("[HEAP] %s: alloc=%u peak=%u", tag, _s.allocated_bytes, _s.peak_allocated_bytes); \
         }                                                                                                   \
     } while (0)
 
@@ -38,7 +38,7 @@ static const char *_sni_type_names[] = {"LV_TIMER",
                                         "INT32",
                                         "LV_COLOR_FILTER_DSC",
                                         "LV_DISPLAY",
-                                        "EOS_ACTIVITY",
+                                        "COS_ACTIVITY",
                                         "LV_DRAW_BUF",
                                         "LV_DRAW_ARC_DSC",
                                         "LV_DRAW_IMAGE_DSC",
@@ -73,22 +73,22 @@ void sni_context_dump_counters(sni_context_t *ctx)
     if (!ctx)
         return;
     int total = 0;
-    EOS_LOG_I("[COUNTER] ctx=%p resource counts:", (void *)ctx);
+    COS_LOG_I("[COUNTER] ctx=%p resource counts:", (void *)ctx);
     for (int i = 0; i < SNI_MANAGED_RESOURCE_COUNT; i++)
     {
         if (ctx->resource_counts[i] > 0)
         {
-            EOS_LOG_I("  [%2d] %-25s : %d", i, _sni_type_names[i], ctx->resource_counts[i]);
+            COS_LOG_I("  [%2d] %-25s : %d", i, _sni_type_names[i], ctx->resource_counts[i]);
             total += ctx->resource_counts[i];
         }
     }
     if (total == 0)
     {
-        EOS_LOG_I("  (all zero)");
+        COS_LOG_I("  (all zero)");
     }
     else
     {
-        EOS_LOG_I("  TOTAL: %d", total);
+        COS_LOG_I("  TOTAL: %d", total);
     }
 }
 
@@ -107,13 +107,13 @@ int sni_context_get_type_index(sni_type_t type)
 
 sni_context_t *sni_context_create(void)
 {
-    sni_context_t *ctx = eos_malloc_zeroed(sizeof(sni_context_t));
+    sni_context_t *ctx = cos_malloc_zeroed(sizeof(sni_context_t));
     if (!ctx)
     {
-        EOS_LOG_E("CREATE: failed to allocate context");
+        COS_LOG_E("CREATE: failed to allocate context");
         return NULL;
     }
-    EOS_LOG_D("CREATE context=%p (size=%zu)", ctx, sizeof(sni_context_t));
+    COS_LOG_D("CREATE context=%p (size=%zu)", ctx, sizeof(sni_context_t));
     return ctx;
 }
 
@@ -159,13 +159,13 @@ static void sni_context_free_type_list(sni_context_t *ctx, int idx)
         }
 
         count++;
-        eos_free(node);
+        cos_free(node);
         node = next;
     }
     ctx->resource_heads[idx] = NULL;
     if (count > 0)
     {
-        EOS_LOG_D("FREE_TYPE[%d] %s: freed %d nodes", idx, _sni_type_names[idx], count);
+        COS_LOG_D("FREE_TYPE[%d] %s: freed %d nodes", idx, _sni_type_names[idx], count);
     }
 }
 
@@ -173,11 +173,11 @@ void sni_context_destroy(sni_context_t *ctx)
 {
     if (!ctx)
     {
-        EOS_LOG_D("DESTROY: ctx is NULL");
+        COS_LOG_D("DESTROY: ctx is NULL");
         return;
     }
 
-    EOS_LOG_D("DESTROY context=%p", (void *)ctx);
+    COS_LOG_D("DESTROY context=%p", (void *)ctx);
     sni_context_dump_counters(ctx);
 
     for (int i = 0; i < SNI_MANAGED_RESOURCE_COUNT; i++)
@@ -185,20 +185,20 @@ void sni_context_destroy(sni_context_t *ctx)
         sni_context_free_type_list(ctx, i);
         ctx->resource_counts[i] = 0;
     }
-    eos_free(ctx);
+    cos_free(ctx);
 
-    EOS_LOG_D("DESTROY complete: context freed");
+    COS_LOG_D("DESTROY complete: context freed");
 }
 
 void sni_context_clear(sni_context_t *ctx)
 {
     if (!ctx)
     {
-        EOS_LOG_D("CLEAR: ctx is NULL");
+        COS_LOG_D("CLEAR: ctx is NULL");
         return;
     }
 
-    EOS_LOG_D("CLEAR context=%p", (void *)ctx);
+    COS_LOG_D("CLEAR context=%p", (void *)ctx);
     sni_context_dump_counters(ctx);
 
     for (int i = 0; i < SNI_MANAGED_RESOURCE_COUNT; i++)
@@ -207,7 +207,7 @@ void sni_context_clear(sni_context_t *ctx)
         ctx->resource_counts[i] = 0;
     }
 
-    EOS_LOG_D("CLEAR complete");
+    COS_LOG_D("CLEAR complete");
 }
 
 void sni_context_add_resource(sni_context_t *ctx, void *ptr, jerry_value_t js_obj, sni_type_t type)
@@ -219,7 +219,7 @@ void sni_context_add_resource(sni_context_t *ctx, void *ptr, jerry_value_t js_ob
     if (idx < 0)
         return;
 
-    sni_managed_resource_node_t *node = eos_malloc_zeroed(sizeof(sni_managed_resource_node_t));
+    sni_managed_resource_node_t *node = cos_malloc_zeroed(sizeof(sni_managed_resource_node_t));
     if (!node)
         return;
 
@@ -264,7 +264,7 @@ void sni_context_remove_resource(sni_context_t *ctx, void *ptr, sni_type_t type)
             }
 
             ctx->resource_counts[idx]--;
-            eos_free(node);
+            cos_free(node);
             return;
         }
         prev = node;
@@ -334,7 +334,7 @@ static inline void _sni_ctx_safe_js_free(jerry_value_t *value)
         return;
     if (script_engine_get_state() == SCRIPT_ENGINE_STATE_UNINITIALIZED)
     {
-        EOS_LOG_W("Skip jerry_value_free: engine not running");
+        COS_LOG_W("Skip jerry_value_free: engine not running");
         *value = jerry_undefined();
         return;
     }
@@ -353,7 +353,7 @@ void sni_context_delete_timer_sync(sni_context_t *ctx, lv_timer_t *timer)
     {
         _sni_ctx_safe_js_free(&cb_ctx->js_cb);
         cb_ctx->state = SNI_TIMER_STATE_DELETED;
-        eos_free(cb_ctx);
+        cos_free(cb_ctx);
     }
 
     lv_timer_set_user_data(timer, NULL);
@@ -397,7 +397,7 @@ void sni_context_delete_anim_sync(sni_context_t *ctx, void *anim_ctx_ptr)
 
     sni_context_remove_anim(ctx, anim_ctx_ptr);
     anim_ctx->state = SNI_ANIM_STATE_DELETED;
-    eos_free(anim_ctx);
+    cos_free(anim_ctx);
 }
 
 void sni_context_request_async_delete_anim(sni_context_t *ctx, void *anim_ctx_ptr)
@@ -435,7 +435,7 @@ void sni_context_sweep_js_refs(sni_context_t *ctx)
     if (!ctx)
         return;
 
-    EOS_LOG_I("SWEEP-JS: ctx=%p releasing JS callback references", (void *)ctx);
+    COS_LOG_I("SWEEP-JS: ctx=%p releasing JS callback references", (void *)ctx);
 
     _SWEEP_HEAP_LOG("sweep-js start");
 
@@ -484,7 +484,7 @@ void sni_context_sweep_all(sni_context_t *ctx)
     if (!ctx)
         return;
 
-    EOS_LOG_I("SWEEP: ctx=%p", (void *)ctx);
+    COS_LOG_I("SWEEP: ctx=%p", (void *)ctx);
     sni_context_dump_counters(ctx);
 
     _SWEEP_HEAP_LOG("sweep start");
@@ -527,7 +527,7 @@ void sni_context_sweep_all(sni_context_t *ctx)
                     lv_timer_t *timer = (lv_timer_t *)node->ptr;
                     sni_timer_callback_ctx_t *cb_ctx = (sni_timer_callback_ctx_t *)lv_timer_get_user_data(timer);
                     if (cb_ctx)
-                        eos_free(cb_ctx);
+                        cos_free(cb_ctx);
                     lv_timer_set_user_data(timer, NULL);
                     lv_timer_delete(timer);
                 }
@@ -552,12 +552,12 @@ void sni_context_sweep_all(sni_context_t *ctx)
                             }
                             anim_ctx->active_anim = NULL;
                         }
-                        eos_free(anim_ctx);
+                        cos_free(anim_ctx);
                     }
                 }
             }
 
-            eos_free(node);
+            cos_free(node);
             freed_count++;
             node = next;
         }
@@ -565,14 +565,14 @@ void sni_context_sweep_all(sni_context_t *ctx)
         ctx->resource_counts[i] = 0;
         if (freed_count > 0)
         {
-            EOS_LOG_I("SWEEP: freed %d nodes of type [%d] %s", freed_count, i, _sni_type_names[i]);
+            COS_LOG_I("SWEEP: freed %d nodes of type [%d] %s", freed_count, i, _sni_type_names[i]);
         }
     }
 
     _SWEEP_HEAP_LOG("sweep end");
     sni_context_dump_counters(ctx);
 
-    EOS_LOG_I("SWEEP: complete for ctx=%p", (void *)ctx);
+    COS_LOG_I("SWEEP: complete for ctx=%p", (void *)ctx);
 }
 
 void sni_context_set_paused(sni_context_t *ctx, bool paused)

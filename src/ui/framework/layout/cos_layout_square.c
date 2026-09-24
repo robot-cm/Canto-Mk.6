@@ -1,21 +1,21 @@
 /**
- * @file eos_layout_square.c
+ * @file cos_layout_square.c
  * @brief Grid / flex layout strategy for square & rectangular displays.
  */
-#include "eos_layout_square.h"
-#include "eos_mem.h"
+#include "cos_layout_square.h"
+#include "cos_mem.h"
 #include <stdio.h>
 
-static void _square_layout(eos_layout_manager_t *self,
-                           const eos_display_profile_t *p,
-                           eos_widget_t *widgets, int count)
+static void _square_layout(cos_layout_manager_t *self,
+                           const cos_display_profile_t *p,
+                           cos_widget_t *widgets, int count)
 {
     /* Auto-flow into a grid that fits the safe rectangle. Wider panels get an
      * extra column so more information can be shown (req #8 / #10). */
     int cols = (p->aspect_ratio >= 1.2f) ? 3 : 2;
     if (cols < 1) cols = 1;
 
-    float pad = eos_dp(p, 8.0f);
+    float pad = cos_dp(p, 8.0f);
     float cell_w = (p->safe_w - pad * (float)(cols + 1)) / (float)cols;
     int rows = (count + cols - 1) / cols;
     float cell_h = (rows > 0)
@@ -25,9 +25,9 @@ static void _square_layout(eos_layout_manager_t *self,
     for (int i = 0; i < count; i++) {
         int col = i % cols;
         int row = i / cols;
-        eos_widget_t *w = &widgets[i];
-        w->w = eos_dp(p, w->w_dp);
-        w->h = eos_dp(p, w->h_dp);
+        cos_widget_t *w = &widgets[i];
+        w->w = cos_dp(p, w->w_dp);
+        w->h = cos_dp(p, w->h_dp);
 
         /* Fit the widget inside its grid cell (never overflow the safe rect).
          * NOTE: the widget must SHRINK to the cell size — clamping only the
@@ -40,7 +40,7 @@ static void _square_layout(eos_layout_manager_t *self,
         float cx = p->safe_x + pad + (float)col * (cell_w + pad) + cell_w * 0.5f;
         float cy = p->safe_y + pad + (float)row * (cell_h + pad) + cell_h * 0.5f;
         float r = (cw > ch ? cw : ch) * 0.5f;
-        eos_display_profile_clamp_inside(p, &cx, &cy, r);
+        cos_display_profile_clamp_inside(p, &cx, &cy, r);
         w->x = cx - cw * 0.5f;
         w->y = cy - ch * 0.5f;
         w->scale = 1.0f;
@@ -49,16 +49,16 @@ static void _square_layout(eos_layout_manager_t *self,
     }
 }
 
-static void _square_destroy(eos_layout_manager_t *self)
+static void _square_destroy(cos_layout_manager_t *self)
 {
-    eos_free(self);
+    cos_free(self);
 }
 
-eos_layout_manager_t *eos_layout_square_create(void)
+cos_layout_manager_t *cos_layout_square_create(void)
 {
-    eos_layout_manager_t *m =
-        (eos_layout_manager_t *)eos_malloc(sizeof(eos_layout_manager_t));
-    m->shape = EOS_DISPLAY_SHAPE_SQUARE;   /* also serves RECTANGLE */
+    cos_layout_manager_t *m =
+        (cos_layout_manager_t *)cos_malloc(sizeof(cos_layout_manager_t));
+    m->shape = COS_DISPLAY_SHAPE_SQUARE;   /* also serves RECTANGLE */
     m->layout = _square_layout;
     m->destroy = _square_destroy;
     return m;

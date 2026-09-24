@@ -1,9 +1,9 @@
 /**
- * @file eos_sha256.c
+ * @file cos_sha256.c
  * @brief Lightweight SHA-256 hash implementation (FIPS 180-4)
  */
 
-#include "eos_sha256.h"
+#include "cos_sha256.h"
 
 /* Includes ---------------------------------------------------*/
 #include <string.h>
@@ -89,7 +89,7 @@ static void _sha256_transform(uint32_t state[8], const uint8_t block[64])
     state[7] += h;
 }
 
-void eos_sha256(const uint8_t *data, size_t len, uint8_t out[EOS_SHA256_DIGEST_SIZE])
+void cos_sha256(const uint8_t *data, size_t len, uint8_t out[COS_SHA256_DIGEST_SIZE])
 {
     uint32_t state[8] =
         {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
@@ -148,12 +148,12 @@ void eos_sha256(const uint8_t *data, size_t len, uint8_t out[EOS_SHA256_DIGEST_S
     }
 }
 
-void eos_sha256_to_hex(const uint8_t hash[EOS_SHA256_DIGEST_SIZE], char *out_hex, size_t out_size)
+void cos_sha256_to_hex(const uint8_t hash[COS_SHA256_DIGEST_SIZE], char *out_hex, size_t out_size)
 {
     static const char hex_chars[] = "0123456789abcdef";
     size_t i;
 
-    if (out_size < EOS_SHA256_HEX_STR_SIZE)
+    if (out_size < COS_SHA256_HEX_STR_SIZE)
     {
         if (out_size > 0)
         {
@@ -162,7 +162,7 @@ void eos_sha256_to_hex(const uint8_t hash[EOS_SHA256_DIGEST_SIZE], char *out_hex
         return;
     }
 
-    for (i = 0; i < EOS_SHA256_DIGEST_SIZE; i++)
+    for (i = 0; i < COS_SHA256_DIGEST_SIZE; i++)
     {
         out_hex[i * 2] = hex_chars[(hash[i] >> 4) & 0x0F];
         out_hex[i * 2 + 1] = hex_chars[hash[i] & 0x0F];

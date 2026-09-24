@@ -1,10 +1,10 @@
 /**
- * @file sni_api_eos.h
+ * @file sni_api_cos.h
  * @brief Canto Mk.6 API
  */
 
-#ifndef SNI_API_EOS_H
-#define SNI_API_EOS_H
+#ifndef SNI_API_COS_H
+#define SNI_API_COS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,16 +23,16 @@ extern "C" {
 /**
  * @brief Initialize Canto Mk.6 API
  */
-void sni_api_eos_init(void);
+void sni_api_cos_init(void);
 
 /**
  * @brief Mount Canto Mk.6 API to specified Realm
  * @param realm Target Realm value
  */
-void sni_api_eos_mount(jerry_value_t realm);
+void sni_api_cos_mount(jerry_value_t realm);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* SNI_API_EOS_H */
+#endif /* SNI_API_COS_H */

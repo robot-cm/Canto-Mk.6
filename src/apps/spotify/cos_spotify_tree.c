@@ -1,9 +1,9 @@
 /**
- * @file eos_spotify_tree.c
+ * @file cos_spotify_tree.c
  * @brief SD 懒加载音乐文件树实现(仅 .mp3 / .wav)。
  *
  * ── 与 Texthub FM 的一致性 ──────────────────────────────────
- *   本模块**直接照搬** src/apps/texthub/eos_texthub.c 中 Lazy File Manager
+ *   本模块**直接照搬** src/apps/texthub/cos_texthub.c 中 Lazy File Manager
  *   的设计,只把"文本文件过滤"换成"音频文件过滤":
  *
  *     Texthub                          → 本模块
@@ -24,9 +24,9 @@
  *   · 一个目录的全部子节点是**一次 malloc 的连续数组**(不是逐个节点分配);
  *   · name/path 为定长内嵌数组,不额外 malloc;
  *   · 数组整体随父节点一起 free,避免碎片;
- *   · 分配走 eos_malloc(PSRAM 优先由 eos_mem 决定)。
+ *   · 分配走 cos_malloc(PSRAM 优先由 cos_mem 决定)。
  */
-#include "eos_spotify_tree.h"
+#include "cos_spotify_tree.h"
 
 #if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
 
@@ -35,28 +35,28 @@
 #include <string.h>
 #include <strings.h>
 
-#define EOS_LOG_TAG "SpotifyTree"
-#include "eos_log.h"
+#define COS_LOG_TAG "SpotifyTree"
+#include "cos_log.h"
 
-#include "eos_mem.h"
-#include "eos_service_storage.h"
-#include "eos_spotify_audio.h"   /* eos_spotify_audio_probe() 判扩展名 */
+#include "cos_mem.h"
+#include "cos_service_storage.h"
+#include "cos_spotify_audio.h"   /* cos_spotify_audio_probe() 判扩展名 */
 
 /* ── 与 Texthub 对齐的限制常量 ────────────────────────────── */
 
-#define SP_TREE_DEPTH_MAX   EOS_SPOTIFY_TREE_DEPTH_MAX    /* 6   */
-#define SP_TREE_MAX_CHILD   EOS_SPOTIFY_TREE_CHILD_MAX    /* 300 */
-#define SP_TREE_MAX_VISIBLE EOS_SPOTIFY_TREE_VISIBLE_MAX  /* 200 */
+#define SP_TREE_DEPTH_MAX   COS_SPOTIFY_TREE_DEPTH_MAX    /* 6   */
+#define SP_TREE_MAX_CHILD   COS_SPOTIFY_TREE_CHILD_MAX    /* 300 */
+#define SP_TREE_MAX_VISIBLE COS_SPOTIFY_TREE_VISIBLE_MAX  /* 200 */
 
 /* ── 节点(对照 Texthub 的 th_node_t) ─────────────────────── */
-/* 结构体标签与 .h 中前置声明的 eos_spotify_node_s 必须一致。 */
+/* 结构体标签与 .h 中前置声明的 cos_spotify_node_s 必须一致。 */
 
-typedef eos_spotify_node_t sp_node_t;
+typedef cos_spotify_node_t sp_node_t;
 
-struct eos_spotify_node_s
+struct cos_spotify_node_s
 {
-    char    name[EOS_FS_NAME_MAX];    /* 条目名(内嵌,不单独 malloc) */
-    char    path[EOS_FS_PATH_MAX];    /* 完整路径                     */
+    char    name[COS_FS_NAME_MAX];    /* 条目名(内嵌,不单独 malloc) */
+    char    path[COS_FS_PATH_MAX];    /* 完整路径                     */
     bool    is_dir;
     bool    expanded;                 /* 是否已展开                   */
     bool    loaded;                   /* 是否已读取过子节点           */
@@ -65,12 +65,12 @@ struct eos_spotify_node_s
     sp_node_t *children;              /* 子节点数组(懒加载,一次 malloc) */
 };
 
-/* 摊平视图条目(对照 th_item_t)。.h 已定义 eos_spotify_tree_item_t。 */
-typedef eos_spotify_tree_item_t sp_item_t;
+/* 摊平视图条目(对照 th_item_t)。.h 已定义 cos_spotify_tree_item_t。 */
+typedef cos_spotify_tree_item_t sp_item_t;
 
 /* ── 状态 ─────────────────────────────────────────────────── */
 
-struct eos_spotify_tree_s
+struct cos_spotify_tree_s
 {
     sp_node_t *root;                 /* 虚拟根:path 即音乐目录 */
     char      *root_dir;
@@ -84,7 +84,7 @@ struct eos_spotify_tree_s
 
 static bool _is_audio_ext(const char *name)
 {
-    return eos_spotify_audio_probe(name) != EOS_SPOTIFY_FMT_UNKNOWN;
+    return cos_spotify_audio_probe(name) != COS_SPOTIFY_FMT_UNKNOWN;
 }
 
 /* ── 子树释放(对照 _fm_children_free) ────────────────────── */
@@ -103,7 +103,7 @@ static void _node_children_free(sp_node_t *n)
         {
             _node_children_free(&n->children[i]);
         }
-        eos_free(n->children);
+        cos_free(n->children);
         n->children = NULL;
     }
     n->child_count = 0;
@@ -140,17 +140,17 @@ static bool _node_load(sp_node_t *n)
     }
 
     /* 第一遍:计数 */
-    eos_dir_t d = eos_storage_dir_open(n->path);
-    if (d == EOS_DIR_INVALID)
+    cos_dir_t d = cos_storage_dir_open(n->path);
+    if (d == COS_DIR_INVALID)
     {
         n->loaded = true;
-        EOS_LOG_W("tree: opendir FAIL %s", n->path);
+        COS_LOG_W("tree: opendir FAIL %s", n->path);
         return false;
     }
 
     int cnt = 0;
-    char name[EOS_FS_NAME_MAX];
-    while (eos_storage_dir_read(d, name, sizeof(name)) == EOS_OK)
+    char name[COS_FS_NAME_MAX];
+    while (cos_storage_dir_read(d, name, sizeof(name)) == COS_OK)
     {
         if (name[0] == '\0' || name[0] == '.')
         {
@@ -164,7 +164,7 @@ static bool _node_load(sp_node_t *n)
             break;
         }
     }
-    eos_storage_dir_close(d);
+    cos_storage_dir_close(d);
 
     if (cnt == 0)
     {
@@ -172,32 +172,32 @@ static bool _node_load(sp_node_t *n)
         return false;
     }
 
-    sp_node_t *arr = (sp_node_t *)eos_malloc_zeroed((size_t)cnt * sizeof(sp_node_t));
+    sp_node_t *arr = (sp_node_t *)cos_malloc_zeroed((size_t)cnt * sizeof(sp_node_t));
     if (arr == NULL)
     {
         n->loaded = true;
-        EOS_LOG_W("tree: alloc %d nodes failed", cnt);
+        COS_LOG_W("tree: alloc %d nodes failed", cnt);
         return false;
     }
 
     /* 第二遍:填充 */
-    d = eos_storage_dir_open(n->path);
-    if (d == EOS_DIR_INVALID)
+    d = cos_storage_dir_open(n->path);
+    if (d == COS_DIR_INVALID)
     {
-        eos_free(arr);
+        cos_free(arr);
         n->loaded = true;
         return false;
     }
 
     int i = 0;
-    while (i < cnt && eos_storage_dir_read(d, name, sizeof(name)) == EOS_OK)
+    while (i < cnt && cos_storage_dir_read(d, name, sizeof(name)) == COS_OK)
     {
         if (name[0] == '\0' || name[0] == '.')
         {
             continue;
         }
 
-        char full[EOS_FS_PATH_MAX];
+        char full[COS_FS_PATH_MAX];
         size_t dl = strlen(n->path);
         size_t nl = strlen(name);
         if (dl + 1 + nl + 1 > sizeof(full))
@@ -208,7 +208,7 @@ static bool _node_load(sp_node_t *n)
         full[dl] = '/';
         strcpy(full + dl + 1, name);
 
-        bool is_dir = eos_storage_is_dir(full);
+        bool is_dir = cos_storage_is_dir(full);
         /* 与原 Texthub 的 _is_text_ext 对应:这里只保留目录 + 音频 */
         if (!is_dir && !_is_audio_ext(name))
         {
@@ -229,13 +229,13 @@ static bool _node_load(sp_node_t *n)
             break;
         }
     }
-    eos_storage_dir_close(d);
+    cos_storage_dir_close(d);
 
     n->children = arr;
     n->child_count = i;
     n->loaded = true;
 
-    EOS_LOG_I("tree: dir %s children=%d", n->path, i);
+    COS_LOG_I("tree: dir %s children=%d", n->path, i);
     return i > 0;
 }
 
@@ -251,7 +251,7 @@ static void _node_unload(sp_node_t *n)
 
 /* ── 摊平(对照 _fm_build_items) ──────────────────────────── */
 
-static void _build_items(eos_spotify_tree_t *t, sp_node_t *n, int depth, int *cnt)
+static void _build_items(cos_spotify_tree_t *t, sp_node_t *n, int depth, int *cnt)
 {
     if (*cnt >= SP_TREE_MAX_VISIBLE || n == NULL)
     {
@@ -293,14 +293,14 @@ static void _count_songs(sp_node_t *n, int *out)
 
 /* ── 对外 API ─────────────────────────────────────────────── */
 
-eos_spotify_tree_t *eos_spotify_tree_create(const char *root_dir)
+cos_spotify_tree_t *cos_spotify_tree_create(const char *root_dir)
 {
     if (root_dir == NULL)
     {
-        root_dir = EOS_SPOTIFY_MUSIC_DIR;
+        root_dir = COS_SPOTIFY_MUSIC_DIR;
     }
 
-    eos_spotify_tree_t *t = (eos_spotify_tree_t *)eos_malloc(sizeof(*t));
+    cos_spotify_tree_t *t = (cos_spotify_tree_t *)cos_malloc(sizeof(*t));
     if (t == NULL)
     {
         return NULL;
@@ -308,20 +308,20 @@ eos_spotify_tree_t *eos_spotify_tree_create(const char *root_dir)
     memset(t, 0, sizeof(*t));
 
     size_t rl = strlen(root_dir);
-    t->root_dir = (char *)eos_malloc(rl + 1);
+    t->root_dir = (char *)cos_malloc(rl + 1);
     if (t->root_dir == NULL)
     {
-        eos_free(t);
+        cos_free(t);
         return NULL;
     }
     memcpy(t->root_dir, root_dir, rl + 1);
 
     /* 虚拟根节点:path 即音乐目录,不占用 depth 层级 */
-    t->root = (sp_node_t *)eos_malloc_zeroed(sizeof(sp_node_t));
+    t->root = (sp_node_t *)cos_malloc_zeroed(sizeof(sp_node_t));
     if (t->root == NULL)
     {
-        eos_free(t->root_dir);
-        eos_free(t);
+        cos_free(t->root_dir);
+        cos_free(t);
         return NULL;
     }
     strncpy(t->root->path, root_dir, sizeof(t->root->path) - 1);
@@ -329,12 +329,12 @@ eos_spotify_tree_t *eos_spotify_tree_create(const char *root_dir)
     t->root->depth = 0;
 
     t->item_cap = SP_TREE_MAX_VISIBLE;
-    t->items = (sp_item_t *)eos_malloc((size_t)t->item_cap * sizeof(sp_item_t));
+    t->items = (sp_item_t *)cos_malloc((size_t)t->item_cap * sizeof(sp_item_t));
     if (t->items == NULL)
     {
-        eos_free(t->root);
-        eos_free(t->root_dir);
-        eos_free(t);
+        cos_free(t->root);
+        cos_free(t->root_dir);
+        cos_free(t);
         return NULL;
     }
 
@@ -344,7 +344,7 @@ eos_spotify_tree_t *eos_spotify_tree_create(const char *root_dir)
     return t;
 }
 
-void eos_spotify_tree_destroy(eos_spotify_tree_t *t)
+void cos_spotify_tree_destroy(cos_spotify_tree_t *t)
 {
     if (t == NULL)
     {
@@ -353,14 +353,14 @@ void eos_spotify_tree_destroy(eos_spotify_tree_t *t)
     if (t->root != NULL)
     {
         _node_children_free(t->root);
-        eos_free(t->root);
+        cos_free(t->root);
     }
-    eos_free(t->root_dir);
-    eos_free(t->items);
-    eos_free(t);
+    cos_free(t->root_dir);
+    cos_free(t->items);
+    cos_free(t);
 }
 
-const eos_spotify_tree_item_t *eos_spotify_tree_items(eos_spotify_tree_t *t, int *out_count)
+const cos_spotify_tree_item_t *cos_spotify_tree_items(cos_spotify_tree_t *t, int *out_count)
 {
     if (t == NULL || out_count == NULL)
     {
@@ -379,7 +379,7 @@ const eos_spotify_tree_item_t *eos_spotify_tree_items(eos_spotify_tree_t *t, int
     return cnt ? t->items : NULL;
 }
 
-bool eos_spotify_tree_toggle(eos_spotify_tree_t *t, eos_spotify_node_t *n)
+bool cos_spotify_tree_toggle(cos_spotify_tree_t *t, cos_spotify_node_t *n)
 {
     (void)t;
     if (n == NULL || !n->is_dir)
@@ -403,32 +403,32 @@ bool eos_spotify_tree_toggle(eos_spotify_tree_t *t, eos_spotify_node_t *n)
     return true;
 }
 
-bool eos_spotify_tree_node_is_dir(const eos_spotify_node_t *n)
+bool cos_spotify_tree_node_is_dir(const cos_spotify_node_t *n)
 {
     return n ? n->is_dir : false;
 }
 
-bool eos_spotify_tree_node_expanded(const eos_spotify_node_t *n)
+bool cos_spotify_tree_node_expanded(const cos_spotify_node_t *n)
 {
     return n ? n->expanded : false;
 }
 
-const char *eos_spotify_tree_node_name(const eos_spotify_node_t *n)
+const char *cos_spotify_tree_node_name(const cos_spotify_node_t *n)
 {
     return n ? n->name : "";
 }
 
-const char *eos_spotify_tree_node_path(const eos_spotify_node_t *n)
+const char *cos_spotify_tree_node_path(const cos_spotify_node_t *n)
 {
     return n ? n->path : "";
 }
 
-const char *eos_spotify_tree_node_label(const eos_spotify_node_t *n)
+const char *cos_spotify_tree_node_label(const cos_spotify_node_t *n)
 {
     return n ? n->name : "";
 }
 
-int eos_spotify_tree_song_count(const eos_spotify_tree_t *t)
+int cos_spotify_tree_song_count(const cos_spotify_tree_t *t)
 {
     if (t == NULL)
     {
@@ -456,14 +456,14 @@ static void _siblings_clear(void)
     {
         if (s_siblings[i])
         {
-            eos_free(s_siblings[i]);
+            cos_free(s_siblings[i]);
             s_siblings[i] = NULL;
         }
     }
     s_sibling_count = 0;
 }
 
-const char *const *eos_spotify_tree_siblings(const char *path, int *out_count)
+const char *const *cos_spotify_tree_siblings(const char *path, int *out_count)
 {
     if (out_count)
     {
@@ -480,7 +480,7 @@ const char *const *eos_spotify_tree_siblings(const char *path, int *out_count)
         return NULL;
     }
 
-    char dir[EOS_FS_PATH_MAX];
+    char dir[COS_FS_PATH_MAX];
     size_t dl = (size_t)(slash - path);
     if (dl + 1 > sizeof(dir))
     {
@@ -491,21 +491,21 @@ const char *const *eos_spotify_tree_siblings(const char *path, int *out_count)
 
     _siblings_clear();
 
-    eos_dir_t d = eos_storage_dir_open(dir);
-    if (d == EOS_DIR_INVALID)
+    cos_dir_t d = cos_storage_dir_open(dir);
+    if (d == COS_DIR_INVALID)
     {
         return NULL;
     }
 
-    char name[EOS_FS_NAME_MAX];
+    char name[COS_FS_NAME_MAX];
     while (s_sibling_count < SIBLING_MAX &&
-           eos_storage_dir_read(d, name, sizeof(name)) == EOS_OK)
+           cos_storage_dir_read(d, name, sizeof(name)) == COS_OK)
     {
         if (name[0] == '\0' || name[0] == '.')
         {
             continue;
         }
-        char full[EOS_FS_PATH_MAX];
+        char full[COS_FS_PATH_MAX];
         size_t nl = strlen(name);
         if (dl + 1 + nl + 1 > sizeof(full))
         {
@@ -515,7 +515,7 @@ const char *const *eos_spotify_tree_siblings(const char *path, int *out_count)
         full[dl] = '/';
         strcpy(full + dl + 1, name);
 
-        if (eos_storage_is_dir(full))
+        if (cos_storage_is_dir(full))
         {
             continue;
         }
@@ -525,7 +525,7 @@ const char *const *eos_spotify_tree_siblings(const char *path, int *out_count)
         }
 
         size_t fl = strlen(full);
-        char *copy = (char *)eos_malloc(fl + 1);
+        char *copy = (char *)cos_malloc(fl + 1);
         if (copy == NULL)
         {
             break;
@@ -533,7 +533,7 @@ const char *const *eos_spotify_tree_siblings(const char *path, int *out_count)
         memcpy(copy, full, fl + 1);
         s_siblings[s_sibling_count++] = copy;
     }
-    eos_storage_dir_close(d);
+    cos_storage_dir_close(d);
 
     /* 按文件名排序,保证上/下曲顺序稳定 */
     for (int i = 0; i < s_sibling_count; i++)

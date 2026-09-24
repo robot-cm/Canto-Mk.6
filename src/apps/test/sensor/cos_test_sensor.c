@@ -1,30 +1,30 @@
 /**
- * @file eos_test_sensor.c
+ * @file cos_test_sensor.c
  * @brief Comprehensive sensor test module
  */
 
-#include "eos_test_sensor.h"
-#include "eos_config.h"
-#if EOS_ENABLE_TEST_APP
+#include "cos_test_sensor.h"
+#include "cos_config.h"
+#if COS_ENABLE_TEST_APP
 
 /* Includes ---------------------------------------------------*/
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "eos_test_framework.h"
-#include "eos_dev_sensor.h"
-#include "eos_service_sensor.h"
-#include "eos_event.h"
-#include "eos_log.h"
-#include "eos_basic_widgets.h"
-#include "eos_lang.h"
+#include "cos_test_framework.h"
+#include "cos_dev_sensor.h"
+#include "cos_service_sensor.h"
+#include "cos_event.h"
+#include "cos_log.h"
+#include "cos_basic_widgets.h"
+#include "cos_lang.h"
 #include "lvgl.h"
-#include "eos_activity.h"
-#include "eos_app_header.h"
-#include "eos_crown.h"
+#include "cos_activity.h"
+#include "cos_app_header.h"
+#include "cos_crown.h"
 
 /* Macros and Definitions -------------------------------------*/
-#define EOS_LOG_TAG "SensorTest"
+#define COS_LOG_TAG "SensorTest"
 
 /* Variables --------------------------------------------------*/
 
@@ -37,7 +37,7 @@ typedef struct
     lv_obj_t *container;
     lv_obj_t *list;
     lv_obj_t *result_label;
-    eos_sensor_test_stats_t stats;
+    cos_sensor_test_stats_t stats;
 } _test_context_t;
 
 static _test_context_t _ctx = {0};
@@ -54,7 +54,7 @@ static void _update_result(const char *text)
     {
         lv_label_set_text(_ctx.result_label, text);
     }
-    EOS_LOG_I("%s", text);
+    COS_LOG_I("%s", text);
 }
 
 static void _record_test(const char *name, bool passed, const char *details)
@@ -69,7 +69,7 @@ static void _record_test(const char *name, bool passed, const char *details)
         _ctx.stats.failed_tests++;
     }
 
-    eos_test_record(name, passed, details);
+    cos_test_record(name, passed, details);
 
     if (_ctx.list)
     {
@@ -92,19 +92,19 @@ static void _record_test(const char *name, bool passed, const char *details)
 static bool _test_sensor_register(void)
 {
     bool passed = true;
-    eos_result_t result;
+    cos_result_t result;
 
     /* Test: Register new sensor */
-    eos_dev_sensor_ops_t test_ops = {0};
-    result = eos_dev_sensor_register("test_accel", EOS_SENSOR_TYPE_ACCE, &test_ops);
-    if (result != EOS_OK)
+    cos_dev_sensor_ops_t test_ops = {0};
+    result = cos_dev_sensor_register("test_accel", COS_SENSOR_TYPE_ACCE, &test_ops);
+    if (result != COS_OK)
     {
         passed = false;
     }
 
     /* Test: Register duplicate name - should fail */
-    result = eos_dev_sensor_register("test_accel", EOS_SENSOR_TYPE_ACCE, &test_ops);
-    if (result == EOS_OK)
+    result = cos_dev_sensor_register("test_accel", COS_SENSOR_TYPE_ACCE, &test_ops);
+    if (result == COS_OK)
     {
         passed = false;
     }
@@ -116,24 +116,24 @@ static bool _test_sensor_register(void)
 static bool _test_sensor_find(void)
 {
     bool passed = true;
-    eos_dev_sensor_t *dev;
+    cos_dev_sensor_t *dev;
 
     /* Test: Find by name */
-    dev = eos_dev_sensor_find("sim_acce");
+    dev = cos_dev_sensor_find("sim_acce");
     if (!dev)
     {
         passed = false;
     }
 
     /* Test: Find by type */
-    dev = eos_dev_sensor_get_default(EOS_SENSOR_TYPE_ACCE);
+    dev = cos_dev_sensor_get_default(COS_SENSOR_TYPE_ACCE);
     if (!dev)
     {
         passed = false;
     }
 
     /* Test: Find non-existent sensor */
-    dev = eos_dev_sensor_find("non_existent_sensor");
+    dev = cos_dev_sensor_find("non_existent_sensor");
     if (dev != NULL)
     {
         passed = false;
@@ -146,7 +146,7 @@ static bool _test_sensor_find(void)
 static bool _test_sensor_ops(void)
 {
     bool passed = true;
-    eos_dev_sensor_t *dev = eos_dev_sensor_get_default(EOS_SENSOR_TYPE_ACCE);
+    cos_dev_sensor_t *dev = cos_dev_sensor_get_default(COS_SENSOR_TYPE_ACCE);
 
     if (!dev || !dev->ops)
     {
@@ -191,7 +191,7 @@ static bool _test_sensor_ops(void)
 
 static bool _test_sensor_state(void)
 {
-    eos_dev_sensor_t *dev = eos_dev_sensor_get_default(EOS_SENSOR_TYPE_ACCE);
+    cos_dev_sensor_t *dev = cos_dev_sensor_get_default(COS_SENSOR_TYPE_ACCE);
 
     if (!dev)
     {
@@ -199,7 +199,7 @@ static bool _test_sensor_state(void)
         return false;
     }
 
-    eos_dev_state_t state = eos_dev_sensor_get_state(dev);
+    cos_dev_state_t state = cos_dev_sensor_get_state(dev);
     (void)state;
 
     _record_test("Sensor State", true, "State query works");
@@ -212,26 +212,26 @@ static bool _test_sensor_state(void)
 
 static bool _test_service_init(void)
 {
-    eos_result_t result = eos_service_sensor_init();
+    cos_result_t result = cos_service_sensor_init();
 
-    bool passed = (result == EOS_OK || result == EOS_ERR_ALREADY_INITIALIZED);
+    bool passed = (result == COS_OK || result == COS_ERR_ALREADY_INITIALIZED);
     _record_test("Service Init", passed, passed ? "Service initialized" : "Service init failed");
     return passed;
 }
 
 static bool _test_read_latest(void)
 {
-    eos_sensor_raw_data_t data;
-    eos_result_t result = eos_sensor_read_latest(EOS_SENSOR_TYPE_ACCE, &data);
+    cos_sensor_raw_data_t data;
+    cos_result_t result = cos_sensor_read_latest(COS_SENSOR_TYPE_ACCE, &data);
 
-    bool passed = (result == EOS_OK);
+    bool passed = (result == COS_OK);
     _record_test("Read Latest Data", passed, passed ? "Read successful" : "Read failed");
     return passed;
 }
 
 static uint32_t _subscribe_cb_count = 0;
 
-static void _subscribe_test_cb(eos_sensor_type_t type, const eos_sensor_raw_data_t *data, void *user_data)
+static void _subscribe_test_cb(cos_sensor_type_t type, const cos_sensor_raw_data_t *data, void *user_data)
 {
     (void)type;
     (void)data;
@@ -245,16 +245,16 @@ static bool _test_subscribe(void)
 
     _subscribe_cb_count = 0;
 
-    eos_result_t result = eos_sensor_subscribe(EOS_SENSOR_TYPE_ACCE, _subscribe_test_cb, NULL, 100);
+    cos_result_t result = cos_sensor_subscribe(COS_SENSOR_TYPE_ACCE, _subscribe_test_cb, NULL, 100);
 
-    if (result != EOS_OK)
+    if (result != COS_OK)
     {
         passed = false;
     }
 
-    result = eos_sensor_unsubscribe(EOS_SENSOR_TYPE_ACCE, _subscribe_test_cb, NULL);
+    result = cos_sensor_unsubscribe(COS_SENSOR_TYPE_ACCE, _subscribe_test_cb, NULL);
 
-    if (result != EOS_OK)
+    if (result != COS_OK)
     {
         passed = false;
     }
@@ -268,7 +268,7 @@ static bool _test_subscribe(void)
  * ============================================ */
 
 /*
- * Test: callback unsubscribing ITSELF during eos_sensor_notify() broadcast.
+ * Test: callback unsubscribing ITSELF during cos_sensor_notify() broadcast.
  * This is the use-after-free scenario — after cb returns, its node is freed,
  * so the notify loop must NOT dereference sub->next after the callback.
  * The fix: save sub->next before invoking the callback.
@@ -276,17 +276,17 @@ static bool _test_subscribe(void)
 static uint32_t _nested_self_count_a = 0;
 static uint32_t _nested_self_count_b = 0;
 
-static void _nested_self_cb_a(eos_sensor_type_t type, const eos_sensor_raw_data_t *data, void *user_data)
+static void _nested_self_cb_a(cos_sensor_type_t type, const cos_sensor_raw_data_t *data, void *user_data)
 {
     (void)type;
     (void)data;
     (void)user_data;
     _nested_self_count_a++;
     /* Unsubscribe ourselves from within the callback */
-    eos_sensor_unsubscribe(EOS_SENSOR_TYPE_ACCE, _nested_self_cb_a, NULL);
+    cos_sensor_unsubscribe(COS_SENSOR_TYPE_ACCE, _nested_self_cb_a, NULL);
 }
 
-static void _nested_self_cb_b(eos_sensor_type_t type, const eos_sensor_raw_data_t *data, void *user_data)
+static void _nested_self_cb_b(cos_sensor_type_t type, const cos_sensor_raw_data_t *data, void *user_data)
 {
     (void)type;
     (void)data;
@@ -301,13 +301,13 @@ static bool _test_nested_self_unsubscribe(void)
     _nested_self_count_b = 0;
 
     /* Subscribe two callbacks: A unsubscribes itself, B should survive */
-    eos_sensor_subscribe(EOS_SENSOR_TYPE_ACCE, _nested_self_cb_a, NULL, 0);
-    eos_sensor_subscribe(EOS_SENSOR_TYPE_ACCE, _nested_self_cb_b, NULL, 0);
+    cos_sensor_subscribe(COS_SENSOR_TYPE_ACCE, _nested_self_cb_a, NULL, 0);
+    cos_sensor_subscribe(COS_SENSOR_TYPE_ACCE, _nested_self_cb_b, NULL, 0);
 
     /* Trigger notification */
-    eos_sensor_data_t data = {0};
+    cos_sensor_data_t data = {0};
     data.acce.x = 42;
-    eos_sensor_notify(EOS_SENSOR_TYPE_ACCE, &data, lv_tick_get());
+    cos_sensor_notify(COS_SENSOR_TYPE_ACCE, &data, lv_tick_get());
 
     /*
      * A should have fired once (and then unsubscribed itself).
@@ -321,12 +321,12 @@ static bool _test_nested_self_unsubscribe(void)
 
     /* Trigger a second notify — A is gone, only B should fire */
     _nested_self_count_b = 0;
-    eos_sensor_notify(EOS_SENSOR_TYPE_ACCE, &data, lv_tick_get());
+    cos_sensor_notify(COS_SENSOR_TYPE_ACCE, &data, lv_tick_get());
     if (_nested_self_count_b != 1)
         passed = false;
 
     /* Clean up */
-    eos_sensor_unsubscribe(EOS_SENSOR_TYPE_ACCE, _nested_self_cb_b, NULL);
+    cos_sensor_unsubscribe(COS_SENSOR_TYPE_ACCE, _nested_self_cb_b, NULL);
     /* Double-unsubscribe of A should be harmless (already removed) */
 
     _record_test("Nested Self-Unsubscribe",
@@ -343,19 +343,19 @@ static uint32_t _nested_cross_count_a = 0;
 static uint32_t _nested_cross_count_b = 0;
 
 /* Forward declaration: cb_a calls unsubscribe(cb_b) so cb_b must be visible */
-static void _nested_cross_cb_b(eos_sensor_type_t type, const eos_sensor_raw_data_t *data, void *user_data);
+static void _nested_cross_cb_b(cos_sensor_type_t type, const cos_sensor_raw_data_t *data, void *user_data);
 
-static void _nested_cross_cb_a(eos_sensor_type_t type, const eos_sensor_raw_data_t *data, void *user_data)
+static void _nested_cross_cb_a(cos_sensor_type_t type, const cos_sensor_raw_data_t *data, void *user_data)
 {
     (void)type;
     (void)data;
     (void)user_data;
     _nested_cross_count_a++;
     /* Unsubscribe B (which appears after A in the list) */
-    eos_sensor_unsubscribe(EOS_SENSOR_TYPE_ACCE, _nested_cross_cb_b, NULL);
+    cos_sensor_unsubscribe(COS_SENSOR_TYPE_ACCE, _nested_cross_cb_b, NULL);
 }
 
-static void _nested_cross_cb_b(eos_sensor_type_t type, const eos_sensor_raw_data_t *data, void *user_data)
+static void _nested_cross_cb_b(cos_sensor_type_t type, const cos_sensor_raw_data_t *data, void *user_data)
 {
     (void)type;
     (void)data;
@@ -371,11 +371,11 @@ static bool _test_nested_cross_unsubscribe(void)
 
     /* A must be subscribed LAST so it's prepended first (head of list).
      * This way A fires first and can try to remove B behind it. */
-    eos_sensor_subscribe(EOS_SENSOR_TYPE_ACCE, _nested_cross_cb_b, NULL, 0);
-    eos_sensor_subscribe(EOS_SENSOR_TYPE_ACCE, _nested_cross_cb_a, NULL, 0);
+    cos_sensor_subscribe(COS_SENSOR_TYPE_ACCE, _nested_cross_cb_b, NULL, 0);
+    cos_sensor_subscribe(COS_SENSOR_TYPE_ACCE, _nested_cross_cb_a, NULL, 0);
 
-    eos_sensor_data_t data = {0};
-    eos_sensor_notify(EOS_SENSOR_TYPE_ACCE, &data, lv_tick_get());
+    cos_sensor_data_t data = {0};
+    cos_sensor_notify(COS_SENSOR_TYPE_ACCE, &data, lv_tick_get());
 
     /* A should fire. B may or may not fire depending on list order.
      * But most importantly: it should NOT crash. */
@@ -383,7 +383,7 @@ static bool _test_nested_cross_unsubscribe(void)
         passed = false;
 
     /* Clean up surviving subscribers */
-    eos_sensor_unsubscribe(EOS_SENSOR_TYPE_ACCE, _nested_cross_cb_a, NULL);
+    cos_sensor_unsubscribe(COS_SENSOR_TYPE_ACCE, _nested_cross_cb_a, NULL);
 
     _record_test("Nested Cross-Unsubscribe",
                  passed,
@@ -399,7 +399,7 @@ static bool _test_nested_cross_unsubscribe(void)
  */
 static uint32_t _nested_sub_new_count = 0;
 
-static void _nested_sub_new_cb(eos_sensor_type_t type, const eos_sensor_raw_data_t *data, void *user_data)
+static void _nested_sub_new_cb(cos_sensor_type_t type, const cos_sensor_raw_data_t *data, void *user_data)
 {
     (void)type;
     (void)data;
@@ -407,13 +407,13 @@ static void _nested_sub_new_cb(eos_sensor_type_t type, const eos_sensor_raw_data
     _nested_sub_new_count++;
 }
 
-static void _nested_sub_origin_cb(eos_sensor_type_t type, const eos_sensor_raw_data_t *data, void *user_data)
+static void _nested_sub_origin_cb(cos_sensor_type_t type, const cos_sensor_raw_data_t *data, void *user_data)
 {
     (void)type;
     (void)data;
     (void)user_data;
     /* Subscribe a new callback from within this notification */
-    eos_sensor_subscribe(EOS_SENSOR_TYPE_ACCE, _nested_sub_new_cb, NULL, 0);
+    cos_sensor_subscribe(COS_SENSOR_TYPE_ACCE, _nested_sub_new_cb, NULL, 0);
 }
 
 static bool _test_nested_subscribe_during_notify(void)
@@ -421,11 +421,11 @@ static bool _test_nested_subscribe_during_notify(void)
     bool passed = true;
     _nested_sub_new_count = 0;
 
-    eos_sensor_subscribe(EOS_SENSOR_TYPE_ACCE, _nested_sub_origin_cb, NULL, 0);
+    cos_sensor_subscribe(COS_SENSOR_TYPE_ACCE, _nested_sub_origin_cb, NULL, 0);
 
-    eos_sensor_data_t data = {0};
+    cos_sensor_data_t data = {0};
     data.acce.x = 99;
-    eos_sensor_notify(EOS_SENSOR_TYPE_ACCE, &data, lv_tick_get());
+    cos_sensor_notify(COS_SENSOR_TYPE_ACCE, &data, lv_tick_get());
 
     /*
      * The new callback was added DURING the first notification.
@@ -436,13 +436,13 @@ static bool _test_nested_subscribe_during_notify(void)
 
     /* Now trigger a second notify — the new callback SHOULD fire */
     _nested_sub_new_count = 0;
-    eos_sensor_notify(EOS_SENSOR_TYPE_ACCE, &data, lv_tick_get());
+    cos_sensor_notify(COS_SENSOR_TYPE_ACCE, &data, lv_tick_get());
     if (_nested_sub_new_count != 1)
         passed = false;
 
     /* Clean up */
-    eos_sensor_unsubscribe(EOS_SENSOR_TYPE_ACCE, _nested_sub_origin_cb, NULL);
-    eos_sensor_unsubscribe(EOS_SENSOR_TYPE_ACCE, _nested_sub_new_cb, NULL);
+    cos_sensor_unsubscribe(COS_SENSOR_TYPE_ACCE, _nested_sub_origin_cb, NULL);
+    cos_sensor_unsubscribe(COS_SENSOR_TYPE_ACCE, _nested_sub_new_cb, NULL);
 
     _record_test("Nested Subscribe During Notify",
                  passed,
@@ -459,7 +459,7 @@ static bool _test_nested_subscribe_during_notify(void)
 static uint32_t _nested_multi_acce_count = 0;
 static uint32_t _nested_multi_gyro_count = 0;
 
-static void _nested_multi_gyro_cb(eos_sensor_type_t type, const eos_sensor_raw_data_t *data, void *user_data)
+static void _nested_multi_gyro_cb(cos_sensor_type_t type, const cos_sensor_raw_data_t *data, void *user_data)
 {
     (void)type;
     (void)data;
@@ -467,7 +467,7 @@ static void _nested_multi_gyro_cb(eos_sensor_type_t type, const eos_sensor_raw_d
     _nested_multi_gyro_count++;
 }
 
-static void _nested_multi_acce_cb(eos_sensor_type_t type, const eos_sensor_raw_data_t *data, void *user_data)
+static void _nested_multi_acce_cb(cos_sensor_type_t type, const cos_sensor_raw_data_t *data, void *user_data)
 {
     (void)type;
     (void)data;
@@ -475,12 +475,12 @@ static void _nested_multi_acce_cb(eos_sensor_type_t type, const eos_sensor_raw_d
     _nested_multi_acce_count++;
 
     /* Trigger GYRO notify, which fires gyro subscribers */
-    eos_sensor_data_t gdata = {0};
+    cos_sensor_data_t gdata = {0};
     gdata.gyro.x = 10;
-    eos_sensor_notify(EOS_SENSOR_TYPE_GYRO, &gdata, lv_tick_get());
+    cos_sensor_notify(COS_SENSOR_TYPE_GYRO, &gdata, lv_tick_get());
 
     /* Now unsubscribe ourselves — the outer ACCE notify loop must survive */
-    eos_sensor_unsubscribe(EOS_SENSOR_TYPE_ACCE, _nested_multi_acce_cb, NULL);
+    cos_sensor_unsubscribe(COS_SENSOR_TYPE_ACCE, _nested_multi_acce_cb, NULL);
 }
 
 static bool _test_nested_multi_sensor_uaf(void)
@@ -489,12 +489,12 @@ static bool _test_nested_multi_sensor_uaf(void)
     _nested_multi_acce_count = 0;
     _nested_multi_gyro_count = 0;
 
-    eos_sensor_subscribe(EOS_SENSOR_TYPE_ACCE, _nested_multi_acce_cb, NULL, 0);
-    eos_sensor_subscribe(EOS_SENSOR_TYPE_GYRO, _nested_multi_gyro_cb, NULL, 0);
+    cos_sensor_subscribe(COS_SENSOR_TYPE_ACCE, _nested_multi_acce_cb, NULL, 0);
+    cos_sensor_subscribe(COS_SENSOR_TYPE_GYRO, _nested_multi_gyro_cb, NULL, 0);
 
-    eos_sensor_data_t data = {0};
+    cos_sensor_data_t data = {0};
     data.acce.x = 77;
-    eos_sensor_notify(EOS_SENSOR_TYPE_ACCE, &data, lv_tick_get());
+    cos_sensor_notify(COS_SENSOR_TYPE_ACCE, &data, lv_tick_get());
 
     /*
      * ACCE callback: fired once (and unsubscribed itself).
@@ -507,7 +507,7 @@ static bool _test_nested_multi_sensor_uaf(void)
         passed = false;
 
     /* Clean up — ACCE is already unsubscribed */
-    eos_sensor_unsubscribe(EOS_SENSOR_TYPE_GYRO, _nested_multi_gyro_cb, NULL);
+    cos_sensor_unsubscribe(COS_SENSOR_TYPE_GYRO, _nested_multi_gyro_cb, NULL);
 
     _record_test("Nested Multi-Sensor UAF",
                  passed,
@@ -518,11 +518,11 @@ static bool _test_nested_multi_sensor_uaf(void)
 
 static bool _test_sample_rate(void)
 {
-    eos_result_t result = eos_sensor_set_sample_period(EOS_SENSOR_TYPE_ACCE, 50);
+    cos_result_t result = cos_sensor_set_sample_period(COS_SENSOR_TYPE_ACCE, 50);
 
-    bool passed = (result == EOS_OK);
+    bool passed = (result == COS_OK);
 
-    uint32_t period = eos_sensor_get_sample_period(EOS_SENSOR_TYPE_ACCE);
+    uint32_t period = cos_sensor_get_sample_period(COS_SENSOR_TYPE_ACCE);
     if (period != 50)
     {
         passed = false;
@@ -541,14 +541,14 @@ static bool _test_sample_rate_multiple(void)
 
     for (size_t i = 0; i < sizeof(test_periods) / sizeof(test_periods[0]); i++)
     {
-        eos_result_t result = eos_sensor_set_sample_period(EOS_SENSOR_TYPE_ACCE, test_periods[i]);
-        if (result != EOS_OK)
+        cos_result_t result = cos_sensor_set_sample_period(COS_SENSOR_TYPE_ACCE, test_periods[i]);
+        if (result != COS_OK)
         {
             passed = false;
             break;
         }
 
-        uint32_t period = eos_sensor_get_sample_period(EOS_SENSOR_TYPE_ACCE);
+        uint32_t period = cos_sensor_get_sample_period(COS_SENSOR_TYPE_ACCE);
         if (period != test_periods[i])
         {
             passed = false;
@@ -557,7 +557,7 @@ static bool _test_sample_rate_multiple(void)
     }
 
     /* Reset to default */
-    eos_sensor_set_sample_period(EOS_SENSOR_TYPE_ACCE, 100);
+    cos_sensor_set_sample_period(COS_SENSOR_TYPE_ACCE, 100);
 
     _record_test("Multiple Sample Rates",
                  passed,
@@ -570,27 +570,27 @@ static bool _test_sensor_enable_disable(void)
     bool passed = true;
 
     /* Enable sensor with 100ms period */
-    eos_result_t result = eos_sensor_set_sample_period(EOS_SENSOR_TYPE_ACCE, 100);
-    if (result != EOS_OK)
+    cos_result_t result = cos_sensor_set_sample_period(COS_SENSOR_TYPE_ACCE, 100);
+    if (result != COS_OK)
     {
         passed = false;
     }
 
     /* Disable sensor (set period to 0) */
-    result = eos_sensor_set_sample_period(EOS_SENSOR_TYPE_ACCE, 0);
-    if (result != EOS_OK)
+    result = cos_sensor_set_sample_period(COS_SENSOR_TYPE_ACCE, 0);
+    if (result != COS_OK)
     {
         passed = false;
     }
 
-    uint32_t period = eos_sensor_get_sample_period(EOS_SENSOR_TYPE_ACCE);
+    uint32_t period = cos_sensor_get_sample_period(COS_SENSOR_TYPE_ACCE);
     if (period != 0)
     {
         passed = false;
     }
 
     /* Re-enable */
-    eos_sensor_set_sample_period(EOS_SENSOR_TYPE_ACCE, 100);
+    cos_sensor_set_sample_period(COS_SENSOR_TYPE_ACCE, 100);
 
     _record_test("Enable/Disable", passed, passed ? "Enable/disable works correctly" : "Enable/disable failed");
     return passed;
@@ -601,8 +601,8 @@ static bool _test_data_notification_rate(void)
     bool passed = true;
 
     /* Set 100ms sample period (10Hz) */
-    eos_result_t result = eos_sensor_set_sample_period(EOS_SENSOR_TYPE_ACCE, 100);
-    if (result != EOS_OK)
+    cos_result_t result = cos_sensor_set_sample_period(COS_SENSOR_TYPE_ACCE, 100);
+    if (result != COS_OK)
     {
         passed = false;
         _record_test("Data Notification Rate", passed, "Failed to set sample period");
@@ -610,7 +610,7 @@ static bool _test_data_notification_rate(void)
     }
 
     /* Verify period is correctly set */
-    uint32_t period = eos_sensor_get_sample_period(EOS_SENSOR_TYPE_ACCE);
+    uint32_t period = cos_sensor_get_sample_period(COS_SENSOR_TYPE_ACCE);
     if (period != 100)
     {
         passed = false;
@@ -619,7 +619,7 @@ static bool _test_data_notification_rate(void)
     }
 
     /* Test: verify sensor is active */
-    eos_dev_sensor_t *dev = eos_dev_sensor_get_default(EOS_SENSOR_TYPE_ACCE);
+    cos_dev_sensor_t *dev = cos_dev_sensor_get_default(COS_SENSOR_TYPE_ACCE);
     if (!dev)
     {
         passed = false;
@@ -627,7 +627,7 @@ static bool _test_data_notification_rate(void)
         return passed;
     }
 
-    eos_dev_state_t state = eos_dev_sensor_get_state(dev);
+    cos_dev_state_t state = cos_dev_sensor_get_state(dev);
     if (state != DEV_STATE_READY)
     {
         passed = false;
@@ -636,7 +636,7 @@ static bool _test_data_notification_rate(void)
     }
 
     /* Reset to default */
-    eos_sensor_set_sample_period(EOS_SENSOR_TYPE_ACCE, 100);
+    cos_sensor_set_sample_period(COS_SENSOR_TYPE_ACCE, 100);
 
     _record_test("Data Notification Rate",
                  passed,
@@ -654,7 +654,7 @@ static bool _test_fifo_full(void)
     bool passed = true;
 
     /* Fill FIFO by writing many times */
-    eos_dev_sensor_t *dev = eos_dev_sensor_get_default(EOS_SENSOR_TYPE_ACCE);
+    cos_dev_sensor_t *dev = cos_dev_sensor_get_default(COS_SENSOR_TYPE_ACCE);
     if (!dev)
     {
         _record_test("FIFO Full", false, "No sensor device found");
@@ -662,17 +662,17 @@ static bool _test_fifo_full(void)
     }
 
     /* Simulate FIFO fill by calling notify many times */
-    eos_sensor_data_t data = {0};
+    cos_sensor_data_t data = {0};
     for (int i = 0; i < 100; i++)
     {
         data.acce.x = i;
-        eos_sensor_notify(EOS_SENSOR_TYPE_ACCE, &data, lv_tick_get());
+        cos_sensor_notify(COS_SENSOR_TYPE_ACCE, &data, lv_tick_get());
     }
 
     /* Test: FIFO should not overflow, data should still be readable */
-    eos_sensor_raw_data_t read_data;
-    eos_result_t result = eos_sensor_read(EOS_SENSOR_TYPE_ACCE, &read_data);
-    if (result != EOS_OK)
+    cos_sensor_raw_data_t read_data;
+    cos_result_t result = cos_sensor_read(COS_SENSOR_TYPE_ACCE, &read_data);
+    if (result != COS_OK)
     {
         passed = false;
     }
@@ -686,7 +686,7 @@ static bool _test_no_subscriber_sampling(void)
     bool passed = true;
 
     /* Ensure no subscribers */
-    eos_sensor_set_sample_period(EOS_SENSOR_TYPE_ACCE, 0);
+    cos_sensor_set_sample_period(COS_SENSOR_TYPE_ACCE, 0);
 
     /* Give some time for sensor to stop */
     for (int i = 0; i < 10; i++)
@@ -695,10 +695,10 @@ static bool _test_no_subscriber_sampling(void)
     }
 
     /* Check if sensor is inactive */
-    eos_dev_sensor_t *dev = eos_dev_sensor_get_default(EOS_SENSOR_TYPE_ACCE);
+    cos_dev_sensor_t *dev = cos_dev_sensor_get_default(COS_SENSOR_TYPE_ACCE);
     if (dev)
     {
-        eos_dev_state_t state = eos_dev_sensor_get_state(dev);
+        cos_dev_state_t state = cos_dev_sensor_get_state(dev);
         if (state != DEV_STATE_READY)
         {
             passed = false;
@@ -706,7 +706,7 @@ static bool _test_no_subscriber_sampling(void)
     }
 
     /* Re-enable sensor */
-    eos_sensor_set_sample_period(EOS_SENSOR_TYPE_ACCE, 100);
+    cos_sensor_set_sample_period(COS_SENSOR_TYPE_ACCE, 100);
 
     _record_test("No Subscriber Sampling",
                  passed,
@@ -719,16 +719,16 @@ static bool _test_min_sample_rate(void)
     bool passed = true;
 
     /* Set a low sample rate (1Hz = 1000ms) */
-    eos_sensor_set_sample_period(EOS_SENSOR_TYPE_ACCE, 1000);
+    cos_sensor_set_sample_period(COS_SENSOR_TYPE_ACCE, 1000);
 
-    uint32_t period = eos_sensor_get_sample_period(EOS_SENSOR_TYPE_ACCE);
+    uint32_t period = cos_sensor_get_sample_period(COS_SENSOR_TYPE_ACCE);
     if (period != 1000)
     {
         passed = false;
     }
 
     /* Reset to default */
-    eos_sensor_set_sample_period(EOS_SENSOR_TYPE_ACCE, 100);
+    cos_sensor_set_sample_period(COS_SENSOR_TYPE_ACCE, 100);
 
     _record_test("Min Sample Rate",
                  passed,
@@ -743,11 +743,11 @@ static bool _test_min_sample_rate(void)
 static bool _test_concurrent_read(void)
 {
     /* Simulate concurrent reads */
-    eos_sensor_raw_data_t data1, data2, data3;
+    cos_sensor_raw_data_t data1, data2, data3;
 
-    eos_sensor_read_latest(EOS_SENSOR_TYPE_ACCE, &data1);
-    eos_sensor_read_latest(EOS_SENSOR_TYPE_ACCE, &data2);
-    eos_sensor_read_latest(EOS_SENSOR_TYPE_ACCE, &data3);
+    cos_sensor_read_latest(COS_SENSOR_TYPE_ACCE, &data1);
+    cos_sensor_read_latest(COS_SENSOR_TYPE_ACCE, &data2);
+    cos_sensor_read_latest(COS_SENSOR_TYPE_ACCE, &data3);
 
     _record_test("Concurrent Read", true, "Multiple reads executed safely");
     return true;
@@ -757,18 +757,18 @@ static bool _test_null_safety(void)
 {
     bool passed = true;
 
-    eos_sensor_raw_data_t data;
+    cos_sensor_raw_data_t data;
 
     /* Test invalid type */
-    eos_result_t result = eos_sensor_read_latest(EOS_SENSOR_TYPE_MAX, &data);
-    if (result == EOS_OK)
+    cos_result_t result = cos_sensor_read_latest(COS_SENSOR_TYPE_MAX, &data);
+    if (result == COS_OK)
     {
         passed = false;
     }
 
     /* Test null data */
-    result = eos_sensor_read_latest(EOS_SENSOR_TYPE_ACCE, NULL);
-    if (result == EOS_OK)
+    result = cos_sensor_read_latest(COS_SENSOR_TYPE_ACCE, NULL);
+    if (result == COS_OK)
     {
         passed = false;
     }
@@ -784,11 +784,11 @@ static bool _test_null_safety(void)
 static bool _test_throughput(void)
 {
     uint32_t iterations = 100;
-    eos_sensor_raw_data_t data;
+    cos_sensor_raw_data_t data;
 
     for (uint32_t i = 0; i < iterations; i++)
     {
-        eos_sensor_read_latest(EOS_SENSOR_TYPE_ACCE, &data);
+        cos_sensor_read_latest(COS_SENSOR_TYPE_ACCE, &data);
     }
 
     _record_test("Throughput", true, "100 reads completed");
@@ -807,7 +807,7 @@ static bool _test_memory_usage(void)
 
 static bool _test_device_manager_integration(void)
 {
-    eos_dev_sensor_t *dev = eos_dev_sensor_get_default(EOS_SENSOR_TYPE_ACCE);
+    cos_dev_sensor_t *dev = cos_dev_sensor_get_default(COS_SENSOR_TYPE_ACCE);
 
     bool passed = (dev != NULL);
     _record_test("Device Manager Integration", passed, passed ? "Integration works" : "Integration failed");
@@ -828,18 +828,18 @@ static bool _test_parameter_errors(void)
 {
     bool passed = true;
 
-    eos_sensor_raw_data_t data;
+    cos_sensor_raw_data_t data;
 
     /* Test invalid sensor type */
-    eos_result_t result = eos_sensor_read_latest(EOS_SENSOR_TYPE_UNKNOWN, &data);
-    if (result == EOS_OK)
+    cos_result_t result = cos_sensor_read_latest(COS_SENSOR_TYPE_UNKNOWN, &data);
+    if (result == COS_OK)
     {
         passed = false;
     }
 
     /* Test NULL data pointer */
-    result = eos_sensor_read_latest(EOS_SENSOR_TYPE_ACCE, NULL);
-    if (result == EOS_OK)
+    result = cos_sensor_read_latest(COS_SENSOR_TYPE_ACCE, NULL);
+    if (result == COS_OK)
     {
         passed = false;
     }
@@ -860,12 +860,12 @@ static bool _test_resource_errors(void)
 
 static bool _test_fifo_boundary(void)
 {
-    eos_sensor_raw_data_t data;
+    cos_sensor_raw_data_t data;
 
     /* Read multiple times to test FIFO boundaries */
     for (int i = 0; i < 10; i++)
     {
-        eos_sensor_read_latest(EOS_SENSOR_TYPE_ACCE, &data);
+        cos_sensor_read_latest(COS_SENSOR_TYPE_ACCE, &data);
     }
 
     _record_test("FIFO Boundary", true, "FIFO boundary test passed");
@@ -874,21 +874,21 @@ static bool _test_fifo_boundary(void)
 
 static bool _test_frequency_boundary(void)
 {
-    eos_result_t result;
+    cos_result_t result;
 
     /* Test 0Hz */
-    result = eos_sensor_set_sample_period(EOS_SENSOR_TYPE_ACCE, 0);
-    bool passed = (result == EOS_OK);
+    result = cos_sensor_set_sample_period(COS_SENSOR_TYPE_ACCE, 0);
+    bool passed = (result == COS_OK);
 
     /* Test high frequency */
-    result = eos_sensor_set_sample_period(EOS_SENSOR_TYPE_ACCE, 1);
-    if (result != EOS_OK)
+    result = cos_sensor_set_sample_period(COS_SENSOR_TYPE_ACCE, 1);
+    if (result != COS_OK)
     {
         passed = false;
     }
 
     /* Reset to reasonable value */
-    eos_sensor_set_sample_period(EOS_SENSOR_TYPE_ACCE, 100);
+    cos_sensor_set_sample_period(COS_SENSOR_TYPE_ACCE, 100);
 
     _record_test("Frequency Boundary",
                  passed,
@@ -902,11 +902,11 @@ static bool _test_frequency_boundary(void)
 
 static bool _test_stability(void)
 {
-    eos_sensor_raw_data_t data;
+    cos_sensor_raw_data_t data;
 
     for (int i = 0; i < 1000; i++)
     {
-        eos_sensor_read_latest(EOS_SENSOR_TYPE_ACCE, &data);
+        cos_sensor_read_latest(COS_SENSOR_TYPE_ACCE, &data);
     }
 
     _record_test("Stability (1000 reads)", true, "Stability test passed");
@@ -915,10 +915,10 @@ static bool _test_stability(void)
 
 static bool _test_data_integrity(void)
 {
-    eos_sensor_raw_data_t data;
+    cos_sensor_raw_data_t data;
     bool passed = true;
 
-    eos_dev_sensor_t *dev = eos_dev_sensor_get_default(EOS_SENSOR_TYPE_ACCE);
+    cos_dev_sensor_t *dev = cos_dev_sensor_get_default(COS_SENSOR_TYPE_ACCE);
     if (!dev)
     {
         _record_test("Data Integrity", false, "Sensor device not found");
@@ -926,10 +926,10 @@ static bool _test_data_integrity(void)
     }
 
     /* Save current sample period */
-    uint32_t saved_period = eos_sensor_get_sample_period(EOS_SENSOR_TYPE_ACCE);
+    uint32_t saved_period = cos_sensor_get_sample_period(COS_SENSOR_TYPE_ACCE);
 
     /* Ensure sensor is running with reasonable rate */
-    eos_sensor_set_sample_period(EOS_SENSOR_TYPE_ACCE, 50);
+    cos_sensor_set_sample_period(COS_SENSOR_TYPE_ACCE, 50);
 
     /* Wait a bit for data to be available */
     for (int i = 0; i < 5; i++)
@@ -939,15 +939,15 @@ static bool _test_data_integrity(void)
 
     for (int i = 0; i < 100; i++)
     {
-        eos_result_t result = eos_sensor_read_latest(EOS_SENSOR_TYPE_ACCE, &data);
+        cos_result_t result = cos_sensor_read_latest(COS_SENSOR_TYPE_ACCE, &data);
 
-        if (result != EOS_OK)
+        if (result != COS_OK)
         {
             passed = false;
             break;
         }
 
-        if (data.type != EOS_SENSOR_TYPE_ACCE)
+        if (data.type != COS_SENSOR_TYPE_ACCE)
         {
             passed = false;
             break;
@@ -964,7 +964,7 @@ static bool _test_data_integrity(void)
     }
 
     /* Restore sample period */
-    eos_sensor_set_sample_period(EOS_SENSOR_TYPE_ACCE, saved_period);
+    cos_sensor_set_sample_period(COS_SENSOR_TYPE_ACCE, saved_period);
 
     _record_test("Data Integrity", passed, passed ? "Data integrity maintained" : "Data integrity failed");
     return passed;
@@ -1116,24 +1116,24 @@ static void _test_category_cb(lv_event_t *e)
     _update_result(summary);
 }
 
-static eos_activity_lifecycle_t s_sensor_test_activity_lifecycle;
+static cos_activity_lifecycle_t s_sensor_test_activity_lifecycle;
 
-void eos_test_sensor_start(void)
+void cos_test_sensor_start(void)
 {
-    eos_activity_t *activity = eos_activity_create(&s_sensor_test_activity_lifecycle);
+    cos_activity_t *activity = cos_activity_create(&s_sensor_test_activity_lifecycle);
     if (!activity)
     {
         return;
     }
 
-    lv_obj_t *view = eos_activity_get_view(activity);
+    lv_obj_t *view = cos_activity_get_view(activity);
     if (!view)
     {
         return;
     }
 
-    eos_activity_set_title(activity, "Sensor Tests");
-    eos_activity_set_type(activity, EOS_ACTIVITY_TYPE_APP);
+    cos_activity_set_title(activity, "Sensor Tests");
+    cos_activity_set_type(activity, COS_ACTIVITY_TYPE_APP);
 
     /* Create container */
     _ctx.container = lv_obj_create(view);
@@ -1145,7 +1145,7 @@ void eos_test_sensor_start(void)
     lv_obj_t *cat_list = lv_list_create(_ctx.container);
     lv_obj_set_size(cat_list, lv_pct(100), lv_pct(45));
     lv_obj_set_flex_grow(cat_list, 1);
-    eos_crown_encoder_set_target_obj(cat_list);
+    cos_crown_encoder_set_target_obj(cat_list);
 
     /* Add test category buttons */
     const char *categories[] = {"Device Layer Tests",
@@ -1176,38 +1176,38 @@ void eos_test_sensor_start(void)
     lv_obj_set_style_text_align(_ctx.result_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_size(_ctx.result_label, lv_pct(100), LV_SIZE_CONTENT);
 
-    eos_activity_enter(activity);
+    cos_activity_enter(activity);
 }
 
-void eos_test_sensor_register_tests(void)
+void cos_test_sensor_register_tests(void)
 {
-    eos_test_register("Sensor: register new sensor", _test_sensor_register);
-    eos_test_register("Sensor: find by name/type", _test_sensor_find);
-    eos_test_register("Sensor: init/enable/set_rate/get_rate/disable ops", _test_sensor_ops);
-    eos_test_register("Sensor: get_state returns valid", _test_sensor_state);
-    eos_test_register("Sensor: service init idempotent", _test_service_init);
-    eos_test_register("Sensor: read_latest returns EOS_OK", _test_read_latest);
-    eos_test_register("Sensor: subscribe then unsubscribe", _test_subscribe);
-    eos_test_register("Sensor: nested self-unsubscribe (no UAF)", _test_nested_self_unsubscribe);
-    eos_test_register("Sensor: nested cross-unsubscribe", _test_nested_cross_unsubscribe);
-    eos_test_register("Sensor: nested subscribe during notify", _test_nested_subscribe_during_notify);
-    eos_test_register("Sensor: nested multi-sensor UAF", _test_nested_multi_sensor_uaf);
-    eos_test_register("Sensor: sample rate 50ms round-trip", _test_sample_rate);
-    eos_test_register("Sensor: sample rate multiple periods", _test_sample_rate_multiple);
-    eos_test_register("Sensor: enable/disable cycle", _test_sensor_enable_disable);
-    eos_test_register("Sensor: data notification rate period=100", _test_data_notification_rate);
-    eos_test_register("Sensor: FIFO full recovery", _test_fifo_full);
-    eos_test_register("Sensor: no subscriber sampling period=0", _test_no_subscriber_sampling);
-    eos_test_register("Sensor: min sample rate 1000ms", _test_min_sample_rate);
-    eos_test_register("Sensor: concurrent read x3", _test_concurrent_read);
-    eos_test_register("Sensor: null safety (invalid type, NULL data)", _test_null_safety);
-    eos_test_register("Sensor: throughput 100 reads", _test_throughput);
-    eos_test_register("Sensor: device manager integration", _test_device_manager_integration);
-    eos_test_register("Sensor: parameter errors", _test_parameter_errors);
-    eos_test_register("Sensor: FIFO boundary", _test_fifo_boundary);
-    eos_test_register("Sensor: frequency boundary 0Hz/1Hz", _test_frequency_boundary);
-    eos_test_register("Sensor: stability 1000 reads", _test_stability);
-    eos_test_register("Sensor: data integrity 100 reads", _test_data_integrity);
+    cos_test_register("Sensor: register new sensor", _test_sensor_register);
+    cos_test_register("Sensor: find by name/type", _test_sensor_find);
+    cos_test_register("Sensor: init/enable/set_rate/get_rate/disable ops", _test_sensor_ops);
+    cos_test_register("Sensor: get_state returns valid", _test_sensor_state);
+    cos_test_register("Sensor: service init idempotent", _test_service_init);
+    cos_test_register("Sensor: read_latest returns COS_OK", _test_read_latest);
+    cos_test_register("Sensor: subscribe then unsubscribe", _test_subscribe);
+    cos_test_register("Sensor: nested self-unsubscribe (no UAF)", _test_nested_self_unsubscribe);
+    cos_test_register("Sensor: nested cross-unsubscribe", _test_nested_cross_unsubscribe);
+    cos_test_register("Sensor: nested subscribe during notify", _test_nested_subscribe_during_notify);
+    cos_test_register("Sensor: nested multi-sensor UAF", _test_nested_multi_sensor_uaf);
+    cos_test_register("Sensor: sample rate 50ms round-trip", _test_sample_rate);
+    cos_test_register("Sensor: sample rate multiple periods", _test_sample_rate_multiple);
+    cos_test_register("Sensor: enable/disable cycle", _test_sensor_enable_disable);
+    cos_test_register("Sensor: data notification rate period=100", _test_data_notification_rate);
+    cos_test_register("Sensor: FIFO full recovery", _test_fifo_full);
+    cos_test_register("Sensor: no subscriber sampling period=0", _test_no_subscriber_sampling);
+    cos_test_register("Sensor: min sample rate 1000ms", _test_min_sample_rate);
+    cos_test_register("Sensor: concurrent read x3", _test_concurrent_read);
+    cos_test_register("Sensor: null safety (invalid type, NULL data)", _test_null_safety);
+    cos_test_register("Sensor: throughput 100 reads", _test_throughput);
+    cos_test_register("Sensor: device manager integration", _test_device_manager_integration);
+    cos_test_register("Sensor: parameter errors", _test_parameter_errors);
+    cos_test_register("Sensor: FIFO boundary", _test_fifo_boundary);
+    cos_test_register("Sensor: frequency boundary 0Hz/1Hz", _test_frequency_boundary);
+    cos_test_register("Sensor: stability 1000 reads", _test_stability);
+    cos_test_register("Sensor: data integrity 100 reads", _test_data_integrity);
 }
 
-#endif /* EOS_ENABLE_TEST_APP */
+#endif /* COS_ENABLE_TEST_APP */

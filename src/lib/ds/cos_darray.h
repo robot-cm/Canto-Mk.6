@@ -1,10 +1,10 @@
 /**
- * @file eos_darray.h
+ * @file cos_darray.h
  * @brief Dynamic array
  */
 
-#ifndef EOS_DARRAY_H
-#define EOS_DARRAY_H
+#ifndef COS_DARRAY_H
+#define COS_DARRAY_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,15 +18,15 @@ extern "C" {
 /* Public macros ----------------------------------------------*/
 
 /* Public typedefs --------------------------------------------*/
-typedef struct eos_darray_t eos_darray_t;
+typedef struct cos_darray_t cos_darray_t;
 /* Public function prototypes --------------------------------*/
 
 /**
  * @brief Create a dynamic array and initialize capacity
  * @param init_capacity Initial capacity, defaults to 4 if 0
- * @return eos_darray_t* Returns created dynamic array pointer, returns NULL on failure
+ * @return cos_darray_t* Returns created dynamic array pointer, returns NULL on failure
  */
-eos_darray_t *eos_darray_create(size_t init_capacity);
+cos_darray_t *cos_darray_create(size_t init_capacity);
 
 /**
  * @brief Set data at specified index, automatically expands capacity if index exceeds current capacity
@@ -36,7 +36,7 @@ eos_darray_t *eos_darray_create(size_t init_capacity);
  * @return true Set successful
  * @return false Set failed (e.g., memory allocation failure or arr is NULL)
  */
-bool eos_darray_set(eos_darray_t *arr, size_t index, void *data);
+bool cos_darray_set(cos_darray_t *arr, size_t index, void *data);
 
 /**
  * @brief Get data at specified index, may automatically shrink capacity if shrink mechanism is enabled
@@ -44,23 +44,23 @@ bool eos_darray_set(eos_darray_t *arr, size_t index, void *data);
  * @param index Data index to get
  * @return void* Returns data pointer at corresponding index, returns NULL if out of bounds or arr is NULL
  */
-void *eos_darray_get(eos_darray_t *arr, size_t index);
+void *cos_darray_get(cos_darray_t *arr, size_t index);
 
 /**
  * @brief Get current number of valid elements in dynamic array
  * @param arr Dynamic array pointer
  * @return size_t Returns current number of valid elements, returns 0 if arr is NULL
  */
-size_t eos_darray_get_size(eos_darray_t *arr);
+size_t cos_darray_get_size(cos_darray_t *arr);
 
 /**
  * @brief Destroy dynamic array and free memory
  * @param arr Dynamic array pointer
  */
-void eos_darray_destroy(eos_darray_t *arr);
+void cos_darray_destroy(cos_darray_t *arr);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_DARRAY_H */
+#endif /* COS_DARRAY_H */

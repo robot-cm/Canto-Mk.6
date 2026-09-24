@@ -1,17 +1,17 @@
 /**
- * @file eos_service_display.c
+ * @file cos_service_display.c
  * @brief Display service
  */
 
-#include "eos_service_display.h"
+#include "cos_service_display.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include "lvgl.h"
-#include "eos_config.h"
-#include "eos_service_config.h"
-#include "eos_dev_display.h"
+#include "cos_config.h"
+#include "cos_service_config.h"
+#include "cos_dev_display.h"
 
 /* Macros and Definitions -------------------------------------*/
 
@@ -28,7 +28,7 @@ static bool _in_temporary_mode = false;
 
 static void _set_brightness_direct(uint8_t brightness)
 {
-    eos_dev_display_t *dev = eos_dev_display_get_instance();
+    cos_dev_display_t *dev = cos_dev_display_get_instance();
     if (dev->ops && dev->ops->set_brightness)
     {
         dev->ops->set_brightness(brightness);
@@ -42,7 +42,7 @@ static void _brightness_anim_cb(void *var, int32_t v)
     _set_brightness_direct((uint8_t)v);
 }
 
-void eos_display_set_brightness(uint8_t brightness, eos_display_duration_t duration_ms, bool is_temporary)
+void cos_display_set_brightness(uint8_t brightness, cos_display_duration_t duration_ms, bool is_temporary)
 {
     if (is_temporary && !_in_temporary_mode)
     {
@@ -76,12 +76,12 @@ void eos_display_set_brightness(uint8_t brightness, eos_display_duration_t durat
     }
 }
 
-uint8_t eos_display_get_brightness(void)
+uint8_t cos_display_get_brightness(void)
 {
     return _current_brightness;
 }
 
-void eos_display_refresh_period_set(uint32_t period_ms)
+void cos_display_refresh_period_set(uint32_t period_ms)
 {
     /* 0 = 复位到系统默认刷新周期(须与生效中的 lv_conf.h LV_DEF_REFR_PERIOD 一致) */
     if (period_ms == 0)
@@ -97,38 +97,38 @@ void eos_display_refresh_period_set(uint32_t period_ms)
     lv_timer_set_period(refr, period_ms);
 }
 
-void eos_display_power_on(void)
+void cos_display_power_on(void)
 {
-    eos_dev_display_t *dev = eos_dev_display_get_instance();
+    cos_dev_display_t *dev = cos_dev_display_get_instance();
     if (dev->ops && dev->ops->power_on)
     {
         dev->ops->power_on();
     }
 }
 
-void eos_display_power_off(void)
+void cos_display_power_off(void)
 {
-    eos_dev_display_t *dev = eos_dev_display_get_instance();
+    cos_dev_display_t *dev = cos_dev_display_get_instance();
     if (dev->ops && dev->ops->power_off)
     {
         dev->ops->power_off();
     }
 }
 
-void eos_display_restore(eos_display_duration_t duration_ms)
+void cos_display_restore(cos_display_duration_t duration_ms)
 {
     uint8_t brightness_to_restore = _saved_brightness;
     _in_temporary_mode = false;
-    eos_display_set_brightness(brightness_to_restore, duration_ms, false);
+    cos_display_set_brightness(brightness_to_restore, duration_ms, false);
 }
 
-eos_result_t eos_display_bltest(bool high)
+cos_result_t cos_display_bltest(bool high)
 {
-    eos_dev_display_t *dev = eos_dev_display_get_instance();
+    cos_dev_display_t *dev = cos_dev_display_get_instance();
     if (dev->ops && dev->ops->bltest)
     {
         dev->ops->bltest(high);
-        return EOS_OK;
+        return COS_OK;
     }
-    return EOS_ERR_DEV_OPS_NOT_SUPPORTED;
+    return COS_ERR_DEV_OPS_NOT_SUPPORTED;
 }

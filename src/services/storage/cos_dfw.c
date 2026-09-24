@@ -1,40 +1,40 @@
 /**
- * @file eos_dfw.c
+ * @file cos_dfw.c
  * @brief Deferred File Writer
  */
 
-#include "eos_config.h"
+#include "cos_config.h"
 
-#if EOS_DFW_ENABLE
+#if COS_DFW_ENABLE
 
-#include "eos_dfw.h"
+#include "cos_dfw.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define EOS_LOG_TAG "DFW"
-#include "eos_log.h"
-#include "eos_cqueue.h"
-#include "eos_service_storage.h"
-#include "eos_port.h"
-#include "eos_mem.h"
+#define COS_LOG_TAG "DFW"
+#include "cos_log.h"
+#include "cos_cqueue.h"
+#include "cos_service_storage.h"
+#include "cos_port.h"
+#include "cos_mem.h"
 /* Macros and Definitions -------------------------------------*/
 typedef struct
 {
-    char path[EOS_FS_PATH_MAX];
+    char path[COS_FS_PATH_MAX];
     uint8_t *data;
     size_t data_size;
-} eos_dfw_cache_t;
+} cos_dfw_cache_t;
 /* Variables --------------------------------------------------*/
-static eos_cqueue_t *cq = NULL;
+static cos_cqueue_t *cq = NULL;
 /* Function Implementations -----------------------------------*/
 
-static eos_dfw_cache_t *_find_cache(const char *path)
+static cos_dfw_cache_t *_find_cache(const char *path)
 {
-    for (int i = 0; i < eos_cqueue_get_size(cq); i++)
+    for (int i = 0; i < cos_cqueue_get_size(cq); i++)
     {
-        eos_dfw_cache_t *cache = eos_cqueue_peek(cq, i);
+        cos_dfw_cache_t *cache = cos_cqueue_peek(cq, i);
         if (strcmp(cache->path, path) == 0)
         {
             return cache;
@@ -43,21 +43,21 @@ static eos_dfw_cache_t *_find_cache(const char *path)
     return NULL;
 }
 
-bool eos_dfw_write(const char *path, const uint8_t *data, size_t data_size)
+bool cos_dfw_write(const char *path, const uint8_t *data, size_t data_size)
 {
-    EOS_CHECK_PTR_RETURN_VAL(path && data, false);
+    COS_CHECK_PTR_RETURN_VAL(path && data, false);
     if (data_size == 0)
     {
-        EOS_LOG_E("data_size == 0");
+        COS_LOG_E("data_size == 0");
         return false;
     }
-    eos_dfw_cache_t *cache = _find_cache(path);
+    cos_dfw_cache_t *cache = _find_cache(path);
     if (cache)
     {
-        EOS_LOG_I("Cache found");
+        COS_LOG_I("Cache found");
         if (cache->data)
-            eos_free(cache->data);
-        cache->data = eos_malloc(data_size + 1);
+            cos_free(cache->data);
+        cache->data = cos_malloc(data_size + 1);
         memcpy(cache->data, data, data_size);
         cache->data[data_size] = '\0';
         cache->data_size = data_size;
@@ -65,66 +65,66 @@ bool eos_dfw_write(const char *path, const uint8_t *data, size_t data_size)
     }
     else
     {
-        EOS_LOG_I("Cache not found");
-        cache = eos_malloc_zeroed(sizeof(eos_dfw_cache_t));
-        EOS_CHECK_PTR_RETURN_VAL(cache, false);
-        strncpy(cache->path, path, EOS_FS_PATH_MAX - 1);
-        cache->path[EOS_FS_PATH_MAX - 1] = '\0';
-        cache->data = eos_malloc(data_size + 1);
+        COS_LOG_I("Cache not found");
+        cache = cos_malloc_zeroed(sizeof(cos_dfw_cache_t));
+        COS_CHECK_PTR_RETURN_VAL(cache, false);
+        strncpy(cache->path, path, COS_FS_PATH_MAX - 1);
+        cache->path[COS_FS_PATH_MAX - 1] = '\0';
+        cache->data = cos_malloc(data_size + 1);
         memcpy(cache->data, data, data_size);
         cache->data[data_size] = '\0';
         cache->data_size = data_size;
-        if (eos_cqueue_enqueue(cq, cache))
+        if (cos_cqueue_enqueue(cq, cache))
         {
-            EOS_LOG_I("Cache enqueued");
+            COS_LOG_I("Cache enqueued");
         }
         else
         {
-            EOS_LOG_E("Failed to enqueue cache");
+            COS_LOG_E("Failed to enqueue cache");
         }
         return true;
     }
 }
 
-uint8_t *eos_dfw_read(const char *path)
+uint8_t *cos_dfw_read(const char *path)
 {
-    EOS_CHECK_PTR_RETURN_VAL(path, NULL);
-    eos_dfw_cache_t *cache = _find_cache(path);
+    COS_CHECK_PTR_RETURN_VAL(path, NULL);
+    cos_dfw_cache_t *cache = _find_cache(path);
     if (cache)
     {
-        EOS_LOG_I("Cache found");
-        uint8_t *copy = eos_malloc_zeroed(cache->data_size);
+        COS_LOG_I("Cache found");
+        uint8_t *copy = cos_malloc_zeroed(cache->data_size);
         memcpy(copy, cache->data, cache->data_size);
         return copy;
     }
     else
     {
-        return (uint8_t *)eos_storage_read_file_immediate(path);
+        return (uint8_t *)cos_storage_read_file_immediate(path);
     }
 }
 
-void eos_dfw_sync(void)
+void cos_dfw_sync(void)
 {
-    while (eos_cqueue_get_size(cq) > 0)
+    while (cos_cqueue_get_size(cq) > 0)
     {
-        eos_dfw_cache_t *cache = eos_cqueue_dequeue(cq);
-        EOS_CHECK_PTR_RETURN(cache);
-        if (eos_storage_write_file_immediate(cache->path, cache->data, cache->data_size) != EOS_OK)
+        cos_dfw_cache_t *cache = cos_cqueue_dequeue(cq);
+        COS_CHECK_PTR_RETURN(cache);
+        if (cos_storage_write_file_immediate(cache->path, cache->data, cache->data_size) != COS_OK)
         {
-            EOS_LOG_E("Write failed");
+            COS_LOG_E("Write failed");
         }
         else
         {
-            EOS_LOG_I("Write done");
+            COS_LOG_I("Write done");
         }
-        eos_free(cache->data);
-        eos_free(cache);
+        cos_free(cache->data);
+        cos_free(cache);
     }
 }
 
-void eos_dfw_init(void)
+void cos_dfw_init(void)
 {
-    cq = eos_cqueue_create(4);
+    cq = cos_cqueue_create(4);
 }
 
-#endif /* EOS_DFW_ENABLE */
+#endif /* COS_DFW_ENABLE */

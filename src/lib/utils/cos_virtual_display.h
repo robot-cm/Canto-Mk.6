@@ -1,17 +1,17 @@
 /**
- * @file eos_virtual_display.h
+ * @file cos_virtual_display.h
  * @brief Virtual display
  */
-#ifndef EOS_VIRTUAL_DISPLAY_H
-#define EOS_VIRTUAL_DISPLAY_H
+#ifndef COS_VIRTUAL_DISPLAY_H
+#define COS_VIRTUAL_DISPLAY_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* Includes ---------------------------------------------------*/
-#include "eos_config.h"
-#if EOS_USE_VIRTUAL_DISPLAY
+#include "cos_config.h"
+#if COS_USE_VIRTUAL_DISPLAY
 #include <stdint.h>
 #include <stdbool.h>
 #include "lvgl.h"
@@ -19,7 +19,7 @@ extern "C" {
 /* Public macros ----------------------------------------------*/
 
 /* Public typedefs --------------------------------------------*/
-typedef struct eos_virtual_display_t eos_virtual_display_t;
+typedef struct cos_virtual_display_t cos_virtual_display_t;
 /* Public function prototypes --------------------------------*/
 
 /**
@@ -29,11 +29,11 @@ typedef struct eos_virtual_display_t eos_virtual_display_t;
  * @param ver_res Display vertical resolution
  * @return lv_display_t* Returns display object if creation succeeds, otherwise returns NULL
  */
-lv_display_t *eos_virtual_display_create(lv_obj_t *parent, lv_coord_t hor_res, lv_coord_t ver_res);
-#endif /* EOS_USE_VIRTUAL_DISPLAY */
+lv_display_t *cos_virtual_display_create(lv_obj_t *parent, lv_coord_t hor_res, lv_coord_t ver_res);
+#endif /* COS_USE_VIRTUAL_DISPLAY */
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_VIRTUAL_DISPLAY_H */
+#endif /* COS_VIRTUAL_DISPLAY_H */

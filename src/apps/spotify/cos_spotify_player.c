@@ -1,11 +1,11 @@
 /**
- * @file eos_spotify_player.c
+ * @file cos_spotify_player.c
  * @brief Spotify 播放界面实现:文件树 + 播放态(三行歌词 + 进度条 + 控制键)。
  *
  * 交付批次:Batch 3(音量弧/速度弧在 Batch 4 追加)。
  *
  * ── 刷新模型 ────────────────────────────────────────────────
- *   App 的 lv_timer(50ms)调用 eos_spotify_player_tick():
+ *   App 的 lv_timer(50ms)调用 cos_spotify_player_tick():
  *     1. audio_pump()      解码一片 → PCM 环形缓冲
  *     2. audio_flush()     环形缓冲 → UAC 等时端点
  *     3. _update_lyrics()  按播放位置切换/滚动歌词
@@ -17,25 +17,25 @@
  *   上一行/下一行分别显示相邻歌词,越界时显示空白。
  *   中间行超宽时水平滚动,速度由该行持续时间决定。
  */
-#include "eos_spotify_player.h"
+#include "cos_spotify_player.h"
 
 #if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
 
 #include <stdio.h>
 #include <string.h>
 
-#include "eos_mem.h"
-#include "eos_font.h"
-#include "eos_service_storage.h"
-#include "ui/system/eos_round_clip.h"
+#include "cos_mem.h"
+#include "cos_font.h"
+#include "cos_service_storage.h"
+#include "ui/system/cos_round_clip.h"
 
-#include "eos_spotify_audio.h"
-#include "eos_spotify_lrc.h"
-#include "eos_spotify_tree.h"
-#include "eos_spotify_arc.h"
+#include "cos_spotify_audio.h"
+#include "cos_spotify_lrc.h"
+#include "cos_spotify_tree.h"
+#include "cos_spotify_arc.h"
 
-#define EOS_LOG_TAG "SpotifyPlayer"
-#include "eos_log.h"
+#define COS_LOG_TAG "SpotifyPlayer"
+#include "cos_log.h"
 
 /* ── 配色 ─────────────────────────────────────────────────── */
 
@@ -82,7 +82,7 @@
 
 /* ── 结构 ─────────────────────────────────────────────────── */
 
-struct eos_spotify_player_s
+struct cos_spotify_player_s
 {
     lv_obj_t *parent;
 
@@ -93,8 +93,8 @@ struct eos_spotify_player_s
     /* ── 文件树页 ── */
     lv_obj_t *tree_list;
     lv_obj_t *tree_title;
-    eos_spotify_tree_t *tree;
-    eos_spotify_tree_item_t *items;   /* 快照:node* + depth */
+    cos_spotify_tree_t *tree;
+    cos_spotify_tree_item_t *items;   /* 快照:node* + depth */
 
     /* ── 播放页 ── */
     lv_obj_t *lbl_song;      /* 顶部歌名(超宽滚动) */
@@ -112,7 +112,7 @@ struct eos_spotify_player_s
     char *cur_path;
 
     /* 歌词 */
-    eos_spotify_lrc_t *lrc;
+    cos_spotify_lrc_t *lrc;
     int   lrc_index;         /* 当前行下标; -1 = 未开始 */
     int   lrc_scroll;        /* 中间行滚动像素偏移(>=0) */
     int   lrc_scroll_max;    /* 本行需要滚动的最大偏移 */
@@ -136,24 +136,24 @@ struct eos_spotify_player_s
     bool tree_dirty;
 
     /* 弧形调节(Batch 4) */
-    eos_spotify_arc_t *arc_vol;    /* 右侧:音量 0–100      */
-    eos_spotify_arc_t *arc_speed;  /* 左侧:速度 0.5–4.0x   */
+    cos_spotify_arc_t *arc_vol;    /* 右侧:音量 0–100      */
+    cos_spotify_arc_t *arc_speed;  /* 左侧:速度 0.5–4.0x   */
 
     /* 回调 */
-    eos_spotify_back_cb_t on_back;
-    eos_spotify_exit_cb_t on_exit;
+    cos_spotify_back_cb_t on_back;
+    cos_spotify_exit_cb_t on_exit;
     void *user;
 };
 
 /* ── 工具 ─────────────────────────────────────────────────── */
 
-static void _set_font(lv_obj_t *o, eos_font_size_t sz)
+static void _set_font(lv_obj_t *o, cos_font_size_t sz)
 {
-    eos_label_set_font_size(o, sz);
+    cos_label_set_font_size(o, sz);
 }
 
 static lv_obj_t *_make_label(lv_obj_t *parent, const char *text,
-                             uint32_t color, eos_font_size_t font)
+                             uint32_t color, cos_font_size_t font)
 {
     lv_obj_t *l = lv_label_create(parent);
     lv_label_set_text(l, text ? text : "");
@@ -176,7 +176,7 @@ static lv_obj_t *_make_round_btn(lv_obj_t *parent, const char *txt,
     lv_obj_t *l = lv_label_create(b);
     lv_label_set_text(l, txt ? txt : "");
     lv_obj_set_style_text_color(l, lv_color_hex(C_TEXT), 0);
-    _set_font(l, EOS_FONT_SIZE_MICRO);
+    _set_font(l, COS_FONT_SIZE_MICRO);
     lv_obj_center(l);
     return b;
 }
@@ -186,7 +186,7 @@ static lv_obj_t *_make_round_btn(lv_obj_t *parent, const char *txt,
 static void _tree_row_clicked(lv_event_t *e);
 
 /** 重建文件树列表(把摊平视图渲染为按钮行)。 */
-static void _tree_rebuild(eos_spotify_player_t *p)
+static void _tree_rebuild(cos_spotify_player_t *p)
 {
     if (p->tree_list == NULL)
     {
@@ -195,12 +195,12 @@ static void _tree_rebuild(eos_spotify_player_t *p)
     lv_obj_clean(p->tree_list);
 
     int count = 0;
-    const eos_spotify_tree_item_t *items = eos_spotify_tree_items(p->tree, &count);
+    const cos_spotify_tree_item_t *items = cos_spotify_tree_items(p->tree, &count);
     if (items == NULL || count == 0)
     {
         lv_obj_t *l = _make_label(p->tree_list,
                                   "No music found.\nPut .mp3 or .wav files\nunder /sdcard/spotify/",
-                                  C_DIM, EOS_FONT_SIZE_MICRO);
+                                  C_DIM, COS_FONT_SIZE_MICRO);
         lv_obj_set_width(l, 180);
         lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(l, LV_ALIGN_TOP_MID, 0, 30);
@@ -209,9 +209,9 @@ static void _tree_rebuild(eos_spotify_player_t *p)
 
     for (int i = 0; i < count; i++)
     {
-        const eos_spotify_node_t *n = items[i].node;
-        bool is_dir = eos_spotify_tree_node_is_dir(n);
-        bool expanded = eos_spotify_tree_node_expanded(n);
+        const cos_spotify_node_t *n = items[i].node;
+        bool is_dir = cos_spotify_tree_node_is_dir(n);
+        bool expanded = cos_spotify_tree_node_expanded(n);
 
         lv_obj_t *row = lv_button_create(p->tree_list);
         lv_obj_set_width(row, 176);
@@ -236,7 +236,7 @@ static void _tree_rebuild(eos_spotify_player_t *p)
             snprintf(prefix, sizeof(prefix), "%% ");
         }
 
-        const char *name = eos_spotify_tree_node_name(n);
+        const char *name = cos_spotify_tree_node_name(n);
         char label[160];
         snprintf(label, sizeof(label), "%s%s", prefix, name);
 
@@ -246,7 +246,7 @@ static void _tree_rebuild(eos_spotify_player_t *p)
         lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_LEFT, 0);
         lv_obj_set_width(l, 130);
         lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
-        _set_font(l, EOS_FONT_SIZE_MICRO);
+        _set_font(l, COS_FONT_SIZE_MICRO);
         lv_obj_align(l, LV_ALIGN_LEFT_MID, 0, 0);
 
         /* 文件行额外加 ▶ 播放按钮 */
@@ -268,14 +268,14 @@ static void _tree_rebuild(eos_spotify_player_t *p)
 }
 
 /** 播放态入口(前向声明)。 */
-static void _play_begin(eos_spotify_player_t *p, const char *path);
-static void _show_tree(eos_spotify_player_t *p);
-static void _show_play(eos_spotify_player_t *p);
+static void _play_begin(cos_spotify_player_t *p, const char *path);
+static void _show_tree(cos_spotify_player_t *p);
+static void _show_play(cos_spotify_player_t *p);
 
 /** 文件树行点击:目录 → 展开/收起;文件 ▶ → 播放。 */
 static void _tree_row_clicked(lv_event_t *e)
 {
-    eos_spotify_player_t *p = (eos_spotify_player_t *)lv_event_get_user_data(e);
+    cos_spotify_player_t *p = (cos_spotify_player_t *)lv_event_get_user_data(e);
     lv_obj_t *target = lv_event_get_current_target(e);
     if (p == NULL || target == NULL)
     {
@@ -289,20 +289,20 @@ static void _tree_row_clicked(lv_event_t *e)
 
     /* 从快照取节点(快照在每次 rebuild 后仍指向同一批 node) */
     int count = 0;
-    const eos_spotify_tree_item_t *items = eos_spotify_tree_items(p->tree, &count);
+    const cos_spotify_tree_item_t *items = cos_spotify_tree_items(p->tree, &count);
     if (items == NULL || idx >= count)
     {
         return;
     }
-    const eos_spotify_node_t *n = items[idx].node;
+    const cos_spotify_node_t *n = items[idx].node;
     if (n == NULL)
     {
         return;
     }
 
-    if (eos_spotify_tree_node_is_dir(n))
+    if (cos_spotify_tree_node_is_dir(n))
     {
-        eos_spotify_tree_toggle(p->tree, (eos_spotify_node_t *)n);
+        cos_spotify_tree_toggle(p->tree, (cos_spotify_node_t *)n);
         /* 不能在此处立即 _tree_rebuild():
          * 本回调正运行在 target(该行按钮)的事件分发中,而 rebuild 会
          * _lv_obj_clean 掉包括 target 在内的所有行 —— 在事件处理中途删除
@@ -312,11 +312,11 @@ static void _tree_row_clicked(lv_event_t *e)
     }
     else
     {
-        _play_begin(p, eos_spotify_tree_node_path(n));
+        _play_begin(p, cos_spotify_tree_node_path(n));
     }
 }
 
-static void _show_tree(eos_spotify_player_t *p)
+static void _show_tree(cos_spotify_player_t *p)
 {
     if (p->screen_play)
     {
@@ -329,7 +329,7 @@ static void _show_tree(eos_spotify_player_t *p)
     _tree_rebuild(p);
 }
 
-static void _show_play(eos_spotify_player_t *p)
+static void _show_play(cos_spotify_player_t *p)
 {
     if (p->screen_tree)
     {
@@ -343,7 +343,7 @@ static void _show_play(eos_spotify_player_t *p)
 
 /* ── 播放控制 ─────────────────────────────────────────────── */
 
-static void _update_play_button(eos_spotify_player_t *p)
+static void _update_play_button(cos_spotify_player_t *p)
 {
     if (p->btn_play == NULL)
     {
@@ -357,11 +357,11 @@ static void _update_play_button(eos_spotify_player_t *p)
 }
 
 /** 加载歌词(同名 .lrc)。 */
-static void _load_lrc(eos_spotify_player_t *p, const char *audio_path)
+static void _load_lrc(cos_spotify_player_t *p, const char *audio_path)
 {
     if (p->lrc)
     {
-        eos_spotify_lrc_free(p->lrc);
+        cos_spotify_lrc_free(p->lrc);
         p->lrc = NULL;
     }
     p->lrc_index = -1;
@@ -370,7 +370,7 @@ static void _load_lrc(eos_spotify_player_t *p, const char *audio_path)
 
     /* 把扩展名换成 .lrc */
     size_t len = strlen(audio_path);
-    char *lrc_path = (char *)eos_malloc(len + 8);
+    char *lrc_path = (char *)cos_malloc(len + 8);
     if (lrc_path == NULL)
     {
         return;
@@ -383,12 +383,12 @@ static void _load_lrc(eos_spotify_player_t *p, const char *audio_path)
     }
     strcat(lrc_path, ".lrc");
 
-    p->lrc = eos_spotify_lrc_load(lrc_path);
-    eos_free(lrc_path);
+    p->lrc = cos_spotify_lrc_load(lrc_path);
+    cos_free(lrc_path);
 }
 
 /** 开始播放指定文件。 */
-static void _play_begin(eos_spotify_player_t *p, const char *path)
+static void _play_begin(cos_spotify_player_t *p, const char *path)
 {
     if (p == NULL || path == NULL)
     {
@@ -396,12 +396,12 @@ static void _play_begin(eos_spotify_player_t *p, const char *path)
     }
 
     /* 先停掉当前播放 */
-    eos_spotify_audio_close();
+    cos_spotify_audio_close();
 
-    eos_spotify_ade_err_t err = EOS_SPOTIFY_ADE_OK;
-    if (!eos_spotify_audio_open(path, &err))
+    cos_spotify_ade_err_t err = COS_SPOTIFY_ADE_OK;
+    if (!cos_spotify_audio_open(path, &err))
     {
-        EOS_LOG_W("play: open failed (%d) %s", (int)err, path);
+        COS_LOG_W("play: open failed (%d) %s", (int)err, path);
         /* 显示错误但不退出 App:让用户换一首 */
         if (p->lbl_song)
         {
@@ -412,16 +412,16 @@ static void _play_begin(eos_spotify_player_t *p, const char *path)
 
     if (p->cur_path)
     {
-        eos_free(p->cur_path);
+        cos_free(p->cur_path);
     }
-    p->cur_path = (char *)eos_malloc(strlen(path) + 1);
+    p->cur_path = (char *)cos_malloc(strlen(path) + 1);
     if (p->cur_path)
     {
         strcpy(p->cur_path, path);
     }
 
     /* 刷新同目录歌曲列表,定位当前曲目 */
-    p->siblings = eos_spotify_tree_siblings(path, &p->sibling_count);
+    p->siblings = cos_spotify_tree_siblings(path, &p->sibling_count);
     p->sibling_idx = 0;
     for (int i = 0; i < p->sibling_count; i++)
     {
@@ -467,7 +467,7 @@ static void _play_begin(eos_spotify_player_t *p, const char *path)
 
     if (p->cur_path)
     {
-        EOS_LOG_I("play: %s", p->cur_path);
+        COS_LOG_I("play: %s", p->cur_path);
     }
     _update_play_button(p);
     _show_play(p);
@@ -475,7 +475,7 @@ static void _play_begin(eos_spotify_player_t *p, const char *path)
 
 static void _btn_play_cb(lv_event_t *e)
 {
-    eos_spotify_player_t *p = (eos_spotify_player_t *)lv_event_get_user_data(e);
+    cos_spotify_player_t *p = (cos_spotify_player_t *)lv_event_get_user_data(e);
     if (p == NULL || !p->playing)
     {
         return;
@@ -486,7 +486,7 @@ static void _btn_play_cb(lv_event_t *e)
 
 static void _btn_back_cb(lv_event_t *e)
 {
-    eos_spotify_player_t *p = (eos_spotify_player_t *)lv_event_get_user_data(e);
+    cos_spotify_player_t *p = (cos_spotify_player_t *)lv_event_get_user_data(e);
     if (p == NULL)
     {
         return;
@@ -497,7 +497,7 @@ static void _btn_back_cb(lv_event_t *e)
     }
 }
 
-static void _play_index(eos_spotify_player_t *p, int idx)
+static void _play_index(cos_spotify_player_t *p, int idx)
 {
     if (p->siblings == NULL || p->sibling_count <= 0)
     {
@@ -516,7 +516,7 @@ static void _play_index(eos_spotify_player_t *p, int idx)
 
 static void _btn_prev_cb(lv_event_t *e)
 {
-    eos_spotify_player_t *p = (eos_spotify_player_t *)lv_event_get_user_data(e);
+    cos_spotify_player_t *p = (cos_spotify_player_t *)lv_event_get_user_data(e);
     if (p)
     {
         _play_index(p, p->sibling_idx - 1);
@@ -525,7 +525,7 @@ static void _btn_prev_cb(lv_event_t *e)
 
 static void _btn_next_cb(lv_event_t *e)
 {
-    eos_spotify_player_t *p = (eos_spotify_player_t *)lv_event_get_user_data(e);
+    cos_spotify_player_t *p = (cos_spotify_player_t *)lv_event_get_user_data(e);
     if (p)
     {
         _play_index(p, p->sibling_idx + 1);
@@ -534,27 +534,27 @@ static void _btn_next_cb(lv_event_t *e)
 
 static void _btn_rew_cb(lv_event_t *e)
 {
-    eos_spotify_player_t *p = (eos_spotify_player_t *)lv_event_get_user_data(e);
+    cos_spotify_player_t *p = (cos_spotify_player_t *)lv_event_get_user_data(e);
     if (p)
     {
-        eos_spotify_audio_seek_relative_ms(-15000);
+        cos_spotify_audio_seek_relative_ms(-15000);
     }
 }
 
 static void _btn_ff_cb(lv_event_t *e)
 {
-    eos_spotify_player_t *p = (eos_spotify_player_t *)lv_event_get_user_data(e);
+    cos_spotify_player_t *p = (cos_spotify_player_t *)lv_event_get_user_data(e);
     if (p)
     {
-        eos_spotify_audio_seek_relative_ms(+15000);
+        cos_spotify_audio_seek_relative_ms(+15000);
     }
 }
 
 /* ── 进度条 ───────────────────────────────────────────────── */
 
-static void _progress_set_from_pos(eos_spotify_player_t *p, int x)
+static void _progress_set_from_pos(cos_spotify_player_t *p, int x)
 {
-    uint32_t dur = eos_spotify_audio_duration_ms();
+    uint32_t dur = cos_spotify_audio_duration_ms();
     if (dur == 0 || p->prog_track == NULL)
     {
         return;
@@ -573,12 +573,12 @@ static void _progress_set_from_pos(eos_spotify_player_t *p, int x)
         x = track_w;
     }
     uint32_t target = (uint32_t)(((uint64_t)x * dur) / (uint32_t)track_w);
-    eos_spotify_audio_seek_ms(target);
+    cos_spotify_audio_seek_ms(target);
 }
 
 static void _progress_event_cb(lv_event_t *e)
 {
-    eos_spotify_player_t *p = (eos_spotify_player_t *)lv_event_get_user_data(e);
+    cos_spotify_player_t *p = (cos_spotify_player_t *)lv_event_get_user_data(e);
     if (p == NULL)
     {
         return;
@@ -645,15 +645,15 @@ static int _text_width_of(lv_obj_t *label, const char *txt)
 }
 
 /** 切换中间行到第 idx 行,并重置滚动状态。 */
-static void _lrc_goto(eos_spotify_player_t *p, int idx)
+static void _lrc_goto(cos_spotify_player_t *p, int idx)
 {
     p->lrc_index = idx;
     p->lrc_scroll = 0;
     p->lrc_row_start = lv_tick_get();
 
-    const char *cur = eos_spotify_lrc_line(p->lrc, idx);
-    const char *prev = eos_spotify_lrc_line(p->lrc, idx - 1);
-    const char *next = eos_spotify_lrc_line(p->lrc, idx + 1);
+    const char *cur = cos_spotify_lrc_line(p->lrc, idx);
+    const char *prev = cos_spotify_lrc_line(p->lrc, idx - 1);
+    const char *next = cos_spotify_lrc_line(p->lrc, idx + 1);
 
     if (p->lbl_lrc_top)
     {
@@ -670,7 +670,7 @@ static void _lrc_goto(eos_spotify_player_t *p, int idx)
     }
 
     /* 计算本行需要滚动的距离 */
-    p->lrc_row_dur = eos_spotify_lrc_duration(p->lrc, idx);
+    p->lrc_row_dur = cos_spotify_lrc_duration(p->lrc, idx);
     int tw = _text_width_of(p->lbl_lrc_mid, cur);
     p->lrc_scroll_max = (tw > LRC_W) ? (tw - LRC_W) : 0;
 
@@ -680,7 +680,7 @@ static void _lrc_goto(eos_spotify_player_t *p, int idx)
     }
 }
 
-static void _update_lyrics(eos_spotify_player_t *p)
+static void _update_lyrics(cos_spotify_player_t *p)
 {
     if (p->lbl_lrc_mid == NULL)
     {
@@ -702,8 +702,8 @@ static void _update_lyrics(eos_spotify_player_t *p)
         return;
     }
 
-    uint32_t pos = eos_spotify_audio_position_ms();
-    int idx = eos_spotify_lrc_index_at(p->lrc, pos);
+    uint32_t pos = cos_spotify_audio_position_ms();
+    int idx = cos_spotify_lrc_index_at(p->lrc, pos);
     if (idx < 0)
     {
         idx = 0;   /* 前奏:直接显示第一行 */
@@ -744,7 +744,7 @@ static void _update_lyrics(eos_spotify_player_t *p)
 
 /* ── 歌名滚动 ─────────────────────────────────────────────── */
 
-static void _update_song_title(eos_spotify_player_t *p)
+static void _update_song_title(cos_spotify_player_t *p)
 {
     if (p->lbl_song == NULL)
     {
@@ -785,7 +785,7 @@ static void _update_song_title(eos_spotify_player_t *p)
 
 /* ── 进度条刷新 ───────────────────────────────────────────── */
 
-static void _update_progress(eos_spotify_player_t *p)
+static void _update_progress(cos_spotify_player_t *p)
 {
     if (p->prog_fill == NULL || p->prog_track == NULL)
     {
@@ -795,8 +795,8 @@ static void _update_progress(eos_spotify_player_t *p)
     {
         return;   /* 拖动中不覆盖用户位置 */
     }
-    uint32_t dur = eos_spotify_audio_duration_ms();
-    uint32_t pos = eos_spotify_audio_position_ms();
+    uint32_t dur = cos_spotify_audio_duration_ms();
+    uint32_t pos = cos_spotify_audio_position_ms();
     int track_w = lv_obj_get_width(p->prog_track);
     if (track_w <= 0)
     {
@@ -820,7 +820,7 @@ static void _update_progress(eos_spotify_player_t *p)
 
 /* ── 页面构建 ─────────────────────────────────────────────── */
 
-static void _build_tree_screen(eos_spotify_player_t *p)
+static void _build_tree_screen(cos_spotify_player_t *p)
 {
     p->screen_tree = lv_obj_create(p->parent);
     lv_obj_set_size(p->screen_tree, SCR_W, SCR_H);
@@ -829,9 +829,9 @@ static void _build_tree_screen(eos_spotify_player_t *p)
     lv_obj_set_style_border_width(p->screen_tree, 0, 0);
     lv_obj_set_style_pad_all(p->screen_tree, 0, 0);
     lv_obj_center(p->screen_tree);
-    eos_round_clip(p->screen_tree);
+    cos_round_clip(p->screen_tree);
 
-    p->tree_title = _make_label(p->screen_tree, "Spotify", C_ACCENT, EOS_FONT_SIZE_EXTRA_SMALL);
+    p->tree_title = _make_label(p->screen_tree, "Spotify", C_ACCENT, COS_FONT_SIZE_EXTRA_SMALL);
     lv_obj_align(p->tree_title, LV_ALIGN_TOP_MID, 0, 12);
 
     p->tree_list = lv_obj_create(p->screen_tree);
@@ -849,23 +849,23 @@ static void _build_tree_screen(eos_spotify_player_t *p)
 /* 音量弧回调:数值 0–100 → 音频管线软件增益。 */
 static void _arc_vol_changed(void *user, float value)
 {
-    eos_spotify_player_t *p = (eos_spotify_player_t *)user;
+    cos_spotify_player_t *p = (cos_spotify_player_t *)user;
     (void)p;
     int vol = (int)(value + 0.5f);
-    eos_spotify_audio_set_volume(vol);
-    EOS_LOG_I("player: volume = %d", vol);
+    cos_spotify_audio_set_volume(vol);
+    COS_LOG_I("player: volume = %d", vol);
 }
 
 /* 速度弧回调:数值 0.5–4.0x → 解码侧变速。 */
 static void _arc_speed_changed(void *user, float value)
 {
-    eos_spotify_player_t *p = (eos_spotify_player_t *)user;
+    cos_spotify_player_t *p = (cos_spotify_player_t *)user;
     (void)p;
-    eos_spotify_audio_set_speed(value);
-    EOS_LOG_I("player: speed = %.2fx", (double)value);
+    cos_spotify_audio_set_speed(value);
+    COS_LOG_I("player: speed = %.2fx", (double)value);
 }
 
-static void _build_play_screen(eos_spotify_player_t *p)
+static void _build_play_screen(cos_spotify_player_t *p)
 {
     p->screen_play = lv_obj_create(p->parent);
     lv_obj_set_size(p->screen_play, SCR_W, SCR_H);
@@ -874,7 +874,7 @@ static void _build_play_screen(eos_spotify_player_t *p)
     lv_obj_set_style_border_width(p->screen_play, 0, 0);
     lv_obj_set_style_pad_all(p->screen_play, 0, 0);
     lv_obj_center(p->screen_play);
-    eos_round_clip(p->screen_play);
+    cos_round_clip(p->screen_play);
 
     /* 顶部歌名(容器 + 裁剪,避免超宽溢出) */
     lv_obj_t *title_box = lv_obj_create(p->screen_play);
@@ -886,11 +886,11 @@ static void _build_play_screen(eos_spotify_player_t *p)
     lv_obj_set_scrollbar_mode(title_box, LV_SCROLLBAR_MODE_OFF);
     lv_obj_remove_flag(title_box, LV_OBJ_FLAG_SCROLLABLE);
 
-    p->lbl_song = _make_label(title_box, " ", C_TEXT, EOS_FONT_SIZE_EXTRA_SMALL);
+    p->lbl_song = _make_label(title_box, " ", C_TEXT, COS_FONT_SIZE_EXTRA_SMALL);
     lv_obj_align(p->lbl_song, LV_ALIGN_TOP_MID, 0, 0);
 
     /* 三行歌词 */
-    p->lbl_lrc_top = _make_label(p->screen_play, "", C_LRC_OTHER, EOS_FONT_SIZE_MICRO);
+    p->lbl_lrc_top = _make_label(p->screen_play, "", C_LRC_OTHER, COS_FONT_SIZE_MICRO);
     lv_obj_set_width(p->lbl_lrc_top, LRC_W);
     lv_obj_set_style_text_align(p->lbl_lrc_top, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_long_mode(p->lbl_lrc_top, LV_LABEL_LONG_CLIP);
@@ -907,11 +907,11 @@ static void _build_play_screen(eos_spotify_player_t *p)
     lv_obj_set_scrollbar_mode(mid_box, LV_SCROLLBAR_MODE_OFF);
 
     p->lbl_lrc_mid = _make_label(mid_box, "Lack of Lyrics", C_LRC_CUR,
-                                 EOS_FONT_SIZE_EXTRA_SMALL);
+                                 COS_FONT_SIZE_EXTRA_SMALL);
     lv_label_set_long_mode(p->lbl_lrc_mid, LV_LABEL_LONG_CLIP);
     lv_obj_align(p->lbl_lrc_mid, LV_ALIGN_TOP_MID, 0, 0);
 
-    p->lbl_lrc_bot = _make_label(p->screen_play, "", C_LRC_OTHER, EOS_FONT_SIZE_MICRO);
+    p->lbl_lrc_bot = _make_label(p->screen_play, "", C_LRC_OTHER, COS_FONT_SIZE_MICRO);
     lv_obj_set_width(p->lbl_lrc_bot, LRC_W);
     lv_obj_set_style_text_align(p->lbl_lrc_bot, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_long_mode(p->lbl_lrc_bot, LV_LABEL_LONG_CLIP);
@@ -981,7 +981,7 @@ static void _build_play_screen(eos_spotify_player_t *p)
     lv_obj_t *bl = lv_label_create(p->btn_back);
     lv_label_set_text(bl, "<");
     lv_obj_set_style_text_color(bl, lv_color_hex(C_TEXT), 0);
-    _set_font(bl, EOS_FONT_SIZE_MICRO);
+    _set_font(bl, COS_FONT_SIZE_MICRO);
     lv_obj_center(bl);
     lv_obj_add_event_cb(p->btn_back, _btn_back_cb, LV_EVENT_CLICKED, p);
 
@@ -989,22 +989,22 @@ static void _build_play_screen(eos_spotify_player_t *p)
      * 右侧 = 音量(0–100,默认 50)
      * 左侧 = 播放速度(0.5x–4.0x,默认 1.0x)
      * 初始值从系统配置/音频管线读取,保证与上次设定一致。 */
-    p->arc_vol = eos_spotify_arc_create(p->screen_play,
+    p->arc_vol = cos_spotify_arc_create(p->screen_play,
                                         true,                    /* right */
                                         0.0f, 100.0f, 50.0f,
                                         _arc_vol_changed, p);
     if (p->arc_vol)
     {
-        eos_spotify_arc_set_value(p->arc_vol, (float)eos_spotify_audio_get_volume());
+        cos_spotify_arc_set_value(p->arc_vol, (float)cos_spotify_audio_get_volume());
     }
 
-    p->arc_speed = eos_spotify_arc_create(p->screen_play,
+    p->arc_speed = cos_spotify_arc_create(p->screen_play,
                                           false,                 /* left */
                                           0.5f, 4.0f, 1.0f,
                                           _arc_speed_changed, p);
     if (p->arc_speed)
     {
-        eos_spotify_arc_set_value(p->arc_speed, eos_spotify_audio_get_speed());
+        cos_spotify_arc_set_value(p->arc_speed, cos_spotify_audio_get_speed());
     }
 
     lv_obj_add_flag(p->screen_play, LV_OBJ_FLAG_HIDDEN);
@@ -1012,9 +1012,9 @@ static void _build_play_screen(eos_spotify_player_t *p)
 
 /* ── 对外 API ─────────────────────────────────────────────── */
 
-eos_spotify_player_t *eos_spotify_player_create(lv_obj_t *parent,
-                                               eos_spotify_back_cb_t on_back,
-                                               eos_spotify_exit_cb_t on_exit,
+cos_spotify_player_t *cos_spotify_player_create(lv_obj_t *parent,
+                                               cos_spotify_back_cb_t on_back,
+                                               cos_spotify_exit_cb_t on_exit,
                                                void *user)
 {
     if (parent == NULL)
@@ -1022,7 +1022,7 @@ eos_spotify_player_t *eos_spotify_player_create(lv_obj_t *parent,
         return NULL;
     }
 
-    eos_spotify_player_t *p = (eos_spotify_player_t *)eos_malloc(sizeof(*p));
+    cos_spotify_player_t *p = (cos_spotify_player_t *)cos_malloc(sizeof(*p));
     if (p == NULL)
     {
         return NULL;
@@ -1038,10 +1038,10 @@ eos_spotify_player_t *eos_spotify_player_create(lv_obj_t *parent,
      * 刻意**不做预展开** —— 与 Texthub FM 行为一致:
      * 初始只显示 /sdcard/spotify 的第一层,用户点开哪个目录才读哪个目录,
      * 收起时立即释放子树。这样打开 App 只有 1 次 SD 目录读取。 */
-    p->tree = eos_spotify_tree_create(NULL);
+    p->tree = cos_spotify_tree_create(NULL);
     if (p->tree == NULL)
     {
-        eos_free(p);
+        cos_free(p);
         return NULL;
     }
 
@@ -1050,11 +1050,11 @@ eos_spotify_player_t *eos_spotify_player_create(lv_obj_t *parent,
     _tree_rebuild(p);
     _show_tree(p);
 
-    EOS_LOG_I("player: created (%d songs)", eos_spotify_tree_song_count(p->tree));
+    COS_LOG_I("player: created (%d songs)", cos_spotify_tree_song_count(p->tree));
     return p;
 }
 
-void eos_spotify_player_destroy(eos_spotify_player_t *p)
+void cos_spotify_player_destroy(cos_spotify_player_t *p)
 {
     if (p == NULL)
     {
@@ -1062,37 +1062,37 @@ void eos_spotify_player_destroy(eos_spotify_player_t *p)
     }
 
     /* 步骤 1-2:停止解码循环并清空 PCM 环形缓冲(在 audio_close 内完成) */
-    eos_spotify_audio_close();
+    cos_spotify_audio_close();
 
     /* 弧形控件:释放内部结构(LVGL 对象随父 screen 回收) */
     if (p->arc_vol)
     {
-        eos_spotify_arc_destroy(p->arc_vol);
+        cos_spotify_arc_destroy(p->arc_vol);
         p->arc_vol = NULL;
     }
     if (p->arc_speed)
     {
-        eos_spotify_arc_destroy(p->arc_speed);
+        cos_spotify_arc_destroy(p->arc_speed);
         p->arc_speed = NULL;
     }
 
     if (p->lrc)
     {
-        eos_spotify_lrc_free(p->lrc);
+        cos_spotify_lrc_free(p->lrc);
     }
     if (p->tree)
     {
-        eos_spotify_tree_destroy(p->tree);
+        cos_spotify_tree_destroy(p->tree);
     }
     if (p->cur_path)
     {
-        eos_free(p->cur_path);
+        cos_free(p->cur_path);
     }
     /* LVGL 对象由 activity 销毁父容器时统一回收 */
-    eos_free(p);
+    cos_free(p);
 }
 
-void eos_spotify_player_play_file(eos_spotify_player_t *p, const char *path)
+void cos_spotify_player_play_file(cos_spotify_player_t *p, const char *path)
 {
     if (p && path)
     {
@@ -1100,12 +1100,12 @@ void eos_spotify_player_play_file(eos_spotify_player_t *p, const char *path)
     }
 }
 
-bool eos_spotify_player_is_playing(const eos_spotify_player_t *p)
+bool cos_spotify_player_is_playing(const cos_spotify_player_t *p)
 {
     return p ? p->playing : false;
 }
 
-bool eos_spotify_player_show_browser(eos_spotify_player_t *p)
+bool cos_spotify_player_show_browser(cos_spotify_player_t *p)
 {
     if (p == NULL || p->screen_play == NULL)
     {
@@ -1119,7 +1119,7 @@ bool eos_spotify_player_show_browser(eos_spotify_player_t *p)
     return true;
 }
 
-void eos_spotify_player_tick(eos_spotify_player_t *p)
+void cos_spotify_player_tick(cos_spotify_player_t *p)
 {
     if (p == NULL)
     {
@@ -1137,11 +1137,11 @@ void eos_spotify_player_tick(eos_spotify_player_t *p)
     /* 弧形调节的长按计时:无论是否在播放都要跑,否则暂停时长按会失灵 */
     if (p->arc_vol)
     {
-        eos_spotify_arc_tick(p->arc_vol);
+        cos_spotify_arc_tick(p->arc_vol);
     }
     if (p->arc_speed)
     {
-        eos_spotify_arc_tick(p->arc_speed);
+        cos_spotify_arc_tick(p->arc_speed);
     }
 
     if (!p->playing)
@@ -1152,14 +1152,14 @@ void eos_spotify_player_tick(eos_spotify_player_t *p)
     /* 1) 解码分片 → 环形缓冲;2) 环形缓冲 → UAC 等时端点 */
     if (!p->paused)
     {
-        eos_spotify_audio_pump();
-        eos_spotify_audio_flush_to_uac();
+        cos_spotify_audio_pump();
+        cos_spotify_audio_flush_to_uac();
     }
 
     /* 3) 曲末自动下一首 */
-    if (eos_spotify_audio_eos())
+    if (cos_spotify_audio_cos())
     {
-        EOS_LOG_I("player: track end, next");
+        COS_LOG_I("player: track end, next");
         int next = p->sibling_idx + 1;
         if (next >= p->sibling_count)
         {

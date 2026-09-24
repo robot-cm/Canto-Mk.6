@@ -1,15 +1,15 @@
 /**
- * @file eos_power_off_page.c
+ * @file cos_power_off_page.c
  * @brief 关机页:主界面上滑打开,选关机模式后进入硬件深睡
  *
  * 交互(全部英文文案):
  *   - 上滑(主界面)打开:半透明遮罩 + 红色圆形关机按钮 + "Power Off?"
  *   - 点红色关机按钮 → 图标淡去,显示两个圆形按钮:
- *       ● 绿色 SLEEP: 触摸模式 → eos_pm_power_off()
+ *       ● 绿色 SLEEP: 触摸模式 → cos_pm_power_off()
  *           真机: 深睡 + RTC 定时器轮询触摸,长按开机(按住到某次唤醒 ≈ 3s);
  *           模拟器: 全屏黑屏 mask。
  *       ● 黄色 TIMER: 定时模式 → 两按钮淡去,显示 HH:MM:SS + 加减号
- *           调整醒来时间,START 后 → eos_pm_power_off_timed(sec)
+ *           调整醒来时间,START 后 → cos_pm_power_off_timed(sec)
  *           真机: 深睡,触摸无效,到点自动开机(唤醒周期自动拉长,几乎不闪);
  *           模拟器: 同黑屏 mask。
  *   - 点遮罩空白 → 关闭页面(防误触)
@@ -17,13 +17,13 @@
  * 依据:AGENTS.md 第28节硬件优先级 + 方案A(不改硬件,深睡轮询)。
  */
 
-#include "eos_power_off_page.h"
+#include "cos_power_off_page.h"
 
 #include "lvgl.h"
-#define EOS_LOG_TAG "PowerOffPage"
-#include "eos_log.h"
-#include "eos_service_pm.h"
-#include "eos_font.h"
+#define COS_LOG_TAG "PowerOffPage"
+#include "cos_log.h"
+#include "cos_service_pm.h"
+#include "cos_font.h"
 
 /* ---------- 阶段状态 ---------- */
 typedef enum
@@ -77,7 +77,7 @@ static void _stage_fade_to(_stage_t next)
 static void _power_btn_cb(lv_event_t *e)
 {
     (void)e;
-    EOS_LOG_I("Power-off button pressed -> choose mode");
+    COS_LOG_I("Power-off button pressed -> choose mode");
     _stage_fade_to(_STAGE_CHOOSE);
 }
 
@@ -85,15 +85,15 @@ static void _power_btn_cb(lv_event_t *e)
 static void _green_cb(lv_event_t *e)
 {
     (void)e;
-    EOS_LOG_I("SLEEP (touch mode, hold to boot) -> eos_pm_power_off()");
-    eos_pm_power_off();
+    COS_LOG_I("SLEEP (touch mode, hold to boot) -> cos_pm_power_off()");
+    cos_pm_power_off();
 }
 
 /* 黄色 TIMER:两按钮淡去,进入定时设置 */
 static void _yellow_cb(lv_event_t *e)
 {
     (void)e;
-    EOS_LOG_I("TIMER (wake timer setup) selected");
+    COS_LOG_I("TIMER (wake timer setup) selected");
     _stage_fade_to(_STAGE_TIMER);
 }
 
@@ -104,16 +104,16 @@ static void _start_cb(lv_event_t *e)
     uint32_t total = (uint32_t)s_val[0] * 3600u + (uint32_t)s_val[1] * 60u + (uint32_t)s_val[2];
     if (total == 0u)
         total = 1u;   /* 最小 1 秒,防 0 */
-    EOS_LOG_I("Wake timer START: %02d:%02d:%02d -> %u s",
+    COS_LOG_I("Wake timer START: %02d:%02d:%02d -> %u s",
               s_val[0], s_val[1], s_val[2], (unsigned)total);
-    eos_pm_power_off_timed(total);
+    cos_pm_power_off_timed(total);
 }
 
 /* BACK:返回模式选择 */
 static void _back_cb(lv_event_t *e)
 {
     (void)e;
-    EOS_LOG_D("Wake timer BACK -> choose mode");
+    COS_LOG_D("Wake timer BACK -> choose mode");
     _stage_fade_to(_STAGE_CHOOSE);
 }
 
@@ -178,7 +178,7 @@ static void _stage_create(_stage_t stage)
         lv_obj_t *gl = lv_label_create(g);
         lv_label_set_text(gl, "SLEEP");
         lv_obj_set_style_text_color(gl, lv_color_white(), 0);
-        eos_label_set_font_size(gl, EOS_FONT_SIZE_EXTRA_SMALL);
+        cos_label_set_font_size(gl, COS_FONT_SIZE_EXTRA_SMALL);
         lv_obj_center(gl);
 
         /* 黄色 TIMER 圆钮 */
@@ -193,7 +193,7 @@ static void _stage_create(_stage_t stage)
         lv_obj_t *yl = lv_label_create(y);
         lv_label_set_text(yl, "TIMER");
         lv_obj_set_style_text_color(yl, lv_color_white(), 0);
-        eos_label_set_font_size(yl, EOS_FONT_SIZE_EXTRA_SMALL);
+        cos_label_set_font_size(yl, COS_FONT_SIZE_EXTRA_SMALL);
         lv_obj_center(yl);
 
         /* 按钮说明 */
@@ -201,15 +201,15 @@ static void _stage_create(_stage_t stage)
         lv_label_set_text(gsub, "HOLD TO WAKE");
         lv_obj_align(gsub, LV_ALIGN_CENTER, -44, 42);
         lv_obj_set_style_text_color(gsub, lv_color_hex(0xB0B0B0), 0);
-        eos_label_set_font_size(gsub, EOS_FONT_SIZE_MICRO);
+        cos_label_set_font_size(gsub, COS_FONT_SIZE_MICRO);
 
         lv_obj_t *ysub = lv_label_create(st);
         lv_label_set_text(ysub, "SET WAKE TIMER");
         lv_obj_align(ysub, LV_ALIGN_CENTER, 44, 42);
         lv_obj_set_style_text_color(ysub, lv_color_hex(0xB0B0B0), 0);
-        eos_label_set_font_size(ysub, EOS_FONT_SIZE_MICRO);
+        cos_label_set_font_size(ysub, COS_FONT_SIZE_MICRO);
 
-        EOS_LOG_D("Power-off page: mode choose shown");
+        COS_LOG_D("Power-off page: mode choose shown");
     }
     else if (stage == _STAGE_TIMER)
     {
@@ -220,7 +220,7 @@ static void _stage_create(_stage_t stage)
         lv_label_set_text(title, "WAKE TIMER");
         lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 24);
         lv_obj_set_style_text_color(title, lv_color_hex(0xFFFFFF), 0);
-        eos_label_set_font_size(title, EOS_FONT_SIZE_MEDIUM);
+        cos_label_set_font_size(title, COS_FONT_SIZE_MEDIUM);
 
         /* BACK(左上) */
         lv_obj_t *back = lv_btn_create(st);
@@ -234,7 +234,7 @@ static void _stage_create(_stage_t stage)
         lv_obj_t *backl = lv_label_create(back);
         lv_label_set_text(backl, "BACK");
         lv_obj_set_style_text_color(backl, lv_color_white(), 0);
-        eos_label_set_font_size(backl, EOS_FONT_SIZE_EXTRA_SMALL);
+        cos_label_set_font_size(backl, COS_FONT_SIZE_EXTRA_SMALL);
         lv_obj_center(backl);
 
         /* HH:MM:SS 字段(点字段切换选中,高亮黄色) */
@@ -245,7 +245,7 @@ static void _stage_create(_stage_t stage)
             lv_obj_add_flag(s_fld[i], LV_OBJ_FLAG_CLICKABLE);
             lv_obj_add_event_cb(s_fld[i], _field_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
             lv_obj_align(s_fld[i], LV_ALIGN_CENTER, off[i], -18);
-            eos_label_set_font_size(s_fld[i], EOS_FONT_SIZE_LARGE);
+            cos_label_set_font_size(s_fld[i], COS_FONT_SIZE_LARGE);
         }
         for (int i = 0; i < 2; i++)
         {
@@ -253,7 +253,7 @@ static void _stage_create(_stage_t stage)
             lv_label_set_text(sep, ":");
             lv_obj_align(sep, LV_ALIGN_CENTER, (off[i] + off[i + 1]) / 2, -20);
             lv_obj_set_style_text_color(sep, lv_color_hex(0x888888), 0);
-            eos_label_set_font_size(sep, EOS_FONT_SIZE_LARGE);
+            cos_label_set_font_size(sep, COS_FONT_SIZE_LARGE);
         }
 
         /* 加减号按钮(ASCII,任何字体都有) */
@@ -271,7 +271,7 @@ static void _stage_create(_stage_t stage)
             lv_obj_t *bl = lv_label_create(b);
             lv_label_set_text(bl, (i == 0) ? "-" : "+");
             lv_obj_set_style_text_color(bl, lv_color_white(), 0);
-            eos_label_set_font_size(bl, EOS_FONT_SIZE_MEDIUM);
+            cos_label_set_font_size(bl, COS_FONT_SIZE_MEDIUM);
             lv_obj_center(bl);
         }
 
@@ -287,11 +287,11 @@ static void _stage_create(_stage_t stage)
         lv_obj_t *startl = lv_label_create(start);
         lv_label_set_text(startl, "START");
         lv_obj_set_style_text_color(startl, lv_color_white(), 0);
-        eos_label_set_font_size(startl, EOS_FONT_SIZE_MEDIUM);
+        cos_label_set_font_size(startl, COS_FONT_SIZE_MEDIUM);
         lv_obj_center(startl);
 
         _stage_update_fields();
-        EOS_LOG_D("Power-off page: wake timer setup shown");
+        COS_LOG_D("Power-off page: wake timer setup shown");
     }
 }
 
@@ -299,11 +299,11 @@ static void _stage_create(_stage_t stage)
 static void _mask_cb(lv_event_t *e)
 {
     (void)e;
-    EOS_LOG_D("Power-off page dismissed by tap on blank area");
-    eos_power_off_page_close();
+    COS_LOG_D("Power-off page dismissed by tap on blank area");
+    cos_power_off_page_close();
 }
 
-void eos_power_off_page_open(void)
+void cos_power_off_page_open(void)
 {
     if (s_page)
     {
@@ -348,18 +348,18 @@ void eos_power_off_page_open(void)
     lv_label_set_text(hint, "Power Off?");
     lv_obj_align(hint, LV_ALIGN_CENTER, 0, 56);
     lv_obj_set_style_text_color(hint, lv_color_hex(0xFFFFFF), 0);
-    eos_label_set_font_size(hint, EOS_FONT_SIZE_MEDIUM);
+    cos_label_set_font_size(hint, COS_FONT_SIZE_MEDIUM);
 
     lv_obj_t *sub = lv_label_create(st);
     lv_label_set_text(sub, "Tap to choose mode");
     lv_obj_align(sub, LV_ALIGN_CENTER, 0, 82);
     lv_obj_set_style_text_color(sub, lv_color_hex(0xB0B0B0), 0);
-    eos_label_set_font_size(sub, EOS_FONT_SIZE_EXTRA_SMALL);
+    cos_label_set_font_size(sub, COS_FONT_SIZE_EXTRA_SMALL);
 
-    EOS_LOG_I("Power-off page opened");
+    COS_LOG_I("Power-off page opened");
 }
 
-void eos_power_off_page_close(void)
+void cos_power_off_page_close(void)
 {
     if (!s_page)
         return;
@@ -367,10 +367,10 @@ void eos_power_off_page_close(void)
     s_page  = NULL;
     s_stage = NULL;
     s_next_stage = _STAGE_NONE;
-    EOS_LOG_D("Power-off page closed");
+    COS_LOG_D("Power-off page closed");
 }
 
-bool eos_power_off_page_is_open(void)
+bool cos_power_off_page_is_open(void)
 {
     return s_page != NULL;
 }

@@ -1,35 +1,35 @@
 /**
- * @file eos_basic_widgets.c
+ * @file cos_basic_widgets.c
  * @brief Basic widgets
  */
 
-#include "eos_basic_widgets.h"
+#include "cos_basic_widgets.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "lvgl.h"
-#include "eos_core.h"
-#include "eos_lang.h"
-#define EOS_LOG_TAG "BasicWidgets"
-#include "eos_log.h"
-#include "eos_image.h"
-#include "eos_event.h"
+#include "cos_core.h"
+#include "cos_lang.h"
+#define COS_LOG_TAG "BasicWidgets"
+#include "cos_log.h"
+#include "cos_image.h"
+#include "cos_event.h"
 #include "script_engine_core.h"
-#include "eos_theme.h"
-#include "eos_port.h"
-#include "eos_icon.h"
-#include "eos_config.h"
-#include "eos_anim.h"
-#include "eos_font.h"
-#include "eos_crown.h"
+#include "cos_theme.h"
+#include "cos_port.h"
+#include "cos_icon.h"
+#include "cos_config.h"
+#include "cos_anim.h"
+#include "cos_font.h"
+#include "cos_crown.h"
 #include "lvgl_private.h"
-#include "eos_app_header.h"
-#include "eos_activity.h"
-#include "eos_app_list.h"
-#include "eos_mem.h"
-#include "eos_service_cache.h"
+#include "cos_app_header.h"
+#include "cos_activity.h"
+#include "cos_app_list.h"
+#include "cos_mem.h"
+#include "cos_service_cache.h"
 
 /* Macros and Definitions -------------------------------------*/
 
@@ -58,25 +58,25 @@ typedef struct
 {
     lv_obj_t *list;
     lv_obj_t *button;
-    eos_activity_t *activity;
+    cos_activity_t *activity;
     int32_t button_hidden_x;
     uint32_t sequence;
     bool scroll_throw_active; /**< 惯性滚动进行中(新 press 停止 throw 后仍保留到该 press 消耗) */
     bool scroll_guard_armed;  /**< 本次 press 发生在惯性滚动刚停止后,CLICKED 应被忽略 */
-} eos_list_transition_state_t;
+} cos_list_transition_state_t;
 
-static eos_list_transition_state_t *_list_transition_state = NULL;
+static cos_list_transition_state_t *_list_transition_state = NULL;
 static uint32_t _list_transition_sequence = 0U;
 
-static eos_list_transition_state_t *_list_transition_get_state(lv_obj_t *list);
+static cos_list_transition_state_t *_list_transition_get_state(lv_obj_t *list);
 static void _list_scroll_state_cb(lv_event_t *e);
 static void _list_item_click_guard_cb(lv_event_t *e);
 static void _list_transition_clear_state(void);
-static void _list_transition_record_state(lv_obj_t *list, lv_obj_t *button, eos_activity_t *activity);
-static bool _list_transition_select_state_for_activity(eos_activity_t *expected_activity);
+static void _list_transition_record_state(lv_obj_t *list, lv_obj_t *button, cos_activity_t *activity);
+static bool _list_transition_select_state_for_activity(cos_activity_t *expected_activity);
 static void _list_transition_select_state_from_tree(lv_obj_t *root,
-                                                    eos_activity_t *expected_activity,
-                                                    eos_list_transition_state_t **best_state,
+                                                    cos_activity_t *expected_activity,
+                                                    cos_list_transition_state_t **best_state,
                                                     uint32_t *best_sequence);
 static lv_obj_t *_list_transition_resolve_button_target(lv_obj_t *list, lv_obj_t *target);
 static void _list_transition_list_clicked_cb(lv_event_t *e);
@@ -101,7 +101,7 @@ static uint32_t _list_transition_collect_all_children(lv_obj_t *list, lv_obj_t *
 
 /* Function Implementations -----------------------------------*/
 
-void eos_obj_get_coord_center(lv_obj_t *obj, lv_coord_t *x, lv_coord_t *y)
+void cos_obj_get_coord_center(lv_obj_t *obj, lv_coord_t *x, lv_coord_t *y)
 {
     if (obj)
     {
@@ -120,7 +120,7 @@ void eos_obj_get_coord_center(lv_obj_t *obj, lv_coord_t *x, lv_coord_t *y)
     }
 }
 
-lv_obj_t *eos_button_create_ex(lv_obj_t *parent,
+lv_obj_t *cos_button_create_ex(lv_obj_t *parent,
                                lv_color_t btn_color,
                                const char *txt,
                                lv_color_t txt_color,
@@ -128,7 +128,7 @@ lv_obj_t *eos_button_create_ex(lv_obj_t *parent,
                                void *event_user_data)
 {
     lv_obj_t *btn = lv_button_create(parent);
-    lv_obj_set_size(btn, lv_pct(100), EOS_THEME_BUTTON_HEIGHT);
+    lv_obj_set_size(btn, lv_pct(100), COS_THEME_BUTTON_HEIGHT);
     lv_obj_set_style_bg_color(btn, btn_color, 0);
     lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0);
     lv_obj_remove_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
@@ -145,12 +145,12 @@ lv_obj_t *eos_button_create_ex(lv_obj_t *parent,
     return btn;
 }
 
-lv_obj_t *eos_button_create(lv_obj_t *parent, const char *txt, lv_event_cb_t clicked_cb, void *event_user_data)
+lv_obj_t *cos_button_create(lv_obj_t *parent, const char *txt, lv_event_cb_t clicked_cb, void *event_user_data)
 {
-    return eos_button_create_ex(parent, EOS_THEME_SECONDARY_COLOR, txt, EOS_COLOR_WHITE, clicked_cb, event_user_data);
+    return cos_button_create_ex(parent, COS_THEME_SECONDARY_COLOR, txt, COS_COLOR_WHITE, clicked_cb, event_user_data);
 }
 
-lv_draw_buf_t *eos_draw_buf_create(uint32_t w, uint32_t h, lv_color_format_t cf, uint32_t stride)
+lv_draw_buf_t *cos_draw_buf_create(uint32_t w, uint32_t h, lv_color_format_t cf, uint32_t stride)
 {
     if (w == 0 || h == 0)
     {
@@ -168,59 +168,59 @@ lv_draw_buf_t *eos_draw_buf_create(uint32_t w, uint32_t h, lv_color_format_t cf,
     }
     if (data_size == 0)
         return NULL;
-    void *data_buf = eos_cache_buf_alloc(data_size);
+    void *data_buf = cos_cache_buf_alloc(data_size);
     if (!data_buf)
     {
-        EOS_LOG_E("NULL pointer at %s:%d, at function: %s", __FILE__, __LINE__, __func__);
+        COS_LOG_E("NULL pointer at %s:%d, at function: %s", __FILE__, __LINE__, __func__);
         return NULL;
     }
     memset(data_buf, 0, data_size);
-    lv_draw_buf_t *draw_buf = eos_malloc_zeroed(sizeof(lv_draw_buf_t));
+    lv_draw_buf_t *draw_buf = cos_malloc_zeroed(sizeof(lv_draw_buf_t));
     if (!draw_buf)
     {
-        EOS_LOG_E("NULL pointer at %s:%d, at function: %s", __FILE__, __LINE__, __func__);
-        eos_cache_buf_free(data_buf);
+        COS_LOG_E("NULL pointer at %s:%d, at function: %s", __FILE__, __LINE__, __func__);
+        cos_cache_buf_free(data_buf);
         return NULL;
     }
 
     if (lv_draw_buf_init(draw_buf, w, h, cf, stride, data_buf, data_size) != LV_RESULT_OK)
     {
-        EOS_LOG_E("Init draw buf failed");
-        eos_cache_buf_free(data_buf);
-        eos_free(draw_buf);
+        COS_LOG_E("Init draw buf failed");
+        cos_cache_buf_free(data_buf);
+        cos_free(draw_buf);
         return NULL;
     }
     return draw_buf;
 }
 
-void eos_draw_buf_destroy(lv_draw_buf_t *draw_buf)
+void cos_draw_buf_destroy(lv_draw_buf_t *draw_buf)
 {
-    EOS_CHECK_PTR_RETURN(draw_buf);
+    COS_CHECK_PTR_RETURN(draw_buf);
     if (draw_buf->data)
-        eos_cache_buf_free(draw_buf->data);
-    eos_free(draw_buf);
+        cos_cache_buf_free(draw_buf->data);
+    cos_free(draw_buf);
 }
 
-lv_obj_t *eos_back_btn_create(lv_obj_t *parent, bool show_text)
+lv_obj_t *cos_back_btn_create(lv_obj_t *parent, bool show_text)
 {
     static lv_style_t style_pressed;
     static bool style_pressed_inited = false;
 
     lv_obj_t *btn = lv_button_create(parent);
-    lv_obj_add_event_cb(btn, eos_activity_back_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(btn, cos_activity_back_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_set_style_border_width(btn, 0, 0);
     lv_obj_set_style_shadow_width(btn, 0, 0);
 
     lv_obj_t *btn_label = lv_label_create(btn);
     if (show_text)
     {
-        lv_label_set_text_fmt(btn_label, "%s", eos_lang_get_text(STR_ID_BACK));
+        lv_label_set_text_fmt(btn_label, "%s", cos_lang_get_text(STR_ID_BACK));
     }
     else
     {
         lv_label_set_text(btn_label, RI_ARROW_LEFT_S_LINE_LARGE);
     }
-    lv_obj_set_style_text_color(btn_label, EOS_COLOR_WHITE, 0);
+    lv_obj_set_style_text_color(btn_label, COS_COLOR_WHITE, 0);
     lv_obj_align(btn_label, LV_ALIGN_CENTER, -2, 2);
     lv_obj_set_size(btn, _BACK_BTN_WIDTH, _BACK_BTN_HEIGHT);
 
@@ -235,7 +235,7 @@ lv_obj_t *eos_back_btn_create(lv_obj_t *parent, bool show_text)
         /* 350%(3.5x)缩放过大:partial 刷新模式下按下/松开切换时 invalidate 区域
          * 覆盖不全,滑动时产生明显颜色残影。降到 1.5x 保留按压缩放反馈但残影大减 */
         lv_style_set_transform_scale(&style_pressed, 150);
-        lv_style_set_bg_color(&style_pressed, lv_color_lighten(EOS_THEME_BUTTON_COLOR, 64));
+        lv_style_set_bg_color(&style_pressed, lv_color_lighten(COS_THEME_BUTTON_COLOR, 64));
         style_pressed_inited = true;
     }
 
@@ -244,7 +244,7 @@ lv_obj_t *eos_back_btn_create(lv_obj_t *parent, bool show_text)
     return btn;
 }
 
-void eos_switch_set_state(lv_obj_t *sw, bool checked)
+void cos_switch_set_state(lv_obj_t *sw, bool checked)
 {
     if (checked)
     {
@@ -255,11 +255,11 @@ void eos_switch_set_state(lv_obj_t *sw, bool checked)
 
 /************************** List Related **************************/
 
-lv_obj_t *eos_list_create(lv_obj_t *parent)
+lv_obj_t *cos_list_create(lv_obj_t *parent)
 {
-    EOS_CHECK_PTR_RETURN_VAL(parent, NULL);
+    COS_CHECK_PTR_RETURN_VAL(parent, NULL);
     lv_obj_t *list = lv_list_create(parent);
-    eos_list_transition_state_t *state = eos_malloc_zeroed(sizeof(eos_list_transition_state_t));
+    cos_list_transition_state_t *state = cos_malloc_zeroed(sizeof(cos_list_transition_state_t));
     lv_obj_set_size(list, lv_pct(100), lv_pct(100));
     lv_obj_set_style_pad_ver(list, 0, 0);
     lv_obj_set_style_pad_hor(list, 10, 0);
@@ -274,7 +274,7 @@ lv_obj_t *eos_list_create(lv_obj_t *parent)
     }
     else
     {
-        EOS_LOG_E("Failed to allocate list transition state for list %p", list);
+        COS_LOG_E("Failed to allocate list transition state for list %p", list);
     }
     lv_obj_add_event_cb(list, _list_transition_list_clicked_cb, LV_EVENT_PRESSED, list);
     lv_obj_add_event_cb(list, _list_transition_list_clicked_cb, LV_EVENT_CLICKED, list);
@@ -290,7 +290,7 @@ lv_obj_t *eos_list_create(lv_obj_t *parent)
 static void _list_scroll_state_cb(lv_event_t *e)
 {
     lv_obj_t *list = lv_event_get_user_data(e);
-    eos_list_transition_state_t *state = _list_transition_get_state(list);
+    cos_list_transition_state_t *state = _list_transition_get_state(list);
     if (!state)
     {
         return;
@@ -305,14 +305,14 @@ static void _list_scroll_state_cb(lv_event_t *e)
     }
 }
 
-static eos_list_transition_state_t *_list_transition_get_state(lv_obj_t *list)
+static cos_list_transition_state_t *_list_transition_get_state(lv_obj_t *list)
 {
     if (!(list && lv_obj_is_valid(list) && lv_obj_check_type(list, &lv_list_class)))
     {
         return NULL;
     }
 
-    eos_list_transition_state_t *state = (eos_list_transition_state_t *)lv_obj_get_user_data(list);
+    cos_list_transition_state_t *state = (cos_list_transition_state_t *)lv_obj_get_user_data(list);
     if (state)
     {
         state->list = list;
@@ -327,8 +327,8 @@ static void _list_transition_clear_state(void)
 }
 
 static void _list_transition_select_state_from_tree(lv_obj_t *root,
-                                                    eos_activity_t *expected_activity,
-                                                    eos_list_transition_state_t **best_state,
+                                                    cos_activity_t *expected_activity,
+                                                    cos_list_transition_state_t **best_state,
                                                     uint32_t *best_sequence)
 {
     if (!(root && expected_activity && best_state && best_sequence))
@@ -338,7 +338,7 @@ static void _list_transition_select_state_from_tree(lv_obj_t *root,
 
     if (lv_obj_check_type(root, &lv_list_class))
     {
-        eos_list_transition_state_t *state = _list_transition_get_state(root);
+        cos_list_transition_state_t *state = _list_transition_get_state(root);
         if (state && state->button && lv_obj_is_valid(state->button)
             && _list_transition_is_descendant_of(state->button, state->list) && state->sequence >= *best_sequence)
         {
@@ -358,14 +358,14 @@ static void _list_transition_select_state_from_tree(lv_obj_t *root,
     }
 }
 
-static void _list_transition_record_state(lv_obj_t *list, lv_obj_t *button, eos_activity_t *activity)
+static void _list_transition_record_state(lv_obj_t *list, lv_obj_t *button, cos_activity_t *activity)
 {
     if (!(list && button && activity))
     {
         return;
     }
 
-    eos_list_transition_state_t *state = _list_transition_get_state(list);
+    cos_list_transition_state_t *state = _list_transition_get_state(list);
     if (!state)
     {
         return;
@@ -378,20 +378,20 @@ static void _list_transition_record_state(lv_obj_t *list, lv_obj_t *button, eos_
     _list_transition_state = state;
 }
 
-static bool _list_transition_select_state_for_activity(eos_activity_t *expected_activity)
+static bool _list_transition_select_state_for_activity(cos_activity_t *expected_activity)
 {
     if (!expected_activity)
     {
         return false;
     }
 
-    lv_obj_t *expected_view = eos_activity_get_view(expected_activity);
+    lv_obj_t *expected_view = cos_activity_get_view(expected_activity);
     if (!(expected_view && lv_obj_is_valid(expected_view)))
     {
         return false;
     }
 
-    eos_list_transition_state_t *best_state = NULL;
+    cos_list_transition_state_t *best_state = NULL;
     uint32_t best_sequence = 0U;
     _list_transition_select_state_from_tree(expected_view, expected_activity, &best_state, &best_sequence);
     _list_transition_state = best_state;
@@ -409,7 +409,7 @@ static void _list_transition_list_delete_cb(lv_event_t *e)
 
     _list_transition_cancel_anims_for_list(list);
 
-    eos_list_transition_state_t *state = _list_transition_get_state(list);
+    cos_list_transition_state_t *state = _list_transition_get_state(list);
     if (state)
     {
         if (_list_transition_state == state)
@@ -417,7 +417,7 @@ static void _list_transition_list_delete_cb(lv_event_t *e)
             _list_transition_clear_state();
         }
         lv_obj_set_user_data(list, NULL);
-        eos_free(state);
+        cos_free(state);
     }
 }
 
@@ -450,7 +450,7 @@ static lv_obj_t *_list_transition_resolve_button_target(lv_obj_t *list, lv_obj_t
 {
     if (!(list && target))
     {
-        EOS_LOG_D("resolve_button: list=%p, target=%p -> NULL", list, target);
+        COS_LOG_D("resolve_button: list=%p, target=%p -> NULL", list, target);
         return NULL;
     }
 
@@ -483,7 +483,7 @@ static void _list_transition_list_clicked_cb(lv_event_t *e)
          * press 当作普通点击,release 时照常发 CLICKED → 误进子页面。
          * 这里在 press 时刻武装 guard,条目上的 _list_item_click_guard_cb
          * 会在 CLICKED 时消耗它并丢弃本次点击。 */
-        eos_list_transition_state_t *state = _list_transition_get_state(list);
+        cos_list_transition_state_t *state = _list_transition_get_state(list);
         if (state)
         {
             if (state->scroll_throw_active)
@@ -513,21 +513,21 @@ static void _list_transition_list_clicked_cb(lv_event_t *e)
     // Clear pressed state in advance to avoid residual pressed scaling after transition.
     lv_obj_remove_state(button, LV_STATE_PRESSED);
 
-    eos_activity_t *click_activity = eos_activity_get_previous();
+    cos_activity_t *click_activity = cos_activity_get_previous();
     if (!click_activity)
     {
-        click_activity = eos_activity_get_current();
+        click_activity = cos_activity_get_current();
     }
     if (!click_activity)
     {
-        click_activity = eos_activity_get_visible();
+        click_activity = cos_activity_get_visible();
     }
     _list_transition_record_state(list, button, click_activity);
 }
 
-bool eos_list_transition_should_animate(eos_activity_t *from, eos_activity_t *to, bool back)
+bool cos_list_transition_should_animate(cos_activity_t *from, cos_activity_t *to, bool back)
 {
-    eos_activity_t *expected_activity = back ? to : from;
+    cos_activity_t *expected_activity = back ? to : from;
     if (!expected_activity)
     {
         return false;
@@ -711,22 +711,22 @@ static lv_obj_t *_list_transition_find_list_in_view(lv_obj_t *view)
     return NULL;
 }
 
-void eos_list_transition_play(lv_anim_timeline_t *at, eos_activity_t *from, eos_activity_t *to, bool back)
+void cos_list_transition_play(lv_anim_timeline_t *at, cos_activity_t *from, cos_activity_t *to, bool back)
 {
     if (!(at && from && to))
     {
         return;
     }
 
-    if (!eos_list_transition_should_animate(from, to, back))
+    if (!cos_list_transition_should_animate(from, to, back))
     {
         return;
     }
 
-    eos_activity_t *list_activity = back ? to : from;
-    eos_activity_t *page_activity = back ? from : to;
-    lv_obj_t *list_view = eos_activity_get_view(list_activity);
-    eos_list_transition_state_t *state = _list_transition_state;
+    cos_activity_t *list_activity = back ? to : from;
+    cos_activity_t *page_activity = back ? from : to;
+    lv_obj_t *list_view = cos_activity_get_view(list_activity);
+    cos_list_transition_state_t *state = _list_transition_state;
     lv_obj_t *list = state ? state->list : NULL;
     lv_obj_t *button = state ? state->button : NULL;
 
@@ -753,18 +753,18 @@ void eos_list_transition_play(lv_anim_timeline_t *at, eos_activity_t *from, eos_
         }
         else
         {
-            EOS_LOG_W("list_transition_play: no list in destination view, skipping animation");
+            COS_LOG_W("list_transition_play: no list in destination view, skipping animation");
             return;
         }
     }
 
     if (!(list_view && list && button))
     {
-        EOS_LOG_W("list_transition_play: invalid objects detected, skipping animation");
+        COS_LOG_W("list_transition_play: invalid objects detected, skipping animation");
         return;
     }
 
-    lv_obj_t *page_snapshot = eos_activity_take_snapshot(page_activity, false);
+    lv_obj_t *page_snapshot = cos_activity_take_snapshot(page_activity, false);
     if (!page_snapshot)
     {
         return;
@@ -800,7 +800,7 @@ void eos_list_transition_play(lv_anim_timeline_t *at, eos_activity_t *from, eos_
     }
     lv_anim_t list_scale_anims[_LIST_TRANSITION_MAX_VISIBLE_ITEMS] = {0};
 
-    uint32_t total_duration = EOS_VIEW_SWITCH_DURATION;
+    uint32_t total_duration = COS_VIEW_SWITCH_DURATION;
     if (total_duration == 0U)
     {
         total_duration = 1U;
@@ -839,8 +839,8 @@ void eos_list_transition_play(lv_anim_timeline_t *at, eos_activity_t *from, eos_
         button_end_x = button_hidden_x;
         state->button_hidden_x = button_hidden_x;
     }
-    int32_t page_start_x = back ? 0 : EOS_DISPLAY_WIDTH;
-    int32_t page_end_x = back ? EOS_DISPLAY_WIDTH : 0;
+    int32_t page_start_x = back ? 0 : COS_DISPLAY_WIDTH;
+    int32_t page_end_x = back ? COS_DISPLAY_WIDTH : 0;
 
     lv_anim_t button_translate_anim;
     lv_anim_t page_translate_anim;
@@ -941,12 +941,12 @@ static void _list_container_common_style(lv_obj_t *container)
 {
     lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_scroll_dir(container, LV_DIR_NONE); // Disable scrolling
-    lv_obj_set_style_bg_color(container, EOS_THEME_SECONDARY_COLOR, 0);
+    lv_obj_set_style_bg_color(container, COS_THEME_SECONDARY_COLOR, 0);
     lv_obj_set_style_border_width(container, 0, 0);
-    lv_obj_set_style_pad_all(container, EOS_LIST_CONTAINER_PAD_ALL, 0);
+    lv_obj_set_style_pad_all(container, COS_LIST_CONTAINER_PAD_ALL, 0);
     lv_obj_set_style_margin_bottom(container, _LIST_CONTAINER_MARGIN_BOTTOM, 0);
     lv_obj_set_style_align(container, LV_ALIGN_CENTER, 0);
-    lv_obj_set_style_radius(container, EOS_LIST_OBJ_RADIUS, 0);
+    lv_obj_set_style_radius(container, COS_LIST_OBJ_RADIUS, 0);
     lv_obj_set_style_shadow_width(container, 0, 0);
     lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
 }
@@ -955,7 +955,7 @@ lv_obj_t *_list_btn_container_create(lv_obj_t *list)
 {
     lv_obj_t *btn = lv_button_create(list);
     lv_obj_add_flag(btn, LV_OBJ_FLAG_EVENT_BUBBLE);
-    lv_obj_set_size(btn, lv_pct(100), EOS_LIST_CONTAINER_HEIGHT);
+    lv_obj_set_size(btn, lv_pct(100), COS_LIST_CONTAINER_HEIGHT);
     _list_container_common_style(btn);
     lv_obj_remove_flag(btn, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
     lv_obj_set_flex_flow(btn, LV_FLEX_FLOW_ROW); // Horizontal layout
@@ -966,7 +966,7 @@ lv_obj_t *_list_btn_container_create(lv_obj_t *list)
     lv_obj_set_style_transform_pivot_y(btn, lv_obj_get_height(btn) / 2, 0);
     /* 230%(2.3x)缩放过大导致滑动残影,降到 1.4x(同按压缩放残影处理) */
     lv_obj_set_style_transform_scale(btn, 140, LV_STATE_PRESSED);
-    lv_obj_set_style_bg_color(btn, lv_color_darken(EOS_THEME_SECONDARY_COLOR, 64), LV_STATE_PRESSED);
+    lv_obj_set_style_bg_color(btn, lv_color_darken(COS_THEME_SECONDARY_COLOR, 64), LV_STATE_PRESSED);
     /* 滑动误触消歧:先于页面点击回调注册,惯性滚动刚停止后的 CLICKED 在此拦截 */
     lv_obj_add_event_cb(btn, _list_item_click_guard_cb, LV_EVENT_CLICKED, NULL);
     return btn;
@@ -982,7 +982,7 @@ static void _list_item_click_guard_cb(lv_event_t *e)
         return;
     }
     lv_obj_t *list = lv_obj_get_parent(item);
-    eos_list_transition_state_t *state = _list_transition_get_state(list);
+    cos_list_transition_state_t *state = _list_transition_get_state(list);
     if (state && state->scroll_guard_armed)
     {
         state->scroll_guard_armed = false; /* 一次性:消耗本次误触 */
@@ -990,7 +990,7 @@ static void _list_item_click_guard_cb(lv_event_t *e)
     }
 }
 
-lv_obj_t *eos_list_add_button(lv_obj_t *list, const void *icon, const char *txt)
+lv_obj_t *cos_list_add_button(lv_obj_t *list, const void *icon, const char *txt)
 {
     lv_obj_t *obj = _list_btn_container_create(list);
     lv_obj_t *img, *label;
@@ -1000,7 +1000,7 @@ lv_obj_t *eos_list_add_button(lv_obj_t *list, const void *icon, const char *txt)
     {
         img = lv_image_create(obj);
         lv_image_set_src(img, icon);
-        eos_img_set_size(img, 64, 64);
+        cos_img_set_size(img, 64, 64);
     }
 
     if (txt)
@@ -1015,7 +1015,7 @@ lv_obj_t *eos_list_add_button(lv_obj_t *list, const void *icon, const char *txt)
     return obj;
 }
 
-lv_obj_t *eos_list_add_placeholder(lv_obj_t *list, uint32_t height)
+lv_obj_t *cos_list_add_placeholder(lv_obj_t *list, uint32_t height)
 {
     lv_obj_t *ph = lv_obj_create(list);
     lv_obj_remove_style_all(ph);
@@ -1023,7 +1023,7 @@ lv_obj_t *eos_list_add_placeholder(lv_obj_t *list, uint32_t height)
     return ph;
 }
 
-lv_obj_t *eos_round_icon_create(lv_obj_t *parent, lv_color_t bg_color, const void *icon_src)
+lv_obj_t *cos_round_icon_create(lv_obj_t *parent, lv_color_t bg_color, const void *icon_src)
 {
     // Draw circular background
     lv_obj_t *round = lv_obj_create(parent);
@@ -1037,7 +1037,7 @@ lv_obj_t *eos_round_icon_create(lv_obj_t *parent, lv_color_t bg_color, const voi
     lv_obj_t *icon;
     // 同时支持两类图标源:
     //   1. 字体图标(传字符/字符串, 如 RI_WIFI_FILL)
-    //   2. webp 转换的彩色图片(传 &eos_icon_xxx, 头部 magic 校验)
+    //   2. webp 转换的彩色图片(传 &cos_icon_xxx, 头部 magic 校验)
     const lv_image_dsc_t *dsc = (const lv_image_dsc_t *)icon_src;
     if (icon_src && dsc->header.magic == LV_IMAGE_HEADER_MAGIC)
     {
@@ -1057,12 +1057,12 @@ lv_obj_t *eos_round_icon_create(lv_obj_t *parent, lv_color_t bg_color, const voi
     return round;
 }
 
-lv_obj_t *eos_list_add_round_icon_button(lv_obj_t *list, lv_color_t bg_color, const void *icon_src, const char *txt)
+lv_obj_t *cos_list_add_round_icon_button(lv_obj_t *list, lv_color_t bg_color, const void *icon_src, const char *txt)
 {
     // Create button
     lv_obj_t *btn = _list_btn_container_create(list);
     lv_obj_add_flag(btn, LV_OBJ_FLAG_USER_1);
-    eos_round_icon_create(btn, bg_color, icon_src);
+    cos_round_icon_create(btn, bg_color, icon_src);
     // Text
     lv_obj_t *label = lv_label_create(btn);
     lv_obj_set_style_margin_left(label, 14, 0);
@@ -1073,7 +1073,7 @@ lv_obj_t *eos_list_add_round_icon_button(lv_obj_t *list, lv_color_t bg_color, co
     return btn;
 }
 
-lv_obj_t *eos_list_add_round_icon_button_str_id(lv_obj_t *list,
+lv_obj_t *cos_list_add_round_icon_button_str_id(lv_obj_t *list,
                                                 lv_color_t bg_color,
                                                 const void *icon_src,
                                                 lang_string_id_t id)
@@ -1081,10 +1081,10 @@ lv_obj_t *eos_list_add_round_icon_button_str_id(lv_obj_t *list,
     // Create button
     lv_obj_t *btn = _list_btn_container_create(list);
     lv_obj_add_flag(btn, LV_OBJ_FLAG_USER_1);
-    eos_round_icon_create(btn, bg_color, icon_src);
+    cos_round_icon_create(btn, bg_color, icon_src);
     // Text
     lv_obj_t *label = lv_label_create(btn);
-    eos_label_set_text_id(label, id);
+    cos_label_set_text_id(label, id);
     lv_obj_set_style_margin_left(label, 14, 0);
     lv_label_set_long_mode(label, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_set_flex_grow(label, 1);
@@ -1092,7 +1092,7 @@ lv_obj_t *eos_list_add_round_icon_button_str_id(lv_obj_t *list,
     return btn;
 }
 
-lv_obj_t *eos_list_add_entry_button(lv_obj_t *list, const char *txt)
+lv_obj_t *cos_list_add_entry_button(lv_obj_t *list, const char *txt)
 {
     // Create button
     lv_obj_t *btn = _list_btn_container_create(list);
@@ -1108,14 +1108,14 @@ lv_obj_t *eos_list_add_entry_button(lv_obj_t *list, const char *txt)
     return btn;
 }
 
-lv_obj_t *eos_list_add_entry_button_str_id(lv_obj_t *list, lang_string_id_t id)
+lv_obj_t *cos_list_add_entry_button_str_id(lv_obj_t *list, lang_string_id_t id)
 {
     // Create button
     lv_obj_t *btn = _list_btn_container_create(list);
     lv_obj_add_flag(btn, LV_OBJ_FLAG_USER_1);
     // Text
     lv_obj_t *label = lv_label_create(btn);
-    eos_label_set_text_id(label, id);
+    cos_label_set_text_id(label, id);
     lv_label_set_long_mode(label, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_set_flex_grow(label, 1);
     // Text
@@ -1124,7 +1124,7 @@ lv_obj_t *eos_list_add_entry_button_str_id(lv_obj_t *list, lang_string_id_t id)
     return btn;
 }
 
-lv_obj_t *eos_list_add_container(lv_obj_t *list)
+lv_obj_t *cos_list_add_container(lv_obj_t *list)
 {
     lv_obj_t *container = lv_obj_create(list);
     /* 必须撑满列表宽度: lv_obj_create 默认 width=content≈0, 否则内部行不可见 */
@@ -1136,9 +1136,9 @@ lv_obj_t *eos_list_add_container(lv_obj_t *list)
 static void _list_switch_container_clicked_cb(lv_event_t *e)
 {
     lv_obj_t *sw = lv_event_get_user_data(e);
-    EOS_CHECK_PTR_RETURN(sw);
+    COS_CHECK_PTR_RETURN(sw);
 
-    EOS_LOG_D("switch container clicked: sw=%p, checked_before=%d", sw, lv_obj_has_state(sw, LV_STATE_CHECKED));
+    COS_LOG_D("switch container clicked: sw=%p, checked_before=%d", sw, lv_obj_has_state(sw, LV_STATE_CHECKED));
     if (lv_obj_has_state(sw, LV_STATE_CHECKED))
     {
         lv_obj_remove_state(sw, LV_STATE_CHECKED);
@@ -1148,14 +1148,14 @@ static void _list_switch_container_clicked_cb(lv_event_t *e)
         lv_obj_add_state(sw, LV_STATE_CHECKED);
     }
     lv_obj_send_event(sw, LV_EVENT_VALUE_CHANGED, NULL);
-    EOS_LOG_D("switch container clicked: toggled, checked_after=%d", lv_obj_has_state(sw, LV_STATE_CHECKED));
+    COS_LOG_D("switch container clicked: toggled, checked_after=%d", lv_obj_has_state(sw, LV_STATE_CHECKED));
 }
 
-lv_obj_t *eos_list_add_switch(lv_obj_t *list, const char *txt)
+lv_obj_t *cos_list_add_switch(lv_obj_t *list, const char *txt)
 {
     // Create container
     lv_obj_t *container = _list_btn_container_create(list);
-    lv_obj_set_size(container, lv_pct(100), EOS_LIST_CONTAINER_HEIGHT);
+    lv_obj_set_size(container, lv_pct(100), COS_LIST_CONTAINER_HEIGHT);
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_ROW); // Horizontal layout
     lv_obj_set_flex_align(container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
@@ -1194,28 +1194,28 @@ lv_obj_t *eos_list_add_switch(lv_obj_t *list, const char *txt)
 
 static void _list_label_common_style(lv_obj_t *label)
 {
-    eos_label_set_font_size(label, EOS_FONT_SIZE_SMALL);
+    cos_label_set_font_size(label, COS_FONT_SIZE_SMALL);
     lv_obj_set_align(label, LV_ALIGN_LEFT_MID);
     lv_obj_set_size(label, lv_pct(100), LV_SIZE_CONTENT);
-    lv_obj_set_style_margin_hor(label, EOS_LIST_CONTAINER_PAD_ALL, 0);
+    lv_obj_set_style_margin_hor(label, COS_LIST_CONTAINER_PAD_ALL, 0);
     lv_obj_set_style_margin_ver(label, _LIST_LABEL_MARGIN_VER, 0);
 }
 
-lv_obj_t *eos_list_add_title(lv_obj_t *list, const char *txt)
+lv_obj_t *cos_list_add_title(lv_obj_t *list, const char *txt)
 {
     lv_obj_t *label = lv_label_create(list);
     _list_label_common_style(label);
     lv_label_set_text(label, txt);
-    lv_obj_set_style_text_color(label, EOS_COLOR_WHITE, 0);
+    lv_obj_set_style_text_color(label, COS_COLOR_WHITE, 0);
     return label;
 }
 
-lv_obj_t *eos_list_add_comment(lv_obj_t *list, const char *txt)
+lv_obj_t *cos_list_add_comment(lv_obj_t *list, const char *txt)
 {
     lv_obj_t *label = lv_label_create(list);
     _list_label_common_style(label);
     lv_label_set_text(label, txt);
-    lv_obj_set_style_text_color(label, EOS_COLOR_GREY_1, 0);
+    lv_obj_set_style_text_color(label, COS_COLOR_GREY_1, 0);
     lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
     return label;
 }
@@ -1225,18 +1225,18 @@ lv_obj_t *_split_line_create(lv_obj_t *parent)
     lv_obj_t *sl = lv_obj_create(parent);
     lv_obj_remove_style_all(sl);
     lv_obj_set_size(sl, lv_pct(90), 2);
-    lv_obj_set_style_bg_color(sl, EOS_COLOR_DARK_GREY_2, 0);
+    lv_obj_set_style_bg_color(sl, COS_COLOR_DARK_GREY_2, 0);
     return sl;
 }
 
 static void _list_slider_delete_cb(lv_event_t *e)
 {
-    eos_list_slider_t *list_slider = lv_event_get_user_data(e);
-    EOS_CHECK_PTR_RETURN(list_slider);
-    eos_free(list_slider);
+    cos_list_slider_t *list_slider = lv_event_get_user_data(e);
+    COS_CHECK_PTR_RETURN(list_slider);
+    cos_free(list_slider);
 }
 
-lv_obj_t *eos_list_add_title_container(lv_obj_t *list, const char *title)
+lv_obj_t *cos_list_add_title_container(lv_obj_t *list, const char *title)
 {
     // Create outer transparent container
     lv_obj_t *outer_container = lv_obj_create(list);
@@ -1246,10 +1246,10 @@ lv_obj_t *eos_list_add_title_container(lv_obj_t *list, const char *title)
     lv_obj_set_flex_flow(outer_container, LV_FLEX_FLOW_COLUMN); // Vertical layout
 
     // Add top-left label
-    lv_obj_t *txt_label = eos_list_add_title(outer_container, title);
+    lv_obj_t *txt_label = cos_list_add_title(outer_container, title);
 
     // Create inner container (horizontally centered)
-    lv_obj_t *inner_container = eos_list_add_container(outer_container);
+    lv_obj_t *inner_container = cos_list_add_container(outer_container);
     lv_obj_set_style_align(inner_container, LV_ALIGN_CENTER, 0); // Horizontally centered
     lv_obj_set_style_margin_hor(inner_container, 0, 0);
 
@@ -1261,11 +1261,11 @@ static void _slider_button_clicked_cb(lv_event_t *e)
     const uint8_t scale_diff = 50;
     const uint8_t duration = 120;
     lv_obj_t *target = lv_event_get_target(e);
-    eos_list_slider_t *ls = (eos_list_slider_t *)lv_event_get_user_data(e);
-    EOS_CHECK_PTR_RETURN(ls);
+    cos_list_slider_t *ls = (cos_list_slider_t *)lv_event_get_user_data(e);
+    COS_CHECK_PTR_RETURN(ls);
     if (ls->minus_btn == target)
     {
-        eos_anim_transform_scale_start_ex(ls->minus_label,
+        cos_anim_transform_scale_start_ex(ls->minus_label,
                                           ls->minus_label_scale,
                                           ls->minus_label_scale - scale_diff,
                                           duration,
@@ -1275,7 +1275,7 @@ static void _slider_button_clicked_cb(lv_event_t *e)
     }
     else if (ls->plus_btn == target)
     {
-        eos_anim_transform_scale_start_ex(ls->plus_label,
+        cos_anim_transform_scale_start_ex(ls->plus_label,
                                           ls->plus_label_scale,
                                           ls->plus_label_scale - scale_diff,
                                           duration,
@@ -1285,32 +1285,32 @@ static void _slider_button_clicked_cb(lv_event_t *e)
     }
 }
 
-void eos_list_slider_set_minus_label_scale(eos_list_slider_t *ls, uint16_t scale)
+void cos_list_slider_set_minus_label_scale(cos_list_slider_t *ls, uint16_t scale)
 {
-    EOS_CHECK_PTR_RETURN(ls);
+    COS_CHECK_PTR_RETURN(ls);
     ls->minus_label_scale = scale;
     lv_obj_set_style_transform_scale(ls->minus_label, scale, 0);
 }
 
-void eos_list_slider_set_plus_label_scale(eos_list_slider_t *ls, uint16_t scale)
+void cos_list_slider_set_plus_label_scale(cos_list_slider_t *ls, uint16_t scale)
 {
-    EOS_CHECK_PTR_RETURN(ls);
+    COS_CHECK_PTR_RETURN(ls);
     ls->plus_label_scale = scale;
     lv_obj_set_style_transform_scale(ls->plus_label, scale, 0);
 }
 
-eos_list_slider_t *eos_list_add_slider(lv_obj_t *list, const char *txt)
+cos_list_slider_t *cos_list_add_slider(lv_obj_t *list, const char *txt)
 {
-    eos_list_slider_t *list_slider = eos_malloc_zeroed(sizeof(eos_list_slider_t));
-    EOS_CHECK_PTR_RETURN_VAL_FREE(list_slider, NULL, list_slider);
+    cos_list_slider_t *list_slider = cos_malloc_zeroed(sizeof(cos_list_slider_t));
+    COS_CHECK_PTR_RETURN_VAL_FREE(list_slider, NULL, list_slider);
 
     list_slider->minus_label_scale = 255;
     list_slider->plus_label_scale = 255;
 
     // Create outer transparent container
-    lv_obj_t *inner_container = eos_list_add_title_container(list, txt);
+    lv_obj_t *inner_container = cos_list_add_title_container(list, txt);
     lv_obj_set_style_pad_all(inner_container, 0, 0);
-    lv_obj_set_size(inner_container, lv_pct(100), EOS_LIST_CONTAINER_HEIGHT);
+    lv_obj_set_size(inner_container, lv_pct(100), COS_LIST_CONTAINER_HEIGHT);
     lv_obj_add_event_cb(inner_container, _list_slider_delete_cb, LV_EVENT_DELETE, (void *)list_slider);
 
     const uint8_t margin = 25;
@@ -1320,12 +1320,12 @@ eos_list_slider_t *eos_list_add_slider(lv_obj_t *list, const char *txt)
 
     /************************** Left Side **************************/
     list_slider->minus_btn = lv_obj_create(inner_container);
-    lv_obj_set_size(list_slider->minus_btn, lv_pct(pct_btn), EOS_LIST_CONTAINER_HEIGHT);
+    lv_obj_set_size(list_slider->minus_btn, lv_pct(pct_btn), COS_LIST_CONTAINER_HEIGHT);
     lv_obj_set_style_margin_all(list_slider->minus_btn, 0, 0);
     lv_obj_set_style_pad_all(list_slider->minus_btn, 0, 0);
     lv_obj_set_style_bg_opa(list_slider->minus_btn, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(list_slider->minus_btn, EOS_THEME_BUTTON_COLOR, 0);
-    lv_obj_set_style_radius(list_slider->minus_btn, EOS_ITEM_RADIUS, 0);
+    lv_obj_set_style_bg_color(list_slider->minus_btn, COS_THEME_BUTTON_COLOR, 0);
+    lv_obj_set_style_radius(list_slider->minus_btn, COS_ITEM_RADIUS, 0);
     lv_obj_set_style_border_width(list_slider->minus_btn, 0, 0);
     lv_obj_align_to(list_slider->minus_btn, inner_container, LV_ALIGN_LEFT_MID, 0, 0);
 
@@ -1339,13 +1339,13 @@ eos_list_slider_t *eos_list_add_slider(lv_obj_t *list, const char *txt)
 
     /************************** Right Side **************************/
     list_slider->plus_btn = lv_obj_create(inner_container);
-    lv_obj_set_size(list_slider->plus_btn, lv_pct(pct_btn), EOS_LIST_CONTAINER_HEIGHT);
+    lv_obj_set_size(list_slider->plus_btn, lv_pct(pct_btn), COS_LIST_CONTAINER_HEIGHT);
     lv_obj_set_style_margin_all(list_slider->plus_btn, 0, 0);
     lv_obj_set_style_pad_all(list_slider->plus_btn, 0, 0);
     lv_obj_set_style_bg_opa(list_slider->plus_btn, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(list_slider->plus_btn, EOS_THEME_BUTTON_COLOR, 0);
+    lv_obj_set_style_bg_color(list_slider->plus_btn, COS_THEME_BUTTON_COLOR, 0);
     lv_obj_set_style_border_width(list_slider->plus_btn, 0, 0);
-    lv_obj_set_style_radius(list_slider->plus_btn, EOS_ITEM_RADIUS, 0);
+    lv_obj_set_style_radius(list_slider->plus_btn, COS_ITEM_RADIUS, 0);
     lv_obj_align_to(list_slider->plus_btn, inner_container, LV_ALIGN_RIGHT_MID, 0, 0);
 
     list_slider->plus_label = lv_label_create(list_slider->plus_btn);
@@ -1358,11 +1358,11 @@ eos_list_slider_t *eos_list_add_slider(lv_obj_t *list, const char *txt)
 
     const uint8_t split_width = 2;
     lv_obj_t *obj = lv_obj_create(inner_container);
-    lv_obj_set_style_bg_color(obj, EOS_THEME_SECONDARY_COLOR, 0);
+    lv_obj_set_style_bg_color(obj, COS_THEME_SECONDARY_COLOR, 0);
     lv_obj_set_style_opa(obj, LV_OPA_COVER, 0);
-    lv_obj_set_size(obj, lv_pct(pct_slider), EOS_LIST_CONTAINER_HEIGHT + split_width * 2);
+    lv_obj_set_size(obj, lv_pct(pct_slider), COS_LIST_CONTAINER_HEIGHT + split_width * 2);
     lv_obj_set_style_border_width(obj, split_width, 0);
-    lv_obj_set_style_border_color(obj, EOS_COLOR_BLACK, 0);
+    lv_obj_set_style_border_color(obj, COS_COLOR_BLACK, 0);
     lv_obj_set_style_radius(obj, 0, 0);
     lv_obj_center(obj);
 
@@ -1377,13 +1377,13 @@ eos_list_slider_t *eos_list_add_slider(lv_obj_t *list, const char *txt)
     lv_obj_set_style_bg_opa(list_slider->slider, LV_OPA_TRANSP, LV_PART_KNOB);
     lv_obj_set_style_border_opa(list_slider->slider, LV_OPA_TRANSP, LV_PART_KNOB);
     lv_obj_set_style_bg_color(list_slider->slider,
-                              lv_color_darken(EOS_COLOR_TEXT_GREY, slider_main_bg_darken_lvl),
+                              lv_color_darken(COS_COLOR_TEXT_GREY, slider_main_bg_darken_lvl),
                               LV_PART_MAIN);
 
     return list_slider;
 }
 
-lv_obj_t *eos_row_create(lv_obj_t *parent,
+lv_obj_t *cos_row_create(lv_obj_t *parent,
                          const char *left_text,
                          const char *right_text,
                          const char *left_img_path,
@@ -1405,7 +1405,7 @@ lv_obj_t *eos_row_create(lv_obj_t *parent,
     {
         lv_obj_t *icon = lv_image_create(row);
         lv_image_set_src(icon, left_img_path);
-        eos_img_set_size(icon, icon_w, icon_h);
+        cos_img_set_size(icon, icon_w, icon_h);
     }
 
     // Left text

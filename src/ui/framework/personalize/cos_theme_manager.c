@@ -1,13 +1,13 @@
 /**
- * @file eos_theme_manager.c
+ * @file cos_theme_manager.c
  * @brief Theme manager implementation.
  */
-#include "eos_theme_manager.h"
+#include "cos_theme_manager.h"
 #include "lvgl.h"
 #include <string.h>
 #include <stdio.h>
 
-void eos_theme_manager_init(eos_theme_t *t)
+void cos_theme_manager_init(cos_theme_t *t)
 {
     memset(t, 0, sizeof(*t));
     strncpy(t->name, "LiquidGlass", 23);
@@ -19,7 +19,7 @@ void eos_theme_manager_init(eos_theme_t *t)
     t->glass    = true;
 }
 
-void eos_theme_manager_set(eos_theme_t *t, const char *name,
+void cos_theme_manager_set(cos_theme_t *t, const char *name,
                            uint8_t bg_alpha, uint32_t accent,
                            uint16_t radius, uint8_t glow, bool glass)
 {
@@ -32,7 +32,7 @@ void eos_theme_manager_set(eos_theme_t *t, const char *name,
     t->glass    = glass;
 }
 
-void eos_theme_manager_apply(const eos_theme_t *t, lv_obj_t *obj, bool is_card)
+void cos_theme_manager_apply(const cos_theme_t *t, lv_obj_t *obj, bool is_card)
 {
     if (!obj) return;
     if (is_card) {
@@ -54,7 +54,7 @@ void eos_theme_manager_apply(const eos_theme_t *t, lv_obj_t *obj, bool is_card)
     }
 }
 
-int eos_theme_manager_serialize(const eos_theme_t *t, char *buf, int buflen)
+int cos_theme_manager_serialize(const cos_theme_t *t, char *buf, int buflen)
 {
     return snprintf(buf, (size_t)buflen,
                     "name=%s;bg_alpha=%u;accent=%u;radius=%u;glow=%u;glass=%d",
@@ -62,7 +62,7 @@ int eos_theme_manager_serialize(const eos_theme_t *t, char *buf, int buflen)
                     (unsigned)t->radius, (unsigned)t->glow, t->glass ? 1 : 0);
 }
 
-bool eos_theme_manager_deserialize(eos_theme_t *t, const char *buf)
+bool cos_theme_manager_deserialize(cos_theme_t *t, const char *buf)
 {
     if (!buf) return false;
     char name[24];

@@ -1,24 +1,24 @@
 /**
- * @file eos_virtual_display.c
+ * @file cos_virtual_display.c
  * @brief Virtual display
  */
 
-#include "eos_virtual_display.h"
+#include "cos_virtual_display.h"
 
-#if EOS_USE_VIRTUAL_DISPLAY
+#if COS_USE_VIRTUAL_DISPLAY
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define EOS_LOG_TAG "VirtualDisplay"
-#include "eos_log.h"
-#include "eos_port.h"
-#include "eos_mem.h"
+#define COS_LOG_TAG "VirtualDisplay"
+#include "cos_log.h"
+#include "cos_port.h"
+#include "cos_mem.h"
 
 /* Macros and Definitions -------------------------------------*/
 
-struct eos_virtual_display_t
+struct cos_virtual_display_t
 {
     lv_obj_t *canvas;
     lv_color_t *canvas_buf;
@@ -40,7 +40,7 @@ struct eos_virtual_display_t
 
 static void _virtual_display_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
 {
-    eos_virtual_display_t *vd = lv_display_get_driver_data(disp);
+    cos_virtual_display_t *vd = lv_display_get_driver_data(disp);
     lv_coord_t w = lv_area_get_width(area);
     lv_coord_t h = lv_area_get_height(area);
     uint32_t px_size = lv_color_format_get_size(vd->cf);
@@ -61,7 +61,7 @@ static void _virtual_display_flush_cb(lv_display_t *disp, const lv_area_t *area,
 
 static void _canvas_event_cb(lv_event_t *e)
 {
-    eos_virtual_display_t *vd = (eos_virtual_display_t *)lv_event_get_user_data(e);
+    cos_virtual_display_t *vd = (cos_virtual_display_t *)lv_event_get_user_data(e);
     if (!vd)
         return;
 
@@ -107,7 +107,7 @@ static void _canvas_event_cb(lv_event_t *e)
 
 static void _virtual_input_read(lv_indev_t *indev, lv_indev_data_t *data)
 {
-    eos_virtual_display_t *vd = (eos_virtual_display_t *)lv_indev_get_user_data(indev);
+    cos_virtual_display_t *vd = (cos_virtual_display_t *)lv_indev_get_user_data(indev);
     if (!vd)
     {
         data->state = LV_INDEV_STATE_RELEASED;
@@ -121,9 +121,9 @@ static void _virtual_input_read(lv_indev_t *indev, lv_indev_data_t *data)
     data->state = vd->pressed ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
 }
 
-lv_display_t *eos_virtual_display_create(lv_obj_t *parent, lv_coord_t hor_res, lv_coord_t ver_res)
+lv_display_t *cos_virtual_display_create(lv_obj_t *parent, lv_coord_t hor_res, lv_coord_t ver_res)
 {
-    eos_virtual_display_t *vd = eos_malloc_zeroed(sizeof(eos_virtual_display_t));
+    cos_virtual_display_t *vd = cos_malloc_zeroed(sizeof(cos_virtual_display_t));
     if (!vd)
         return NULL;
 
@@ -136,10 +136,10 @@ lv_display_t *eos_virtual_display_create(lv_obj_t *parent, lv_coord_t hor_res, l
     vd->indev = NULL;
 
     // Allocate canvas buffer
-    vd->canvas_buf = eos_malloc_zeroed(lv_draw_buf_width_to_stride(hor_res, vd->cf) * ver_res);
+    vd->canvas_buf = cos_malloc_zeroed(lv_draw_buf_width_to_stride(hor_res, vd->cf) * ver_res);
     if (!vd->canvas_buf)
     {
-        eos_free(vd);
+        cos_free(vd);
         return NULL;
     }
 
@@ -158,19 +158,19 @@ lv_display_t *eos_virtual_display_create(lv_obj_t *parent, lv_coord_t hor_res, l
     vd->disp = lv_display_create(hor_res, ver_res);
     if (!vd->disp)
     {
-        eos_free(vd->canvas_buf);
-        eos_free(vd);
+        cos_free(vd->canvas_buf);
+        cos_free(vd);
         return NULL;
     }
 
     // Allocate display buffer
     size_t buf_size = hor_res * ver_res * sizeof(lv_color_t);
-    vd->disp_buf = eos_malloc_zeroed(buf_size);
+    vd->disp_buf = cos_malloc_zeroed(buf_size);
     if (!vd->disp_buf)
     {
         lv_display_delete(vd->disp);
-        eos_free(vd->canvas_buf);
-        eos_free(vd);
+        cos_free(vd->canvas_buf);
+        cos_free(vd);
         return NULL;
     }
 
@@ -182,11 +182,11 @@ lv_display_t *eos_virtual_display_create(lv_obj_t *parent, lv_coord_t hor_res, l
     vd->indev = lv_indev_create();
     if (!vd->indev)
     {
-        EOS_LOG_E("failed to create indev");
+        COS_LOG_E("failed to create indev");
         lv_display_delete(vd->disp);
-        eos_free(vd->disp_buf);
-        eos_free(vd->canvas_buf);
-        eos_free(vd);
+        cos_free(vd->disp_buf);
+        cos_free(vd->canvas_buf);
+        cos_free(vd);
         return NULL;
     }
 
@@ -197,4 +197,4 @@ lv_display_t *eos_virtual_display_create(lv_obj_t *parent, lv_coord_t hor_res, l
     return vd->disp;
 }
 
-#endif /* EOS_USE_VIRTUAL_DISPLAY */
+#endif /* COS_USE_VIRTUAL_DISPLAY */

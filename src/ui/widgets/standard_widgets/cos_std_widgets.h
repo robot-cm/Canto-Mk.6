@@ -1,10 +1,10 @@
 /**
- * @file eos_std_widgets.h
+ * @file cos_std_widgets.h
  * @brief System standard widgets
  */
 
-#ifndef EOS_STD_WIDGETS_H
-#define EOS_STD_WIDGETS_H
+#ifndef COS_STD_WIDGETS_H
+#define COS_STD_WIDGETS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,7 +29,7 @@ extern "C" {
  * @param txt Content text
  * @return lv_obj_t* Returns message page container list
  */
-lv_obj_t *eos_std_info_create(lv_obj_t *scr,
+lv_obj_t *cos_std_info_create(lv_obj_t *scr,
                               lv_color_t icon_bg_color,
                               const char *icon,
                               const char *title_txt,
@@ -41,9 +41,9 @@ lv_obj_t *eos_std_info_create(lv_obj_t *scr,
  * @param title Title content
  * @param comment Comment content
  */
-void eos_std_title_comment_create(lv_obj_t *parent, const char *title, const char *comment);
+void cos_std_title_comment_create(lv_obj_t *parent, const char *title, const char *comment);
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_STD_WIDGETS_H */
+#endif /* COS_STD_WIDGETS_H */

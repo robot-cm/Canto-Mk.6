@@ -1,16 +1,16 @@
 /**
- * @file eos_service_haptic.c
+ * @file cos_service_haptic.c
  * @brief Haptic service
  */
 
-#include "eos_service_haptic.h"
+#include "cos_service_haptic.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
-#include "eos_service_config.h"
-#include "eos_dev_vibrator.h"
-#include "eos_utils.h"
+#include "cos_service_config.h"
+#include "cos_dev_vibrator.h"
+#include "cos_utils.h"
 
 /* Macros and Definitions -------------------------------------*/
 
@@ -25,13 +25,13 @@
 /* Variables --------------------------------------------------*/
 
 static lv_timer_t *t;
-static eos_haptic_strength_t strength_option;
+static cos_haptic_strength_t strength_option;
 
 /* Function Implementations -----------------------------------*/
 
 static void _haptic_timer_stop_cb(lv_timer_t *t)
 {
-    eos_dev_vibrator_t *dev = eos_dev_vibrator_get_instance();
+    cos_dev_vibrator_t *dev = cos_dev_vibrator_get_instance();
     if (dev->ops && dev->ops->off)
     {
         dev->ops->off();
@@ -41,19 +41,19 @@ static void _haptic_timer_stop_cb(lv_timer_t *t)
 
 static void _haptic_common(uint32_t period, uint8_t strength)
 {
-    eos_dev_vibrator_t *dev = eos_dev_vibrator_get_instance();
+    cos_dev_vibrator_t *dev = cos_dev_vibrator_get_instance();
 
     switch (strength_option)
     {
-        case EOS_HAPTIC_STRENGTH_OFF:
+        case COS_HAPTIC_STRENGTH_OFF:
             return;
-        case EOS_HAPTIC_STRENGTH_INTENSE:
+        case COS_HAPTIC_STRENGTH_INTENSE:
             strength += 25;
             break;
         default:
             break;
     }
-    strength = (uint8_t)EOS_CLAMP((int)strength, 0, 255);
+    strength = (uint8_t)COS_CLAMP((int)strength, 0, 255);
 
     if (dev->ops && dev->ops->on)
     {
@@ -65,29 +65,29 @@ static void _haptic_common(uint32_t period, uint8_t strength)
     lv_timer_resume(t);
 }
 
-void eos_haptic_tick(void)
+void cos_haptic_tick(void)
 {
     _haptic_common(_TICK_PERIOD, _TICK_STRENGTH);
 }
 
-void eos_haptic_buzz(void)
+void cos_haptic_buzz(void)
 {
     _haptic_common(_BUZZ_PERIOD, _BUZZ_STRENGTH);
 }
 
-void eos_haptic_vibrate_long(void)
+void cos_haptic_vibrate_long(void)
 {
     _haptic_common(_VIBRATE_LONG_PERIOD, _VIBRATE_LONG_STRENGTH);
 }
 
-void eos_haptic_set_strength(eos_haptic_strength_t s)
+void cos_haptic_set_strength(cos_haptic_strength_t s)
 {
     strength_option = s;
-    strength_option = (eos_haptic_strength_t)EOS_CLAMP((int)strength_option, 0, 255);
-    eos_config_set_number(EOS_CONFIG_KEY_VIBRATOR_STRENGTH_NUMBER, strength_option);
+    strength_option = (cos_haptic_strength_t)COS_CLAMP((int)strength_option, 0, 255);
+    cos_config_set_number(COS_CONFIG_KEY_VIBRATOR_STRENGTH_NUMBER, strength_option);
 }
 
-void eos_service_haptic_init(void)
+void cos_service_haptic_init(void)
 {
     t = lv_timer_create_basic();
     lv_timer_set_period(t, 0);

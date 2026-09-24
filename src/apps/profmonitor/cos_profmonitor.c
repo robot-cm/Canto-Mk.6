@@ -1,5 +1,5 @@
 /**
- * @file eos_profmonitor.c
+ * @file cos_profmonitor.c
  * @brief ProfMonitor - native C app that monitors resource usage on demand.
  *
  * Round 240x240 UI: a big percentage number on top, a single blue usage
@@ -25,13 +25,13 @@
 #include <string.h>
 #include <stdbool.h>
 
-#include "eos_core.h"
-#include "eos_activity.h"
-#include "eos_mem.h"
-#include "eos_log.h"
-#include "eos_font.h"
-#include "ui/system/eos_round_clip.h"
-#include "services/storage/eos_service_storage.h"
+#include "cos_core.h"
+#include "cos_activity.h"
+#include "cos_mem.h"
+#include "cos_log.h"
+#include "cos_font.h"
+#include "ui/system/cos_round_clip.h"
+#include "services/storage/cos_service_storage.h"
 #include "lvgl.h"
 #include "freertos/FreeRTOS.h"
 #include "esp_heap_caps.h"
@@ -58,7 +58,7 @@ typedef enum {
 } pm_res_t;
 
 /* ---- state ---- */
-static eos_activity_t *s_act = NULL;
+static cos_activity_t *s_act = NULL;
 static lv_timer_t     *s_timer = NULL;
 static lv_obj_t       *s_pct = NULL;
 static lv_obj_t       *s_name = NULL;     /* resource name under the percentage */
@@ -80,19 +80,19 @@ static void _pm_persist(void)
 {
     char buf[8];
     int n = snprintf(buf, sizeof(buf), "%d\n", (int)s_res);
-    eos_storage_mkdir_recursive(PM_DIR);
-    eos_storage_write_file_immediate(PM_FILE, buf, (size_t)n);
+    cos_storage_mkdir_recursive(PM_DIR);
+    cos_storage_write_file_immediate(PM_FILE, buf, (size_t)n);
 }
 
 static pm_res_t _pm_load_res(void)
 {
     pm_res_t r = PM_RES_CPU0;
-    if (eos_storage_is_file(PM_FILE)) {
-        char *data = eos_storage_read_file(PM_FILE);
+    if (cos_storage_is_file(PM_FILE)) {
+        char *data = cos_storage_read_file(PM_FILE);
         if (data) {
             int v = atoi(data);
             if (v >= 0 && v < (int)PM_RES_COUNT) r = (pm_res_t)v;
-            eos_free(data);
+            cos_free(data);
         }
     }
     return r;
@@ -224,24 +224,24 @@ static void _pm_switch_cb(lv_event_t *e)
 }
 
 /* ---- UI (circular 240x240) ---- */
-static void _build_ui(eos_activity_t *act)
+static void _build_ui(cos_activity_t *act)
 {
-    lv_obj_t *root = eos_activity_get_view(act);
-    eos_round_clip(root);
+    lv_obj_t *root = cos_activity_get_view(act);
+    cos_round_clip(root);
     lv_obj_set_style_bg_color(root, lv_color_hex(0x0A0A0A), 0);
     lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
 
     /* percentage number (top) */
     s_pct = lv_label_create(root);
     lv_label_set_text(s_pct, "0%");
-    eos_label_set_font_size(s_pct, EOS_FONT_SIZE_LARGE);
+    cos_label_set_font_size(s_pct, COS_FONT_SIZE_LARGE);
     lv_obj_set_style_text_color(s_pct, lv_color_white(), 0);
     lv_obj_align(s_pct, LV_ALIGN_TOP_MID, 0, 44);
 
     /* resource name (grey, just under the percentage) */
     s_name = lv_label_create(root);
     lv_label_set_text(s_name, _pm_res_name());
-    eos_label_set_font_size(s_name, EOS_FONT_SIZE_SMALL);
+    cos_label_set_font_size(s_name, COS_FONT_SIZE_SMALL);
     lv_obj_set_style_text_color(s_name, lv_color_hex(0x888888), 0);
     lv_obj_align(s_name, LV_ALIGN_TOP_MID, 0, 84);
 
@@ -264,12 +264,12 @@ static void _build_ui(eos_activity_t *act)
     lv_obj_t *arrow = lv_label_create(btn);
     lv_label_set_text(arrow, LV_SYMBOL_RIGHT);
     lv_obj_set_style_text_color(arrow, lv_color_white(), 0);
-    eos_label_set_font_size(arrow, EOS_FONT_SIZE_MEDIUM);
+    cos_label_set_font_size(arrow, COS_FONT_SIZE_MEDIUM);
     lv_obj_center(arrow);
 }
 
 /* ---- lifecycle ---- */
-static void _on_enter(eos_activity_t *act)
+static void _on_enter(cos_activity_t *act)
 {
     s_act = act;
     s_res = _pm_load_res();
@@ -280,13 +280,13 @@ static void _on_enter(eos_activity_t *act)
     s_timer = lv_timer_create(_pm_tick, PM_PERIOD_MS, NULL);
 }
 
-static void _on_pause(eos_activity_t *act)
+static void _on_pause(cos_activity_t *act)
 {
     (void)act;
     if (s_timer) { lv_timer_del(s_timer); s_timer = NULL; }
 }
 
-static void _on_resume(eos_activity_t *act)
+static void _on_resume(cos_activity_t *act)
 {
     (void)act;
     if (!s_timer) {
@@ -295,7 +295,7 @@ static void _on_resume(eos_activity_t *act)
     }
 }
 
-static void _on_destroy(eos_activity_t *act)
+static void _on_destroy(cos_activity_t *act)
 {
     (void)act;
     if (s_timer) { lv_timer_del(s_timer); s_timer = NULL; }
@@ -305,21 +305,21 @@ static void _on_destroy(eos_activity_t *act)
     s_line = NULL;
 }
 
-static const eos_activity_lifecycle_t s_lifecycle = {
+static const cos_activity_lifecycle_t s_lifecycle = {
     .on_enter   = _on_enter,
     .on_pause   = _on_pause,
     .on_resume  = _on_resume,
     .on_destroy = _on_destroy,
 };
 
-void eos_profmonitor_enter(void)
+void cos_profmonitor_enter(void)
 {
-    EOS_LOG_I("ProfMonitor: enter");
-    eos_activity_t *act = eos_activity_create(&s_lifecycle);
-    eos_activity_set_type(act, EOS_ACTIVITY_TYPE_APP);
-    eos_activity_set_app_header_visible(act, false);
-    eos_activity_set_title(act, "ProfMonitor");
-    eos_activity_enter(act);
+    COS_LOG_I("ProfMonitor: enter");
+    cos_activity_t *act = cos_activity_create(&s_lifecycle);
+    cos_activity_set_type(act, COS_ACTIVITY_TYPE_APP);
+    cos_activity_set_app_header_visible(act, false);
+    cos_activity_set_title(act, "ProfMonitor");
+    cos_activity_enter(act);
 }
 
 #endif /* CONFIG_PROFMONITOR_APP_ENABLE */

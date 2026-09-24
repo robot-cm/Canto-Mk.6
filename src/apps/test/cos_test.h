@@ -1,10 +1,10 @@
 /**
- * @file eos_test.h
+ * @file cos_test.h
  * @brief System function test
  */
 
-#ifndef EOS_TEST_H
-#define EOS_TEST_H
+#ifndef COS_TEST_H
+#define COS_TEST_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,9 +22,9 @@ extern "C" {
 /**
  * @brief Start system function test
  */
-void eos_test_start(void);
+void cos_test_start(void);
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_TEST_H */
+#endif /* COS_TEST_H */

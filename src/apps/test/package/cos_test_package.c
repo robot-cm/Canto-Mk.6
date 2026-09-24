@@ -1,23 +1,23 @@
 /**
- * @file eos_test_package.c
+ * @file cos_test_package.c
  * @brief Package installation test module
  */
 
-#include "eos_config.h"
-#if EOS_ENABLE_TEST_APP
+#include "cos_config.h"
+#if COS_ENABLE_TEST_APP
 
-#include "eos_test_package.h"
-#include "eos_app.h"
-#include "eos_watchface.h"
-#include "eos_log.h"
-#include "eos_activity.h"
-#include "eos_basic_widgets.h"
-#include "eos_storage_paths.h"
+#include "cos_test_package.h"
+#include "cos_app.h"
+#include "cos_watchface.h"
+#include "cos_log.h"
+#include "cos_activity.h"
+#include "cos_basic_widgets.h"
+#include "cos_storage_paths.h"
 #include "lvgl.h"
 #include <string.h>
 #include <stdio.h>
 
-#define EOS_LOG_TAG "PackageTest"
+#define COS_LOG_TAG "PackageTest"
 #define MAX_PATH_LEN 256
 
 /* ============================================
@@ -77,8 +77,8 @@ static void _install_btn_cb(lv_event_t *e)
     }
 
     // Auto prepend filesystem root if not absolute
-    // EOS_SYS_ROOT_DIR = "fs/" is the filesystem root
-    // User packages go directly under fs/, not fs/elenixos/
+    // COS_SYS_ROOT_DIR = "fs/" is the filesystem root
+    // User packages go directly under fs/, not fs/cantomk6os/
     char full_path[MAX_PATH_LEN];
     if (input_path[0] == '/')
     {
@@ -87,26 +87,26 @@ static void _install_btn_cb(lv_event_t *e)
     }
     else
     {
-        // Relative path, prepend filesystem root (EOS_SYS_ROOT_DIR)
-        snprintf(full_path, sizeof(full_path), "%s%s", EOS_SYS_ROOT_DIR, input_path);
+        // Relative path, prepend filesystem root (COS_SYS_ROOT_DIR)
+        snprintf(full_path, sizeof(full_path), "%s%s", COS_SYS_ROOT_DIR, input_path);
     }
 
     lv_label_set_text(_ctx.status_label, "Installing...");
     lv_obj_set_style_text_color(_ctx.status_label, lv_color_hex(0xFFFF00), 0);
     lv_refr_now(NULL);
 
-    EOS_LOG_I("Full package path: %s", full_path);
+    COS_LOG_I("Full package path: %s", full_path);
 
-    eos_result_t ret;
+    cos_result_t ret;
     if (_is_eapk_file(full_path))
     {
-        EOS_LOG_I("Installing application: %s", full_path);
-        ret = eos_app_install(full_path);
+        COS_LOG_I("Installing application: %s", full_path);
+        ret = cos_app_install(full_path);
     }
     else if (_is_ewpk_file(full_path))
     {
-        EOS_LOG_I("Installing watchface: %s", full_path);
-        ret = eos_watchface_install(full_path);
+        COS_LOG_I("Installing watchface: %s", full_path);
+        ret = cos_watchface_install(full_path);
     }
     else
     {
@@ -115,7 +115,7 @@ static void _install_btn_cb(lv_event_t *e)
         return;
     }
 
-    if (ret == EOS_OK)
+    if (ret == COS_OK)
     {
         lv_label_set_text(_ctx.status_label, "Installation successful!");
         lv_obj_set_style_text_color(_ctx.status_label, lv_color_hex(0x4CAF50), 0);
@@ -134,7 +134,7 @@ static void _install_btn_cb(lv_event_t *e)
  * Activity lifecycle
  * ============================================ */
 
-static void _package_test_on_destroy(eos_activity_t *activity)
+static void _package_test_on_destroy(cos_activity_t *activity)
 {
     LV_UNUSED(activity);
 
@@ -146,7 +146,7 @@ static void _package_test_on_destroy(eos_activity_t *activity)
     memset(_ctx.path_buffer, 0, sizeof(_ctx.path_buffer));
 }
 
-static const eos_activity_lifecycle_t _s_package_test_lifecycle = {.on_enter = NULL,
+static const cos_activity_lifecycle_t _s_package_test_lifecycle = {.on_enter = NULL,
                                                                    .on_destroy = _package_test_on_destroy,
                                                                    .on_pause = NULL,
                                                                    .on_resume = NULL};
@@ -155,22 +155,22 @@ static const eos_activity_lifecycle_t _s_package_test_lifecycle = {.on_enter = N
  * Main test function
  * ============================================ */
 
-void eos_test_package_start(void)
+void cos_test_package_start(void)
 {
-    eos_activity_t *activity = eos_activity_create(&_s_package_test_lifecycle);
+    cos_activity_t *activity = cos_activity_create(&_s_package_test_lifecycle);
     if (!activity)
     {
         return;
     }
 
-    lv_obj_t *view = eos_activity_get_view(activity);
+    lv_obj_t *view = cos_activity_get_view(activity);
     if (!view)
     {
         return;
     }
 
-    eos_activity_set_title(activity, "Package Installer");
-    eos_activity_set_type(activity, EOS_ACTIVITY_TYPE_APP);
+    cos_activity_set_title(activity, "Package Installer");
+    cos_activity_set_type(activity, COS_ACTIVITY_TYPE_APP);
 
     /* Create container */
     _ctx.container = lv_obj_create(view);
@@ -214,11 +214,11 @@ void eos_test_package_start(void)
     /* Create hint label */
     lv_obj_t *hint_label = lv_label_create(_ctx.container);
     lv_label_set_text(hint_label,
-                      "Supported: .eapk (app), .ewpk (watchface)\nPath auto-prefixed with '" EOS_SYS_ROOT_DIR "'");
+                      "Supported: .eapk (app), .ewpk (watchface)\nPath auto-prefixed with '" COS_SYS_ROOT_DIR "'");
     lv_obj_set_style_text_color(hint_label, lv_color_hex(0x808080), 0);
 
     /* Enter activity */
-    eos_activity_enter(activity);
+    cos_activity_enter(activity);
 }
 
-#endif /* EOS_ENABLE_TEST_APP */
+#endif /* COS_ENABLE_TEST_APP */

@@ -6,7 +6,7 @@
 #include "sni_api_lv_special.h"
 
 /* Includes ---------------------------------------------------*/
-#include "eos_mem.h"
+#include "cos_mem.h"
 #include "lvgl.h"
 #include "sni_api_export.h"
 #include "sni_callback_runtime.h"
@@ -57,7 +57,7 @@ jerry_value_t sni_api_ctor_anim(const jerry_call_info_t *call_info_p,
     if (!sni_tb_c2js_set_object(&ctx, SNI_H_LV_ANIM, call_info_p->this_value))
     {
         sni_context_remove_anim(sni_cb_get_context(), ctx);
-        eos_free(ctx);
+        cos_free(ctx);
         return sni_api_throw_error("Failed to bind native object");
     }
 

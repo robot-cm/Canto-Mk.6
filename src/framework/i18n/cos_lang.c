@@ -1,22 +1,22 @@
 /**
- * @file eos_lang.c
+ * @file cos_lang.c
  * @brief Multi-language system
  */
 
-#include "eos_lang.h"
+#include "cos_lang.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include "eos_event.h"
-#define EOS_LOG_TAG "Language"
-#include "eos_log.h"
+#include "cos_event.h"
+#define COS_LOG_TAG "Language"
+#include "cos_log.h"
 #include "lvgl.h"
-#include "eos_service_config.h"
-#include "eos_icon.h"
-#include "eos_mem.h"
+#include "cos_service_config.h"
+#include "cos_icon.h"
+#include "cos_mem.h"
 
 /* Macros and Definitions -------------------------------------*/
 /**
@@ -52,13 +52,13 @@ const char *lang_en[STR_ID_MAX_NUMBER] = {
     [STR_ID_SETTINGS_DISPLAY] = "Display",
     [STR_ID_SETTINGS_DISPLAY_BRIGHTNESS] = "Brightness",
     [STR_ID_SETTINGS_DISPLAY_AOD] = "AOD",
-    [STR_ID_SETTINGS_DISPLAY_AOD_COMMENT] = "Elenix Watch can show the time at all times.",
+    [STR_ID_SETTINGS_DISPLAY_AOD_COMMENT] = "CantoMk6 Watch can show the time at all times.",
     [STR_ID_SETTINGS_WAKE] = "Wake",
     [STR_ID_SETTINGS_WAKE_DURATION] = "Wake Duration",
     [STR_ID_SETTINGS_WAKE_ON_RAISE] = "Wake on raise",
     [STR_ID_SETTINGS_WAKE_FOR_N_SECONDS] = "Wake for %d seconds",
     [STR_ID_SETTINGS_WAKE_ON_TAP] = "On tap",
-    [STR_ID_SETTINGS_WAKE_ON_TAP_COMMENT] = "Choose 'Tap to Wake' on the Elenix Watch, then set the wake duration.",
+    [STR_ID_SETTINGS_WAKE_ON_TAP_COMMENT] = "Choose 'Tap to Wake' on the CantoMk6 Watch, then set the wake duration.",
     [STR_ID_SETTINGS_HAPTICS_STRENGTH] = "Haptics strength",
     [STR_ID_SETTINGS_HAPTICS] = "Haptics",
     [STR_ID_SETTINGS_NOTIFICATION] = "Notification",
@@ -87,14 +87,14 @@ const char *lang_en[STR_ID_MAX_NUMBER] = {
     [STR_ID_SETTINGS_GENERAL_LANGUAGE] = "Language",
     [STR_ID_SETTINGS_GENERAL_DEVICE_INFO] = "Device info",
     [STR_ID_SETTINGS_GENERAL_DEVICE_NAME] = "Device name",
-    [STR_ID_SETTINGS_GENERAL_EOS_VER] = "ElenixOS version",
+    [STR_ID_SETTINGS_GENERAL_COS_VER] = "CantoMk6 version",
     [STR_ID_SETTINGS_GENERAL_MARKETING_NAME] = "Marketing name",
     [STR_ID_SETTINGS_GENERAL_MODEL_NUMBER] = "Model number",
     [STR_ID_SETTINGS_GENERAL_OPEN_SOURCE] = "Open Source",
-    [STR_ID_SETTINGS_GENERAL_OPEN_SOURCE_CONTENT] = "ElenixOS is open-sourced on GitHub:\n"
-                                                    "https://github.com/\nElenixOS/ElenixOS",
+    [STR_ID_SETTINGS_GENERAL_OPEN_SOURCE_CONTENT] = "CantoMk6 is open-sourced on GitHub:\n"
+                                                    "https://github.com/\nCantoMk6/CantoMk6",
     [STR_ID_SETTINGS_GENERAL_LEGAL_INFO] = "Legal info",
-    [STR_ID_SETTINGS_GENERAL_LEGAL_INFO_CONTENT] = "ElenixOS is licensed under the Apache License, Version 2.0.\n"
+    [STR_ID_SETTINGS_GENERAL_LEGAL_INFO_CONTENT] = "CantoMk6 is licensed under the Apache License, Version 2.0.\n"
                                                    "See full license at:\n"
                                                    "https://www.apache.org/\nlicenses/LICENSE-2.0",
     [STR_ID_SETTINGS_SOUNDS_AND_HAPTICS] = "Sounds & Haptics",
@@ -196,13 +196,13 @@ const char *lang_zh[STR_ID_MAX_NUMBER] = {
     [STR_ID_SETTINGS_DISPLAY] = "显示",
     [STR_ID_SETTINGS_DISPLAY_BRIGHTNESS] = "亮度",
     [STR_ID_SETTINGS_DISPLAY_AOD] = "全天候显示",
-    [STR_ID_SETTINGS_DISPLAY_AOD_COMMENT] = "Elenix Watch可始终显示时间。",
+    [STR_ID_SETTINGS_DISPLAY_AOD_COMMENT] = "CantoMk6 Watch可始终显示时间。",
     [STR_ID_SETTINGS_WAKE] = "唤醒",
     [STR_ID_SETTINGS_WAKE_DURATION] = "唤醒时长",
     [STR_ID_SETTINGS_WAKE_ON_RAISE] = "抬腕时唤醒",
     [STR_ID_SETTINGS_WAKE_FOR_N_SECONDS] = "唤醒 %d 秒",
     [STR_ID_SETTINGS_WAKE_ON_TAP] = "轻点时",
-    [STR_ID_SETTINGS_WAKE_ON_TAP_COMMENT] = "选择轻点唤醒Elenix Watch的屏幕后，保持唤醒的时长。",
+    [STR_ID_SETTINGS_WAKE_ON_TAP_COMMENT] = "选择轻点唤醒CantoMk6 Watch的屏幕后，保持唤醒的时长。",
     [STR_ID_SETTINGS_HAPTICS_STRENGTH] = "触感强度",
     [STR_ID_SETTINGS_HAPTICS] = "触感",
     [STR_ID_SETTINGS_NOTIFICATION] = "通知",
@@ -231,14 +231,14 @@ const char *lang_zh[STR_ID_MAX_NUMBER] = {
     [STR_ID_SETTINGS_GENERAL_LANGUAGE] = "语言",
     [STR_ID_SETTINGS_GENERAL_DEVICE_INFO] = "设备信息",
     [STR_ID_SETTINGS_GENERAL_DEVICE_NAME] = "设备名称",
-    [STR_ID_SETTINGS_GENERAL_EOS_VER] = "ElenixOS 版本",
+    [STR_ID_SETTINGS_GENERAL_COS_VER] = "CantoMk6 版本",
     [STR_ID_SETTINGS_GENERAL_MARKETING_NAME] = "型号名称",
     [STR_ID_SETTINGS_GENERAL_MODEL_NUMBER] = "型号",
     [STR_ID_SETTINGS_GENERAL_OPEN_SOURCE] = "开源信息",
-    [STR_ID_SETTINGS_GENERAL_OPEN_SOURCE_CONTENT] = "ElenixOS 已经在 GitHub 开源：\n"
-                                                    "https://github.com/\nElenixOS/ElenixOS",
+    [STR_ID_SETTINGS_GENERAL_OPEN_SOURCE_CONTENT] = "CantoMk6 已经在 GitHub 开源：\n"
+                                                    "https://github.com/\nCantoMk6/CantoMk6",
     [STR_ID_SETTINGS_GENERAL_LEGAL_INFO] = "法律信息",
-    [STR_ID_SETTINGS_GENERAL_LEGAL_INFO_CONTENT] = "ElenixOS 采用 Apache License 2.0 授权。\n"
+    [STR_ID_SETTINGS_GENERAL_LEGAL_INFO_CONTENT] = "CantoMk6 采用 Apache License 2.0 授权。\n"
                                                    "更多信息请查看：\n"
                                                    "https://www.apache.org/\nlicenses/LICENSE-2.0",
     [STR_ID_SETTINGS_SOUNDS_AND_HAPTICS] = "声效与触感反馈",
@@ -315,30 +315,30 @@ static const char **current_lang = NULL; // Current language pointer
 static bool lang_initialized = false; // Language system initialized flag
 
 /* Function Implementations -----------------------------------*/
-static void lang_event_eos_cb(eos_event_t *e);
-void eos_lang_set_current_id(language_id_t lang);
-language_id_t eos_lang_parse_name(const char *language_name);
+static void lang_event_cos_cb(cos_event_t *e);
+void cos_lang_set_current_id(language_id_t lang);
+language_id_t cos_lang_parse_name(const char *language_name);
 
-void eos_lang_init(void)
+void cos_lang_init(void)
 {
-    EOS_LOG_D("Init eos_lang");
+    COS_LOG_D("Init cos_lang");
     if (!lang_initialized)
     {
         /**
-         * During first system startup, use the default language from eos_config.h.
+         * During first system startup, use the default language from cos_config.h.
          * If config service has a language setting, it will be used;
          * otherwise, the default language is applied.
          */
-        const char *default_lang = EOS_CONFIG_DEFAULT_LANGUAGE == 1 ? "简体中文" : "English";
-        const char *lang_str = eos_config_get_string(EOS_CONFIG_KEY_LANGUAGE_STR, default_lang);
-        eos_lang_set_current_id(eos_lang_parse_name(lang_str));
+        const char *default_lang = COS_CONFIG_DEFAULT_LANGUAGE == 1 ? "简体中文" : "English";
+        const char *lang_str = cos_config_get_string(COS_CONFIG_KEY_LANGUAGE_STR, default_lang);
+        cos_lang_set_current_id(cos_lang_parse_name(lang_str));
         lang_initialized = true;
-        EOS_LOG_I("Language initialized: %s (default: %s)", lang_str, default_lang);
-        eos_free(lang_str);
+        COS_LOG_I("Language initialized: %s (default: %s)", lang_str, default_lang);
+        cos_free(lang_str);
     }
 }
 
-void eos_lang_set_current_id(language_id_t lang)
+void cos_lang_set_current_id(language_id_t lang)
 {
     switch (lang)
     {
@@ -354,12 +354,12 @@ void eos_lang_set_current_id(language_id_t lang)
     }
 
     // Use event broadcast system to refresh all labels
-    eos_event_post(EOS_EVENT_LANGUAGE_CHANGED, NULL, NULL);
+    cos_event_post(COS_EVENT_LANGUAGE_CHANGED, NULL, NULL);
 
-    EOS_LOG_D("Language changed");
+    COS_LOG_D("Language changed");
 }
 
-language_id_t eos_lang_get_current_id(void)
+language_id_t cos_lang_get_current_id(void)
 {
     if (current_lang == lang_zh)
     {
@@ -375,9 +375,9 @@ language_id_t eos_lang_get_current_id(void)
     }
 }
 
-language_id_t eos_lang_parse_name(const char *language_name)
+language_id_t cos_lang_parse_name(const char *language_name)
 {
-    EOS_CHECK_PTR_RETURN_VAL(language_name, LANG_EN);
+    COS_CHECK_PTR_RETURN_VAL(language_name, LANG_EN);
 
     if (strcmp(language_list[LANG_EN], language_name) == 0)
     {
@@ -389,12 +389,12 @@ language_id_t eos_lang_parse_name(const char *language_name)
     }
     else
     {
-        EOS_LOG_E("Language not found: %s", language_name);
+        COS_LOG_E("Language not found: %s", language_name);
         return LANG_EN;
     }
 }
 
-const char *eos_lang_get_name(language_id_t lang)
+const char *cos_lang_get_name(language_id_t lang)
 {
     // Get language name by ID
     if (lang < 0 || lang >= LANG_MAX_NUMBER)
@@ -405,12 +405,12 @@ const char *eos_lang_get_name(language_id_t lang)
     return language_list[lang];
 }
 
-const char *eos_lang_get_current_name(void)
+const char *cos_lang_get_current_name(void)
 {
-    return eos_lang_get_name(eos_lang_get_current_id());
+    return cos_lang_get_name(cos_lang_get_current_id());
 }
 
-const char *eos_lang_get_text(lang_string_id_t id)
+const char *cos_lang_get_text(lang_string_id_t id)
 {
     if (id < 0 || id >= STR_ID_MAX_NUMBER || !current_lang || !current_lang[id])
         return NULL;
@@ -418,21 +418,21 @@ const char *eos_lang_get_text(lang_string_id_t id)
     return current_lang[id];
 }
 
-language_id_t eos_lang_get_current_id_with_str(const char *language_str)
+language_id_t cos_lang_get_current_id_with_str(const char *language_str)
 {
-    return eos_lang_parse_name(language_str);
+    return cos_lang_parse_name(language_str);
 }
 
-static void lang_event_eos_cb(eos_event_t *e)
+static void lang_event_cos_cb(cos_event_t *e)
 {
-    lv_obj_t *label = eos_event_get_obj(e);
+    lv_obj_t *label = cos_event_get_obj(e);
     if (!label || !lv_obj_is_valid(label))
     {
         return;
     }
 
-    lang_string_id_t str_id = (lang_string_id_t)(uintptr_t)eos_event_get_user_data(e);
-    const char *text = eos_lang_get_text(str_id);
+    lang_string_id_t str_id = (lang_string_id_t)(uintptr_t)cos_event_get_user_data(e);
+    const char *text = cos_lang_get_text(str_id);
     if (text)
     {
         lv_label_set_text(label, text);
@@ -442,34 +442,34 @@ static void lang_event_eos_cb(eos_event_t *e)
 static void _lang_label_deleted_cb(lv_event_t *e)
 {
     lv_obj_t *label = lv_event_get_target(e);
-    eos_event_unsubscribe_with_obj(EOS_EVENT_LANGUAGE_CHANGED, lang_event_eos_cb, label);
+    cos_event_unsubscribe_with_obj(COS_EVENT_LANGUAGE_CHANGED, lang_event_cos_cb, label);
 }
 
-void eos_label_set_text_id(lv_obj_t *label, lang_string_id_t str_id)
+void cos_label_set_text_id(lv_obj_t *label, lang_string_id_t str_id)
 {
-    EOS_CHECK_PTR_RETURN(label);
+    COS_CHECK_PTR_RETURN(label);
 
-    const char *text = eos_lang_get_text(str_id);
+    const char *text = cos_lang_get_text(str_id);
     if (text)
     {
         lv_label_set_text(label, text);
     }
 
-    eos_event_unsubscribe_with_obj(EOS_EVENT_LANGUAGE_CHANGED, lang_event_eos_cb, label);
-    eos_event_subscribe_ex(EOS_EVENT_LANGUAGE_CHANGED, lang_event_eos_cb, (void *)(uintptr_t)str_id, label);
+    cos_event_unsubscribe_with_obj(COS_EVENT_LANGUAGE_CHANGED, lang_event_cos_cb, label);
+    cos_event_subscribe_ex(COS_EVENT_LANGUAGE_CHANGED, lang_event_cos_cb, (void *)(uintptr_t)str_id, label);
     lv_obj_add_event_cb(label, _lang_label_deleted_cb, LV_EVENT_DELETE, NULL);
 }
 
-lv_obj_t *eos_lang_label_create(lv_obj_t *parent, lang_string_id_t str_id)
+lv_obj_t *cos_lang_label_create(lv_obj_t *parent, lang_string_id_t str_id)
 {
-    EOS_CHECK_PTR_RETURN_VAL(parent, NULL);
+    COS_CHECK_PTR_RETURN_VAL(parent, NULL);
 
     // Create label
     lv_obj_t *label = lv_label_create(parent);
     if (!label)
         return NULL;
 
-    eos_label_set_text_id(label, str_id);
+    cos_label_set_text_id(label, str_id);
 
     return label;
 }

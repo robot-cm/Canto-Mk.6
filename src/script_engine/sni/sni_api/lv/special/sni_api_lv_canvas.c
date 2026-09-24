@@ -11,8 +11,8 @@
 #include "sni_api_export.h"
 #include "sni_type_bridge.h"
 #include "sni_types.h"
-#include "eos_mem.h"
-#include "eos_basic_widgets.h"
+#include "cos_mem.h"
+#include "cos_basic_widgets.h"
 
 /* Macros and Definitions -------------------------------------*/
 
@@ -66,7 +66,7 @@ static void sni_canvas_ctx_remove(lv_obj_t *obj)
     }
 
     cb->aux = NULL;
-    eos_free(ctx);
+    cos_free(ctx);
 }
 
 static void sni_canvas_ctx_delete_cb(lv_event_t *e)
@@ -86,7 +86,7 @@ static void sni_canvas_ctx_delete_cb(lv_event_t *e)
 
     if (ctx->owned_draw_buf)
     {
-        eos_draw_buf_destroy(ctx->owned_draw_buf);
+        cos_draw_buf_destroy(ctx->owned_draw_buf);
         ctx->owned_draw_buf = NULL;
     }
 
@@ -106,7 +106,7 @@ static sni_canvas_buf_ctx_t *sni_canvas_ctx_get_or_create(lv_obj_t *obj)
         return (sni_canvas_buf_ctx_t *)cb->aux;
     }
 
-    sni_canvas_buf_ctx_t *ctx = eos_malloc_zeroed(sizeof(sni_canvas_buf_ctx_t));
+    sni_canvas_buf_ctx_t *ctx = cos_malloc_zeroed(sizeof(sni_canvas_buf_ctx_t));
     if (!ctx)
     {
         return NULL;
@@ -165,11 +165,11 @@ jerry_value_t sni_api_lv_canvas_init_buffer(const jerry_call_info_t *call_info_p
 
     if (ctx->owned_draw_buf)
     {
-        eos_draw_buf_destroy(ctx->owned_draw_buf);
+        cos_draw_buf_destroy(ctx->owned_draw_buf);
         ctx->owned_draw_buf = NULL;
     }
 
-    lv_draw_buf_t *buf = eos_draw_buf_create((uint32_t)w, (uint32_t)h, cf, stride);
+    lv_draw_buf_t *buf = cos_draw_buf_create((uint32_t)w, (uint32_t)h, cf, stride);
     if (!buf)
     {
         return sni_api_throw_error("Failed to create draw buffer");
@@ -200,7 +200,7 @@ jerry_value_t sni_api_lv_canvas_free_buffer(const jerry_call_info_t *call_info_p
     sni_canvas_buf_ctx_t *ctx = sni_canvas_ctx_find(self_obj);
     if (ctx && ctx->owned_draw_buf)
     {
-        eos_draw_buf_destroy(ctx->owned_draw_buf);
+        cos_draw_buf_destroy(ctx->owned_draw_buf);
         ctx->owned_draw_buf = NULL;
     }
 

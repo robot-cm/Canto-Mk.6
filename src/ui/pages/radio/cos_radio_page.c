@@ -1,23 +1,23 @@
 /**
- * @file eos_radio_page.c
+ * @file cos_radio_page.c
  * @brief Radio page - single-selection list page
  */
 
-#include "eos_radio_page.h"
+#include "cos_radio_page.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
-#define EOS_LOG_TAG "RadioPage"
-#include "eos_log.h"
-#include "eos_port.h"
-#include "eos_basic_widgets.h"
-#include "eos_corner_radius.h"
-#include "eos_app_header.h"
-#include "eos_theme.h"
-#include "eos_icon.h"
-#include "eos_mem.h"
-#include "eos_activity.h"
+#define COS_LOG_TAG "RadioPage"
+#include "cos_log.h"
+#include "cos_port.h"
+#include "cos_basic_widgets.h"
+#include "cos_corner_radius.h"
+#include "cos_app_header.h"
+#include "cos_theme.h"
+#include "cos_icon.h"
+#include "cos_mem.h"
+#include "cos_activity.h"
 
 /* Macros and Definitions -------------------------------------*/
 #define _RADIO_ITEM_HEIGHT 100
@@ -25,7 +25,7 @@
 
 #define _RADIO_ITEM_TITLE_LABEL_INDEX 0
 #define _RADIO_ITEM_CHECK_LABEL_INDEX 1
-struct eos_radio_page_t
+struct cos_radio_page_t
 {
     lv_obj_t *screen;
     lv_obj_t *subtitle_label;
@@ -33,7 +33,7 @@ struct eos_radio_page_t
     lv_obj_t *comment_label;
     lv_obj_t *last_right_label;
     lv_obj_t *last_item;
-    eos_activity_t *activity;
+    cos_activity_t *activity;
     uint32_t selected_index;
     uint32_t item_number;
 };
@@ -41,7 +41,7 @@ struct eos_radio_page_t
 
 /* Function Implementations -----------------------------------*/
 
-static void _radio_item_check(eos_radio_page_t *rp, lv_obj_t *right_label)
+static void _radio_item_check(cos_radio_page_t *rp, lv_obj_t *right_label)
 {
     if (rp->last_right_label == right_label)
         return;
@@ -57,33 +57,33 @@ static void _radio_item_clicked_cb(lv_event_t *e)
 {
     lv_obj_t *obj = lv_event_get_target(e);
     uint32_t index = (uint32_t)lv_obj_get_user_data(obj);
-    eos_radio_page_t *rp = lv_event_get_user_data(e);
-    EOS_CHECK_PTR_RETURN(rp);
+    cos_radio_page_t *rp = lv_event_get_user_data(e);
+    COS_CHECK_PTR_RETURN(rp);
     lv_obj_t *label = lv_obj_get_child(obj, _RADIO_ITEM_CHECK_LABEL_INDEX);
-    EOS_CHECK_PTR_RETURN(label);
+    COS_CHECK_PTR_RETURN(label);
     _radio_item_check(rp, label);
     lv_obj_send_event(rp->radio_item_container, LV_EVENT_VALUE_CHANGED, (void *)(intptr_t)index);
 }
 
-void eos_radio_page_check(eos_radio_page_t *rp, uint32_t index)
+void cos_radio_page_check(cos_radio_page_t *rp, uint32_t index)
 {
-    EOS_CHECK_PTR_RETURN(rp);
+    COS_CHECK_PTR_RETURN(rp);
     lv_obj_t *item = lv_obj_get_child(rp->radio_item_container, index);
-    EOS_CHECK_PTR_RETURN(item);
+    COS_CHECK_PTR_RETURN(item);
     lv_obj_t *check_label = lv_obj_get_child(item, _RADIO_ITEM_CHECK_LABEL_INDEX);
-    EOS_CHECK_PTR_RETURN(check_label);
+    COS_CHECK_PTR_RETURN(check_label);
     _radio_item_check(rp, check_label);
 }
 
-uint32_t eos_radio_page_add_item(eos_radio_page_t *rp, const char *txt)
+uint32_t cos_radio_page_add_item(cos_radio_page_t *rp, const char *txt)
 {
-    EOS_CHECK_PTR_RETURN_VAL(rp && txt && rp->radio_item_container, EOS_INVALID_RADIO_INDEX);
+    COS_CHECK_PTR_RETURN_VAL(rp && txt && rp->radio_item_container, COS_INVALID_RADIO_INDEX);
     lv_obj_t *item = lv_button_create(rp->radio_item_container);
     lv_obj_set_size(item, lv_pct(100), _RADIO_ITEM_HEIGHT);
-    lv_obj_set_style_bg_color(item, EOS_THEME_BUTTON_COLOR, 0);
+    lv_obj_set_style_bg_color(item, COS_THEME_BUTTON_COLOR, 0);
     lv_obj_set_style_bg_opa(item, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(item, 0, 0);
-    lv_obj_set_style_pad_hor(item, EOS_LIST_CONTAINER_PAD_ALL, 0);
+    lv_obj_set_style_pad_hor(item, COS_LIST_CONTAINER_PAD_ALL, 0);
     lv_obj_set_style_margin_all(item, 0, 0);
 
     lv_obj_update_layout(item);
@@ -98,26 +98,26 @@ uint32_t eos_radio_page_add_item(eos_radio_page_t *rp, const char *txt)
 
     lv_obj_t *check_label = lv_label_create(item);
     lv_label_set_text(check_label, RI_CHECK_FILL);
-    lv_obj_set_style_text_color(check_label, EOS_COLOR_TEXT_GREY, 0);
+    lv_obj_set_style_text_color(check_label, COS_COLOR_TEXT_GREY, 0);
     lv_obj_align(check_label, LV_ALIGN_RIGHT_MID, 0, 0);
     if (rp->item_number == 0)
     {
         _radio_item_check(rp, check_label);
-        eos_obj_set_corner_radius_bg(item,
-                                     EOS_ROUND_TOP_LEFT | EOS_ROUND_TOP_RIGHT,
-                                     EOS_ITEM_RADIUS,
-                                     EOS_THEME_BUTTON_COLOR);
+        cos_obj_set_corner_radius_bg(item,
+                                     COS_ROUND_TOP_LEFT | COS_ROUND_TOP_RIGHT,
+                                     COS_ITEM_RADIUS,
+                                     COS_THEME_BUTTON_COLOR);
     }
     else
     {
         if (rp->item_number > 1)
         {
-            eos_obj_remove_corner_radius_bg(rp->last_item);
+            cos_obj_remove_corner_radius_bg(rp->last_item);
         }
-        eos_obj_set_corner_radius_bg(item,
-                                     EOS_ROUND_BOTTOM_LEFT | EOS_ROUND_BOTTOM_RIGHT,
-                                     EOS_ITEM_RADIUS,
-                                     EOS_THEME_BUTTON_COLOR);
+        cos_obj_set_corner_radius_bg(item,
+                                     COS_ROUND_BOTTOM_LEFT | COS_ROUND_BOTTOM_RIGHT,
+                                     COS_ITEM_RADIUS,
+                                     COS_THEME_BUTTON_COLOR);
         lv_obj_add_flag(check_label, LV_OBJ_FLAG_HIDDEN);
     }
 
@@ -134,50 +134,50 @@ uint32_t eos_radio_page_add_item(eos_radio_page_t *rp, const char *txt)
     return item_index;
 }
 
-void eos_radio_page_set_subtitle(eos_radio_page_t *rp, const char *subtitle)
+void cos_radio_page_set_subtitle(cos_radio_page_t *rp, const char *subtitle)
 {
-    EOS_CHECK_PTR_RETURN(rp && subtitle && rp->subtitle_label);
+    COS_CHECK_PTR_RETURN(rp && subtitle && rp->subtitle_label);
     lv_label_set_text(rp->subtitle_label, subtitle);
 }
 
-void eos_radio_page_set_comment(eos_radio_page_t *rp, const char *comment)
+void cos_radio_page_set_comment(cos_radio_page_t *rp, const char *comment)
 {
-    EOS_CHECK_PTR_RETURN(rp && comment && rp->comment_label);
+    COS_CHECK_PTR_RETURN(rp && comment && rp->comment_label);
     lv_label_set_text(rp->comment_label, comment);
 }
 
-void eos_radio_page_add_event_cb(eos_radio_page_t *rp, lv_event_cb_t event_cb, void *user_data)
+void cos_radio_page_add_event_cb(cos_radio_page_t *rp, lv_event_cb_t event_cb, void *user_data)
 {
-    EOS_CHECK_PTR_RETURN(rp && rp->radio_item_container);
+    COS_CHECK_PTR_RETURN(rp && rp->radio_item_container);
     lv_obj_add_event_cb(rp->radio_item_container, event_cb, LV_EVENT_VALUE_CHANGED, user_data);
 }
 
-static const eos_activity_lifecycle_t radio_page_lifecycle = {
+static const cos_activity_lifecycle_t radio_page_lifecycle = {
     .on_enter = NULL,
     .on_destroy = NULL,
     .on_pause = NULL,
     .on_resume = NULL,
 };
 
-eos_radio_page_t *eos_radio_page_create(const char *title)
+cos_radio_page_t *cos_radio_page_create(const char *title)
 {
-    eos_radio_page_t *rp = eos_malloc_zeroed(sizeof(eos_radio_page_t));
-    EOS_CHECK_PTR_RETURN_VAL(rp, NULL);
+    cos_radio_page_t *rp = cos_malloc_zeroed(sizeof(cos_radio_page_t));
+    COS_CHECK_PTR_RETURN_VAL(rp, NULL);
 
     rp->item_number = 0;
     rp->selected_index = 0;
 
-    eos_activity_t *a = eos_activity_create(&radio_page_lifecycle);
-    EOS_CHECK_PTR_RETURN_VAL(a, NULL);
-    eos_activity_set_title(a, title);
-    eos_activity_set_app_header_visible(a, true);
+    cos_activity_t *a = cos_activity_create(&radio_page_lifecycle);
+    COS_CHECK_PTR_RETURN_VAL(a, NULL);
+    cos_activity_set_title(a, title);
+    cos_activity_set_app_header_visible(a, true);
     /* 恢复 header 时钟(Settings 系列页面将其隐藏) */
-    eos_app_header_set_clock_visible(true);
-    lv_obj_t *view = eos_activity_get_view(a);
+    cos_app_header_set_clock_visible(true);
+    lv_obj_t *view = cos_activity_get_view(a);
 
-    lv_obj_t *list = eos_list_create(view);
+    lv_obj_t *list = cos_list_create(view);
 
-    rp->subtitle_label = eos_list_add_title(list, title);
+    rp->subtitle_label = cos_list_add_title(list, title);
 
     lv_obj_t *con = lv_obj_create(list);
     lv_obj_remove_style_all(con);
@@ -192,15 +192,15 @@ eos_radio_page_t *eos_radio_page_create(const char *title)
     lv_obj_set_style_pad_bottom(con, 0, 0);
 
     rp->radio_item_container = con;
-    rp->comment_label = eos_list_add_comment(list, "");
+    rp->comment_label = cos_list_add_comment(list, "");
     rp->activity = a;
 
-    eos_activity_set_user_data(a, rp);
+    cos_activity_set_user_data(a, rp);
     return rp;
 }
 
-void eos_radio_page_show(eos_radio_page_t *rp)
+void cos_radio_page_show(cos_radio_page_t *rp)
 {
-    EOS_CHECK_PTR_RETURN(rp);
-    eos_activity_enter(rp->activity);
+    COS_CHECK_PTR_RETURN(rp);
+    cos_activity_enter(rp->activity);
 }

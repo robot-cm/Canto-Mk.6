@@ -1,32 +1,32 @@
 /**
- * @file eos_wos_app_manager.c
+ * @file cos_wos_app_manager.c
  * @brief WOS App Manager implementation
  */
-#include "eos_wos_app_manager.h"
+#include "cos_wos_app_manager.h"
 
-#include "eos_wos_transition.h"
-#include "eos_overlay_layer.h"
-#include "eos_touch.h"
-#include "eos_log.h"
-#include "eos_mem.h"
+#include "cos_wos_transition.h"
+#include "cos_overlay_layer.h"
+#include "cos_touch.h"
+#include "cos_log.h"
+#include "cos_mem.h"
 #include <string.h>
 
-#define EOS_LOG_TAG "WosMgr"
+#define COS_LOG_TAG "WosMgr"
 
 /* Registry --------------------------------------------------*/
-static const eos_wos_app_desc_t *s_registry[WOS_MAX_REGISTERED_APPS];
+static const cos_wos_app_desc_t *s_registry[WOS_MAX_REGISTERED_APPS];
 static int s_reg_count = 0;
 
 /* Active app -------------------------------------------------*/
-static eos_wos_app_t *s_active = NULL;
+static cos_wos_app_t *s_active = NULL;
 static wos_app_state_t s_state = WOS_APP_STATE_IDLE;
 static bool s_inited = false;
 
-static void _cleanup_app(eos_wos_app_t *app);
+static void _cleanup_app(cos_wos_app_t *app);
 
 /* ---- internal helpers ---- */
 
-static const eos_wos_app_desc_t *_find(const char *id)
+static const cos_wos_app_desc_t *_find(const char *id)
 {
     int i;
     for (i = 0; i < s_reg_count; i++)
@@ -56,20 +56,20 @@ static void _indev_swipe_close_cb(lv_event_t *e)
 /* Deferred teardown after the close animation (150ms) finishes. */
 static void _close_deferred_cb(lv_timer_t *tm)
 {
-    EOS_LOG_I("wos: deferred cleanup fired (tick=%u)", (unsigned)lv_tick_get());
+    COS_LOG_I("wos: deferred cleanup fired (tick=%u)", (unsigned)lv_tick_get());
     if (tm)
         lv_timer_delete(tm);
     if (s_active)
     {
-        eos_wos_app_t *app = s_active;
+        cos_wos_app_t *app = s_active;
         s_active = NULL;
         _cleanup_app(app);
     }
     s_state = WOS_APP_STATE_IDLE;
-    EOS_LOG_I("wos: app closed (state=IDLE)");
+    COS_LOG_I("wos: app closed (state=IDLE)");
 }
 
-static void _cleanup_app(eos_wos_app_t *app)
+static void _cleanup_app(cos_wos_app_t *app)
 {
     if (!app)
         return;
@@ -94,10 +94,10 @@ static void _cleanup_app(eos_wos_app_t *app)
     /* 4. cleanup audit — nothing may remain */
     if (app->root != NULL || app->timer_cnt != 0)
     {
-        EOS_LOG_E("wos: LEAK in app '%s' (root/timer audit failed)",
+        COS_LOG_E("wos: LEAK in app '%s' (root/timer audit failed)",
                   app->desc ? app->desc->id : "?");
     }
-    eos_free(app);
+    cos_free(app);
 }
 
 /* ---- public API ---- */
@@ -112,23 +112,23 @@ void wos_app_manager_init(void)
     s_state = WOS_APP_STATE_IDLE;
 
     /* Left-swipe closes the active WOS app. */
-    lv_indev_t *indev = eos_touch_get_indev();
+    lv_indev_t *indev = cos_touch_get_indev();
     if (indev)
     {
         lv_indev_add_event_cb(indev, _indev_swipe_close_cb, LV_EVENT_GESTURE, NULL);
     }
 
-    EOS_LOG_I("wos: App Manager initialized (registry=%d)", WOS_MAX_REGISTERED_APPS);
+    COS_LOG_I("wos: App Manager initialized (registry=%d)", WOS_MAX_REGISTERED_APPS);
 }
 
-bool wos_app_manager_register(const eos_wos_app_desc_t *desc)
+bool wos_app_manager_register(const cos_wos_app_desc_t *desc)
 {
     if (!desc || !desc->id || s_reg_count >= WOS_MAX_REGISTERED_APPS)
         return false;
     if (_find(desc->id))
         return true; /* already registered — idempotent */
     s_registry[s_reg_count++] = desc;
-    EOS_LOG_I("wos: registered app '%s' (%s)", desc->id, desc->name ? desc->name : "");
+    COS_LOG_I("wos: registered app '%s' (%s)", desc->id, desc->name ? desc->name : "");
     return true;
 }
 
@@ -138,13 +138,13 @@ bool wos_app_manager_open(const char *id)
         wos_app_manager_init();
     if (s_state == WOS_APP_STATE_LAUNCHING || s_state == WOS_APP_STATE_CLOSING)
     {
-        EOS_LOG_W("wos: busy (state=%d), ignoring open('%s')", s_state, id ? id : "?");
+        COS_LOG_W("wos: busy (state=%d), ignoring open('%s')", s_state, id ? id : "?");
         return false;
     }
-    const eos_wos_app_desc_t *desc = _find(id);
+    const cos_wos_app_desc_t *desc = _find(id);
     if (!desc)
     {
-        EOS_LOG_E("wos: unknown app id '%s'", id ? id : "?");
+        COS_LOG_E("wos: unknown app id '%s'", id ? id : "?");
         return false;
     }
     /* force-close the current app before opening a new one.
@@ -152,13 +152,13 @@ bool wos_app_manager_open(const char *id)
      * switch visually, so we skip the shrink of the old page here. */
     if (s_active)
     {
-        eos_wos_app_t *old = s_active;
+        cos_wos_app_t *old = s_active;
         s_active = NULL;
         _cleanup_app(old);
         s_state = WOS_APP_STATE_IDLE;
     }
 
-    eos_wos_app_t *app = eos_malloc(sizeof(eos_wos_app_t));
+    cos_wos_app_t *app = cos_malloc(sizeof(cos_wos_app_t));
     if (!app)
         return false;
     memset(app, 0, sizeof(*app));
@@ -170,7 +170,7 @@ bool wos_app_manager_open(const char *id)
      * generates LV_EVENT_GESTURE when the pressed object is scrollable, and
      * the App Manager's swipe-back gesture depends on it. Content never
      * overflows the screen, so no actual scrolling is visible. */
-    lv_obj_t *layer = eos_overlay_get_app_layer();
+    lv_obj_t *layer = cos_overlay_get_app_layer();
     lv_obj_t *root = lv_obj_create(layer);
     lv_obj_set_size(root, lv_pct(100), lv_pct(100));
     lv_obj_set_pos(root, 0, 0);
@@ -188,7 +188,7 @@ bool wos_app_manager_open(const char *id)
 
     wos_transition_open(root);
     s_state = WOS_APP_STATE_ACTIVE;
-    EOS_LOG_I("wos: opened app '%s'", desc->id);
+    COS_LOG_I("wos: opened app '%s'", desc->id);
     return true;
 }
 
@@ -199,17 +199,17 @@ void wos_app_manager_close(void)
     if (s_state != WOS_APP_STATE_ACTIVE && s_state != WOS_APP_STATE_LAUNCHING)
         return;
 
-    eos_wos_app_t *app = s_active;
+    cos_wos_app_t *app = s_active;
     lv_obj_t *root = app->root;
     s_state = WOS_APP_STATE_CLOSING;
-    EOS_LOG_I("wos: closing app '%s' (shrink+fade)", app->desc->id);
+    COS_LOG_I("wos: closing app '%s' (shrink+fade)", app->desc->id);
     wos_transition_close(root, NULL);
     /* Defer teardown until the shrink+fade (150ms) has been visible. */
     lv_timer_t *t = lv_timer_create(_close_deferred_cb, 200, NULL);
     lv_timer_set_repeat_count(t, 1);
 }
 
-eos_wos_app_t *wos_app_manager_get_active(void)
+cos_wos_app_t *wos_app_manager_get_active(void)
 {
     return s_active;
 }
@@ -229,7 +229,7 @@ int wos_app_manager_registered_count(void)
     return s_reg_count;
 }
 
-const eos_wos_app_desc_t *wos_app_manager_registered(int i)
+const cos_wos_app_desc_t *wos_app_manager_registered(int i)
 {
     if (i < 0 || i >= s_reg_count)
         return NULL;

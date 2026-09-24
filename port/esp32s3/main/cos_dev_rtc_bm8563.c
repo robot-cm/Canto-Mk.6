@@ -1,5 +1,5 @@
 /**
- * @file eos_dev_rtc_bm8563.c
+ * @file cos_dev_rtc_bm8563.c
  * @brief RTC BM8563 (PCF8563 compatible) I2C driver (XIAO Round Display)
  *
  * PCF8563 / BM8563 寄存器兼容(I2C 7bit 地址 0x51)。
@@ -16,7 +16,7 @@
  * 写入策略:置 STOP 停钟 -> 写时间寄存器(秒寄存器 bit7=0 清 VL) -> 清 STOP 恢复走时。
  */
 
-#include "eos_dev_rtc_bm8563.h"
+#include "cos_dev_rtc_bm8563.h"
 
 #include <string.h>
 #include "esp_log.h"
@@ -95,9 +95,9 @@ static esp_err_t _rtc_read_regs(uint8_t reg, uint8_t *data, size_t len)
 
 /* ---------------------------------------------------------------- */
 
-static eos_datetime_t _bm8563_get_datetime(void)
+static cos_datetime_t _bm8563_get_datetime(void)
 {
-    eos_datetime_t dt = {0};
+    cos_datetime_t dt = {0};
     uint8_t raw[7] = {0};
 
     if (_rtc_read_regs(RTC_REG_SECONDS, raw, sizeof(raw)) != ESP_OK) {
@@ -145,25 +145,25 @@ static eos_datetime_t _bm8563_get_datetime(void)
     return dt;
 }
 
-static eos_result_t _bm8563_set_datetime(eos_datetime_t dt)
+static cos_result_t _bm8563_set_datetime(cos_datetime_t dt)
 {
     if (dt.year < 2000 || dt.year > 2099 || dt.month < 1 || dt.month > 12 ||
         dt.day < 1 || dt.day > 31 || dt.hour > 23 || dt.min > 59 || dt.sec > 59) {
         ESP_LOGE(TAG, "set: invalid datetime");
-        return EOS_ERR_INVALID_ARG;
+        return COS_ERR_INVALID_ARG;
     }
 
     uint8_t ctrl1 = 0;
     if (_rtc_read_regs(RTC_REG_CTRL1, &ctrl1, 1) != ESP_OK) {
         ESP_LOGE(TAG, "set: read ctrl1 failed");
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     }
 
     /* 1. 停钟,避免写入期间秒进位 */
     ctrl1 |= RTC_CTRL1_STOP;
     if (_rtc_write_reg(RTC_REG_CTRL1, &ctrl1, 1) != ESP_OK) {
         ESP_LOGE(TAG, "set: stop clock failed");
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     }
 
     /* 2. 写时间寄存器(0x02..0x08),秒寄存器 bit7=0 清除 VL */
@@ -177,7 +177,7 @@ static eos_result_t _bm8563_set_datetime(eos_datetime_t dt)
     raw[6] = _dec_to_bcd(dt.year % 100);
     if (_rtc_write_reg(RTC_REG_SECONDS, raw, sizeof(raw)) != ESP_OK) {
         ESP_LOGE(TAG, "set: write time failed");
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     }
 
     /* 3. 清中断/定时器标志位 */
@@ -188,29 +188,29 @@ static eos_result_t _bm8563_set_datetime(eos_datetime_t dt)
     ctrl1 &= ~RTC_CTRL1_STOP;
     if (_rtc_write_reg(RTC_REG_CTRL1, &ctrl1, 1) != ESP_OK) {
         ESP_LOGE(TAG, "set: start clock failed");
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     }
 
     ESP_LOGI(TAG, "RTC set: %04d-%02d-%02d %02d:%02d:%02d",
              dt.year, dt.month, dt.day, dt.hour, dt.min, dt.sec);
-    return EOS_OK;
+    return COS_OK;
 }
 
 /* ---------------------------------------------------------------- */
 
-static const eos_dev_time_ops_t _bm8563_ops = {
+static const cos_dev_time_ops_t _bm8563_ops = {
     .get_datetime = _bm8563_get_datetime,
     .set_datetime = _bm8563_set_datetime,
 };
 
-eos_result_t eos_dev_rtc_bm8563_init(void)
+cos_result_t cos_dev_rtc_bm8563_init(void)
 {
     uint8_t probe = 0;
     if (_rtc_read_regs(RTC_REG_CTRL1, &probe, 1) != ESP_OK) {
         ESP_LOGW(TAG, "BM8563 not responding on I2C (0x%02X)", BOARD_RTC_I2C_ADDR);
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     }
     ESP_LOGI(TAG, "BM8563/PCF8563 detected at 0x%02X, ctrl1=0x%02X",
              BOARD_RTC_I2C_ADDR, probe);
-    return eos_dev_time_register(&_bm8563_ops);
+    return cos_dev_time_register(&_bm8563_ops);
 }

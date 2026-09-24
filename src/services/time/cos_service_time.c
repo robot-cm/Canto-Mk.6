@@ -1,5 +1,5 @@
 /**
- * @file eos_service_time.c
+ * @file cos_service_time.c
  * @brief Time service (RTC calibration / query / set)
  *
  * 时间方案(支持 CR927 电池):
@@ -9,13 +9,13 @@
  *       服务层比较 RTC 与 Flash 备份后采信 RTC,断电期间时间不丢失。
  *     * 无电池:RTC 停在断电时刻,采信 Flash 备份(最后有效时间)并写回。
  *   - 首次上电(无备份/出厂 RTC):编译时间兜底并写 RTC + 备份。
- *   - WiFi 连接成功后自动 SNTP 校时(eos_time_ntp_sync_start),
+ *   - WiFi 连接成功后自动 SNTP 校时(cos_time_ntp_sync_start),
  *     时区偏移可配置(timezone_offset_min, 默认 UTC+8)。
- *   - eos_time_set() / eos_time_set_unix() 提供手动/网络(NTP)校时入口,
+ *   - cos_time_set() / cos_time_set_unix() 提供手动/网络(NTP)校时入口,
  *     同步写 RTC + Flash 备份 + libc 时间(settimeofday)。
  */
 
-#include "eos_service_time.h"
+#include "cos_service_time.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
@@ -23,14 +23,14 @@
 #include <string.h>
 #include <stdint.h>
 #include "lvgl.h"
-#define EOS_LOG_TAG "ServiceTime"
-#include "eos_log.h"
-#include "eos_dev_time.h"
-#include "eos_core.h"
-#include "eos_service_config.h"
-#include "eos_net_wifi.h"
+#define COS_LOG_TAG "ServiceTime"
+#include "cos_log.h"
+#include "cos_dev_time.h"
+#include "cos_core.h"
+#include "cos_service_config.h"
+#include "cos_net_wifi.h"
 
-#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+#if !defined(COS_SIMULATOR) || COS_SIMULATOR == 0
 #include <sys/time.h>
 #include <time.h>
 #include "esp_sntp.h"
@@ -58,11 +58,11 @@
 
 /* Variables --------------------------------------------------*/
 
-static eos_datetime_t _last_valid;              /* 最后有效时间(读失败回退) */
+static cos_datetime_t _last_valid;              /* 最后有效时间(读失败回退) */
 static uint32_t _calib_tick = 0;                /* 校准锚点:该 tick 时刻对应 _calib_unix */
 static uint32_t _calib_unix = 0;                /* 锚点墙钟(unix 秒;RTC 读回 / 显式校时) */
 static bool _calibrated = false;                /* 是否已有可用锚点 */
-static eos_time_source_t _source = EOS_TIME_SOURCE_NONE;
+static cos_time_source_t _source = COS_TIME_SOURCE_NONE;
 
 static void _ntp_poll_timer_create(void); /* 前向声明(init 先于定义调用) */
 
@@ -95,7 +95,7 @@ static void _civil_from_days(uint32_t z, int *y, unsigned *m, unsigned *d)
     *d = dd;
 }
 
-static uint32_t _dt_to_unix(const eos_datetime_t *dt)
+static uint32_t _dt_to_unix(const cos_datetime_t *dt)
 {
     return _days_from_civil(dt->year, dt->month, dt->day) * 86400u
            + (uint32_t)dt->hour * 3600u
@@ -103,7 +103,7 @@ static uint32_t _dt_to_unix(const eos_datetime_t *dt)
            + (uint32_t)dt->sec;
 }
 
-static void _unix_to_dt(uint32_t ts, eos_datetime_t *dt)
+static void _unix_to_dt(uint32_t ts, cos_datetime_t *dt)
 {
     uint32_t days = ts / 86400u;
     uint32_t rem  = ts % 86400u;
@@ -123,7 +123,7 @@ static void _unix_to_dt(uint32_t ts, eos_datetime_t *dt)
 
 /* 内部工具:有效性 / 备份 / 同步 ---------------------------------- */
 
-static bool _is_valid(const eos_datetime_t *dt)
+static bool _is_valid(const cos_datetime_t *dt)
 {
     if (dt == NULL) {
         return false;
@@ -163,7 +163,7 @@ static int _compile_year(void)
 
 /** RTC 可信度:范围校验之外,再排除出厂/未初始化残留值(典型 2000-01-01)。
  *  有 CR927 电池时 RTC 断电续走,年份应接近当前,必然通过本检查。 */
-static bool _rtc_trustworthy(const eos_datetime_t *dt)
+static bool _rtc_trustworthy(const cos_datetime_t *dt)
 {
     if (!_is_valid(dt)) {
         return false;
@@ -175,42 +175,42 @@ static bool _rtc_trustworthy(const eos_datetime_t *dt)
     return true;
 }
 
-static void _dev_set(const eos_datetime_t *dt)
+static void _dev_set(const cos_datetime_t *dt)
 {
-    eos_dev_time_t *dev = eos_dev_time_get_instance();
+    cos_dev_time_t *dev = cos_dev_time_get_instance();
     if (dev->ops != NULL && dev->ops->set_datetime != NULL) {
         dev->ops->set_datetime(*dt);
     }
 }
 
-static void _backup_save(const eos_datetime_t *dt)
+static void _backup_save(const cos_datetime_t *dt)
 {
-    eos_config_set_number(_BACKUP_KEY_YEAR,  (double)dt->year);
-    eos_config_set_number(_BACKUP_KEY_MONTH, (double)dt->month);
-    eos_config_set_number(_BACKUP_KEY_DAY,   (double)dt->day);
-    eos_config_set_number(_BACKUP_KEY_HOUR,  (double)dt->hour);
-    eos_config_set_number(_BACKUP_KEY_MIN,   (double)dt->min);
-    eos_config_set_number(_BACKUP_KEY_SEC,   (double)dt->sec);
-    eos_config_set_number(_BACKUP_KEY_DOW,   (double)dt->day_of_week);
+    cos_config_set_number(_BACKUP_KEY_YEAR,  (double)dt->year);
+    cos_config_set_number(_BACKUP_KEY_MONTH, (double)dt->month);
+    cos_config_set_number(_BACKUP_KEY_DAY,   (double)dt->day);
+    cos_config_set_number(_BACKUP_KEY_HOUR,  (double)dt->hour);
+    cos_config_set_number(_BACKUP_KEY_MIN,   (double)dt->min);
+    cos_config_set_number(_BACKUP_KEY_SEC,   (double)dt->sec);
+    cos_config_set_number(_BACKUP_KEY_DOW,   (double)dt->day_of_week);
 }
 
-static eos_datetime_t _backup_load(void)
+static cos_datetime_t _backup_load(void)
 {
-    eos_datetime_t dt;
+    cos_datetime_t dt;
     memset(&dt, 0, sizeof(dt));
-    dt.year        = (uint16_t)eos_config_get_number(_BACKUP_KEY_YEAR, 0);
-    dt.month       = (uint8_t)eos_config_get_number(_BACKUP_KEY_MONTH, 0);
-    dt.day         = (uint8_t)eos_config_get_number(_BACKUP_KEY_DAY, 0);
-    dt.hour        = (uint8_t)eos_config_get_number(_BACKUP_KEY_HOUR, 0);
-    dt.min         = (uint8_t)eos_config_get_number(_BACKUP_KEY_MIN, 0);
-    dt.sec         = (uint8_t)eos_config_get_number(_BACKUP_KEY_SEC, 0);
-    dt.day_of_week = (uint8_t)eos_config_get_number(_BACKUP_KEY_DOW, 0);
+    dt.year        = (uint16_t)cos_config_get_number(_BACKUP_KEY_YEAR, 0);
+    dt.month       = (uint8_t)cos_config_get_number(_BACKUP_KEY_MONTH, 0);
+    dt.day         = (uint8_t)cos_config_get_number(_BACKUP_KEY_DAY, 0);
+    dt.hour        = (uint8_t)cos_config_get_number(_BACKUP_KEY_HOUR, 0);
+    dt.min         = (uint8_t)cos_config_get_number(_BACKUP_KEY_MIN, 0);
+    dt.sec         = (uint8_t)cos_config_get_number(_BACKUP_KEY_SEC, 0);
+    dt.day_of_week = (uint8_t)cos_config_get_number(_BACKUP_KEY_DOW, 0);
     return dt;
 }
 
-static void _sync_libc(const eos_datetime_t *dt)
+static void _sync_libc(const cos_datetime_t *dt)
 {
-#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+#if !defined(COS_SIMULATOR) || COS_SIMULATOR == 0
     struct timeval tv;
     tv.tv_sec  = (time_t)_dt_to_unix(dt);
     tv.tv_usec = 0;
@@ -221,11 +221,11 @@ static void _sync_libc(const eos_datetime_t *dt)
 }
 
 /** 编译时间兜底(首次上电且无任何有效时间源) */
-static eos_datetime_t _compile_time(void)
+static cos_datetime_t _compile_time(void)
 {
     static const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
                                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-    eos_datetime_t dt;
+    cos_datetime_t dt;
     memset(&dt, 0, sizeof(dt));
 
     char mon[8] = {0};
@@ -251,21 +251,21 @@ static eos_datetime_t _compile_time(void)
 
 /* Function Implementations -----------------------------------*/
 
-eos_result_t eos_service_time_init(void)
+cos_result_t cos_service_time_init(void)
 {
-    eos_dev_time_t *dev = eos_dev_time_get_instance();
+    cos_dev_time_t *dev = cos_dev_time_get_instance();
     if (dev->ops == NULL || dev->ops->get_datetime == NULL) {
-        EOS_LOG_E("Time device not available, time uncalibrated");
-        _source = EOS_TIME_SOURCE_NONE;
-        return EOS_ERR_DEV_OPS_NOT_SUPPORTED;
+        COS_LOG_E("Time device not available, time uncalibrated");
+        _source = COS_TIME_SOURCE_NONE;
+        return COS_ERR_DEV_OPS_NOT_SUPPORTED;
     }
 
-    eos_datetime_t rtc    = dev->ops->get_datetime();
-    eos_datetime_t backup = _backup_load();
+    cos_datetime_t rtc    = dev->ops->get_datetime();
+    cos_datetime_t backup = _backup_load();
     bool rtc_ok    = _rtc_trustworthy(&rtc);
     bool backup_ok = _is_valid(&backup);
 
-    eos_datetime_t chosen;
+    cos_datetime_t chosen;
     memset(&chosen, 0, sizeof(chosen));
 
     if (rtc_ok && backup_ok) {
@@ -274,47 +274,47 @@ eos_result_t eos_service_time_init(void)
             /* RTC 不落后备份:正常续走(含 CR927 电池维持的断电走时)或与备份一致,
              * 采信 RTC。电池期间 RTC 领先备份越多越说明它在正确走时。 */
             chosen = rtc;
-            _source = EOS_TIME_SOURCE_RTC;
+            _source = COS_TIME_SOURCE_RTC;
         } else {
             /* RTC 落后备份:无电池断电停走残留,采信备份并写回恢复走时 */
-            EOS_LOG_W("RTC behind backup (%llds), restore backup and rewrite RTC",
+            COS_LOG_W("RTC behind backup (%llds), restore backup and rewrite RTC",
                       (long long)(-diff));
             chosen = backup;
             _dev_set(&chosen);
-            _source = EOS_TIME_SOURCE_BACKUP;
+            _source = COS_TIME_SOURCE_BACKUP;
         }
     } else if (rtc_ok) {
         chosen = rtc;
-        _source = EOS_TIME_SOURCE_RTC;
+        _source = COS_TIME_SOURCE_RTC;
         _backup_save(&chosen);
     } else if (backup_ok) {
         /* RTC 不可信(出厂残留/失效):恢复备份并写回 RTC,恢复走时 */
-        EOS_LOG_W("RTC invalid, restore backup and rewrite RTC");
+        COS_LOG_W("RTC invalid, restore backup and rewrite RTC");
         chosen = backup;
         _dev_set(&chosen);
-        _source = EOS_TIME_SOURCE_BACKUP;
+        _source = COS_TIME_SOURCE_BACKUP;
     } else {
         /* 初次上电(无备份 + 出厂 RTC):编译时间兜底 */
-        EOS_LOG_W("No valid time source, use build time (uncalibrated)");
+        COS_LOG_W("No valid time source, use build time (uncalibrated)");
         chosen = _compile_time();
         _dev_set(&chosen);
         _backup_save(&chosen);
-        _source = EOS_TIME_SOURCE_COMPILE;
+        _source = COS_TIME_SOURCE_COMPILE;
     }
 
     _last_valid = chosen;
     _calib_unix = _dt_to_unix(&chosen);
-    _calib_tick = eos_tick_get();
+    _calib_tick = cos_tick_get();
     _calibrated = true;
     _sync_libc(&chosen);
-    EOS_LOG_I("System time: %04d-%02d-%02d %02d:%02d:%02d (source=%d)",
+    COS_LOG_I("System time: %04d-%02d-%02d %02d:%02d:%02d (source=%d)",
               chosen.year, chosen.month, chosen.day,
               chosen.hour, chosen.min, chosen.sec, (int)_source);
     _ntp_poll_timer_create();
-    return EOS_OK;
+    return COS_OK;
 }
 
-eos_datetime_t eos_time_get(void)
+cos_datetime_t cos_time_get(void)
 {
     /* RTC 轮询节流 + 单调走时:
      *  - 内部以「校准锚点 + tick 内插」连续走时,最多每秒向 RTC 发起一次 I2C 校准,
@@ -324,14 +324,14 @@ eos_datetime_t eos_time_get(void)
     enum { CALIB_PERIOD_MS = 1000u };
     static uint32_t s_last_read_tick = 0; /* 上次实际发起 I2C 的时刻 */
 
-    eos_dev_time_t *dev = eos_dev_time_get_instance();
+    cos_dev_time_t *dev = cos_dev_time_get_instance();
     bool dev_ok = (dev != NULL && dev->ops != NULL && dev->ops->get_datetime != NULL);
-    uint32_t tick = eos_tick_get();
+    uint32_t tick = cos_tick_get();
 
     if (!_calibrated) {
         /* 尚无时间基准:尝试一次 RTC 建立锚点 */
         if (dev_ok) {
-            eos_datetime_t rtc = dev->ops->get_datetime();
+            cos_datetime_t rtc = dev->ops->get_datetime();
             if (_is_valid(&rtc)) {
                 _calib_unix  = _dt_to_unix(&rtc);
                 _calib_tick  = tick;
@@ -340,7 +340,7 @@ eos_datetime_t eos_time_get(void)
             }
         }
         if (!_calibrated) {
-            eos_datetime_t zero;
+            cos_datetime_t zero;
             memset(&zero, 0, sizeof(zero));
             return zero; /* 设备缺失且无任何基准 */
         }
@@ -350,7 +350,7 @@ eos_datetime_t eos_time_get(void)
      * 失败则保留旧锚点,由下方内插继续单调走时。 */
     if (dev_ok && (uint32_t)(tick - s_last_read_tick) >= CALIB_PERIOD_MS) {
         s_last_read_tick = tick;
-        eos_datetime_t rtc = dev->ops->get_datetime();
+        cos_datetime_t rtc = dev->ops->get_datetime();
         if (_is_valid(&rtc)) {
             _calib_unix = _dt_to_unix(&rtc);
             _calib_tick = tick;
@@ -358,19 +358,19 @@ eos_datetime_t eos_time_get(void)
     }
 
     uint32_t el = tick - _calib_tick;
-    eos_datetime_t result;
+    cos_datetime_t result;
     _unix_to_dt((uint32_t)(_calib_unix + el / 1000u), &result);
     result.ms = (uint16_t)(el % 1000u);
     _last_valid = result;
     return result;
 }
 
-eos_result_t eos_time_set(eos_datetime_t dt)
+cos_result_t cos_time_set(cos_datetime_t dt)
 {
     if (!_is_valid(&dt)) {
-        EOS_LOG_E("set: invalid datetime (%u/%u/%u %u:%u:%u)",
+        COS_LOG_E("set: invalid datetime (%u/%u/%u %u:%u:%u)",
                   dt.year, dt.month, dt.day, dt.hour, dt.min, dt.sec);
-        return EOS_ERR_INVALID_ARG;
+        return COS_ERR_INVALID_ARG;
     }
 
     if (dt.day_of_week == 0) {
@@ -381,32 +381,32 @@ eos_result_t eos_time_set(eos_datetime_t dt)
     _backup_save(&dt);
     _last_valid = dt;
     _calib_unix = _dt_to_unix(&dt);
-    _calib_tick = eos_tick_get();
+    _calib_tick = cos_tick_get();
     _calibrated = true;
     _sync_libc(&dt);
-    _source = EOS_TIME_SOURCE_RTC; /* 显式校时后视为已校准 */
-    EOS_LOG_I("Time set: %04d-%02d-%02d %02d:%02d:%02d",
+    _source = COS_TIME_SOURCE_RTC; /* 显式校时后视为已校准 */
+    COS_LOG_I("Time set: %04d-%02d-%02d %02d:%02d:%02d",
               dt.year, dt.month, dt.day, dt.hour, dt.min, dt.sec);
-    return EOS_OK;
+    return COS_OK;
 }
 
-eos_result_t eos_time_set_unix(uint32_t ts)
+cos_result_t cos_time_set_unix(uint32_t ts)
 {
-    eos_datetime_t dt;
+    cos_datetime_t dt;
     _unix_to_dt(ts, &dt);
-    return eos_time_set(dt);
+    return cos_time_set(dt);
 }
 
-eos_time_source_t eos_time_get_source(void)
+cos_time_source_t cos_time_get_source(void)
 {
     return _source;
 }
 
-eos_datetime_t eos_time_get_rtc(void)
+cos_datetime_t cos_time_get_rtc(void)
 {
-    eos_dev_time_t *dev = eos_dev_time_get_instance();
+    cos_dev_time_t *dev = cos_dev_time_get_instance();
     if (dev->ops == NULL || dev->ops->get_datetime == NULL) {
-        eos_datetime_t zero;
+        cos_datetime_t zero;
         memset(&zero, 0, sizeof(zero));
         return zero;
     }
@@ -426,23 +426,23 @@ static void _ntp_sync_cb(struct timeval *tv)
     }
     time_t utc = time(NULL);
     if (utc < (time_t)_NTP_PLAUSIBLE_UNIX) {
-        EOS_LOG_W("NTP got implausible time, ignore");
+        COS_LOG_W("NTP got implausible time, ignore");
         return;
     }
-    int32_t tz_min = (int32_t)eos_config_get_number(EOS_CONFIG_KEY_TIMEZONE_OFFSET_MIN_NUMBER, 480);
-    eos_time_set_unix((uint32_t)(utc + tz_min * 60));
+    int32_t tz_min = (int32_t)cos_config_get_number(COS_CONFIG_KEY_TIMEZONE_OFFSET_MIN_NUMBER, 480);
+    cos_time_set_unix((uint32_t)(utc + tz_min * 60));
     _ntp_synced      = true;
-    _ntp_synced_tick = eos_tick_get();
+    _ntp_synced_tick = cos_tick_get();
     esp_sntp_stop(); /* 一次校时即可,后续由 RTC(或 CR927 电池)维持走时 */
-    EOS_LOG_I("NTP time synced (UTC %ld, tz %+d min)", (long)utc, (int)tz_min);
+    COS_LOG_I("NTP time synced (UTC %ld, tz %+d min)", (long)utc, (int)tz_min);
 }
 
-void eos_time_ntp_sync_start(void)
+void cos_time_ntp_sync_start(void)
 {
-#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+#if !defined(COS_SIMULATOR) || COS_SIMULATOR == 0
     if (_ntp_synced) {
         /* 已同步过:间隔内不重复(WiFi 反复连接防抖) */
-        if ((uint32_t)(eos_tick_get() - _ntp_synced_tick) < _NTP_MIN_INTERVAL_MS) {
+        if ((uint32_t)(cos_tick_get() - _ntp_synced_tick) < _NTP_MIN_INTERVAL_MS) {
             return;
         }
         _ntp_synced = false;
@@ -452,65 +452,65 @@ void eos_time_ntp_sync_start(void)
     }
     /* NTP 服务器可经 config(ntp_server)覆盖;static 缓冲保证指针在 esp_sntp 生命周期内有效 */
     static char _ntp_server[64];
-    const char *s = eos_config_get_string(EOS_CONFIG_KEY_NTP_SERVER_STR, _NTP_DEFAULT_SERVER);
+    const char *s = cos_config_get_string(COS_CONFIG_KEY_NTP_SERVER_STR, _NTP_DEFAULT_SERVER);
     snprintf(_ntp_server, sizeof(_ntp_server), "%s", (s && s[0]) ? s : _NTP_DEFAULT_SERVER);
     esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
     esp_sntp_setservername(0, _ntp_server);
     esp_sntp_set_time_sync_notification_cb(_ntp_sync_cb);
     esp_sntp_init();
-    EOS_LOG_I("NTP sync started (%s)", _ntp_server);
+    COS_LOG_I("NTP sync started (%s)", _ntp_server);
 #else
-    EOS_LOG_D("NTP sync skipped (simulator)");
+    COS_LOG_D("NTP sync skipped (simulator)");
 #endif
 }
 
-void eos_time_ntp_force_sync(void)
+void cos_time_ntp_force_sync(void)
 {
-#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
-    if (eos_net_wifi_state() != EOS_WIFI_CONNECTED) {
-        EOS_LOG_W("NTP force sync skipped: WiFi not connected");
+#if !defined(COS_SIMULATOR) || COS_SIMULATOR == 0
+    if (cos_net_wifi_state() != COS_WIFI_CONNECTED) {
+        COS_LOG_W("NTP force sync skipped: WiFi not connected");
         return;
     }
     _ntp_synced = false; /* 绕过 5 分钟防抖,立即重新发起校时 */
-    eos_time_ntp_sync_start();
+    cos_time_ntp_sync_start();
 #else
-    EOS_LOG_D("NTP force sync skipped (simulator)");
+    COS_LOG_D("NTP force sync skipped (simulator)");
 #endif
 }
 
-void eos_time_ntp_poll(void)
+void cos_time_ntp_poll(void)
 {
-#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+#if !defined(COS_SIMULATOR) || COS_SIMULATOR == 0
     if (!_ntp_synced) {
         return; /* 从未成功同步:由 WiFi 连接事件负责首次校时 */
     }
-    if (eos_net_wifi_state() != EOS_WIFI_CONNECTED) {
+    if (cos_net_wifi_state() != COS_WIFI_CONNECTED) {
         return;
     }
-    if ((uint32_t)(eos_tick_get() - _ntp_synced_tick) < _NTP_RESYNC_INTERVAL_MS) {
+    if ((uint32_t)(cos_tick_get() - _ntp_synced_tick) < _NTP_RESYNC_INTERVAL_MS) {
         return;
     }
     /* 距离上次成功校时已超 24h:重新 SNTP,抵消 RTC 走时漂移累积 */
-    EOS_LOG_I("NTP daily re-sync (RTC drift compensation)");
+    COS_LOG_I("NTP daily re-sync (RTC drift compensation)");
     _ntp_synced = false;
-    eos_time_ntp_sync_start();
+    cos_time_ntp_sync_start();
 #endif
 }
 
-#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+#if !defined(COS_SIMULATOR) || COS_SIMULATOR == 0
 static void _ntp_poll_timer_cb(lv_timer_t *timer)
 {
     (void)timer;
-    eos_time_ntp_poll();
+    cos_time_ntp_poll();
 }
 #endif
 
 static void _ntp_poll_timer_create(void)
 {
-#if !defined(EOS_SIMULATOR) || EOS_SIMULATOR == 0
+#if !defined(COS_SIMULATOR) || COS_SIMULATOR == 0
     lv_timer_t *t = lv_timer_create(_ntp_poll_timer_cb, _NTP_POLL_PERIOD_MS, NULL);
     if (t == NULL) {
-        EOS_LOG_W("NTP poll timer create failed");
+        COS_LOG_W("NTP poll timer create failed");
     }
 #else
     (void)0;

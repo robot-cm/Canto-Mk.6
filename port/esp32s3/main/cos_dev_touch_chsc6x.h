@@ -1,5 +1,5 @@
 /**
- * @file eos_dev_touch_chsc6x.h
+ * @file cos_dev_touch_chsc6x.h
  * @brief CHSC6X 电容触摸驱动(板级 port 层)
  *
  * 协议依据(AGENTS.md 第28节优先级 #2 Seeed 官方源码):
@@ -8,8 +8,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef EOS_DEV_TOUCH_CHSC6X_H
-#define EOS_DEV_TOUCH_CHSC6X_H
+#ifndef COS_DEV_TOUCH_CHSC6X_H
+#define COS_DEV_TOUCH_CHSC6X_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -26,9 +26,9 @@ extern "C" {
  * 前置条件:
  *   - I2C 总线已初始化(board_i2c_bus_init)
  *   - 触摸 INT 引脚已配置(board_gpio_init)
- *   - LVGL display 已注册(eos_dev_display_gc9a01_lvgl_init)
+ *   - LVGL display 已注册(cos_dev_display_gc9a01_lvgl_init)
  */
-esp_err_t eos_dev_touch_chsc6x_init(void);
+esp_err_t cos_dev_touch_chsc6x_init(void);
 
 /**
  * @brief 读取触摸坐标
@@ -36,10 +36,10 @@ esp_err_t eos_dev_touch_chsc6x_init(void);
  * @param[out] y 屏幕 Y(0-239)
  * @return true=有触摸,false=无触摸/读取失败
  */
-bool eos_dev_touch_chsc6x_read(int32_t *x, int32_t *y);
+bool cos_dev_touch_chsc6x_read(int32_t *x, int32_t *y);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_DEV_TOUCH_CHSC6X_H */
+#endif /* COS_DEV_TOUCH_CHSC6X_H */

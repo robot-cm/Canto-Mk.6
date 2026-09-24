@@ -1,18 +1,18 @@
 /**
- * @file eos_spotify_board.h
+ * @file cos_spotify_board.h
  * @brief Spotify App 所使用的"板级能力"接口(由 port/esp32s3/main/main.c 实现)。
  *
  * 架构说明(AGENTS.md 第 3 节:Core 稳定 / 硬件放 port):
  *   - src/ 下的 App 不允许直接触碰 SPI/SDMMC/GPIO/USB PHY 细节;
  *   - Spotify 需要的能力与 USB MSC 高度重合,故直接复用
- *     eos_usb_msc_board.h 已声明的:board_sd_is_real / board_sd_get_card /
+ *     cos_usb_msc_board.h 已声明的:board_sd_is_real / board_sd_get_card /
  *     board_sd_release / board_sd_acquire / board_usb_serial_jtag_connected;
  *   - 本头文件只额外声明 Spotify 特有、且 USB MSC 未提供的能力。
  *
  * 与现有代码的关系:全部为"新增"接口,不修改任何现有 App / 电源管理逻辑。
  */
-#ifndef EOS_SPOTIFY_BOARD_H
-#define EOS_SPOTIFY_BOARD_H
+#ifndef COS_SPOTIFY_BOARD_H
+#define COS_SPOTIFY_BOARD_H
 
 #include <stdbool.h>
 #include "esp_err.h"
@@ -50,4 +50,4 @@ bool board_spotify_pm_is_held(void);
 }
 #endif
 
-#endif /* EOS_SPOTIFY_BOARD_H */
+#endif /* COS_SPOTIFY_BOARD_H */

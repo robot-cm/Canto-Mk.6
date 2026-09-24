@@ -1,8 +1,8 @@
 /**
- * @file eos_port_critical_custom.c
+ * @file cos_port_critical_custom.c
  * @brief Custom RTOS critical section implementation (default fallback)
  *
- * Users must implement eos_critical_enter() and eos_critical_leave()
+ * Users must implement cos_critical_enter() and cos_critical_leave()
  * according to their RTOS or hardware:
  *
  *   - On bare metal:     disable/enable interrupts
@@ -12,23 +12,23 @@
  * The default stubs below do nothing and provide NO protection.
  */
 
-#include "eos_config.h"
+#include "cos_config.h"
 
-#if EOS_RTOS_TYPE == EOS_RTOS_CUSTOM
+#if COS_RTOS_TYPE == COS_RTOS_CUSTOM
 
-#include "eos_port_critical.h"
+#include "cos_port_critical.h"
 
 /* Includes ---------------------------------------------------*/
-#include "eos_port.h"
+#include "cos_port.h"
 
-EOS_WEAK eos_critical_ctx_t eos_critical_enter(void)
+COS_WEAK cos_critical_ctx_t cos_critical_enter(void)
 {
     return 0;
 }
 
-EOS_WEAK void eos_critical_leave(eos_critical_ctx_t ctx)
+COS_WEAK void cos_critical_leave(cos_critical_ctx_t ctx)
 {
     (void)ctx;
 }
 
-#endif /* EOS_RTOS_TYPE == EOS_RTOS_CUSTOM */
+#endif /* COS_RTOS_TYPE == COS_RTOS_CUSTOM */

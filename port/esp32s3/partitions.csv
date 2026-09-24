@@ -1,4 +1,4 @@
-# ElenixOS ESP32-S3 分区表 — 方案A(无 OTA,单 factory 最大化 Core 可用空间)
+# CantoMk6 ESP32-S3 分区表 — 方案A(无 OTA,单 factory 最大化 Core 可用空间)
 #
 # 依据:
 #  - AGENTS.md 第4节:Flash 主要存 Core/系统资源,大资源放 SD
@@ -26,8 +26,8 @@
 # Name,   Type, SubType,  Offset,   Size,     Flags
 # nvs      16 KB   - 键值配置(wifi.*/proxy.* 等)
 # phy_init 4 KB    - PHY 校准数据
-# factory  6.94 MB - ElenixOS Core + Service + LVGL + JerryScript + 系统资源
-# spiffs   1 MB    - /sdcard 挂载点(EOS_SYS_ROOT_DIR),存 config/state/资源
+# factory  6.94 MB - CantoMk6 Core + Service + LVGL + JerryScript + 系统资源
+# spiffs   1 MB    - /sdcard 挂载点(COS_SYS_ROOT_DIR),存 config/state/资源
 nvs,      data, nvs,      0x9000,   0x4000,
 phy_init, data, phy,      0xf000,   0x1000,
 factory,  app,  factory,  0x10000,  0x6F0000,

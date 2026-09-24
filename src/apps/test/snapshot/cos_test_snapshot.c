@@ -1,11 +1,11 @@
 /**
- * @file eos_test_snapshot.c
+ * @file cos_test_snapshot.c
  * @brief LVGL snapshot & animation performance test
  *
  * Part 1: Measures tick cost of lv_snapshot_take_to_draw_buf at multiple sizes using
  *         two independent allocation paths:
- *           A) Direct heap (eos_malloc -> C stdlib heap)
- *           B) PSRAM/cache (eos_cache_buf_alloc -> mem_mgr_alloc -> PSRAM heap)
+ *           A) Direct heap (cos_malloc -> C stdlib heap)
+ *           B) PSRAM/cache (cos_cache_buf_alloc -> mem_mgr_alloc -> PSRAM heap)
  *
  * Part 2: Measures per-frame rendering cost of 4 animation types (translate, scale,
  *         opacity, combined) on 2 target types:
@@ -13,21 +13,21 @@
  *           B) Direct component (live 3-button UI)
  */
 
-#include "eos_test_snapshot.h"
-#if EOS_ENABLE_TEST_APP
+#include "cos_test_snapshot.h"
+#if COS_ENABLE_TEST_APP
 
 /* Includes ---------------------------------------------------*/
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "eos_test_framework.h"
-#include "eos_basic_widgets.h"
-#include "eos_mem.h"
-#include "eos_log.h"
+#include "cos_test_framework.h"
+#include "cos_basic_widgets.h"
+#include "cos_mem.h"
+#include "cos_log.h"
 #include "lvgl.h"
 
 /* Macros and Definitions -------------------------------------*/
-#define EOS_LOG_TAG "SnapshotTest"
+#define COS_LOG_TAG "SnapshotTest"
 #define SNAPSHOT_CF LV_COLOR_FORMAT_RGB565
 #define MSG_BUF_SZ 96
 
@@ -37,12 +37,12 @@
 
 static lv_draw_buf_t *_alloc_draw_buf_cache(uint32_t w, uint32_t h)
 {
-    return eos_draw_buf_create(w, h, SNAPSHOT_CF, 0);
+    return cos_draw_buf_create(w, h, SNAPSHOT_CF, 0);
 }
 
 static void _free_draw_buf_cache(lv_draw_buf_t *buf)
 {
-    eos_draw_buf_destroy(buf);
+    cos_draw_buf_destroy(buf);
 }
 
 static lv_draw_buf_t *_alloc_draw_buf_direct(uint32_t w, uint32_t h)
@@ -51,15 +51,15 @@ static lv_draw_buf_t *_alloc_draw_buf_direct(uint32_t w, uint32_t h)
     if (data_size == 0)
         return NULL;
 
-    void *data = eos_malloc(data_size);
+    void *data = cos_malloc(data_size);
     if (!data)
         return NULL;
     memset(data, 0, data_size);
 
-    lv_draw_buf_t *draw_buf = eos_malloc_zeroed(sizeof(lv_draw_buf_t));
+    lv_draw_buf_t *draw_buf = cos_malloc_zeroed(sizeof(lv_draw_buf_t));
     if (!draw_buf)
     {
-        eos_free(data);
+        cos_free(data);
         return NULL;
     }
 
@@ -67,8 +67,8 @@ static lv_draw_buf_t *_alloc_draw_buf_direct(uint32_t w, uint32_t h)
     lv_result_t res = lv_draw_buf_init(draw_buf, w, h, SNAPSHOT_CF, stride, data, data_size);
     if (res != LV_RESULT_OK)
     {
-        eos_free(draw_buf);
-        eos_free(data);
+        cos_free(draw_buf);
+        cos_free(data);
         return NULL;
     }
 
@@ -80,8 +80,8 @@ static void _free_draw_buf_direct(lv_draw_buf_t *buf)
     if (!buf)
         return;
     if (buf->data)
-        eos_free(buf->data);
-    eos_free(buf);
+        cos_free(buf->data);
+    cos_free(buf);
 }
 
 /* ---------------------------------------------------------------------------
@@ -101,7 +101,7 @@ static bool _run_snapshot_test(const char *test_name,
     lv_obj_t *scr = lv_screen_active();
     if (!scr)
     {
-        EOS_EXPECT_TRUE(false, test_name, "no active screen");
+        COS_EXPECT_TRUE(false, test_name, "no active screen");
         return false;
     }
 
@@ -136,7 +136,7 @@ static bool _run_snapshot_test(const char *test_name,
     if (!snap_buf)
     {
         lv_obj_delete(cont);
-        EOS_EXPECT_TRUE(false, test_name, "alloc failed");
+        COS_EXPECT_TRUE(false, test_name, "alloc failed");
         return false;
     }
 
@@ -156,7 +156,7 @@ static bool _run_snapshot_test(const char *test_name,
         }
         char msg[MSG_BUF_SZ];
         snprintf(msg, sizeof(msg), "%" PRId32 "x%" PRId32 " avg %" PRIu32 " ticks (5 runs)", w, h, total_ticks / 5);
-        EOS_EXPECT_TRUE(ok, test_name, msg);
+        COS_EXPECT_TRUE(ok, test_name, msg);
         free_fn(snap_buf);
         lv_obj_delete(cont);
         return ok;
@@ -171,7 +171,7 @@ static bool _run_snapshot_test(const char *test_name,
 
         char msg[MSG_BUF_SZ];
         snprintf(msg, sizeof(msg), "%" PRId32 "x%" PRId32 " %" PRIu32 " ticks", w, h, t1 - t0);
-        EOS_EXPECT_TRUE(res == LV_RESULT_OK, test_name, msg);
+        COS_EXPECT_TRUE(res == LV_RESULT_OK, test_name, msg);
         return (res == LV_RESULT_OK);
     }
 }
@@ -183,7 +183,7 @@ static bool _run_snapshot_test(const char *test_name,
 static lv_obj_t *_create_realistic_component(lv_obj_t *parent)
 {
     lv_obj_t *cont = lv_obj_create(parent);
-    lv_obj_set_size(cont, EOS_DISPLAY_WIDTH, EOS_DISPLAY_HEIGHT);
+    lv_obj_set_size(cont, COS_DISPLAY_WIDTH, COS_DISPLAY_HEIGHT);
     lv_obj_set_style_bg_color(cont, lv_color_hex(0x1A1A2E), 0);
     lv_obj_set_style_border_width(cont, 0, 0);
     lv_obj_set_style_pad_all(cont, 0, 0);
@@ -193,13 +193,13 @@ static lv_obj_t *_create_realistic_component(lv_obj_t *parent)
     int32_t btn_w = 220;
     int32_t btn_h = 64;
     int32_t gap = 20;
-    int32_t start_y = (EOS_DISPLAY_HEIGHT - (3 * btn_h + 2 * gap)) / 2;
+    int32_t start_y = (COS_DISPLAY_HEIGHT - (3 * btn_h + 2 * gap)) / 2;
 
     for (int i = 0; i < 3; i++)
     {
         lv_obj_t *btn = lv_button_create(cont);
         lv_obj_set_size(btn, btn_w, btn_h);
-        lv_obj_set_pos(btn, (EOS_DISPLAY_WIDTH - btn_w) / 2, start_y + i * (btn_h + gap));
+        lv_obj_set_pos(btn, (COS_DISPLAY_WIDTH - btn_w) / 2, start_y + i * (btn_h + gap));
         lv_obj_set_style_bg_color(btn, lv_color_hex((i == 0) ? 0x0F3460 : (i == 1) ? 0x16213E : 0x533483), 0);
         lv_obj_set_style_radius(btn, 12, 0);
         lv_obj_set_style_shadow_width(btn, 8, 0);
@@ -280,7 +280,7 @@ static void _measure_anim(const char *test_name,
              sum_ticks / (uint32_t)(steps + 1),
              max_ticks,
              min_ticks);
-    EOS_EXPECT_TRUE(true, test_name, msg);
+    COS_EXPECT_TRUE(true, test_name, msg);
 }
 
 /* ---------------------------------------------------------------------------
@@ -292,7 +292,7 @@ static bool _test_anim_trans_image(void)
     lv_obj_t *scr = lv_screen_active();
     if (!scr)
     {
-        EOS_EXPECT_TRUE(false, "Snapshot: anim trans image", "no active screen");
+        COS_EXPECT_TRUE(false, "Snapshot: anim trans image", "no active screen");
         return false;
     }
 
@@ -300,11 +300,11 @@ static bool _test_anim_trans_image(void)
     lv_obj_update_layout(comp);
     lv_refr_now(lv_display_get_default());
 
-    lv_draw_buf_t *snap = eos_draw_buf_create(EOS_DISPLAY_WIDTH, EOS_DISPLAY_HEIGHT, SNAPSHOT_CF, 0);
+    lv_draw_buf_t *snap = cos_draw_buf_create(COS_DISPLAY_WIDTH, COS_DISPLAY_HEIGHT, SNAPSHOT_CF, 0);
     if (!snap)
     {
         lv_obj_delete(comp);
-        EOS_EXPECT_TRUE(false, "Snapshot: anim trans image", "snap alloc");
+        COS_EXPECT_TRUE(false, "Snapshot: anim trans image", "snap alloc");
         return false;
     }
 
@@ -313,18 +313,18 @@ static bool _test_anim_trans_image(void)
 
     if (r != LV_RESULT_OK)
     {
-        eos_draw_buf_destroy(snap);
-        EOS_EXPECT_TRUE(false, "Snapshot: anim trans image", "snap failed");
+        cos_draw_buf_destroy(snap);
+        COS_EXPECT_TRUE(false, "Snapshot: anim trans image", "snap failed");
         return false;
     }
 
     lv_obj_t *img = lv_image_create(scr);
     lv_image_set_src(img, snap);
-    lv_obj_set_size(img, EOS_DISPLAY_WIDTH, EOS_DISPLAY_HEIGHT);
+    lv_obj_set_size(img, COS_DISPLAY_WIDTH, COS_DISPLAY_HEIGHT);
     lv_obj_set_pos(img, 0, 0);
 
     _measure_anim("Snapshot: anim trans image", img, _anim_apply_translate_x, 0, 40);
-    eos_draw_buf_destroy(snap);
+    cos_draw_buf_destroy(snap);
     lv_obj_delete(img);
     return true;
 }
@@ -334,7 +334,7 @@ static bool _test_anim_scale_image(void)
     lv_obj_t *scr = lv_screen_active();
     if (!scr)
     {
-        EOS_EXPECT_TRUE(false, "Snapshot: anim scale image", "no active screen");
+        COS_EXPECT_TRUE(false, "Snapshot: anim scale image", "no active screen");
         return false;
     }
 
@@ -342,11 +342,11 @@ static bool _test_anim_scale_image(void)
     lv_obj_update_layout(comp);
     lv_refr_now(lv_display_get_default());
 
-    lv_draw_buf_t *snap = eos_draw_buf_create(EOS_DISPLAY_WIDTH, EOS_DISPLAY_HEIGHT, SNAPSHOT_CF, 0);
+    lv_draw_buf_t *snap = cos_draw_buf_create(COS_DISPLAY_WIDTH, COS_DISPLAY_HEIGHT, SNAPSHOT_CF, 0);
     if (!snap)
     {
         lv_obj_delete(comp);
-        EOS_EXPECT_TRUE(false, "Snapshot: anim scale image", "snap alloc");
+        COS_EXPECT_TRUE(false, "Snapshot: anim scale image", "snap alloc");
         return false;
     }
 
@@ -355,20 +355,20 @@ static bool _test_anim_scale_image(void)
 
     if (r != LV_RESULT_OK)
     {
-        eos_draw_buf_destroy(snap);
-        EOS_EXPECT_TRUE(false, "Snapshot: anim scale image", "snap failed");
+        cos_draw_buf_destroy(snap);
+        COS_EXPECT_TRUE(false, "Snapshot: anim scale image", "snap failed");
         return false;
     }
 
     lv_obj_t *img = lv_image_create(scr);
     lv_image_set_src(img, snap);
-    lv_obj_set_size(img, EOS_DISPLAY_WIDTH, EOS_DISPLAY_HEIGHT);
+    lv_obj_set_size(img, COS_DISPLAY_WIDTH, COS_DISPLAY_HEIGHT);
     lv_obj_set_pos(img, 0, 0);
-    lv_obj_set_style_transform_pivot_x(img, EOS_DISPLAY_WIDTH / 2, 0);
-    lv_obj_set_style_transform_pivot_y(img, EOS_DISPLAY_HEIGHT / 2, 0);
+    lv_obj_set_style_transform_pivot_x(img, COS_DISPLAY_WIDTH / 2, 0);
+    lv_obj_set_style_transform_pivot_y(img, COS_DISPLAY_HEIGHT / 2, 0);
 
     _measure_anim("Snapshot: anim scale image", img, _anim_apply_scale, 256, 384);
-    eos_draw_buf_destroy(snap);
+    cos_draw_buf_destroy(snap);
     lv_obj_delete(img);
     return true;
 }
@@ -378,7 +378,7 @@ static bool _test_anim_opa_image(void)
     lv_obj_t *scr = lv_screen_active();
     if (!scr)
     {
-        EOS_EXPECT_TRUE(false, "Snapshot: anim opa image", "no active screen");
+        COS_EXPECT_TRUE(false, "Snapshot: anim opa image", "no active screen");
         return false;
     }
 
@@ -386,11 +386,11 @@ static bool _test_anim_opa_image(void)
     lv_obj_update_layout(comp);
     lv_refr_now(lv_display_get_default());
 
-    lv_draw_buf_t *snap = eos_draw_buf_create(EOS_DISPLAY_WIDTH, EOS_DISPLAY_HEIGHT, SNAPSHOT_CF, 0);
+    lv_draw_buf_t *snap = cos_draw_buf_create(COS_DISPLAY_WIDTH, COS_DISPLAY_HEIGHT, SNAPSHOT_CF, 0);
     if (!snap)
     {
         lv_obj_delete(comp);
-        EOS_EXPECT_TRUE(false, "Snapshot: anim opa image", "snap alloc");
+        COS_EXPECT_TRUE(false, "Snapshot: anim opa image", "snap alloc");
         return false;
     }
 
@@ -399,18 +399,18 @@ static bool _test_anim_opa_image(void)
 
     if (r != LV_RESULT_OK)
     {
-        eos_draw_buf_destroy(snap);
-        EOS_EXPECT_TRUE(false, "Snapshot: anim opa image", "snap failed");
+        cos_draw_buf_destroy(snap);
+        COS_EXPECT_TRUE(false, "Snapshot: anim opa image", "snap failed");
         return false;
     }
 
     lv_obj_t *img = lv_image_create(scr);
     lv_image_set_src(img, snap);
-    lv_obj_set_size(img, EOS_DISPLAY_WIDTH, EOS_DISPLAY_HEIGHT);
+    lv_obj_set_size(img, COS_DISPLAY_WIDTH, COS_DISPLAY_HEIGHT);
     lv_obj_set_pos(img, 0, 0);
 
     _measure_anim("Snapshot: anim opa image", img, _anim_apply_opa, LV_OPA_COVER, LV_OPA_20);
-    eos_draw_buf_destroy(snap);
+    cos_draw_buf_destroy(snap);
     lv_obj_delete(img);
     return true;
 }
@@ -420,7 +420,7 @@ static bool _test_anim_combined_image(void)
     lv_obj_t *scr = lv_screen_active();
     if (!scr)
     {
-        EOS_EXPECT_TRUE(false, "Snapshot: anim combined image", "no active screen");
+        COS_EXPECT_TRUE(false, "Snapshot: anim combined image", "no active screen");
         return false;
     }
 
@@ -428,11 +428,11 @@ static bool _test_anim_combined_image(void)
     lv_obj_update_layout(comp);
     lv_refr_now(lv_display_get_default());
 
-    lv_draw_buf_t *snap = eos_draw_buf_create(EOS_DISPLAY_WIDTH, EOS_DISPLAY_HEIGHT, SNAPSHOT_CF, 0);
+    lv_draw_buf_t *snap = cos_draw_buf_create(COS_DISPLAY_WIDTH, COS_DISPLAY_HEIGHT, SNAPSHOT_CF, 0);
     if (!snap)
     {
         lv_obj_delete(comp);
-        EOS_EXPECT_TRUE(false, "Snapshot: anim combined image", "snap alloc");
+        COS_EXPECT_TRUE(false, "Snapshot: anim combined image", "snap alloc");
         return false;
     }
 
@@ -441,20 +441,20 @@ static bool _test_anim_combined_image(void)
 
     if (r != LV_RESULT_OK)
     {
-        eos_draw_buf_destroy(snap);
-        EOS_EXPECT_TRUE(false, "Snapshot: anim combined image", "snap failed");
+        cos_draw_buf_destroy(snap);
+        COS_EXPECT_TRUE(false, "Snapshot: anim combined image", "snap failed");
         return false;
     }
 
     lv_obj_t *img = lv_image_create(scr);
     lv_image_set_src(img, snap);
-    lv_obj_set_size(img, EOS_DISPLAY_WIDTH, EOS_DISPLAY_HEIGHT);
+    lv_obj_set_size(img, COS_DISPLAY_WIDTH, COS_DISPLAY_HEIGHT);
     lv_obj_set_pos(img, 0, 0);
-    lv_obj_set_style_transform_pivot_x(img, EOS_DISPLAY_WIDTH / 2, 0);
-    lv_obj_set_style_transform_pivot_y(img, EOS_DISPLAY_HEIGHT / 2, 0);
+    lv_obj_set_style_transform_pivot_x(img, COS_DISPLAY_WIDTH / 2, 0);
+    lv_obj_set_style_transform_pivot_y(img, COS_DISPLAY_HEIGHT / 2, 0);
 
     _measure_anim("Snapshot: anim combined image", img, _anim_apply_combined, 0, 100);
-    eos_draw_buf_destroy(snap);
+    cos_draw_buf_destroy(snap);
     lv_obj_delete(img);
     return true;
 }
@@ -468,7 +468,7 @@ static bool _test_anim_trans_direct(void)
     lv_obj_t *scr = lv_screen_active();
     if (!scr)
     {
-        EOS_EXPECT_TRUE(false, "Snapshot: anim trans direct", "no active screen");
+        COS_EXPECT_TRUE(false, "Snapshot: anim trans direct", "no active screen");
         return false;
     }
 
@@ -486,13 +486,13 @@ static bool _test_anim_scale_direct(void)
     lv_obj_t *scr = lv_screen_active();
     if (!scr)
     {
-        EOS_EXPECT_TRUE(false, "Snapshot: anim scale direct", "no active screen");
+        COS_EXPECT_TRUE(false, "Snapshot: anim scale direct", "no active screen");
         return false;
     }
 
     lv_obj_t *comp = _create_realistic_component(scr);
-    lv_obj_set_style_transform_pivot_x(comp, EOS_DISPLAY_WIDTH / 2, 0);
-    lv_obj_set_style_transform_pivot_y(comp, EOS_DISPLAY_HEIGHT / 2, 0);
+    lv_obj_set_style_transform_pivot_x(comp, COS_DISPLAY_WIDTH / 2, 0);
+    lv_obj_set_style_transform_pivot_y(comp, COS_DISPLAY_HEIGHT / 2, 0);
     lv_obj_update_layout(comp);
     lv_refr_now(lv_display_get_default());
 
@@ -506,7 +506,7 @@ static bool _test_anim_opa_direct(void)
     lv_obj_t *scr = lv_screen_active();
     if (!scr)
     {
-        EOS_EXPECT_TRUE(false, "Snapshot: anim opa direct", "no active screen");
+        COS_EXPECT_TRUE(false, "Snapshot: anim opa direct", "no active screen");
         return false;
     }
 
@@ -524,13 +524,13 @@ static bool _test_anim_combined_direct(void)
     lv_obj_t *scr = lv_screen_active();
     if (!scr)
     {
-        EOS_EXPECT_TRUE(false, "Snapshot: anim combined direct", "no active screen");
+        COS_EXPECT_TRUE(false, "Snapshot: anim combined direct", "no active screen");
         return false;
     }
 
     lv_obj_t *comp = _create_realistic_component(scr);
-    lv_obj_set_style_transform_pivot_x(comp, EOS_DISPLAY_WIDTH / 2, 0);
-    lv_obj_set_style_transform_pivot_y(comp, EOS_DISPLAY_HEIGHT / 2, 0);
+    lv_obj_set_style_transform_pivot_x(comp, COS_DISPLAY_WIDTH / 2, 0);
+    lv_obj_set_style_transform_pivot_y(comp, COS_DISPLAY_HEIGHT / 2, 0);
     lv_obj_update_layout(comp);
     lv_refr_now(lv_display_get_default());
 
@@ -540,7 +540,7 @@ static bool _test_anim_combined_direct(void)
 }
 
 /* ---------------------------------------------------------------------------
- * Individual test cases - Direct heap (eos_malloc) path
+ * Individual test cases - Direct heap (cos_malloc) path
  * ------------------------------------------------------------------------- */
 static bool _test_snap_direct_100(void)
 {
@@ -575,8 +575,8 @@ static bool _test_snap_direct_300(void)
 static bool _test_snap_direct_full(void)
 {
     return _run_snapshot_test("Snapshot: direct heap fullscreen",
-                              EOS_DISPLAY_WIDTH,
-                              EOS_DISPLAY_HEIGHT,
+                              COS_DISPLAY_WIDTH,
+                              COS_DISPLAY_HEIGHT,
                               _alloc_draw_buf_direct,
                               _free_draw_buf_direct,
                               false);
@@ -593,7 +593,7 @@ static bool _test_snap_direct_repeat_200(void)
 }
 
 /* ---------------------------------------------------------------------------
- * Individual test cases - PSRAM cache (eos_cache_buf_alloc) path
+ * Individual test cases - PSRAM cache (cos_cache_buf_alloc) path
  * ------------------------------------------------------------------------- */
 static bool _test_snap_cache_100(void)
 {
@@ -628,8 +628,8 @@ static bool _test_snap_cache_300(void)
 static bool _test_snap_cache_full(void)
 {
     return _run_snapshot_test("Snapshot: cache heap fullscreen",
-                              EOS_DISPLAY_WIDTH,
-                              EOS_DISPLAY_HEIGHT,
+                              COS_DISPLAY_WIDTH,
+                              COS_DISPLAY_HEIGHT,
                               _alloc_draw_buf_cache,
                               _free_draw_buf_cache,
                               false);
@@ -649,26 +649,26 @@ static bool _test_snap_cache_repeat_200(void)
  * Registration
  * ------------------------------------------------------------------------- */
 
-void eos_test_snapshot_register_tests(void)
+void cos_test_snapshot_register_tests(void)
 {
-    eos_test_register("Snapshot: direct heap 100x100", _test_snap_direct_100);
-    eos_test_register("Snapshot: direct heap 200x200", _test_snap_direct_200);
-    eos_test_register("Snapshot: direct heap 300x300", _test_snap_direct_300);
-    eos_test_register("Snapshot: direct heap fullscreen", _test_snap_direct_full);
-    eos_test_register("Snapshot: direct heap repeat 200x200", _test_snap_direct_repeat_200);
-    eos_test_register("Snapshot: cache heap 100x100", _test_snap_cache_100);
-    eos_test_register("Snapshot: cache heap 200x200", _test_snap_cache_200);
-    eos_test_register("Snapshot: cache heap 300x300", _test_snap_cache_300);
-    eos_test_register("Snapshot: cache heap fullscreen", _test_snap_cache_full);
-    eos_test_register("Snapshot: cache heap repeat 200x200", _test_snap_cache_repeat_200);
-    eos_test_register("Snapshot: anim trans image", _test_anim_trans_image);
-    eos_test_register("Snapshot: anim scale image", _test_anim_scale_image);
-    eos_test_register("Snapshot: anim opa image", _test_anim_opa_image);
-    eos_test_register("Snapshot: anim combined image", _test_anim_combined_image);
-    eos_test_register("Snapshot: anim trans direct", _test_anim_trans_direct);
-    eos_test_register("Snapshot: anim scale direct", _test_anim_scale_direct);
-    eos_test_register("Snapshot: anim opa direct", _test_anim_opa_direct);
-    eos_test_register("Snapshot: anim combined direct", _test_anim_combined_direct);
+    cos_test_register("Snapshot: direct heap 100x100", _test_snap_direct_100);
+    cos_test_register("Snapshot: direct heap 200x200", _test_snap_direct_200);
+    cos_test_register("Snapshot: direct heap 300x300", _test_snap_direct_300);
+    cos_test_register("Snapshot: direct heap fullscreen", _test_snap_direct_full);
+    cos_test_register("Snapshot: direct heap repeat 200x200", _test_snap_direct_repeat_200);
+    cos_test_register("Snapshot: cache heap 100x100", _test_snap_cache_100);
+    cos_test_register("Snapshot: cache heap 200x200", _test_snap_cache_200);
+    cos_test_register("Snapshot: cache heap 300x300", _test_snap_cache_300);
+    cos_test_register("Snapshot: cache heap fullscreen", _test_snap_cache_full);
+    cos_test_register("Snapshot: cache heap repeat 200x200", _test_snap_cache_repeat_200);
+    cos_test_register("Snapshot: anim trans image", _test_anim_trans_image);
+    cos_test_register("Snapshot: anim scale image", _test_anim_scale_image);
+    cos_test_register("Snapshot: anim opa image", _test_anim_opa_image);
+    cos_test_register("Snapshot: anim combined image", _test_anim_combined_image);
+    cos_test_register("Snapshot: anim trans direct", _test_anim_trans_direct);
+    cos_test_register("Snapshot: anim scale direct", _test_anim_scale_direct);
+    cos_test_register("Snapshot: anim opa direct", _test_anim_opa_direct);
+    cos_test_register("Snapshot: anim combined direct", _test_anim_combined_direct);
 }
 
-#endif /* EOS_ENABLE_TEST_APP */
+#endif /* COS_ENABLE_TEST_APP */

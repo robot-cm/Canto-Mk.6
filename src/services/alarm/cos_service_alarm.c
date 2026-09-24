@@ -1,15 +1,15 @@
 /**
- * @file eos_service_alarm.c
+ * @file cos_service_alarm.c
  * @brief Persistent alarm trigger service (Core)
  *
  * 触发链路（退出 App 后仍能响铃）：
  *
  *   Alarm App (JS)                    Core (本服务, C)
  *   ──────────────────                ─────────────────────────
- *   eos.config.setStr("alarms", ...)  ─► 写入 config.json
- *        （闹钟列表 JSON 字符串）        每 1s 轮询 eos_time_get()
+ *   cos.config.setStr("alarms", ...)  ─► 写入 config.json
+ *        （闹钟列表 JSON 字符串）        每 1s 轮询 cos_time_get()
  *                                      匹配 h/m + 星期位掩码 + 未响去重
- *                                      命中 ─► eos_app_launch_immediately()
+ *                                      命中 ─► cos_app_launch_immediately()
  *   App 被拉回前台 ──────────────────── 响铃 UI 由 JS 呈现
  *
  * 数据契约（JS <-> C，仅读，C 绝不写回 App 数据）：
@@ -24,25 +24,25 @@
  * 去重策略：同一"分钟键"最多 launch 一次（内存 _last_launch_key），
  * 防止 1s 轮询在命中分钟内重复拉起 App。launch 失败则本分钟可重试。
  */
-#include "eos_service_alarm.h"
+#include "cos_service_alarm.h"
 
 #include <string.h>
 
 #include "lvgl.h"
 #include "cJSON.h"
 
-#include "eos_service_time.h"
-#include "eos_service_storage.h"
-#include "eos_storage_paths.h"
-#include "eos_app_list.h"
+#include "cos_service_time.h"
+#include "cos_service_storage.h"
+#include "cos_storage_paths.h"
+#include "cos_app_list.h"
 #include "script_engine_core.h"
-#include "eos_log.h"
-#include "eos_mem.h"
+#include "cos_log.h"
+#include "cos_mem.h"
 
 /* Alarm App 固定 id（与 apps/alarm/manifest.json 的 id 一致） */
-#define EOS_ALARM_APP_ID "com.cantomk6.alarm"
-/* App 私有配置路径：JS 侧 eos.config 读写的是同一文件 */
-#define EOS_ALARM_CFG_PATH EOS_APP_DATA_DIR EOS_ALARM_APP_ID "/config.json"
+#define COS_ALARM_APP_ID "com.cantomk6.alarm"
+/* App 私有配置路径：JS 侧 cos.config 读写的是同一文件 */
+#define COS_ALARM_CFG_PATH COS_APP_DATA_DIR COS_ALARM_APP_ID "/config.json"
 
 static lv_timer_t *_alarm_timer = NULL;
 static int _last_launch_key = 0; /* YYYYMMDDHHMM */
@@ -51,7 +51,7 @@ static void _alarm_tick_cb(lv_timer_t *timer)
 {
     (void)timer;
 
-    eos_datetime_t now = eos_time_get();
+    cos_datetime_t now = cos_time_get();
     if (now.year < 2000)
     {
         return; /* 时间未校准，不触发也不推进去重键 */
@@ -64,14 +64,14 @@ static void _alarm_tick_cb(lv_timer_t *timer)
         return; /* 本分钟已处理过 */
     }
 
-    char *data = eos_storage_read_file(EOS_ALARM_CFG_PATH);
+    char *data = cos_storage_read_file(COS_ALARM_CFG_PATH);
     if (!data)
     {
         _last_launch_key = key;
         return;
     }
     cJSON *root = cJSON_Parse(data);
-    eos_free(data);
+    cos_free(data);
     if (!root)
     {
         _last_launch_key = key;
@@ -137,20 +137,20 @@ static void _alarm_tick_cb(lv_timer_t *timer)
 
     /* 前台已是 Alarm App：JS 自行检测响铃，无需 launch */
     char *cur = script_engine_get_current_script_id();
-    if (cur && strcmp(cur, EOS_ALARM_APP_ID) == 0)
+    if (cur && strcmp(cur, COS_ALARM_APP_ID) == 0)
     {
         _last_launch_key = key;
         return;
     }
 
-    if (eos_app_launch_immediately(EOS_ALARM_APP_ID) == EOS_OK)
+    if (cos_app_launch_immediately(COS_ALARM_APP_ID) == COS_OK)
     {
         _last_launch_key = key;
     }
     /* launch 失败（如切换动画中）→ 不推进去重键，下一 tick 重试 */
 }
 
-void eos_service_alarm_init(void)
+void cos_service_alarm_init(void)
 {
     if (_alarm_timer)
     {
@@ -158,5 +158,5 @@ void eos_service_alarm_init(void)
     }
     _alarm_timer = lv_timer_create(_alarm_tick_cb, 1000, NULL);
     lv_timer_set_repeat_count(_alarm_timer, -1);
-    EOS_LOG_I("Alarm service init (1s periodic check, app=%s)", EOS_ALARM_APP_ID);
+    COS_LOG_I("Alarm service init (1s periodic check, app=%s)", COS_ALARM_APP_ID);
 }

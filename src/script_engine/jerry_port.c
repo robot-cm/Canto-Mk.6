@@ -1,6 +1,6 @@
 /**
  * @file jerry_port.c
- * @brief JerryScript Port for ElenixOS
+ * @brief JerryScript Port for CantoMk6
  */
 
 #include <stdio.h>

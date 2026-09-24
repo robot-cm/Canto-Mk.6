@@ -7,9 +7,9 @@
 // ANSI caps only ("/ * - + = ^ %", "sqrt/DEL") - safe for built-in fonts.
 // EVENT_CLICKED broken in this fork -> use EVENT_PRESSED (same as timer).
 
-var activity = eos.activity.current();
-var view = eos.activity.getView(activity);
-eos.activity.setTitle(activity, "Calc");
+var activity = cos.activity.current();
+var view = cos.activity.getView(activity);
+cos.activity.setTitle(activity, "Calc");
 
 var BG = 0x0E0E14;
 var WHITE = 0xFFFFFF;

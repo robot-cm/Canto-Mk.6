@@ -1,5 +1,5 @@
 /**
- * @file eos_hw_deep_sleep.c
+ * @file cos_hw_deep_sleep.c
  * @brief ESP32-S3 真机硬件深度睡眠实现(覆盖 PM 服务 weak 钩子)
  *
  * 原理:
@@ -18,7 +18,7 @@
 #include "esp_sleep.h"
 #include "driver/gpio.h"
 #include "board_xiao_esp32s3_round.h"
-#include "eos_port.h"
+#include "cos_port.h"
 
 static const char *TAG = "HWDeepSleep";
 
@@ -36,14 +36,14 @@ static void _backlight_off(void)
     gpio_set_level(BOARD_GC9A01_BL_PIN, 0);
 }
 
-void eos_hw_deep_sleep(uint32_t sleep_sec)
+void cos_hw_deep_sleep(uint32_t sleep_sec)
 {
     ESP_LOGI(TAG, "Entering hardware deep sleep, wake in %u s", (unsigned)sleep_sec);
 
     _backlight_off();
 
     /* BLE 断电(esp_deep_sleep 前关闭外设省电) */
-    eos_net_bt_backend_power_down();
+    cos_net_bt_backend_power_down();
 
     if (sleep_sec == 0)
         sleep_sec = 60; /* 兜底:触摸无法唤醒,至少 60s 定时唤醒防变砖 */

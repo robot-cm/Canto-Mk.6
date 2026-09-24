@@ -1,21 +1,21 @@
 /**
- * @file eos_panel.c
+ * @file cos_panel.c
  * @brief Generic panel component
  */
 
-#include "eos_panel.h"
+#include "cos_panel.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "eos_theme.h"
-#include "eos_basic_widgets.h"
-#include "eos_activity.h"
-#include "eos_app_header.h"
-#include "eos_mem.h"
-#include "eos_log.h"
-#include "eos_font.h"
+#include "cos_theme.h"
+#include "cos_basic_widgets.h"
+#include "cos_activity.h"
+#include "cos_app_header.h"
+#include "cos_mem.h"
+#include "cos_log.h"
+#include "cos_font.h"
 
 /* Macros and Definitions -------------------------------------*/
 
@@ -28,43 +28,43 @@
 static void _panel_default_cancel_cb(lv_event_t *e)
 {
     (void)e;
-    eos_activity_back();
+    cos_activity_back();
 }
 
-static void _eos_panel_container_delete_cb(lv_event_t *e)
+static void _cos_panel_container_delete_cb(lv_event_t *e)
 {
-    eos_panel_t *panel = (eos_panel_t *)lv_event_get_user_data(e);
+    cos_panel_t *panel = (cos_panel_t *)lv_event_get_user_data(e);
 
     if (panel)
     {
         panel->container = NULL;
-        eos_free(panel);
-        EOS_LOG_D("Panel auto-freed on container delete: %p", (void *)panel);
+        cos_free(panel);
+        COS_LOG_D("Panel auto-freed on container delete: %p", (void *)panel);
     }
 }
 
-static void _eos_panel_build_content(eos_panel_t *panel, const eos_panel_cfg_t *cfg)
+static void _cos_panel_build_content(cos_panel_t *panel, const cos_panel_cfg_t *cfg)
 {
     lv_obj_t *container = panel->container;
 
-    if (cfg->icon_type != EOS_PANEL_ICON_TYPE_NONE && cfg->icon_src != NULL)
+    if (cfg->icon_type != COS_PANEL_ICON_TYPE_NONE && cfg->icon_src != NULL)
     {
         panel->icon = lv_obj_create(container);
         lv_obj_remove_style_all(panel->icon);
-        lv_obj_set_size(panel->icon, EOS_PANEL_ICON_SIZE, EOS_PANEL_ICON_SIZE);
+        lv_obj_set_size(panel->icon, COS_PANEL_ICON_SIZE, COS_PANEL_ICON_SIZE);
         lv_obj_set_style_radius(panel->icon, LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_bg_color(panel->icon, cfg->icon_bg_color, 0);
         lv_obj_set_style_bg_opa(panel->icon, LV_OPA_COVER, 0);
         lv_obj_set_style_border_width(panel->icon, 0, 0);
         lv_obj_align(panel->icon, LV_ALIGN_TOP_MID, 0, 0);
 
-        if (cfg->icon_type == EOS_PANEL_ICON_TYPE_SYMBOL)
+        if (cfg->icon_type == COS_PANEL_ICON_TYPE_SYMBOL)
         {
             lv_obj_t *icon_label = lv_label_create(panel->icon);
             lv_label_set_text(icon_label, cfg->icon_src);
             lv_obj_align(icon_label, LV_ALIGN_CENTER, 0, 3);
         }
-        else if (cfg->icon_type == EOS_PANEL_ICON_TYPE_IMAGE)
+        else if (cfg->icon_type == COS_PANEL_ICON_TYPE_IMAGE)
         {
             lv_obj_t *icon_img = lv_image_create(panel->icon);
             lv_image_set_src(icon_img, cfg->icon_src);
@@ -77,14 +77,14 @@ static void _eos_panel_build_content(eos_panel_t *panel, const eos_panel_cfg_t *
         panel->title = lv_label_create(container);
         if (cfg->title_id != 0)
         {
-            eos_label_set_text_id(panel->title, cfg->title_id);
+            cos_label_set_text_id(panel->title, cfg->title_id);
         }
         else
         {
             lv_label_set_text(panel->title, cfg->title_text);
         }
-        eos_label_set_font_size(panel->title, EOS_FONT_SIZE_LARGE);
-        lv_obj_set_width(panel->title, EOS_PANEL_CONTENT_WIDTH);
+        cos_label_set_font_size(panel->title, COS_FONT_SIZE_LARGE);
+        lv_obj_set_width(panel->title, COS_PANEL_CONTENT_WIDTH);
         lv_label_set_long_mode(panel->title, LV_LABEL_LONG_WRAP);
         lv_obj_set_style_text_align(panel->title, LV_TEXT_ALIGN_CENTER, 0);
 
@@ -103,13 +103,13 @@ static void _eos_panel_build_content(eos_panel_t *panel, const eos_panel_cfg_t *
         panel->message = lv_label_create(container);
         if (cfg->message_id != 0)
         {
-            eos_label_set_text_id(panel->message, cfg->message_id);
+            cos_label_set_text_id(panel->message, cfg->message_id);
         }
         else
         {
             lv_label_set_text(panel->message, cfg->message_text);
         }
-        lv_obj_set_width(panel->message, EOS_PANEL_CONTENT_WIDTH);
+        lv_obj_set_width(panel->message, COS_PANEL_CONTENT_WIDTH);
         lv_label_set_long_mode(panel->message, LV_LABEL_LONG_WRAP);
         lv_obj_set_style_text_align(panel->message, LV_TEXT_ALIGN_CENTER, 0);
 
@@ -129,7 +129,7 @@ static void _eos_panel_build_content(eos_panel_t *panel, const eos_panel_cfg_t *
 
     panel->extra_slot = lv_obj_create(container);
     lv_obj_remove_style_all(panel->extra_slot);
-    lv_obj_set_size(panel->extra_slot, EOS_PANEL_CONTENT_WIDTH, LV_SIZE_CONTENT);
+    lv_obj_set_size(panel->extra_slot, COS_PANEL_CONTENT_WIDTH, LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(panel->extra_slot, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(panel->extra_slot, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_row(panel->extra_slot, 0, 0);
@@ -155,7 +155,7 @@ static void _eos_panel_build_content(eos_panel_t *panel, const eos_panel_cfg_t *
 
     panel->actions = lv_obj_create(container);
     lv_obj_remove_style_all(panel->actions);
-    lv_obj_set_size(panel->actions, EOS_PANEL_CONTENT_WIDTH, LV_SIZE_CONTENT);
+    lv_obj_set_size(panel->actions, COS_PANEL_CONTENT_WIDTH, LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(panel->actions, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(panel->actions, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_all(panel->actions, 10, 0);
@@ -168,13 +168,13 @@ static void _eos_panel_build_content(eos_panel_t *panel, const eos_panel_cfg_t *
     if (cfg->confirm_btn_id != 0 || cfg->confirm_btn_text != NULL)
     {
         panel->confirm_btn = lv_button_create(panel->actions);
-        lv_obj_set_size(panel->confirm_btn, LV_PCT(100), EOS_THEME_BUTTON_HEIGHT);
+        lv_obj_set_size(panel->confirm_btn, LV_PCT(100), COS_THEME_BUTTON_HEIGHT);
         lv_obj_set_style_radius(panel->confirm_btn, _PANEL_BUTTON_RADIUS, 0);
 
         lv_obj_t *confirm_label = lv_label_create(panel->confirm_btn);
         if (cfg->confirm_btn_id != 0)
         {
-            eos_label_set_text_id(confirm_label, cfg->confirm_btn_id);
+            cos_label_set_text_id(confirm_label, cfg->confirm_btn_id);
         }
         else
         {
@@ -192,13 +192,13 @@ static void _eos_panel_build_content(eos_panel_t *panel, const eos_panel_cfg_t *
     if (cfg->cancel_btn_id != 0 || cfg->cancel_btn_text != NULL)
     {
         panel->cancel_btn = lv_button_create(panel->actions);
-        lv_obj_set_size(panel->cancel_btn, LV_PCT(100), EOS_THEME_BUTTON_HEIGHT);
+        lv_obj_set_size(panel->cancel_btn, LV_PCT(100), COS_THEME_BUTTON_HEIGHT);
         lv_obj_set_style_radius(panel->cancel_btn, _PANEL_BUTTON_RADIUS, 0);
 
         lv_obj_t *cancel_label = lv_label_create(panel->cancel_btn);
         if (cfg->cancel_btn_id != 0)
         {
-            eos_label_set_text_id(cancel_label, cfg->cancel_btn_id);
+            cos_label_set_text_id(cancel_label, cfg->cancel_btn_id);
         }
         else
         {
@@ -217,11 +217,11 @@ static void _eos_panel_build_content(eos_panel_t *panel, const eos_panel_cfg_t *
     }
 }
 
-eos_panel_t *eos_panel_create_on_activity(eos_activity_t *activity, const eos_panel_cfg_t *cfg)
+cos_panel_t *cos_panel_create_on_activity(cos_activity_t *activity, const cos_panel_cfg_t *cfg)
 {
-    EOS_CHECK_PTR_RETURN_VAL(cfg, NULL);
+    COS_CHECK_PTR_RETURN_VAL(cfg, NULL);
 
-    lv_obj_t *view = eos_activity_get_view(activity);
+    lv_obj_t *view = cos_activity_get_view(activity);
     if (!view)
     {
         return NULL;
@@ -229,9 +229,9 @@ eos_panel_t *eos_panel_create_on_activity(eos_activity_t *activity, const eos_pa
 
     /* Create panel as a fullscreen overlay on top of the existing view,
      * so that deleting it restores the original content underneath */
-    eos_activity_set_app_header_visible(activity, false);
+    cos_activity_set_app_header_visible(activity, false);
 
-    eos_panel_t *panel = eos_panel_create(view, cfg);
+    cos_panel_t *panel = cos_panel_create(view, cfg);
     if (panel && panel->container)
     {
         lv_obj_set_pos(panel->container, 0, 0);
@@ -240,23 +240,23 @@ eos_panel_t *eos_panel_create_on_activity(eos_activity_t *activity, const eos_pa
     return panel;
 }
 
-eos_panel_t *eos_panel_create(lv_obj_t *parent, const eos_panel_cfg_t *cfg)
+cos_panel_t *cos_panel_create(lv_obj_t *parent, const cos_panel_cfg_t *cfg)
 {
-    EOS_CHECK_PTR_RETURN_VAL(cfg, NULL);
+    COS_CHECK_PTR_RETURN_VAL(cfg, NULL);
 
-    eos_panel_t *panel = (eos_panel_t *)eos_malloc(sizeof(eos_panel_t));
+    cos_panel_t *panel = (cos_panel_t *)cos_malloc(sizeof(cos_panel_t));
     if (!panel)
     {
         return NULL;
     }
-    memset(panel, 0, sizeof(eos_panel_t));
+    memset(panel, 0, sizeof(cos_panel_t));
 
     panel->container = lv_obj_create(parent);
     lv_obj_remove_style_all(panel->container);
     lv_obj_set_size(panel->container, LV_PCT(100), LV_PCT(100));
     lv_obj_set_flex_flow(panel->container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(panel->container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_bg_color(panel->container, EOS_COLOR_BLACK, 0);
+    lv_obj_set_style_bg_color(panel->container, COS_COLOR_BLACK, 0);
     lv_obj_set_style_bg_opa(panel->container, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(panel->container, 0, 0);
     lv_obj_set_scrollbar_mode(panel->container, LV_SCROLLBAR_MODE_OFF);
@@ -264,14 +264,14 @@ eos_panel_t *eos_panel_create(lv_obj_t *parent, const eos_panel_cfg_t *cfg)
     lv_obj_set_style_pad_top(panel->container, _PANEL_PAD_TOP, 0);
     lv_obj_set_style_pad_bottom(panel->container, _PANEL_PAD_BOTTOM, 0);
 
-    lv_obj_add_event_cb(panel->container, _eos_panel_container_delete_cb, LV_EVENT_DELETE, panel);
+    lv_obj_add_event_cb(panel->container, _cos_panel_container_delete_cb, LV_EVENT_DELETE, panel);
 
-    _eos_panel_build_content(panel, cfg);
+    _cos_panel_build_content(panel, cfg);
 
     return panel;
 }
 
-lv_obj_t *eos_panel_get_extra_slot(eos_panel_t *panel)
+lv_obj_t *cos_panel_get_extra_slot(cos_panel_t *panel)
 {
     if (!panel)
     {
@@ -280,7 +280,7 @@ lv_obj_t *eos_panel_get_extra_slot(eos_panel_t *panel)
     return panel->extra_slot;
 }
 
-void eos_panel_delete(eos_panel_t *panel)
+void cos_panel_delete(cos_panel_t *panel)
 {
     if (!panel)
     {
@@ -289,9 +289,9 @@ void eos_panel_delete(eos_panel_t *panel)
 
     if (panel->container && lv_obj_is_valid(panel->container))
     {
-        lv_obj_remove_event_cb(panel->container, _eos_panel_container_delete_cb);
+        lv_obj_remove_event_cb(panel->container, _cos_panel_container_delete_cb);
         lv_obj_delete(panel->container);
     }
 
-    eos_free(panel);
+    cos_free(panel);
 }

@@ -1,5 +1,5 @@
 /**
- * @file eos_spotify_arc.c
+ * @file cos_spotify_arc.c
  * @brief 弧形调节控件实现(音量 / 速度)。
  *
  * ── 为什么用 lv_arc ─────────────────────────────────────────
@@ -12,7 +12,7 @@
  *
  * ── 长按计时 ────────────────────────────────────────────────
  *   不使用额外的 esp_timer,而是由 App 的 lv_timer(50ms)调用
- *   eos_spotify_arc_tick(),内部累计"已按下时长":
+ *   cos_spotify_arc_tick(),内部累计"已按下时长":
  *     ≥1000ms → edit_mode = true,加粗
  *     ≥3000ms → 复位到默认值(并保持 edit_mode)
  *   松手(RELEASED / PRESS_LOST)清零计时并退出 edit_mode。
@@ -21,18 +21,18 @@
  *   弧控件本身是 CLICKABLE 且会消费按下事件,因此其热区内不会触发
  *   屏幕级滑动返回;弧外区域仍可正常滑动退出 App。
  */
-#include "eos_spotify_arc.h"
+#include "cos_spotify_arc.h"
 
 #if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
 
 #include <math.h>
 #include <string.h>
 
-#include "eos_mem.h"
-#include "eos_font.h"
+#include "cos_mem.h"
+#include "cos_font.h"
 
-#define EOS_LOG_TAG "SpotifyArc"
-#include "eos_log.h"
+#define COS_LOG_TAG "SpotifyArc"
+#include "cos_log.h"
 
 /* ── 视觉参数 ─────────────────────────────────────────────── */
 
@@ -47,7 +47,7 @@
 
 /* ── 结构 ─────────────────────────────────────────────────── */
 
-struct eos_spotify_arc_s
+struct cos_spotify_arc_s
 {
     lv_obj_t *arc;
     lv_obj_t *label;         /* 数值文本 */
@@ -63,14 +63,14 @@ struct eos_spotify_arc_s
     uint32_t press_start;    /* 按下时刻(lv_tick)    */
     bool     reset_done;     /* 本次长按是否已执行复位 */
 
-    eos_spotify_arc_cb_t on_change;
+    cos_spotify_arc_cb_t on_change;
     void *user;
 };
 
 /* ── 数值 ↔ 弧值 映射 ─────────────────────────────────────── */
 
 /* lv_arc 用 0..100 的整数表示值;这里做线性映射。 */
-static int _val_to_arc(const eos_spotify_arc_t *a, float v)
+static int _val_to_arc(const cos_spotify_arc_t *a, float v)
 {
     if (a->max_value <= a->min_value)
     {
@@ -82,7 +82,7 @@ static int _val_to_arc(const eos_spotify_arc_t *a, float v)
     return (int)(t * 100.0f + 0.5f);
 }
 
-static float _arc_to_val(const eos_spotify_arc_t *a, int av)
+static float _arc_to_val(const cos_spotify_arc_t *a, int av)
 {
     float t = (float)av / 100.0f;
     if (t < 0.0f) t = 0.0f;
@@ -92,7 +92,7 @@ static float _arc_to_val(const eos_spotify_arc_t *a, int av)
 
 /* ── 数值文本 ─────────────────────────────────────────────── */
 
-static void _update_label(eos_spotify_arc_t *a)
+static void _update_label(cos_spotify_arc_t *a)
 {
     if (a->label == NULL)
     {
@@ -115,7 +115,7 @@ static void _update_label(eos_spotify_arc_t *a)
 
 static void _arc_value_changed(lv_event_t *e)
 {
-    eos_spotify_arc_t *a = (eos_spotify_arc_t *)lv_event_get_user_data(e);
+    cos_spotify_arc_t *a = (cos_spotify_arc_t *)lv_event_get_user_data(e);
     if (a == NULL)
     {
         return;
@@ -143,7 +143,7 @@ static void _arc_value_changed(lv_event_t *e)
 
 static void _arc_pressed(lv_event_t *e)
 {
-    eos_spotify_arc_t *a = (eos_spotify_arc_t *)lv_event_get_user_data(e);
+    cos_spotify_arc_t *a = (cos_spotify_arc_t *)lv_event_get_user_data(e);
     if (a == NULL)
     {
         return;
@@ -155,7 +155,7 @@ static void _arc_pressed(lv_event_t *e)
 
 static void _arc_released(lv_event_t *e)
 {
-    eos_spotify_arc_t *a = (eos_spotify_arc_t *)lv_event_get_user_data(e);
+    cos_spotify_arc_t *a = (cos_spotify_arc_t *)lv_event_get_user_data(e);
     if (a == NULL)
     {
         return;
@@ -167,13 +167,13 @@ static void _arc_released(lv_event_t *e)
         /* 恢复原粗细,作为"退出调节"的反馈 */
         lv_obj_set_style_arc_width(a->arc, ARC_WIDTH_IDLE, LV_PART_MAIN);
         lv_obj_set_style_arc_width(a->arc, ARC_WIDTH_IDLE, LV_PART_INDICATOR);
-        EOS_LOG_I("arc: edit end, value=%.2f", (double)a->value);
+        COS_LOG_I("arc: edit end, value=%.2f", (double)a->value);
     }
 }
 
 /* ── 长按计时(由 App tick 驱动) ──────────────────────────── */
 
-void eos_spotify_arc_tick(eos_spotify_arc_t *a)
+void cos_spotify_arc_tick(cos_spotify_arc_t *a)
 {
     if (a == NULL || !a->pressed)
     {
@@ -182,16 +182,16 @@ void eos_spotify_arc_tick(eos_spotify_arc_t *a)
     uint32_t held = lv_tick_get() - a->press_start;
 
     /* 阶段 1:长按 1s → 进入调节模式(加粗反馈) */
-    if (!a->edit_mode && held >= EOS_SPOTIFY_ARC_HOLD_EDIT_MS)
+    if (!a->edit_mode && held >= COS_SPOTIFY_ARC_HOLD_EDIT_MS)
     {
         a->edit_mode = true;
         lv_obj_set_style_arc_width(a->arc, ARC_WIDTH_EDIT, LV_PART_MAIN);
         lv_obj_set_style_arc_width(a->arc, ARC_WIDTH_EDIT, LV_PART_INDICATOR);
-        EOS_LOG_I("arc: edit mode on (%s)", a->right_side ? "volume" : "speed");
+        COS_LOG_I("arc: edit mode on (%s)", a->right_side ? "volume" : "speed");
     }
 
     /* 阶段 2:长按 3s → 复位到默认值 */
-    if (a->edit_mode && !a->reset_done && held >= EOS_SPOTIFY_ARC_HOLD_RESET_MS)
+    if (a->edit_mode && !a->reset_done && held >= COS_SPOTIFY_ARC_HOLD_RESET_MS)
     {
         a->reset_done = true;
         a->value = a->def_value;
@@ -201,23 +201,23 @@ void eos_spotify_arc_tick(eos_spotify_arc_t *a)
         {
             a->on_change(a->user, a->value);
         }
-        EOS_LOG_I("arc: reset to %.2f", (double)a->value);
+        COS_LOG_I("arc: reset to %.2f", (double)a->value);
     }
 }
 
 /* ── 创建 ─────────────────────────────────────────────────── */
 
-eos_spotify_arc_t *eos_spotify_arc_create(lv_obj_t *parent, bool right_side,
+cos_spotify_arc_t *cos_spotify_arc_create(lv_obj_t *parent, bool right_side,
                                          float min_value, float max_value,
                                          float def_value,
-                                         eos_spotify_arc_cb_t on_change, void *user)
+                                         cos_spotify_arc_cb_t on_change, void *user)
 {
     if (parent == NULL || max_value <= min_value)
     {
         return NULL;
     }
 
-    eos_spotify_arc_t *a = (eos_spotify_arc_t *)eos_malloc(sizeof(*a));
+    cos_spotify_arc_t *a = (cos_spotify_arc_t *)cos_malloc(sizeof(*a));
     if (a == NULL)
     {
         return NULL;
@@ -246,7 +246,7 @@ eos_spotify_arc_t *eos_spotify_arc_create(lv_obj_t *parent, bool right_side,
      *   - 左侧速度条:从 120° 到 240°(跨越左侧)
      * 这里使用"起始角 + 120° 跨度"的方式设定。 */
     lv_arc_set_rotation(a->arc, right_side ? 300 : 120);
-    lv_arc_set_bg_angles(a->arc, 0, EOS_SPOTIFY_ARC_ANGLE);
+    lv_arc_set_bg_angles(a->arc, 0, COS_SPOTIFY_ARC_ANGLE);
     lv_arc_set_range(a->arc, 0, 100);
     lv_arc_set_value(a->arc, _val_to_arc(a, a->value));
 
@@ -272,7 +272,7 @@ eos_spotify_arc_t *eos_spotify_arc_create(lv_obj_t *parent, bool right_side,
     a->label = lv_label_create(parent);
     lv_label_set_text(a->label, "");
     lv_obj_set_style_text_color(a->label, lv_color_hex(C_KNOB), 0);
-    eos_label_set_font_size(a->label, EOS_FONT_SIZE_MICRO);
+    cos_label_set_font_size(a->label, COS_FONT_SIZE_MICRO);
     _update_label(a);
     /* 贴着弧的内侧边缘 */
     lv_obj_align(a->label, LV_ALIGN_CENTER, right_side ? 82 : -82, 34);
@@ -283,23 +283,23 @@ eos_spotify_arc_t *eos_spotify_arc_create(lv_obj_t *parent, bool right_side,
     lv_obj_add_event_cb(a->arc, _arc_released, LV_EVENT_RELEASED, a);
     lv_obj_add_event_cb(a->arc, _arc_released, LV_EVENT_PRESS_LOST, a);
 
-    EOS_LOG_I("arc: created %s [%.1f..%.1f] def=%.1f",
+    COS_LOG_I("arc: created %s [%.1f..%.1f] def=%.1f",
               right_side ? "volume" : "speed",
               (double)min_value, (double)max_value, (double)def_value);
     return a;
 }
 
-void eos_spotify_arc_destroy(eos_spotify_arc_t *a)
+void cos_spotify_arc_destroy(cos_spotify_arc_t *a)
 {
     if (a == NULL)
     {
         return;
     }
     /* arc / label 由 LVGL 随父对象销毁,这里只释放结构体 */
-    eos_free(a);
+    cos_free(a);
 }
 
-void eos_spotify_arc_set_value(eos_spotify_arc_t *a, float value)
+void cos_spotify_arc_set_value(cos_spotify_arc_t *a, float value)
 {
     if (a == NULL)
     {
@@ -312,12 +312,12 @@ void eos_spotify_arc_set_value(eos_spotify_arc_t *a, float value)
     _update_label(a);
 }
 
-float eos_spotify_arc_get_value(const eos_spotify_arc_t *a)
+float cos_spotify_arc_get_value(const cos_spotify_arc_t *a)
 {
     return a ? a->value : 0.0f;
 }
 
-void eos_spotify_arc_reset(eos_spotify_arc_t *a)
+void cos_spotify_arc_reset(cos_spotify_arc_t *a)
 {
     if (a == NULL)
     {
@@ -332,7 +332,7 @@ void eos_spotify_arc_reset(eos_spotify_arc_t *a)
     }
 }
 
-lv_obj_t *eos_spotify_arc_obj(const eos_spotify_arc_t *a)
+lv_obj_t *cos_spotify_arc_obj(const cos_spotify_arc_t *a)
 {
     return a ? a->arc : NULL;
 }

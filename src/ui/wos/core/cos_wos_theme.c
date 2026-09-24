@@ -1,13 +1,13 @@
 /**
- * @file eos_wos_theme.c
+ * @file cos_wos_theme.c
  * @brief WOS design tokens implementation
  */
-#include "eos_wos_theme.h"
+#include "cos_wos_theme.h"
 
-#include "eos_log.h"
-#include "eos_font.h" /* eos_label_set_font_size (accepts pixel size) */
+#include "cos_log.h"
+#include "cos_font.h" /* cos_label_set_font_size (accepts pixel size) */
 
-#define EOS_LOG_TAG "WosTheme"
+#define COS_LOG_TAG "WosTheme"
 
 void wos_style_glass_card(lv_obj_t *obj, int radius, lv_opa_t tint)
 {
@@ -42,7 +42,7 @@ void wos_style_text_primary(lv_obj_t *label, int size)
     if (!label)
         return;
     lv_obj_set_style_text_color(label, WOS_COLOR_TEXT_PRIMARY, 0);
-    eos_label_set_font_size(label, (eos_font_size_t)size);
+    cos_label_set_font_size(label, (cos_font_size_t)size);
 }
 
 void wos_style_text_secondary(lv_obj_t *label, int size)
@@ -50,5 +50,5 @@ void wos_style_text_secondary(lv_obj_t *label, int size)
     if (!label)
         return;
     lv_obj_set_style_text_color(label, WOS_COLOR_TEXT_SECONDARY, 0);
-    eos_label_set_font_size(label, (eos_font_size_t)size);
+    cos_label_set_font_size(label, (cos_font_size_t)size);
 }

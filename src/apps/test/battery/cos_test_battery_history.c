@@ -1,29 +1,29 @@
 /**
- * @file eos_test_battery_history.c
+ * @file cos_test_battery_history.c
  * @brief Battery history chart visualization test module
  */
 
-#include "eos_config.h"
-#if EOS_ENABLE_TEST_APP
+#include "cos_config.h"
+#if COS_ENABLE_TEST_APP
 
-#include "eos_test_battery_history.h"
+#include "cos_test_battery_history.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
-#include "eos_service_battery.h"
-#include "eos_log.h"
-#include "eos_basic_widgets.h"
-#include "eos_lang.h"
-#include "eos_activity.h"
-#include "eos_app_header.h"
-#include "eos_crown.h"
+#include "cos_service_battery.h"
+#include "cos_log.h"
+#include "cos_basic_widgets.h"
+#include "cos_lang.h"
+#include "cos_activity.h"
+#include "cos_app_header.h"
+#include "cos_crown.h"
 #include "lvgl.h"
 #include <math.h>
 
 /* Macros and Definitions -------------------------------------*/
-#define EOS_LOG_TAG "BatteryHistory"
+#define COS_LOG_TAG "BatteryHistory"
 
 /* Variables --------------------------------------------------*/
 
@@ -54,7 +54,7 @@ static void _chart_update_cb(lv_timer_t *timer)
     lv_chart_set_all_value(_ctx.chart, _ctx.series, 0);
 
     /* Get history count */
-    uint32_t count = eos_battery_get_history_count();
+    uint32_t count = cos_battery_get_history_count();
     if (count == 0)
     {
         if (_ctx.info_label)
@@ -73,20 +73,20 @@ static void _chart_update_cb(lv_timer_t *timer)
     }
 
     /* Add history data to chart */
-    eos_battery_state_t entry;
+    cos_battery_state_t entry;
     uint32_t max_entries = lv_chart_get_point_count(_ctx.chart);
     uint32_t start_idx = (count > max_entries) ? (count - max_entries) : 0;
 
     for (uint32_t i = start_idx; i < count; i++)
     {
-        if (eos_battery_get_history_entry(i, &entry))
+        if (cos_battery_get_history_entry(i, &entry))
         {
             lv_chart_set_next_value(_ctx.chart, _ctx.series, entry.percent);
         }
     }
 }
 
-static void _battery_history_on_destroy(eos_activity_t *activity)
+static void _battery_history_on_destroy(cos_activity_t *activity)
 {
     LV_UNUSED(activity);
 
@@ -105,27 +105,27 @@ static void _battery_history_on_destroy(eos_activity_t *activity)
     _ctx.history_count = 0;
 }
 
-static const eos_activity_lifecycle_t _s_battery_history_lifecycle = {.on_enter = NULL,
+static const cos_activity_lifecycle_t _s_battery_history_lifecycle = {.on_enter = NULL,
                                                                       .on_destroy = _battery_history_on_destroy,
                                                                       .on_pause = NULL,
                                                                       .on_resume = NULL};
 
-void eos_test_battery_history_start(void)
+void cos_test_battery_history_start(void)
 {
-    eos_activity_t *activity = eos_activity_create(&_s_battery_history_lifecycle);
+    cos_activity_t *activity = cos_activity_create(&_s_battery_history_lifecycle);
     if (!activity)
     {
         return;
     }
 
-    lv_obj_t *view = eos_activity_get_view(activity);
+    lv_obj_t *view = cos_activity_get_view(activity);
     if (!view)
     {
         return;
     }
 
-    eos_activity_set_title(activity, "Battery History");
-    eos_activity_set_type(activity, EOS_ACTIVITY_TYPE_APP);
+    cos_activity_set_title(activity, "Battery History");
+    cos_activity_set_type(activity, COS_ACTIVITY_TYPE_APP);
 
     /* Create container */
     _ctx.container = lv_obj_create(view);
@@ -164,7 +164,7 @@ void eos_test_battery_history_start(void)
     _chart_update_cb(NULL);
 
     /* Enter activity */
-    eos_activity_enter(activity);
+    cos_activity_enter(activity);
 }
 
-#endif /* EOS_ENABLE_TEST_APP */
+#endif /* COS_ENABLE_TEST_APP */

@@ -1,34 +1,34 @@
 /**
- * @file eos_flash_light.c
+ * @file cos_flash_light.c
  * @brief Flashlight
  */
 
-#include "eos_flash_light.h"
+#include "cos_flash_light.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "eos_theme.h"
-#include "eos_config.h"
-#include "eos_swipe_panel.h"
-#define EOS_LOG_TAG "FlashLight"
-#include "eos_log.h"
-#include "eos_event.h"
-#include "eos_icon.h"
-#include "eos_anim.h"
-#include "eos_utils.h"
-#include "eos_card_pager.h"
-#include "eos_watchface.h"
-#include "eos_port.h"
-#include "eos_service_config.h"
-#include "eos_service_display.h"
-#include "eos_app_list.h"
-#include "eos_lang.h"
-#include "eos_basic_widgets.h"
-#include "eos_app_header.h"
-#include "eos_mem.h"
-#include "eos_chrome_manager.h"
+#include "cos_theme.h"
+#include "cos_config.h"
+#include "cos_swipe_panel.h"
+#define COS_LOG_TAG "FlashLight"
+#include "cos_log.h"
+#include "cos_event.h"
+#include "cos_icon.h"
+#include "cos_anim.h"
+#include "cos_utils.h"
+#include "cos_card_pager.h"
+#include "cos_watchface.h"
+#include "cos_port.h"
+#include "cos_service_config.h"
+#include "cos_service_display.h"
+#include "cos_app_list.h"
+#include "cos_lang.h"
+#include "cos_basic_widgets.h"
+#include "cos_app_header.h"
+#include "cos_mem.h"
+#include "cos_chrome_manager.h"
 
 /* ============ 画图式色板（用户需求 2026-08 重做：2 页，点色块发光，无屏闪） ============ */
 #define _FLASH_PALETTE_HUE_STEPS 8
@@ -42,14 +42,14 @@
 #define _BRIGHTNESS_SMOOTH_DURATION 300
 #define _IMMERSIVE_TAP_MAX_DISPLACEMENT 8
 #define _IMMERSIVE_FADE_DURATION 220
-#define _INDICATOR_MODE1_ACTIVE_COLOR EOS_COLOR_WHITE
-#define _INDICATOR_MODE1_INACTIVE_COLOR EOS_COLOR_BLACK
-#define _INDICATOR_MODE2_ACTIVE_COLOR EOS_COLOR_BLACK
-#define _INDICATOR_MODE2_INACTIVE_COLOR EOS_COLOR_TEXT_GREY
+#define _INDICATOR_MODE1_ACTIVE_COLOR COS_COLOR_WHITE
+#define _INDICATOR_MODE1_INACTIVE_COLOR COS_COLOR_BLACK
+#define _INDICATOR_MODE2_ACTIVE_COLOR COS_COLOR_BLACK
+#define _INDICATOR_MODE2_INACTIVE_COLOR COS_COLOR_TEXT_GREY
 #define _BRIGHTNESS_DURATION 750
 typedef struct
 {
-    eos_swipe_panel_t *sp;
+    cos_swipe_panel_t *sp;
     lv_obj_t *mask;
     lv_obj_t *flash_light;      /* 全屏手电筒对象(选色直接应用,勿用 get_child: swipe_panel 的 handle_bar 才是子对象0) */
     lv_color_t custom_color;    /* 当前光色(默认白,可从 SD 恢复) */
@@ -64,8 +64,8 @@ typedef struct
 
 typedef struct
 {
-    eos_activity_t *activity;
-    eos_card_pager_t *cp;
+    cos_activity_t *activity;
+    cos_card_pager_t *cp;
     lv_obj_t *light_page;           /* 页0：手电筒（全屏 custom_color，点击关闭） */
     lv_obj_t *palette_page;         /* 页1：画图式色板（点色块 → 手电筒发光色） */
     lv_color_t custom_color;        /* 当前光色（默认白） */
@@ -83,21 +83,21 @@ static _pressing_user_data_t *_flash_light_ud = NULL;
 static void _flash_light_overlay_pull_back(void);
 static void _flash_light_overlay_hide(void);
 static void _flash_light_overlay_on_focus(void);
-static const eos_chrome_overlay_t _flash_light_overlay = {
+static const cos_chrome_overlay_t _flash_light_overlay = {
     .pull_back = _flash_light_overlay_pull_back,
     .hide = _flash_light_overlay_hide,
     .on_focus = _flash_light_overlay_on_focus,
 };
 
 /* Function Implementations -----------------------------------*/
-static void _flash_light_on_destroy(eos_activity_t *a);
+static void _flash_light_on_destroy(cos_activity_t *a);
 static inline void _flash_light_delete(_pressing_user_data_t *ud);
-lv_obj_t *eos_flash_light_get_touch_obj(void);
-static bool _flash_light_swipe_back(eos_activity_t *self, lv_dir_t dir);
+lv_obj_t *cos_flash_light_get_touch_obj(void);
+static bool _flash_light_swipe_back(cos_activity_t *self, lv_dir_t dir);
 static void _flash_light_exit_cb(lv_event_t *e);
-static void _flash_light_card_pager_page_changed_cb(eos_card_pager_t *cp, uint8_t current_page_index, void *user_data);
+static void _flash_light_card_pager_page_changed_cb(cos_card_pager_t *cp, uint8_t current_page_index, void *user_data);
 static void _flash_light_card_pager_clicked_cb(lv_event_t *e);
-static lv_obj_t *_flash_light_get_indicator_for_page(eos_card_pager_t *cp, lv_obj_t *page);
+static lv_obj_t *_flash_light_get_indicator_for_page(cos_card_pager_t *cp, lv_obj_t *page);
 static void _flash_light_apply_page_visual_state(_flash_light_card_pager_ctx_t *ctx, uint8_t current_page_index);
 static void _flash_light_set_indicator_visible_animated(_flash_light_card_pager_ctx_t *ctx,
                                                         bool visible,
@@ -105,7 +105,7 @@ static void _flash_light_set_indicator_visible_animated(_flash_light_card_pager_
 
 static void _flash_light_apply_color(_flash_light_card_pager_ctx_t *ctx)
 {
-    EOS_CHECK_PTR_RETURN(ctx && ctx->light_page);
+    COS_CHECK_PTR_RETURN(ctx && ctx->light_page);
     lv_obj_set_style_bg_color(ctx->light_page, ctx->custom_color, 0);
 }
 
@@ -113,7 +113,7 @@ static void _flash_light_apply_color(_flash_light_card_pager_ctx_t *ctx)
 static void _flash_light_sel_feedback_timer_cb(lv_timer_t *t)
 {
     _flash_light_card_pager_ctx_t *ctx = lv_timer_get_user_data(t);
-    EOS_CHECK_PTR_RETURN(ctx);
+    COS_CHECK_PTR_RETURN(ctx);
     if (ctx->sel_feedback && lv_obj_is_valid(ctx->sel_feedback))
         lv_obj_add_flag(ctx->sel_feedback, LV_OBJ_FLAG_HIDDEN);
     lv_timer_pause(t);
@@ -124,7 +124,7 @@ static void _flash_light_sel_feedback_timer_cb(lv_timer_t *t)
 #define _FLASH_CELL_W 26
 #define _FLASH_CELL_H 22
 #define _FLASH_CELL_GAP 2
-#define _FLASH_PALETTE_X0 ((EOS_DISPLAY_WIDTH - (_FLASH_PALETTE_HUE_STEPS * (_FLASH_CELL_W + _FLASH_CELL_GAP) - _FLASH_CELL_GAP)) / 2)
+#define _FLASH_PALETTE_X0 ((COS_DISPLAY_WIDTH - (_FLASH_PALETTE_HUE_STEPS * (_FLASH_CELL_W + _FLASH_CELL_GAP) - _FLASH_CELL_GAP)) / 2)
 #define _FLASH_PALETTE_Y0 40
 
 /*
@@ -133,7 +133,7 @@ static void _flash_light_sel_feedback_timer_cb(lv_timer_t *t)
  * 故在 touch_area 上统一处理点击与上下滑退出：
  *   页0（手电筒）→ 点击关闭；
  *   页1（色板）  → 按坐标反算色块行列 → 对应颜色发光。
- *   上下滑（任意页）→ 退出 app（framework 层统一处理，见 eos_activity.c）。
+ *   上下滑（任意页）→ 退出 app（framework 层统一处理，见 cos_activity.c）。
  * 左右滑翻页由 slide_widget 的 PRESSED/MOVING 处理，不受影响。
  */
 
@@ -144,7 +144,7 @@ static void _flash_light_sel_feedback_timer_cb(lv_timer_t *t)
 static void _flash_light_press_start_cb(lv_event_t *e)
 {
     _flash_light_card_pager_ctx_t *ctx = lv_event_get_user_data(e);
-    EOS_CHECK_PTR_RETURN(ctx);
+    COS_CHECK_PTR_RETURN(ctx);
     lv_indev_t *indev = lv_indev_active();
     if (!indev)
         return;
@@ -155,7 +155,7 @@ static void _flash_light_press_start_cb(lv_event_t *e)
 static void _flash_light_touch_cb(lv_event_t *e)
 {
     _flash_light_card_pager_ctx_t *ctx = lv_event_get_user_data(e);
-    EOS_CHECK_PTR_RETURN(ctx && ctx->cp);
+    COS_CHECK_PTR_RETURN(ctx && ctx->cp);
 
     lv_indev_t *indev = lv_indev_active();
     if (!indev)
@@ -184,7 +184,7 @@ static void _flash_light_touch_cb(lv_event_t *e)
     if (ctx->cp->current_page_index == 0)
     {
         /* 手电筒页：点击直接关闭 */
-        eos_activity_back();
+        cos_activity_back();
         return;
     }
 
@@ -226,13 +226,13 @@ static void _flash_light_touch_cb(lv_event_t *e)
 }
 
 /* 色板页：8 色相 × 6 亮度 = 48 色块（画图选色式，点哪是哪） */
-static void _flash_light_create_palette_page(_flash_light_card_pager_ctx_t *ctx, eos_card_pager_t *cp)
+static void _flash_light_create_palette_page(_flash_light_card_pager_ctx_t *ctx, cos_card_pager_t *cp)
 {
-    lv_obj_t *page = eos_card_pager_create_page(cp);
+    lv_obj_t *page = cos_card_pager_create_page(cp);
     lv_obj_set_style_bg_color(page, lv_color_hex(0x101418), 0);
     lv_obj_set_style_pad_all(page, 0, 0);
     ctx->palette_page = page;
-    ctx->custom_color = EOS_COLOR_WHITE;
+    ctx->custom_color = COS_COLOR_WHITE;
 
     for (int v = 0; v < _FLASH_PALETTE_VAL_STEPS; v++)
     {
@@ -273,7 +273,7 @@ static void _flash_light_create_palette_page(_flash_light_card_pager_ctx_t *ctx,
         lv_timer_pause(ctx->sel_timer);
 }
 
-static const eos_activity_lifecycle_t _flash_light_lifecycle = {
+static const cos_activity_lifecycle_t _flash_light_lifecycle = {
     .on_enter = NULL,
     .on_destroy = _flash_light_on_destroy,
     .on_swipe_back = _flash_light_swipe_back,
@@ -298,9 +298,9 @@ static void _flash_light_indicator_fade_out_ready_cb(lv_anim_t *a)
     lv_obj_set_style_opa(obj, LV_OPA_COVER, 0);
 }
 
-static void _flash_light_on_destroy(eos_activity_t *a)
+static void _flash_light_on_destroy(cos_activity_t *a)
 {
-    lv_obj_t *view = eos_activity_get_view(a);
+    lv_obj_t *view = cos_activity_get_view(a);
     _flash_light_card_pager_ctx_t *ctx = view ? (_flash_light_card_pager_ctx_t *)lv_obj_get_user_data(view) : NULL;
     if (ctx)
     {
@@ -317,22 +317,22 @@ static void _flash_light_on_destroy(eos_activity_t *a)
             lv_obj_set_user_data(view, NULL);
         }
 
-        eos_free(ctx);
+        cos_free(ctx);
     }
 
     /* 压感 show() 版本的清理（enter 版 _flash_light_ud 恒 NULL，勿传 NULL 调
      * _flash_light_delete —— 会触发 NULL pointer 误报） */
     if (_flash_light_ud)
         _flash_light_delete(_flash_light_ud);
-    eos_display_restore(_BRIGHTNESS_DURATION);
+    cos_display_restore(_BRIGHTNESS_DURATION);
 }
 
 static inline void _flash_light_delete(_pressing_user_data_t *ud)
 {
-    EOS_CHECK_PTR_RETURN(ud);
+    COS_CHECK_PTR_RETURN(ud);
 
     if (ud->sp)
-        eos_swipe_panel_delete(ud->sp);
+        cos_swipe_panel_delete(ud->sp);
 
     if (ud->mask && lv_obj_is_valid(ud->mask))
         lv_obj_delete_async(ud->mask);
@@ -347,42 +347,42 @@ static inline void _flash_light_delete(_pressing_user_data_t *ud)
     if (_flash_light_ud == ud)
         _flash_light_ud = NULL;
 
-    eos_free(ud);
-    EOS_LOG_I("Flash light deleted");
+    cos_free(ud);
+    COS_LOG_I("Flash light deleted");
 }
 
 static void _swipe_panel_pull_back_cb(lv_event_t *e)
 {
     _pressing_user_data_t *ud = lv_event_get_user_data(e);
-    EOS_CHECK_PTR_RETURN(ud);
+    COS_CHECK_PTR_RETURN(ud);
 
     int32_t swipe_obj_coord_y = lv_obj_get_y(ud->sp->swipe_obj);
-    if (swipe_obj_coord_y >= EOS_DISPLAY_HEIGHT)
+    if (swipe_obj_coord_y >= COS_DISPLAY_HEIGHT)
     {
         _flash_light_delete(ud);
-        eos_display_restore(_BRIGHTNESS_DURATION);
+        cos_display_restore(_BRIGHTNESS_DURATION);
     }
 }
 
 static void _flash_light_closed_cb(lv_event_t *e)
 {
-    EOS_LOG_I("Flash light closed");
-    eos_chrome_manager_notify_overlay_closed(&_flash_light_overlay);
+    COS_LOG_I("Flash light closed");
+    cos_chrome_manager_notify_overlay_closed(&_flash_light_overlay);
 }
 
 static void _flash_light_overlay_pull_back(void)
 {
-    eos_flash_light_pull_back();
+    cos_flash_light_pull_back();
 }
 
 static void _flash_light_overlay_hide(void)
 {
-    eos_flash_light_hide();
+    cos_flash_light_hide();
 }
 
 static void _flash_light_overlay_on_focus(void)
 {
-    lv_obj_t *touch_obj = eos_flash_light_get_touch_obj();
+    lv_obj_t *touch_obj = cos_flash_light_get_touch_obj();
     if (touch_obj)
     {
         lv_obj_move_foreground(touch_obj);
@@ -395,21 +395,21 @@ static void _flash_light_overlay_on_focus(void)
 static void _swipe_panel_moving_cb(lv_event_t *e)
 {
     _pressing_user_data_t *ud = lv_event_get_user_data(e);
-    eos_swipe_panel_t *sp = ud->sp;
+    cos_swipe_panel_t *sp = ud->sp;
 
     lv_obj_update_layout(sp->swipe_obj);
 
     int32_t y = lv_obj_get_y(sp->swipe_obj);
 
-    int32_t max_dist = EOS_DISPLAY_HEIGHT / _OPA_MAX_DIST_DIV;
+    int32_t max_dist = COS_DISPLAY_HEIGHT / _OPA_MAX_DIST_DIV;
 
     int32_t ratio = ((max_dist - y) * _OPA_SCALE) / max_dist;
 
-    ratio = EOS_CLAMP(ratio, 0, _OPA_SCALE);
+    ratio = COS_CLAMP(ratio, 0, _OPA_SCALE);
 
     lv_opa_t opa = (lv_opa_t)((ratio * _MASK_OPA) / _OPA_SCALE);
 
-    EOS_LOG_I("y=%d, ratio=%d‰, opa=%d", y, ratio, opa);
+    COS_LOG_I("y=%d, ratio=%d‰, opa=%d", y, ratio, opa);
 
     lv_obj_set_style_bg_opa(ud->mask, opa, 0);
 }
@@ -417,7 +417,7 @@ static void _swipe_panel_moving_cb(lv_event_t *e)
 /* 点击白色区域后延迟到下一 tick 删除 swipe panel:
  * 不能在 LV_EVENT_CLICKED 事件回调内同步删除事件源对象(flash_light 属于
  * swipe_obj),否则 LVGL 事件发送完成后会访问已释放对象(Use-After-Free)。
- * 延迟删除同时避免 eos_flash_light_enter() 期间 overlay 状态混乱。 */
+ * 延迟删除同时避免 cos_flash_light_enter() 期间 overlay 状态混乱。 */
 static void _flash_light_delayed_delete_timer_cb(lv_timer_t *t)
 {
     _pressing_user_data_t *ud = lv_timer_get_user_data(t);
@@ -432,13 +432,13 @@ static void _flash_light_delayed_delete_timer_cb(lv_timer_t *t)
 /* 读取 SD 中保存的光色,失败返回白色 */
 static lv_color_t _flash_light_load_color(void)
 {
-    lv_color_t c = EOS_COLOR_WHITE;
-    eos_file_t f = eos_fs_open_read(_FLASH_COLOR_PATH);
+    lv_color_t c = COS_COLOR_WHITE;
+    cos_file_t f = cos_fs_open_read(_FLASH_COLOR_PATH);
     if (!f)
         return c;
     char buf[8] = {0};
-    int n = eos_fs_read(f, buf, 7);
-    eos_fs_close(f);
+    int n = cos_fs_read(f, buf, 7);
+    cos_fs_close(f);
     if (n >= 6)
     {
         uint32_t rgb = (uint32_t)strtoul(buf, NULL, 16);
@@ -450,20 +450,20 @@ static lv_color_t _flash_light_load_color(void)
 /* 保存光色到 SD /flash/color.txt;无 SD 卡/写失败则忽略 */
 static void _flash_light_save_color(lv_color_t c)
 {
-    eos_fs_mkdir("/flash"); /* 无 SD 时 mkdir 失败,直接忽略 */
-    eos_file_t f = eos_fs_open_write(_FLASH_COLOR_PATH);
+    cos_fs_mkdir("/flash"); /* 无 SD 时 mkdir 失败,直接忽略 */
+    cos_file_t f = cos_fs_open_write(_FLASH_COLOR_PATH);
     if (!f)
     {
-        EOS_LOG_W("Save flash color ignored (no SD / write fail)");
+        COS_LOG_W("Save flash color ignored (no SD / write fail)");
         return;
     }
     /* 不依赖 lv_color_to32(仅 32 位色深存在),直接组合 8bit 分量 */
     uint32_t rgb = ((uint32_t)c.red << 16) | ((uint32_t)c.green << 8) | (uint32_t)c.blue;
     char buf[8];
     snprintf(buf, sizeof(buf), "%06X", (unsigned)rgb);
-    eos_fs_write(f, buf, 6);
-    eos_fs_close(f);
-    EOS_LOG_I("Flash color saved to %s: %s", _FLASH_COLOR_PATH, buf);
+    cos_fs_write(f, buf, 6);
+    cos_fs_close(f);
+    COS_LOG_I("Flash color saved to %s: %s", _FLASH_COLOR_PATH, buf);
 }
 
 /* ═══════════════ HSV 圆盘色板(用户需求 2026-08 改版:中心白→径向饱和,全精度过渡) ═══════════════ */
@@ -602,7 +602,7 @@ static void _flash_light_hue_apply(_pressing_user_data_t *ud, int hue, int sat)
                  (unsigned)(rgb888 & 0xFFu));
         lv_label_set_text(ud->color_hex_label, hex);
         lv_obj_set_style_text_color(ud->color_hex_label,
-                                    lv_color_brightness(c) > 140 ? EOS_COLOR_BLACK : EOS_COLOR_WHITE, 0);
+                                    lv_color_brightness(c) > 140 ? COS_COLOR_BLACK : COS_COLOR_WHITE, 0);
     }
 }
 
@@ -662,7 +662,7 @@ static void _flash_light_hue_canvas_delete_cb(lv_event_t *e)
     lv_event_stop_bubbling(e);
     if (ud->hue_buf)
     {
-        eos_free(ud->hue_buf);
+        cos_free(ud->hue_buf);
         ud->hue_buf = NULL;
     }
     ud->hue_canvas = NULL;
@@ -697,7 +697,7 @@ static void _flash_light_palette_overlay_create(_pressing_user_data_t *ud)
     lv_obj_set_size(ov, lv_pct(100), lv_pct(100));
     lv_obj_set_style_bg_color(ov, lv_color_hex(0x101418), 0);
     lv_obj_set_style_bg_opa(ov, LV_OPA_90, 0);
-    lv_obj_set_style_radius(ov, EOS_DISPLAY_RADIUS, 0);
+    lv_obj_set_style_radius(ov, COS_DISPLAY_RADIUS, 0);
     ud->palette_overlay = ov;
 
     lv_obj_t *title = lv_label_create(ov);
@@ -706,7 +706,7 @@ static void _flash_light_palette_overlay_create(_pressing_user_data_t *ud)
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 6);
 
     /* HSV 色相环画布(ARGB8888,PSRAM,约 164×164×4B) */
-    uint32_t *buf = (uint32_t *)eos_malloc((size_t)_FLASH_HUE_SIZE * _FLASH_HUE_SIZE * 4);
+    uint32_t *buf = (uint32_t *)cos_malloc((size_t)_FLASH_HUE_SIZE * _FLASH_HUE_SIZE * 4);
     if (buf)
     {
         _flash_light_hue_render(buf);
@@ -762,7 +762,7 @@ static void _flash_light_palette_overlay_create(_pressing_user_data_t *ud)
     lv_obj_set_style_bg_opa(close_btn, LV_OPA_COVER, 0);
     lv_obj_t *close_lbl = lv_label_create(close_btn);
     lv_label_set_text(close_lbl, "Close");
-    lv_obj_set_style_text_color(close_lbl, EOS_COLOR_BLACK, 0);
+    lv_obj_set_style_text_color(close_lbl, COS_COLOR_BLACK, 0);
     lv_obj_center(close_lbl);
     lv_obj_add_event_cb(close_btn, _flash_light_palette_overlay_close_cb, LV_EVENT_CLICKED, ud);
 
@@ -794,7 +794,7 @@ static void _flash_light_btn_exit_cb(lv_event_t *e)
     lv_timer_t *t = lv_timer_create(_flash_light_delayed_delete_timer_cb, 0, ud);
     if (t)
         lv_timer_set_repeat_count(t, 1);
-    eos_display_restore(_BRIGHTNESS_DURATION);
+    cos_display_restore(_BRIGHTNESS_DURATION);
 }
 
 /* 底部工具按钮(半透明黑底白字,任意光色下可读) */
@@ -818,9 +818,9 @@ static void _flash_light_update_indicator_theme(_flash_light_card_pager_ctx_t *c
                                                 lv_obj_t *current_page,
                                                 bool red_page_active)
 {
-    EOS_CHECK_PTR_RETURN(ctx && ctx->cp);
+    COS_CHECK_PTR_RETURN(ctx && ctx->cp);
 
-    for (eos_card_pager_node_t *node = ctx->cp->page_list_head; node; node = node->next)
+    for (cos_card_pager_node_t *node = ctx->cp->page_list_head; node; node = node->next)
     {
         if (!node->indicator)
             continue;
@@ -843,10 +843,10 @@ static void _flash_light_update_indicator_theme(_flash_light_card_pager_ctx_t *c
     }
 }
 
-static void _flash_light_card_pager_page_changed_cb(eos_card_pager_t *cp, uint8_t current_page_index, void *user_data)
+static void _flash_light_card_pager_page_changed_cb(cos_card_pager_t *cp, uint8_t current_page_index, void *user_data)
 {
     _flash_light_card_pager_ctx_t *ctx = user_data;
-    EOS_CHECK_PTR_RETURN(ctx && cp);
+    COS_CHECK_PTR_RETURN(ctx && cp);
 
     _flash_light_apply_page_visual_state(ctx, current_page_index);
 }
@@ -854,18 +854,18 @@ static void _flash_light_card_pager_page_changed_cb(eos_card_pager_t *cp, uint8_
 static void _flash_light_card_pager_clicked_cb(lv_event_t *e)
 {
     _flash_light_card_pager_ctx_t *ctx = lv_event_get_user_data(e);
-    EOS_CHECK_PTR_RETURN(ctx && ctx->cp);
+    COS_CHECK_PTR_RETURN(ctx && ctx->cp);
 
     if (ctx->cp->sw)
     {
-        lv_coord_t disp = eos_slide_widget_get_displacement(ctx->cp->sw);
+        lv_coord_t disp = cos_slide_widget_get_displacement(ctx->cp->sw);
         if (abs(disp) > _IMMERSIVE_TAP_MAX_DISPLACEMENT)
             return;
     }
 
     ctx->immersive_mode = !ctx->immersive_mode;
 
-    eos_activity_set_app_header_visible_animated(ctx->activity, !ctx->immersive_mode, _IMMERSIVE_FADE_DURATION);
+    cos_activity_set_app_header_visible_animated(ctx->activity, !ctx->immersive_mode, _IMMERSIVE_FADE_DURATION);
 
     _flash_light_set_indicator_visible_animated(ctx, !ctx->immersive_mode, _IMMERSIVE_FADE_DURATION);
 
@@ -876,7 +876,7 @@ static void _flash_light_set_indicator_visible_animated(_flash_light_card_pager_
                                                         bool visible,
                                                         uint32_t duration_ms)
 {
-    EOS_CHECK_PTR_RETURN(ctx && ctx->cp);
+    COS_CHECK_PTR_RETURN(ctx && ctx->cp);
 
     lv_obj_t *indicator = ctx->cp->indicator_container;
     if (!indicator || !lv_obj_is_valid(indicator))
@@ -920,9 +920,9 @@ static void _flash_light_set_indicator_visible_animated(_flash_light_card_pager_
 
 static void _flash_light_apply_page_visual_state(_flash_light_card_pager_ctx_t *ctx, uint8_t current_page_index)
 {
-    EOS_CHECK_PTR_RETURN(ctx && ctx->cp);
+    COS_CHECK_PTR_RETURN(ctx && ctx->cp);
 
-    lv_obj_t *current_page = eos_card_pager_get_page(ctx->cp, current_page_index);
+    lv_obj_t *current_page = cos_card_pager_get_page(ctx->cp, current_page_index);
     bool palette_page_active = (current_page == ctx->palette_page);
 
     /* 页0 背景始终 = 当前光色（切回即发光色） */
@@ -936,13 +936,13 @@ static void _flash_light_apply_page_visual_state(_flash_light_card_pager_ctx_t *
 }
 
 /* Unused: kept for future use when pager indicator and swipe-back integration are needed */
-#define EOS_FLASH_LIGHT_UNUSED_FUNCTIONS
+#define COS_FLASH_LIGHT_UNUSED_FUNCTIONS
 #if 0
-static lv_obj_t *_flash_light_get_indicator_for_page(eos_card_pager_t *cp, lv_obj_t *page)
+static lv_obj_t *_flash_light_get_indicator_for_page(cos_card_pager_t *cp, lv_obj_t *page)
 {
-    EOS_CHECK_PTR_RETURN_VAL(cp && page, NULL);
+    COS_CHECK_PTR_RETURN_VAL(cp && page, NULL);
 
-    for (eos_card_pager_node_t *node = cp->page_list_head; node; node = node->next)
+    for (cos_card_pager_node_t *node = cp->page_list_head; node; node = node->next)
     {
         if (node->page == page)
         {
@@ -956,11 +956,11 @@ static lv_obj_t *_flash_light_get_indicator_for_page(eos_card_pager_t *cp, lv_ob
 static void _flash_light_exit_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
-    eos_activity_back();
+    cos_activity_back();
 }
-#endif /* EOS_FLASH_LIGHT_UNUSED_FUNCTIONS */
+#endif /* COS_FLASH_LIGHT_UNUSED_FUNCTIONS */
 
-static bool _flash_light_swipe_back(eos_activity_t *self, lv_dir_t dir)
+static bool _flash_light_swipe_back(cos_activity_t *self, lv_dir_t dir)
 {
     LV_UNUSED(self);
 
@@ -969,34 +969,34 @@ static bool _flash_light_swipe_back(eos_activity_t *self, lv_dir_t dir)
     return (dir == LV_DIR_LEFT || dir == LV_DIR_RIGHT);
 }
 
-void eos_flash_light_show(void)
+void cos_flash_light_show(void)
 {
     if (_flash_light_ud)
     {
-        EOS_LOG_W("Flash light is already showing");
+        COS_LOG_W("Flash light is already showing");
         return;
     }
 
-    _pressing_user_data_t *ud = eos_malloc(sizeof(_pressing_user_data_t));
-    EOS_CHECK_PTR_RETURN(ud);
+    _pressing_user_data_t *ud = cos_malloc(sizeof(_pressing_user_data_t));
+    COS_CHECK_PTR_RETURN(ud);
 
     lv_obj_t *layer_top = lv_layer_top();
 
     lv_obj_t *mask = lv_obj_create(layer_top);
     lv_obj_remove_style_all(mask);
     lv_obj_set_size(mask, lv_pct(100), lv_pct(100));
-    lv_obj_set_style_bg_color(mask, EOS_COLOR_BLACK, 0);
+    lv_obj_set_style_bg_color(mask, COS_COLOR_BLACK, 0);
 
     ud->mask = mask;
 
-    eos_swipe_panel_t *sp = eos_swipe_panel_create(layer_top);
-    eos_swipe_panel_set_dir(sp, EOS_SWIPE_DIR_UP);
-    eos_swipe_panel_slide_down(sp);
-    eos_swipe_panel_hide_handle_bar(sp);
+    cos_swipe_panel_t *sp = cos_swipe_panel_create(layer_top);
+    cos_swipe_panel_set_dir(sp, COS_SWIPE_DIR_UP);
+    cos_swipe_panel_slide_down(sp);
+    cos_swipe_panel_hide_handle_bar(sp);
     lv_obj_set_style_bg_opa(sp->swipe_obj, LV_OPA_TRANSP, 0);
 
     ud->sp = sp;
-    ud->palette_overlay = NULL; /* eos_malloc 未清零,需手动初始化 */
+    ud->palette_overlay = NULL; /* cos_malloc 未清零,需手动初始化 */
     ud->hue_canvas = NULL;
     ud->hue_indicator = NULL;
     ud->color_preview = NULL;
@@ -1004,29 +1004,29 @@ void eos_flash_light_show(void)
     ud->hue_buf = NULL;
     ud->hue_dirty = false;
 
-    eos_slide_widget_add_event_cb_done(sp->sw, _swipe_panel_pull_back_cb, ud);
-    eos_slide_widget_add_event_cb_moving(sp->sw, _swipe_panel_moving_cb, ud);
-    eos_slide_widget_add_event_cb_closed(sp->sw, _flash_light_closed_cb, NULL);
-    int32_t touch_area_height = EOS_DISPLAY_HEIGHT * 0.2;
-    lv_obj_set_height(eos_slide_widget_get_touch_obj(sp->sw), touch_area_height);
+    cos_slide_widget_add_event_cb_done(sp->sw, _swipe_panel_pull_back_cb, ud);
+    cos_slide_widget_add_event_cb_moving(sp->sw, _swipe_panel_moving_cb, ud);
+    cos_slide_widget_add_event_cb_closed(sp->sw, _flash_light_closed_cb, NULL);
+    int32_t touch_area_height = COS_DISPLAY_HEIGHT * 0.2;
+    lv_obj_set_height(cos_slide_widget_get_touch_obj(sp->sw), touch_area_height);
 
     lv_obj_t *container = sp->swipe_obj;
-    lv_obj_set_height(container, 2 * EOS_DISPLAY_HEIGHT);
+    lv_obj_set_height(container, 2 * COS_DISPLAY_HEIGHT);
     lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, 0);
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
     lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
 
     /* flash_light 必须是第一个子对象:swipe panel 完全展开后 container 顶部
-     * 对齐屏幕顶部,flash_light(高=EOS_DISPLAY_HEIGHT)恰好覆盖 0-H 全屏。
-     * 下滑关闭手势由 eos_slide_widget_get_touch_obj 独立提供 */
+     * 对齐屏幕顶部,flash_light(高=COS_DISPLAY_HEIGHT)恰好覆盖 0-H 全屏。
+     * 下滑关闭手势由 cos_slide_widget_get_touch_obj 独立提供 */
     ud->custom_color = _flash_light_load_color(); /* 恢复上次保存的光色(无 SD 则白色) */
     lv_obj_t *flash_light = lv_obj_create(container);
     ud->flash_light = flash_light; /* 保存引用:选色时直接应用(见 _flash_light_hue_apply) */
     lv_obj_set_style_bg_color(flash_light, ud->custom_color, 0);
-    lv_obj_set_size(flash_light, lv_pct(100), EOS_DISPLAY_HEIGHT);
+    lv_obj_set_size(flash_light, lv_pct(100), COS_DISPLAY_HEIGHT);
     lv_obj_set_style_border_width(flash_light, 0, 0);
-    lv_obj_set_style_radius(flash_light, EOS_DISPLAY_RADIUS, 0);
+    lv_obj_set_style_radius(flash_light, COS_DISPLAY_RADIUS, 0);
 
     /* 底部两个按钮(置于下滑手势区上方,与 touch_obj 不重叠):
      *   Exit -> 关闭手电筒; Palette -> 打开色板选择 Flash 颜色 */
@@ -1039,33 +1039,33 @@ void eos_flash_light_show(void)
     lv_obj_add_event_cb(palette_btn, _flash_light_btn_palette_cb, LV_EVENT_CLICKED, ud);
 
     _flash_light_ud = ud;
-    eos_display_set_brightness(EOS_DISPLAY_BRIGHTNESS_MAX, _BRIGHTNESS_DURATION, true);
-    eos_chrome_manager_notify_overlay_opened(&_flash_light_overlay);
+    cos_display_set_brightness(COS_DISPLAY_BRIGHTNESS_MAX, _BRIGHTNESS_DURATION, true);
+    cos_chrome_manager_notify_overlay_opened(&_flash_light_overlay);
 }
 
-bool eos_flash_light_is_open(void)
+bool cos_flash_light_is_open(void)
 {
     if (!_flash_light_ud || !_flash_light_ud->sp || !_flash_light_ud->sp->sw)
         return false;
-    return eos_slide_widget_get_state(_flash_light_ud->sp->sw) == EOS_SLIDE_WIDGET_STATE_OPEN;
+    return cos_slide_widget_get_state(_flash_light_ud->sp->sw) == COS_SLIDE_WIDGET_STATE_OPEN;
 }
 
-lv_obj_t *eos_flash_light_get_touch_obj(void)
+lv_obj_t *cos_flash_light_get_touch_obj(void)
 {
     if (!_flash_light_ud || !_flash_light_ud->sp || !_flash_light_ud->sp->sw)
         return NULL;
-    return eos_slide_widget_get_touch_obj(_flash_light_ud->sp->sw);
+    return cos_slide_widget_get_touch_obj(_flash_light_ud->sp->sw);
 }
 
-void eos_flash_light_pull_back(void)
+void cos_flash_light_pull_back(void)
 {
     if (_flash_light_ud && _flash_light_ud->sp)
     {
-        eos_swipe_panel_pull_back(_flash_light_ud->sp);
+        cos_swipe_panel_pull_back(_flash_light_ud->sp);
     }
 }
 
-void eos_flash_light_hide(void)
+void cos_flash_light_hide(void)
 {
     if (_flash_light_ud)
     {
@@ -1073,39 +1073,39 @@ void eos_flash_light_hide(void)
     }
 }
 
-const eos_chrome_overlay_t *eos_flash_light_get_overlay_descriptor(void)
+const cos_chrome_overlay_t *cos_flash_light_get_overlay_descriptor(void)
 {
     return &_flash_light_overlay;
 }
 
-void eos_flash_light_enter(void)
+void cos_flash_light_enter(void)
 {
-    eos_display_set_brightness(EOS_DISPLAY_BRIGHTNESS_MAX, _BRIGHTNESS_DURATION, true);
-    eos_activity_t *a = eos_activity_create(&_flash_light_lifecycle);
+    cos_display_set_brightness(COS_DISPLAY_BRIGHTNESS_MAX, _BRIGHTNESS_DURATION, true);
+    cos_activity_t *a = cos_activity_create(&_flash_light_lifecycle);
     if (!a)
         return;
 
-    _flash_light_card_pager_ctx_t *ctx = eos_malloc_zeroed(sizeof(_flash_light_card_pager_ctx_t));
+    _flash_light_card_pager_ctx_t *ctx = cos_malloc_zeroed(sizeof(_flash_light_card_pager_ctx_t));
     if (!ctx)
     {
-        eos_activity_back();
+        cos_activity_back();
         return;
     }
 
-    eos_activity_set_type(a, EOS_ACTIVITY_TYPE_APP);
-    eos_activity_set_app_header_visible(a, true);
+    cos_activity_set_type(a, COS_ACTIVITY_TYPE_APP);
+    cos_activity_set_app_header_visible(a, true);
     /* 恢复 header 时钟(Settings 系列页面将其隐藏) */
-    eos_app_header_set_clock_visible(true);
+    cos_app_header_set_clock_visible(true);
     /* 必须设置 title:header 的 _play_title_changed_anim 会以 %s 打印 title,
      * NULL → vsnprintf → strlen(NULL) → LoadProhibited(日志已证实) */
-    eos_activity_set_title(a, "Flash Light");
-    eos_activity_set_app_header_time_only(a, true);
+    cos_activity_set_title(a, "Flash Light");
+    cos_activity_set_app_header_time_only(a, true);
 
-    lv_obj_t *view = eos_activity_get_view(a);
+    lv_obj_t *view = cos_activity_get_view(a);
     if (!view)
     {
-        eos_free(ctx);
-        eos_activity_back();
+        cos_free(ctx);
+        cos_activity_back();
         return;
     }
 
@@ -1115,34 +1115,34 @@ void eos_flash_light_enter(void)
 
     lv_obj_remove_style_all(view);
     lv_obj_set_size(view, lv_pct(100), lv_pct(100));
-    lv_obj_set_style_bg_color(view, EOS_COLOR_WHITE, 0);
+    lv_obj_set_style_bg_color(view, COS_COLOR_WHITE, 0);
 
-    eos_card_pager_t *cp = eos_card_pager_create(view, EOS_CARD_PAGER_DIR_HOR);
+    cos_card_pager_t *cp = cos_card_pager_create(view, COS_CARD_PAGER_DIR_HOR);
     if (cp)
     {
         ctx->cp = cp;
 
         // 页0：手电筒（全屏 custom_color；点击关闭 — 由 touch_area 统一处理）
-        lv_obj_t *page = eos_card_pager_get_page(cp, 0);
-        lv_obj_set_style_bg_color(page, EOS_COLOR_WHITE, 0);
+        lv_obj_t *page = cos_card_pager_get_page(cp, 0);
+        lv_obj_set_style_bg_color(page, COS_COLOR_WHITE, 0);
         ctx->light_page = page;
-        ctx->custom_color = EOS_COLOR_WHITE;
+        ctx->custom_color = COS_COLOR_WHITE;
 
         // 页1：画图式色板（点色块 → 发光色）
         _flash_light_create_palette_page(ctx, cp);
 
         // card_pager 的全屏 touch_area 在最上层，点击统一在这里收
         // （页0点击关闭 / 页1点色块选色；上下滑退出由 framework 层统一处理）
-        lv_obj_t *touch_obj = eos_slide_widget_get_touch_obj(cp->sw);
+        lv_obj_t *touch_obj = cos_slide_widget_get_touch_obj(cp->sw);
         if (touch_obj)
         {
             lv_obj_add_event_cb(touch_obj, _flash_light_press_start_cb, LV_EVENT_PRESSED, ctx);
             lv_obj_add_event_cb(touch_obj, _flash_light_touch_cb, LV_EVENT_CLICKED, ctx);
         }
 
-        eos_card_pager_set_page_changed_cb(cp, _flash_light_card_pager_page_changed_cb, ctx);
+        cos_card_pager_set_page_changed_cb(cp, _flash_light_card_pager_page_changed_cb, ctx);
 
-        lv_obj_t *sw1_touch_obj = eos_slide_widget_get_touch_obj(cp->sw);
+        lv_obj_t *sw1_touch_obj = cos_slide_widget_get_touch_obj(cp->sw);
         if (sw1_touch_obj)
         {
             lv_obj_add_event_cb(sw1_touch_obj, _flash_light_card_pager_clicked_cb, LV_EVENT_CLICKED, ctx);
@@ -1151,7 +1151,7 @@ void eos_flash_light_enter(void)
 
     /* exit_btn removed by user request (2026-08): 退出靠左滑/系统返回 */
 
-    eos_activity_enter(a);
+    cos_activity_enter(a);
 
     if (ctx->cp)
     {

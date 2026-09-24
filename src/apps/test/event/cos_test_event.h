@@ -1,10 +1,10 @@
 /**
- * @file eos_test_event.h
+ * @file cos_test_event.h
  * @brief Event system test module header
  */
 
-#ifndef EOS_TEST_EVENT_H
-#define EOS_TEST_EVENT_H
+#ifndef COS_TEST_EVENT_H
+#define COS_TEST_EVENT_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,11 +19,11 @@ extern "C" {
 /* Public typedefs --------------------------------------------*/
 
 /* Public function prototypes --------------------------------*/
-void eos_test_event_start(void);
-void eos_test_event_register_tests(void);
+void cos_test_event_start(void);
+void cos_test_event_register_tests(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_TEST_EVENT_H */
+#endif /* COS_TEST_EVENT_H */

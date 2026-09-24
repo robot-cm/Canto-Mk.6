@@ -72,7 +72,7 @@ typedef enum
     SNI_H_INT32,
     SNI_H_LV_COLOR_FILTER_DSC,
     SNI_H_LV_DISPLAY,
-    SNI_H_EOS_ACTIVITY,
+    SNI_H_COS_ACTIVITY,
     SNI_H_LV_DRAW_BUF,
     SNI_H_LV_DRAW_ARC_DSC,
     SNI_H_LV_DRAW_IMAGE_DSC,
@@ -95,8 +95,8 @@ typedef enum
     SNI_H_LV_SUBJECT,
 
     /* Canto Mk.6 UI framework bridges (JerryScript-exposed adaptive UI) */
-    SNI_H_EOS_UI_PROFILE,   /**< eos_display_profile_t* (malloc'd copy) */
-    SNI_H_EOS_UI_HOME,      /**< sni_ui_home_t* (framework home wrapper) */
+    SNI_H_COS_UI_PROFILE,   /**< cos_display_profile_t* (malloc'd copy) */
+    SNI_H_COS_UI_HOME,      /**< sni_ui_home_t* (framework home wrapper) */
 
     __SNI_HANDLE_RESOURCE_END,
 

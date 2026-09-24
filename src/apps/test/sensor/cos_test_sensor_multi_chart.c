@@ -1,24 +1,24 @@
 /**
- * @file eos_test_sensor_multi_chart.c
+ * @file cos_test_sensor_multi_chart.c
  * @brief Multi-sensor sampling status visualization test
  */
 
-#include "eos_config.h"
-#if EOS_ENABLE_TEST_APP
+#include "cos_config.h"
+#if COS_ENABLE_TEST_APP
 
 #include <inttypes.h>
-#include "eos_test_sensor_multi_chart.h"
-#include "eos_dev_sensor.h"
-#include "eos_service_sensor.h"
-#include "eos_log.h"
-#include "eos_basic_widgets.h"
-#include "eos_lang.h"
-#include "eos_activity.h"
-#include "eos_app_header.h"
-#include "eos_crown.h"
+#include "cos_test_sensor_multi_chart.h"
+#include "cos_dev_sensor.h"
+#include "cos_service_sensor.h"
+#include "cos_log.h"
+#include "cos_basic_widgets.h"
+#include "cos_lang.h"
+#include "cos_activity.h"
+#include "cos_app_header.h"
+#include "cos_crown.h"
 #include "lvgl.h"
 
-#define EOS_LOG_TAG "MultiSensorChart"
+#define COS_LOG_TAG "MultiSensorChart"
 
 /* ============================================
  * Internal types and variables
@@ -31,7 +31,7 @@ typedef struct
     lv_obj_t *chart;
     lv_obj_t *container;
     lv_chart_series_t *series[MAX_SENSORS];
-    eos_dev_sensor_t *sensors[MAX_SENSORS];
+    cos_dev_sensor_t *sensors[MAX_SENSORS];
     uint8_t sensor_count;
     lv_timer_t *update_timer;
     uint32_t tick_count;
@@ -75,7 +75,7 @@ static void _multi_chart_update_cb(lv_timer_t *timer)
             continue;
         }
 
-        uint32_t period = eos_sensor_get_sample_period(_ctx.sensors[i]->type);
+        uint32_t period = cos_sensor_get_sample_period(_ctx.sensors[i]->type);
 
         /* Place a marker when it's time for this sensor to sample */
         int32_t value = 0;
@@ -92,7 +92,7 @@ static void _multi_chart_update_cb(lv_timer_t *timer)
  * Activity lifecycle
  * ============================================ */
 
-static void _multi_sensor_chart_on_destroy(eos_activity_t *activity)
+static void _multi_sensor_chart_on_destroy(cos_activity_t *activity)
 {
     LV_UNUSED(activity);
 
@@ -116,7 +116,7 @@ static void _multi_sensor_chart_on_destroy(eos_activity_t *activity)
     }
 }
 
-static const eos_activity_lifecycle_t _s_multi_sensor_chart_lifecycle = {.on_enter = NULL,
+static const cos_activity_lifecycle_t _s_multi_sensor_chart_lifecycle = {.on_enter = NULL,
                                                                          .on_destroy = _multi_sensor_chart_on_destroy,
                                                                          .on_pause = NULL,
                                                                          .on_resume = NULL};
@@ -125,22 +125,22 @@ static const eos_activity_lifecycle_t _s_multi_sensor_chart_lifecycle = {.on_ent
  * Main test function
  * ============================================ */
 
-void eos_test_sensor_multi_chart_start(void)
+void cos_test_sensor_multi_chart_start(void)
 {
-    eos_activity_t *activity = eos_activity_create(&_s_multi_sensor_chart_lifecycle);
+    cos_activity_t *activity = cos_activity_create(&_s_multi_sensor_chart_lifecycle);
     if (!activity)
     {
         return;
     }
 
-    lv_obj_t *view = eos_activity_get_view(activity);
+    lv_obj_t *view = cos_activity_get_view(activity);
     if (!view)
     {
         return;
     }
 
-    eos_activity_set_title(activity, "Multi-Sensor Status");
-    eos_activity_set_type(activity, EOS_ACTIVITY_TYPE_APP);
+    cos_activity_set_title(activity, "Multi-Sensor Status");
+    cos_activity_set_type(activity, COS_ACTIVITY_TYPE_APP);
 
     /* Create container */
     _ctx.container = lv_obj_create(view);
@@ -150,7 +150,7 @@ void eos_test_sensor_multi_chart_start(void)
     lv_obj_set_flex_align(_ctx.container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_SPACE_EVENLY);
 
     /* Discover all registered sensors */
-    eos_dev_sensor_t *dev = eos_dev_sensor_get_list_head();
+    cos_dev_sensor_t *dev = cos_dev_sensor_get_list_head();
     while (dev && _ctx.sensor_count < MAX_SENSORS)
     {
         if (dev->name)
@@ -158,7 +158,7 @@ void eos_test_sensor_multi_chart_start(void)
             _ctx.sensors[_ctx.sensor_count++] = dev;
             /* Set different sample periods for demonstration */
             uint32_t periods[] = {100, 200, 300, 400, 500, 600, 700, 800, 900, 1000};
-            eos_sensor_set_sample_period(dev->type, periods[_ctx.sensor_count - 1]);
+            cos_sensor_set_sample_period(dev->type, periods[_ctx.sensor_count - 1]);
         }
         dev = dev->_next;
     }
@@ -194,7 +194,7 @@ void eos_test_sensor_multi_chart_start(void)
     {
         if (_ctx.sensors[i])
         {
-            uint32_t period = eos_sensor_get_sample_period(_ctx.sensors[i]->type);
+            uint32_t period = cos_sensor_get_sample_period(_ctx.sensors[i]->type);
 
             lv_obj_t *legend_item = lv_obj_create(legend);
             lv_obj_set_size(legend_item, lv_pct(100), 30);
@@ -217,7 +217,7 @@ void eos_test_sensor_multi_chart_start(void)
     /* Create update timer (100ms interval) */
     _ctx.update_timer = lv_timer_create(_multi_chart_update_cb, 100, NULL);
 
-    eos_activity_enter(activity);
+    cos_activity_enter(activity);
 }
 
-#endif /* EOS_ENABLE_TEST_APP */
+#endif /* COS_ENABLE_TEST_APP */

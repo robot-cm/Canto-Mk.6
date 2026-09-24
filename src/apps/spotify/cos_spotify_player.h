@@ -1,6 +1,6 @@
 /**
- * @file eos_spotify_player.h
- * @brief Spotify 播放界面(文件树 + 播放态 UI),供 eos_spotify.c 调用。
+ * @file cos_spotify_player.h
+ * @brief Spotify 播放界面(文件树 + 播放态 UI),供 cos_spotify.c 调用。
  *
  * 交付批次:Batch 3(文件树 + 播放 UI + 三行歌词 + 进度条)。
  *           Batch 4 会在本模块上叠加音量弧 / 速度弧手势。
@@ -23,8 +23,8 @@
  *   · 若文本宽度 > 可用宽,则水平滚动,速度 = (文本宽 - 可用宽 + 余量) / 显示时长;
  *   · 每 50ms 刷新一次滚动位置(LVGL 定时器,复用现有 tick)。
  */
-#ifndef EOS_SPOTIFY_PLAYER_H
-#define EOS_SPOTIFY_PLAYER_H
+#ifndef COS_SPOTIFY_PLAYER_H
+#define COS_SPOTIFY_PLAYER_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -38,13 +38,13 @@ extern "C" {
 #if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
 
 /** 播放界面句柄。 */
-typedef struct eos_spotify_player_s eos_spotify_player_t;
+typedef struct cos_spotify_player_s cos_spotify_player_t;
 
 /** 请求返回文件树(由播放界面内部按钮触发)。 */
-typedef void (*eos_spotify_back_cb_t)(void *user);
+typedef void (*cos_spotify_back_cb_t)(void *user);
 
 /** 请求退出 App(错误/长按返回)。 */
-typedef void (*eos_spotify_exit_cb_t)(void *user);
+typedef void (*cos_spotify_exit_cb_t)(void *user);
 
 /**
  * @brief 在给定父对象上构建整个 Spotify 界面(文件树 + 播放态)。
@@ -54,31 +54,31 @@ typedef void (*eos_spotify_exit_cb_t)(void *user);
  * @param user     回调上下文
  * @return 句柄;失败返回 NULL。
  */
-eos_spotify_player_t *eos_spotify_player_create(lv_obj_t *parent,
-                                               eos_spotify_back_cb_t on_back,
-                                               eos_spotify_exit_cb_t on_exit,
+cos_spotify_player_t *cos_spotify_player_create(lv_obj_t *parent,
+                                               cos_spotify_back_cb_t on_back,
+                                               cos_spotify_exit_cb_t on_exit,
                                                void *user);
 
 /** @brief 销毁全部 LVGL 对象与内部资源。 */
-void eos_spotify_player_destroy(eos_spotify_player_t *p);
+void cos_spotify_player_destroy(cos_spotify_player_t *p);
 
 /**
  * @brief 刷新(由 App 的 lv_timer 每 50ms 调用一次)。
  *        内部负责:解码分片 → UAC 推送 → 歌词高亮/滚动 → 进度条更新。
  */
-void eos_spotify_player_tick(eos_spotify_player_t *p);
+void cos_spotify_player_tick(cos_spotify_player_t *p);
 
 /** @brief 是否处于播放态。 */
-bool eos_spotify_player_is_playing(const eos_spotify_player_t *p);
+bool cos_spotify_player_is_playing(const cos_spotify_player_t *p);
 
 /** @brief 用户在文件树里点了播放,或从外部触发播放。 */
-void eos_spotify_player_play_file(eos_spotify_player_t *p, const char *path);
+void cos_spotify_player_play_file(cos_spotify_player_t *p, const char *path);
 
 /**
  * @brief 返回文件树页(不停止播放;音频继续)。
  * @return true 表示确实从播放页切回了文件树。
  */
-bool eos_spotify_player_show_browser(eos_spotify_player_t *p);
+bool cos_spotify_player_show_browser(cos_spotify_player_t *p);
 
 #endif /* CONFIG_USB_UAC_APP_ENABLE */
 
@@ -86,4 +86,4 @@ bool eos_spotify_player_show_browser(eos_spotify_player_t *p);
 }
 #endif
 
-#endif /* EOS_SPOTIFY_PLAYER_H */
+#endif /* COS_SPOTIFY_PLAYER_H */

@@ -1,30 +1,30 @@
 /**
- * @file eos_test_input_page.c
+ * @file cos_test_input_page.c
  * @brief Input page test module
  */
 
-#include "eos_config.h"
-#if EOS_ENABLE_TEST_APP
+#include "cos_config.h"
+#if COS_ENABLE_TEST_APP
 
-#include "eos_test_input_page.h"
+#include "cos_test_input_page.h"
 
 /* Includes ---------------------------------------------------*/
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "eos_mem.h"
-#include "eos_activity.h"
-#include "eos_app_header.h"
-#include "eos_crown.h"
-#include "eos_input_page.h"
-#include "eos_log.h"
-#include "eos_basic_widgets.h"
-#include "eos_lang.h"
+#include "cos_mem.h"
+#include "cos_activity.h"
+#include "cos_app_header.h"
+#include "cos_crown.h"
+#include "cos_input_page.h"
+#include "cos_log.h"
+#include "cos_basic_widgets.h"
+#include "cos_lang.h"
 #include "lvgl.h"
-#include "eos_error.h"
+#include "cos_error.h"
 
 /* Macros and Definitions -------------------------------------*/
-#define EOS_LOG_TAG "InputPageTest"
+#define COS_LOG_TAG "InputPageTest"
 
 /* Variables --------------------------------------------------*/
 typedef struct
@@ -44,7 +44,7 @@ typedef struct
 
 static _test_context_t _ctx = {0};
 static char *_last_input_text = NULL;
-static eos_input_result_t _last_input_result = EOS_INPUT_RESULT_CANCEL;
+static cos_input_result_t _last_input_result = COS_INPUT_RESULT_CANCEL;
 
 /* Function Implementations -----------------------------------*/
 static void _update_result(const char *text)
@@ -53,7 +53,7 @@ static void _update_result(const char *text)
     {
         lv_label_set_text(_ctx.result_label, text);
     }
-    EOS_LOG_I("%s", text);
+    COS_LOG_I("%s", text);
 }
 
 static void _record_test(const char *name, bool passed, const char *details)
@@ -94,20 +94,20 @@ static void _record_test(const char *name, bool passed, const char *details)
 /**
  * @brief Callback for input page when using callback mode
  */
-static void _input_page_callback(const char *text, eos_input_result_t result, void *user_data)
+static void _input_page_callback(const char *text, cos_input_result_t result, void *user_data)
 {
     (void)user_data;
 
     if (_last_input_text)
     {
-        eos_free(_last_input_text);
+        cos_free(_last_input_text);
         _last_input_text = NULL;
     }
 
     if (text)
     {
         size_t text_len = strlen(text);
-        _last_input_text = eos_malloc(text_len + 1);
+        _last_input_text = cos_malloc(text_len + 1);
         if (_last_input_text)
         {
             memcpy(_last_input_text, text, text_len + 1);
@@ -116,7 +116,7 @@ static void _input_page_callback(const char *text, eos_input_result_t result, vo
 
     if (!_last_input_text)
     {
-        _last_input_text = eos_malloc(1);
+        _last_input_text = cos_malloc(1);
         if (_last_input_text)
         {
             _last_input_text[0] = '\0';
@@ -127,7 +127,7 @@ static void _input_page_callback(const char *text, eos_input_result_t result, vo
 
     char log_msg[256];
     snprintf(log_msg, sizeof(log_msg), "Input callback: text='%s', result=%d", _last_input_text, result);
-    EOS_LOG_I("%s", log_msg);
+    COS_LOG_I("%s", log_msg);
 }
 
 /**
@@ -137,7 +137,7 @@ static void _test_input_page_with_label(lv_event_t *e)
 {
     (void)e;
 
-    EOS_LOG_I("Test 1: Input page with label write");
+    COS_LOG_I("Test 1: Input page with label write");
 
     if (_ctx.input_label == NULL)
     {
@@ -146,8 +146,8 @@ static void _test_input_page_with_label(lv_event_t *e)
         return;
     }
 
-    eos_result_t result = eos_input_page_open(_ctx.input_label);
-    if (result == EOS_OK)
+    cos_result_t result = cos_input_page_open(_ctx.input_label);
+    if (result == COS_OK)
     {
         _update_result("Input page opened with label");
         _record_test("Input Page with Label", true, "Page opened successfully");
@@ -166,11 +166,11 @@ static void _test_input_page_with_callback(lv_event_t *e)
 {
     (void)e;
 
-    EOS_LOG_I("Test 2: Input page with callback");
+    COS_LOG_I("Test 2: Input page with callback");
 
-    eos_result_t result = eos_input_page_open_with_callback(NULL, _input_page_callback, NULL);
+    cos_result_t result = cos_input_page_open_with_callback(NULL, _input_page_callback, NULL);
 
-    if (result == EOS_OK)
+    if (result == COS_OK)
     {
         _update_result("Input page opened with callback");
         _record_test("Input Page with Callback", true, "Page opened successfully");
@@ -189,7 +189,7 @@ static void _test_verify_label_update(lv_event_t *e)
 {
     (void)e;
 
-    EOS_LOG_I("Test 3: Verify label update after input");
+    COS_LOG_I("Test 3: Verify label update after input");
 
     if (_ctx.input_label == NULL)
     {
@@ -219,7 +219,7 @@ static void _test_verify_callback_data(lv_event_t *e)
 {
     (void)e;
 
-    EOS_LOG_I("Test 4: Verify callback data");
+    COS_LOG_I("Test 4: Verify callback data");
 
     bool has_callback_data = _last_input_text && strlen(_last_input_text) > 0;
 
@@ -241,36 +241,36 @@ static void _test_verify_callback_data(lv_event_t *e)
  */
 static lv_obj_t *_create_input_test_scr(void)
 {
-    eos_activity_t *activity = eos_activity_create(NULL);
+    cos_activity_t *activity = cos_activity_create(NULL);
     if (!activity)
     {
         return NULL;
     }
 
-    lv_obj_t *view = eos_activity_get_view(activity);
+    lv_obj_t *view = cos_activity_get_view(activity);
     if (!view)
     {
         return NULL;
     }
 
-    eos_activity_set_title(activity, "Input Page Test");
-    eos_activity_set_type(activity, EOS_ACTIVITY_TYPE_APP);
-    eos_activity_set_user_data(activity, (void *)view);
+    cos_activity_set_title(activity, "Input Page Test");
+    cos_activity_set_type(activity, COS_ACTIVITY_TYPE_APP);
+    cos_activity_set_user_data(activity, (void *)view);
 
     return view;
 }
 
-void eos_test_input_page_start(void)
+void cos_test_input_page_start(void)
 {
     lv_obj_t *scr = _create_input_test_scr();
     if (!scr)
     {
-        EOS_LOG_E("Failed to create test screen");
+        COS_LOG_E("Failed to create test screen");
         return;
     }
 
     /* Create list container */
-    lv_obj_t *list = eos_list_create(scr);
+    lv_obj_t *list = cos_list_create(scr);
     _ctx.list = list;
     _ctx.container = scr;
 
@@ -333,11 +333,11 @@ void eos_test_input_page_start(void)
     lv_label_set_text(summary_label, summary_text);
     _ctx.summary_label = summary_label;
 
-    eos_crown_encoder_set_target_obj(list);
+    cos_crown_encoder_set_target_obj(list);
 
-    eos_activity_t *activity = eos_activity_create(NULL);
-    eos_activity_set_view(activity, scr);
-    eos_activity_enter(activity);
+    cos_activity_t *activity = cos_activity_create(NULL);
+    cos_activity_set_view(activity, scr);
+    cos_activity_enter(activity);
 }
 
-#endif /* EOS_ENABLE_TEST_APP */
+#endif /* COS_ENABLE_TEST_APP */

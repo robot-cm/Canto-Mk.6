@@ -1,5 +1,5 @@
 /**
- * @file eos_port_critical.h
+ * @file cos_port_critical.h
  * @brief Critical section porting abstraction
  *
  * Provides enter/leave critical section API across different platforms.
@@ -11,8 +11,8 @@
  * Custom:        User-defined implementation
  */
 
-#ifndef EOS_PORT_CRITICAL_H
-#define EOS_PORT_CRITICAL_H
+#ifndef COS_PORT_CRITICAL_H
+#define COS_PORT_CRITICAL_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,7 +30,7 @@ extern "C" {
  * - RTOSes with interrupt control: stores the previous interrupt mask state
  * - POSIX: unused (0), but kept for API uniformity
  */
-typedef uint32_t eos_critical_ctx_t;
+typedef uint32_t cos_critical_ctx_t;
 
 /* Public function prototypes --------------------------------*/
 
@@ -40,21 +40,21 @@ typedef uint32_t eos_critical_ctx_t;
  * Disables interrupts (or acquires scheduler lock) to protect
  * the following code from being preempted.
  *
- * @return Previous CPU/interrupt state context, must be passed to eos_critical_leave()
+ * @return Previous CPU/interrupt state context, must be passed to cos_critical_leave()
  */
-eos_critical_ctx_t eos_critical_enter(void);
+cos_critical_ctx_t cos_critical_enter(void);
 
 /**
  * @brief Leave critical section
  *
- * Restores the CPU/interrupt state saved by eos_critical_enter().
+ * Restores the CPU/interrupt state saved by cos_critical_enter().
  *
- * @param ctx Context returned from eos_critical_enter()
+ * @param ctx Context returned from cos_critical_enter()
  */
-void eos_critical_leave(eos_critical_ctx_t ctx);
+void cos_critical_leave(cos_critical_ctx_t ctx);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_PORT_CRITICAL_H */
+#endif /* COS_PORT_CRITICAL_H */

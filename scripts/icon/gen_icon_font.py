@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""生成 eos_font_icon.c：收集 src 中实际使用的 RI_* 与 LV_SYMBOL_* 字符子集。
+"""生成 cos_font_icon.c：收集 src 中实际使用的 RI_* 与 LV_SYMBOL_* 字符子集。
 
 RI_*       -> third_party/RemixIcon/fonts/remixicon.ttf
 LV_SYMBOL_* -> third_party/lvgl/scripts/built_in_font/FontAwesome5-*.woff
@@ -7,7 +7,7 @@ LV_SYMBOL_* -> third_party/lvgl/scripts/built_in_font/FontAwesome5-*.woff
 用法:
     python3 scripts/icon/gen_icon_font.py
 输出:
-    resources/font/eos_font_icon.c  (LVGL 压缩字体, bpp4, 22px)
+    resources/font/cos_font_icon.c  (LVGL 压缩字体, bpp4, 22px)
 """
 import re
 import subprocess
@@ -17,11 +17,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "src"
-EOS_ICON_H = SRC / "ui" / "symbol" / "eos_icon.h"
+COS_ICON_H = SRC / "ui" / "symbol" / "cos_icon.h"
 LV_SYMBOL_H = ROOT / "third_party" / "lvgl" / "src" / "font" / "lv_symbol_def.h"
 RI_TTF = ROOT / "third_party" / "RemixIcon" / "fonts" / "remixicon.ttf"
 FA_WOFF = ROOT / "third_party" / "lvgl" / "scripts" / "built_in_font" / "FontAwesome5-Solid+Brands+Regular.woff"
-OUT = ROOT / "resources" / "font" / "eos_font_icon.c"
+OUT = ROOT / "resources" / "font" / "cos_font_icon.c"
 
 LV_FONT_CONV = os.environ.get(
     "LV_FONT_CONV",
@@ -31,10 +31,10 @@ FONT_SIZE = 22
 
 
 def parse_ri_macros() -> dict[str, int]:
-    """eos_icon.h: #define RI_XXX "\\uXXXX" -> {name: codepoint}"""
+    """cos_icon.h: #define RI_XXX "\\uXXXX" -> {name: codepoint}"""
     table = {}
     pat = re.compile(r'^#define\s+(RI_[A-Z0-9_]+)\s+"\\u([0-9A-Fa-f]{4})"')
-    for line in EOS_ICON_H.read_text(encoding="utf-8").splitlines():
+    for line in COS_ICON_H.read_text(encoding="utf-8").splitlines():
         m = pat.match(line)
         if m:
             table[m.group(1)] = int(m.group(2), 16)
@@ -67,7 +67,7 @@ def parse_lv_symbol_macros() -> dict[str, int]:
 
 
 # 仅作 JS 注册表(字符串常量, 不参与渲染), 引用全部宏会造成假阳性, 排除
-SYMBOL_REG_FILES = ("src/ui/symbol/eos_icon.c", "src/ui/symbol/eos_icon.h")
+SYMBOL_REG_FILES = ("src/ui/symbol/cos_icon.c", "src/ui/symbol/cos_icon.h")
 
 
 def scan_used_macros() -> dict[str, set[str]]:
@@ -79,7 +79,7 @@ def scan_used_macros() -> dict[str, set[str]]:
         if p.suffix not in (".c", ".h"):
             continue
         rel = p.relative_to(ROOT)
-        if "ElenixOS-old-for-view" in str(rel) or "simulator" in str(rel):
+        if "CantoMk6-old-for-view" in str(rel) or "simulator" in str(rel):
             continue
         if str(rel) in SYMBOL_REG_FILES:
             continue
@@ -156,7 +156,7 @@ def main():
         "--font", str(RI_TTF), "--symbols", "".join(chr(c) for c in sorted(ri_cps)),
         "--font", str(FA_WOFF), "--symbols", "".join(chr(c) for c in sorted(fa_cps)),
         "--size", str(FONT_SIZE), "--bpp", "4", "--format", "lvgl",
-        "--lv-font-name", "eos_font_icon",
+        "--lv-font-name", "cos_font_icon",
         "-o", str(OUT),
     ]
     print("运行:", " ".join(cmd[:6]), "...")

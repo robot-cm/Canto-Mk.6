@@ -1,27 +1,27 @@
 /**
- * @file eos_test_stress.c
+ * @file cos_test_stress.c
  * @brief SPM stress test - memory leak check via unit test framework
  */
 
-#include "eos_test_stress.h"
-#if EOS_ENABLE_TEST_APP
+#include "cos_test_stress.h"
+#if COS_ENABLE_TEST_APP
 
 /* Includes ---------------------------------------------------*/
 #include <string.h>
 #include <stdio.h>
-#include "eos_log.h"
-#include "eos_test_framework.h"
-#include "eos_activity.h"
-#include "eos_app.h"
-#include "eos_service_storage.h"
-#include "eos_mem.h"
+#include "cos_log.h"
+#include "cos_test_framework.h"
+#include "cos_activity.h"
+#include "cos_app.h"
+#include "cos_service_storage.h"
+#include "cos_mem.h"
 #include "spm.h"
-#include "eos_pkg_mgr.h"
+#include "cos_pkg_mgr.h"
 #include "lvgl.h"
 
 /* Macros and Definitions -------------------------------------*/
-#define EOS_LOG_TAG "StressTest"
-#define SPM_STRESS_TEST_APP_ID "com.elenixos.test"
+#define COS_LOG_TAG "StressTest"
+#define SPM_STRESS_TEST_APP_ID "com.cantomk6os.test"
 #define SPM_STRESS_MAX_CYCLES 30
 #define SPM_STRESS_PHASE_CREATE 0
 #define SPM_STRESS_PHASE_BACK 1
@@ -36,7 +36,7 @@ typedef struct
     int cycle;
     int phase;
     script_pkg_t pkg;
-    eos_activity_t *activity;
+    cos_activity_t *activity;
     unsigned long prev_alloc;
 } stress_ctx_t;
 
@@ -56,9 +56,9 @@ static unsigned long _stress_get_alloc(void)
 
 static void _stress_report_header(void)
 {
-    EOS_LOG_I("SPM STRESS TEST -- Memory Leak Check");
-    EOS_LOG_I("  App: " SPM_STRESS_TEST_APP_ID);
-    EOS_LOG_I("  Cycles: %d", SPM_STRESS_MAX_CYCLES);
+    COS_LOG_I("SPM STRESS TEST -- Memory Leak Check");
+    COS_LOG_I("  App: " SPM_STRESS_TEST_APP_ID);
+    COS_LOG_I("  Cycles: %d", SPM_STRESS_MAX_CYCLES);
 }
 
 static void _stress_timer_cb(lv_timer_t *t);
@@ -70,40 +70,40 @@ static void _stress_cleanup(void)
         lv_timer_delete(s_stress.timer);
         s_stress.timer = NULL;
     }
-    eos_pkg_free(&s_stress.pkg);
+    cos_pkg_free(&s_stress.pkg);
     memset(&s_stress.pkg, 0, sizeof(s_stress.pkg));
     s_stress.activity = NULL;
 }
 
 static bool _stress_load_pkg(void)
 {
-    char manifest_path[EOS_FS_PATH_MAX];
+    char manifest_path[COS_FS_PATH_MAX];
     snprintf(manifest_path,
              sizeof(manifest_path),
-             EOS_APP_INSTALLED_DIR SPM_STRESS_TEST_APP_ID "/" EOS_APP_MANIFEST_FILE_NAME);
+             COS_APP_INSTALLED_DIR SPM_STRESS_TEST_APP_ID "/" COS_APP_MANIFEST_FILE_NAME);
 
     memset(&s_stress.pkg, 0, sizeof(s_stress.pkg));
     s_stress.pkg.type = SCRIPT_TYPE_APPLICATION;
-    if (script_engine_get_manifest(manifest_path, &s_stress.pkg) != EOS_OK)
+    if (script_engine_get_manifest(manifest_path, &s_stress.pkg) != COS_OK)
     {
-        EOS_LOG_E("[STRESS] Failed to read manifest: %s", manifest_path);
+        COS_LOG_E("[STRESS] Failed to read manifest: %s", manifest_path);
         return false;
     }
 
-    char script_path[EOS_FS_PATH_MAX];
+    char script_path[COS_FS_PATH_MAX];
     snprintf(script_path,
              sizeof(script_path),
-             EOS_APP_INSTALLED_DIR SPM_STRESS_TEST_APP_ID "/" EOS_APP_SCRIPT_ENTRY_FILE_NAME);
+             COS_APP_INSTALLED_DIR SPM_STRESS_TEST_APP_ID "/" COS_APP_SCRIPT_ENTRY_FILE_NAME);
 
-    char base_path[EOS_FS_PATH_MAX];
-    snprintf(base_path, sizeof(base_path), EOS_APP_INSTALLED_DIR SPM_STRESS_TEST_APP_ID "/");
-    s_stress.pkg.base_path = eos_strdup(base_path);
-    s_stress.pkg.script_str = eos_storage_read_file(script_path);
+    char base_path[COS_FS_PATH_MAX];
+    snprintf(base_path, sizeof(base_path), COS_APP_INSTALLED_DIR SPM_STRESS_TEST_APP_ID "/");
+    s_stress.pkg.base_path = cos_strdup(base_path);
+    s_stress.pkg.script_str = cos_storage_read_file(script_path);
 
     if (!s_stress.pkg.script_str)
     {
-        EOS_LOG_E("[STRESS] Failed to read script: %s", script_path);
-        eos_pkg_free(&s_stress.pkg);
+        COS_LOG_E("[STRESS] Failed to read script: %s", script_path);
+        cos_pkg_free(&s_stress.pkg);
         memset(&s_stress.pkg, 0, sizeof(s_stress.pkg));
         return false;
     }
@@ -111,30 +111,30 @@ static bool _stress_load_pkg(void)
     return true;
 }
 
-static void _stress_app_on_enter(eos_activity_t *a)
+static void _stress_app_on_enter(cos_activity_t *a)
 {
     (void)a;
     unsigned long before = _stress_get_alloc();
 
-    eos_result_t ret = spm_app_run(&s_stress.pkg);
-    if (ret != EOS_OK)
+    cos_result_t ret = spm_app_run(&s_stress.pkg);
+    if (ret != COS_OK)
     {
-        EOS_LOG_E("[STRESS] Cycle %d: run failed ret=%d", s_stress.cycle, ret);
+        COS_LOG_E("[STRESS] Cycle %d: run failed ret=%d", s_stress.cycle, ret);
     }
 
     s_stress.prev_alloc = before;
-    eos_pkg_free(&s_stress.pkg);
+    cos_pkg_free(&s_stress.pkg);
     memset(&s_stress.pkg, 0, sizeof(s_stress.pkg));
     s_stress.phase = SPM_STRESS_PHASE_BACK;
 }
 
-static void _stress_app_on_destroy(eos_activity_t *a)
+static void _stress_app_on_destroy(cos_activity_t *a)
 {
     (void)a;
     spm_app_stop();
 }
 
-static const eos_activity_lifecycle_t _stress_lifecycle = {
+static const cos_activity_lifecycle_t _stress_lifecycle = {
     .on_enter = _stress_app_on_enter,
     .on_destroy = _stress_app_on_destroy,
 };
@@ -153,42 +153,42 @@ static void _stress_timer_cb(lv_timer_t *t)
                 return;
             }
 
-            s_stress.activity = eos_activity_create(&_stress_lifecycle);
+            s_stress.activity = cos_activity_create(&_stress_lifecycle);
             if (!s_stress.activity)
             {
-                EOS_LOG_E("[STRESS] Failed to create activity");
+                COS_LOG_E("[STRESS] Failed to create activity");
                 _stress_cleanup();
                 return;
             }
 
-            lv_obj_t *view = eos_activity_get_view(s_stress.activity);
-            lv_obj_set_size(view, EOS_DISPLAY_WIDTH, EOS_DISPLAY_HEIGHT);
-            eos_activity_set_type(s_stress.activity, EOS_ACTIVITY_TYPE_APP);
-            eos_activity_set_title(s_stress.activity, SPM_STRESS_TEST_APP_ID);
-            eos_activity_enter(s_stress.activity);
+            lv_obj_t *view = cos_activity_get_view(s_stress.activity);
+            lv_obj_set_size(view, COS_DISPLAY_WIDTH, COS_DISPLAY_HEIGHT);
+            cos_activity_set_type(s_stress.activity, COS_ACTIVITY_TYPE_APP);
+            cos_activity_set_title(s_stress.activity, SPM_STRESS_TEST_APP_ID);
+            cos_activity_enter(s_stress.activity);
             break;
         }
 
         case SPM_STRESS_PHASE_BACK:
         {
-            if (eos_activity_is_transition_in_progress())
+            if (cos_activity_is_transition_in_progress())
                 return;
-            eos_activity_back();
+            cos_activity_back();
             s_stress.phase = SPM_STRESS_PHASE_WAIT;
             break;
         }
 
         case SPM_STRESS_PHASE_WAIT:
         {
-            if (eos_activity_is_transition_in_progress())
+            if (cos_activity_is_transition_in_progress())
                 return;
-            if (eos_activity_get_current() == s_stress.activity)
+            if (cos_activity_get_current() == s_stress.activity)
                 return;
 
             unsigned long after = _stress_get_alloc();
             long delta = (long)after - (long)s_stress.prev_alloc;
 
-            EOS_LOG_I("[STRESS] Cycle %2d: alloc=%lu delta=%ld %s",
+            COS_LOG_I("[STRESS] Cycle %2d: alloc=%lu delta=%ld %s",
                       s_stress.cycle,
                       after,
                       delta,
@@ -204,9 +204,9 @@ static void _stress_timer_cb(lv_timer_t *t)
 
             if (s_stress.cycle >= SPM_STRESS_MAX_CYCLES)
             {
-                EOS_LOG_I("[STRESS] Test complete. %d cycles.", SPM_STRESS_MAX_CYCLES);
-                EOS_LOG_I("[STRESS] Final alloc=%lu", after);
-                eos_test_record("SPM Stress: memory leak check",
+                COS_LOG_I("[STRESS] Test complete. %d cycles.", SPM_STRESS_MAX_CYCLES);
+                COS_LOG_I("[STRESS] Final alloc=%lu", after);
+                cos_test_record("SPM Stress: memory leak check",
                                 s_stress_passed,
                                 s_stress_passed ? "No heap growth detected" : "Heap grew");
                 _stress_cleanup();
@@ -228,16 +228,16 @@ static bool _test_spm_stress(void)
     s_stress.timer = lv_timer_create(_stress_timer_cb, SPM_STRESS_DELAY, NULL);
     if (!s_stress.timer)
     {
-        EOS_LOG_E("[STRESS] Failed to create timer");
-        eos_test_record("SPM Stress: memory leak check", false, "Timer creation failed");
+        COS_LOG_E("[STRESS] Failed to create timer");
+        cos_test_record("SPM Stress: memory leak check", false, "Timer creation failed");
         return false;
     }
     return true;
 }
 
-void eos_test_stress_register_tests(void)
+void cos_test_stress_register_tests(void)
 {
-    eos_test_register("SPM Stress: memory leak check", _test_spm_stress);
+    cos_test_register("SPM Stress: memory leak check", _test_spm_stress);
 }
 
-#endif /* EOS_ENABLE_TEST_APP */
+#endif /* COS_ENABLE_TEST_APP */

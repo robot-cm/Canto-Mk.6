@@ -1,13 +1,13 @@
 /**
- * @file eos_overlay_layer.c
+ * @file cos_overlay_layer.c
  * @brief Four-layer overlay system implementation on lv_layer_top()
  */
-#include "eos_overlay_layer.h"
+#include "cos_overlay_layer.h"
 
 /* Includes ---------------------------------------------------*/
-#define EOS_LOG_TAG "OverlayLayer"
-#include "eos_log.h"
-#include "eos_mem.h"
+#define COS_LOG_TAG "OverlayLayer"
+#include "cos_log.h"
+#include "cos_mem.h"
 
 /* Static variables -------------------------------------------*/
 static lv_obj_t *_user_top_layer = NULL;
@@ -37,7 +37,7 @@ static lv_obj_t *_create_layer(void)
 
 /* Function Implementations -----------------------------------*/
 
-void eos_overlay_layer_init(void)
+void cos_overlay_layer_init(void)
 {
     if (_initialized)
         return;
@@ -71,45 +71,45 @@ void eos_overlay_layer_init(void)
     lv_obj_move_background(_user_top_layer); /* layer 0 — absolute bottom */
 
     _initialized = true;
-    EOS_LOG_I("8-layer overlay system initialized on lv_layer_top()");
+    COS_LOG_I("8-layer overlay system initialized on lv_layer_top()");
 }
 
-lv_obj_t *eos_overlay_get_user_top_layer(void)
+lv_obj_t *cos_overlay_get_user_top_layer(void)
 {
     return _user_top_layer;
 }
 
-lv_obj_t *eos_overlay_get_snapshot_layer(void)
+lv_obj_t *cos_overlay_get_snapshot_layer(void)
 {
     return _snapshot_layer;
 }
 
-lv_obj_t *eos_overlay_get_app_layer(void)
+lv_obj_t *cos_overlay_get_app_layer(void)
 {
     return _app_layer;
 }
 
-lv_obj_t *eos_overlay_get_header_layer(void)
+lv_obj_t *cos_overlay_get_header_layer(void)
 {
     return _header_layer;
 }
 
-lv_obj_t *eos_overlay_get_notification_layer(void)
+lv_obj_t *cos_overlay_get_notification_layer(void)
 {
     return _notification_layer;
 }
 
-lv_obj_t *eos_overlay_get_statusbar_layer(void)
+lv_obj_t *cos_overlay_get_statusbar_layer(void)
 {
     return _statusbar_layer;
 }
 
-lv_obj_t *eos_overlay_get_indicator_layer(void)
+lv_obj_t *cos_overlay_get_indicator_layer(void)
 {
     return _indicator_layer;
 }
 
-lv_obj_t *eos_overlay_get_overlay_layer(void)
+lv_obj_t *cos_overlay_get_overlay_layer(void)
 {
     return _overlay_layer;
 }

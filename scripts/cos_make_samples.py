@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Generate sample media for the ElenixOS simulator so the native Gallery and
+Generate sample media for the CantoMk6 simulator so the native Gallery and
 Files apps have something to show on first run.
 
 Usage:
-    eos_make_samples.py <sim_fs_root>
+    cos_make_samples.py <sim_fs_root>
 
 Creates:
     <root>/gallery/   - a few PNG images (varying sizes to exercise fit-scaling)
@@ -56,7 +56,7 @@ def gradient(w, h):
 
 def main():
     if len(sys.argv) < 2:
-        print("usage: eos_make_samples.py <sim_fs_root>")
+        print("usage: cos_make_samples.py <sim_fs_root>")
         return 1
 
     root = sys.argv[1]
@@ -75,7 +75,7 @@ def main():
     # --- Files: text files + subdirectory ---
     with open(os.path.join(files, "readme.txt"), "w", encoding="utf-8") as f:
         f.write(
-            "ElenixOS Files\n"
+            "CantoMk6 Files\n"
             "==============\n"
             "This is a sample text file for the Files browser.\n"
             "Tap a directory to descend; tap a file to read it.\n"

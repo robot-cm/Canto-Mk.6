@@ -1,19 +1,19 @@
 /**
- * @file eos_fifo.c
+ * @file cos_fifo.c
  * @brief Ring buffer FIFO
  */
 
-#include "eos_fifo.h"
+#include "cos_fifo.h"
 
 /* Includes ---------------------------------------------------*/
 #include <string.h>
-#define EOS_LOG_TAG "FIFO"
-#include "eos_log.h"
-#include "eos_mem.h"
+#define COS_LOG_TAG "FIFO"
+#include "cos_log.h"
+#include "cos_mem.h"
 
 /* Macros and Definitions -------------------------------------*/
 
-struct eos_fifo_t
+struct cos_fifo_t
 {
     uint8_t *buffer;
     uint16_t capacity;
@@ -21,26 +21,26 @@ struct eos_fifo_t
     uint16_t tail;
     uint16_t count;
 
-    eos_fifo_stats_t stats;
+    cos_fifo_stats_t stats;
 };
 
 /* Variables --------------------------------------------------*/
 
 /* Function Implementations -----------------------------------*/
 
-eos_fifo_t *eos_fifo_create(uint16_t capacity)
+cos_fifo_t *cos_fifo_create(uint16_t capacity)
 {
     if (capacity == 0)
         capacity = 16;
 
-    eos_fifo_t *fifo = eos_malloc_zeroed(sizeof(eos_fifo_t));
+    cos_fifo_t *fifo = cos_malloc_zeroed(sizeof(cos_fifo_t));
     if (!fifo)
         return NULL;
 
-    fifo->buffer = eos_malloc_zeroed(capacity);
+    fifo->buffer = cos_malloc_zeroed(capacity);
     if (!fifo->buffer)
     {
-        eos_free(fifo);
+        cos_free(fifo);
         return NULL;
     }
 
@@ -54,23 +54,23 @@ eos_fifo_t *eos_fifo_create(uint16_t capacity)
     fifo->stats.overflow_count = 0;
     fifo->stats.peak_usage = 0;
 
-    EOS_LOG_I("fifo created, capacity: %d", capacity);
+    COS_LOG_I("fifo created, capacity: %d", capacity);
     return fifo;
 }
 
-void eos_fifo_destroy(eos_fifo_t *fifo)
+void cos_fifo_destroy(cos_fifo_t *fifo)
 {
     if (!fifo)
         return;
 
     if (fifo->buffer)
-        eos_free(fifo->buffer);
-    eos_free(fifo);
+        cos_free(fifo->buffer);
+    cos_free(fifo);
 
-    EOS_LOG_I("fifo destroyed");
+    COS_LOG_I("fifo destroyed");
 }
 
-void eos_fifo_reset(eos_fifo_t *fifo)
+void cos_fifo_reset(cos_fifo_t *fifo)
 {
     if (!fifo)
         return;
@@ -84,7 +84,7 @@ void eos_fifo_reset(eos_fifo_t *fifo)
     fifo->stats.peak_usage = 0;
 }
 
-uint16_t eos_fifo_write(eos_fifo_t *fifo, const void *data, uint16_t size)
+uint16_t cos_fifo_write(cos_fifo_t *fifo, const void *data, uint16_t size)
 {
     if (!fifo || !data || size == 0)
         return 0;
@@ -111,12 +111,12 @@ uint16_t eos_fifo_write(eos_fifo_t *fifo, const void *data, uint16_t size)
         fifo->stats.peak_usage = fifo->count;
 
     if (written > 0)
-        EOS_LOG_I("fifo write %d bytes", written);
+        COS_LOG_I("fifo write %d bytes", written);
 
     return written;
 }
 
-void eos_fifo_drop(eos_fifo_t *fifo, uint16_t count)
+void cos_fifo_drop(cos_fifo_t *fifo, uint16_t count)
 {
     if (!fifo || count == 0)
         return;
@@ -128,10 +128,10 @@ void eos_fifo_drop(eos_fifo_t *fifo, uint16_t count)
     fifo->count -= count;
     fifo->stats.overflow_count++;
 
-    EOS_LOG_I("fifo drop %d bytes (overflow)", count);
+    COS_LOG_I("fifo drop %d bytes (overflow)", count);
 }
 
-uint16_t eos_fifo_write_atomic(eos_fifo_t *fifo, const void *data, uint16_t size)
+uint16_t cos_fifo_write_atomic(cos_fifo_t *fifo, const void *data, uint16_t size)
 {
     if (!fifo || !data || size == 0)
         return 0;
@@ -139,7 +139,7 @@ uint16_t eos_fifo_write_atomic(eos_fifo_t *fifo, const void *data, uint16_t size
     /* Entry larger than total capacity — can never fit */
     if (size > fifo->capacity)
     {
-        EOS_LOG_E("fifo atomic write failed: size %d > capacity %d", size, fifo->capacity);
+        COS_LOG_E("fifo atomic write failed: size %d > capacity %d", size, fifo->capacity);
         return 0;
     }
 
@@ -151,7 +151,7 @@ uint16_t eos_fifo_write_atomic(eos_fifo_t *fifo, const void *data, uint16_t size
         fifo->tail = (fifo->tail + to_drop) % fifo->capacity;
         fifo->count -= to_drop;
         fifo->stats.overflow_count++;
-        EOS_LOG_I("fifo atomic write: dropped %d bytes to make room", to_drop);
+        COS_LOG_I("fifo atomic write: dropped %d bytes to make room", to_drop);
     }
 
     /* Now guaranteed space — write atomically */
@@ -166,11 +166,11 @@ uint16_t eos_fifo_write_atomic(eos_fifo_t *fifo, const void *data, uint16_t size
     if (fifo->count > fifo->stats.peak_usage)
         fifo->stats.peak_usage = fifo->count;
 
-    EOS_LOG_I("fifo atomic write %d bytes (count=%d/%d)", size, fifo->count, fifo->capacity);
+    COS_LOG_I("fifo atomic write %d bytes (count=%d/%d)", size, fifo->count, fifo->capacity);
     return size;
 }
 
-uint16_t eos_fifo_read(eos_fifo_t *fifo, void *buf, uint16_t size)
+uint16_t cos_fifo_read(cos_fifo_t *fifo, void *buf, uint16_t size)
 {
     if (!fifo || !buf || size == 0)
         return 0;
@@ -189,12 +189,12 @@ uint16_t eos_fifo_read(eos_fifo_t *fifo, void *buf, uint16_t size)
     fifo->stats.read_count += read_bytes;
 
     if (read_bytes > 0)
-        EOS_LOG_I("fifo read %d bytes", read_bytes);
+        COS_LOG_I("fifo read %d bytes", read_bytes);
 
     return read_bytes;
 }
 
-uint16_t eos_fifo_peek(eos_fifo_t *fifo, void *buf, uint16_t size)
+uint16_t cos_fifo_peek(cos_fifo_t *fifo, void *buf, uint16_t size)
 {
     if (!fifo || !buf || size == 0)
         return 0;
@@ -213,42 +213,42 @@ uint16_t eos_fifo_peek(eos_fifo_t *fifo, void *buf, uint16_t size)
     return peek_bytes;
 }
 
-uint16_t eos_fifo_get_count(eos_fifo_t *fifo)
+uint16_t cos_fifo_get_count(cos_fifo_t *fifo)
 {
     if (!fifo)
         return 0;
     return fifo->count;
 }
 
-uint16_t eos_fifo_get_free(eos_fifo_t *fifo)
+uint16_t cos_fifo_get_free(cos_fifo_t *fifo)
 {
     if (!fifo)
         return 0;
     return fifo->capacity - fifo->count;
 }
 
-uint16_t eos_fifo_get_capacity(eos_fifo_t *fifo)
+uint16_t cos_fifo_get_capacity(cos_fifo_t *fifo)
 {
     if (!fifo)
         return 0;
     return fifo->capacity;
 }
 
-bool eos_fifo_is_empty(eos_fifo_t *fifo)
+bool cos_fifo_is_empty(cos_fifo_t *fifo)
 {
     if (!fifo)
         return true;
     return fifo->count == 0;
 }
 
-bool eos_fifo_is_full(eos_fifo_t *fifo)
+bool cos_fifo_is_full(cos_fifo_t *fifo)
 {
     if (!fifo)
         return true;
     return fifo->count >= fifo->capacity;
 }
 
-void eos_fifo_get_stats(eos_fifo_t *fifo, eos_fifo_stats_t *stats)
+void cos_fifo_get_stats(cos_fifo_t *fifo, cos_fifo_stats_t *stats)
 {
     if (!fifo || !stats)
         return;

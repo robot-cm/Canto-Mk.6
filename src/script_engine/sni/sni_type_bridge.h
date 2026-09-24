@@ -43,7 +43,7 @@ jerry_value_t sni_tb_c2js_string_safe(const char *s);
  * @brief Convert JerryScript string to C string
  * @param js_val JerryScript string value
  * @return const char* C string pointer
- * @note Caller must use `eos_free` to free the returned string memory
+ * @note Caller must use `cos_free` to free the returned string memory
  */
 const char *sni_tb_js2c_string(jerry_value_t js_val);
 

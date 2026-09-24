@@ -1,11 +1,11 @@
 /**
- * @file eos_icon.c
+ * @file cos_icon.c
  * @brief Register icon macros to JerryScript
  * @date 2025-10-28
  */
 
 /* Includes ---------------------------------------------------*/
-#include "eos_icon.h"
+#include "cos_icon.h"
 #include "jerryscript.h"
 #include <stdio.h>
 
@@ -18,9 +18,9 @@
 /**
  * @brief Register all icon macros to JerryScript global object
  */
-void eos_icon_register(void)
+void cos_icon_register(void)
 {
-#if EOS_ICON_STR_BUILD_IN
+#if COS_ICON_STR_BUILD_IN
     struct
     {
         const char *name;
@@ -1430,11 +1430,11 @@ void eos_icon_register(void)
 #ifdef RI_COPYRIGHT_LINE
         {"RI_COPYRIGHT_LINE", RI_COPYRIGHT_LINE},
 #endif
-#ifdef RI_COREOS_FILL
-        {"RI_COREOS_FILL", RI_COREOS_FILL},
+#ifdef RI_CORCOS_FILL
+        {"RI_CORCOS_FILL", RI_CORCOS_FILL},
 #endif
-#ifdef RI_COREOS_LINE
-        {"RI_COREOS_LINE", RI_COREOS_LINE},
+#ifdef RI_CORCOS_LINE
+        {"RI_CORCOS_LINE", RI_CORCOS_LINE},
 #endif
 #ifdef RI_COUPON_2_FILL
         {"RI_COUPON_2_FILL", RI_COUPON_2_FILL},
@@ -8981,8 +8981,8 @@ void eos_icon_register(void)
 #ifdef RI_VOLUME_LOUD_LINE
         {"RI_VOLUME_LOUD_LINE", RI_VOLUME_LOUD_LINE},
 #endif
-#ifdef RI_ELENIX_WATCH
-        {"RI_ELENIX_WATCH", RI_ELENIX_WATCH},
+#ifdef RI_CANTOMK6_WATCH
+        {"RI_CANTOMK6_WATCH", RI_CANTOMK6_WATCH},
 #endif
     };
 
@@ -8998,5 +8998,5 @@ void eos_icon_register(void)
         jerry_value_free(key);
         jerry_value_free(val);
     }
-#endif /* EOS_ICON_STR_BUILD_IN */
+#endif /* COS_ICON_STR_BUILD_IN */
 }

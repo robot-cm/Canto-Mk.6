@@ -1,13 +1,13 @@
 /**
- * @file eos_fs_port.c
+ * @file cos_fs_port.c
  * @brief File system porting
  */
 
-#include "eos_config.h"
+#include "cos_config.h"
 
-#if EOS_FS_TYPE == EOS_FS_POSIX
+#if COS_FS_TYPE == COS_FS_POSIX
 
-#include "eos_fs_port.h"
+#include "cos_fs_port.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
@@ -18,8 +18,8 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <pthread.h>
-#include "eos_port.h"
-#include "eos_log.h"
+#include "cos_port.h"
+#include "cos_log.h"
 /* Macros and Definitions -------------------------------------*/
 #define FS_PATH_BUF_SIZE 512
 
@@ -32,7 +32,7 @@
 #include <windows.h>
 #include <io.h>
 #include <direct.h>
-static wchar_t *_eos_utf8_to_wide(const char *utf8)
+static wchar_t *_cos_utf8_to_wide(const char *utf8)
 {
     if (!utf8) return NULL;
     int len = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, NULL, 0);
@@ -42,7 +42,7 @@ static wchar_t *_eos_utf8_to_wide(const char *utf8)
     MultiByteToWideChar(CP_UTF8, 0, utf8, -1, w, len);
     return w;
 }
-static char *_eos_wide_to_utf8(const wchar_t *w)
+static char *_cos_wide_to_utf8(const wchar_t *w)
 {
     if (!w) return NULL;
     int len = WideCharToMultiByte(CP_UTF8, 0, w, -1, NULL, 0, NULL, NULL);
@@ -52,10 +52,10 @@ static char *_eos_wide_to_utf8(const wchar_t *w)
     WideCharToMultiByte(CP_UTF8, 0, w, -1, s, len, NULL, NULL);
     return s;
 }
-static FILE *_eos_fopen_utf8(const char *path, const char *mode)
+static FILE *_cos_fopen_utf8(const char *path, const char *mode)
 {
-    wchar_t *wp = _eos_utf8_to_wide(path);
-    wchar_t *wm = _eos_utf8_to_wide(mode);
+    wchar_t *wp = _cos_utf8_to_wide(path);
+    wchar_t *wm = _cos_utf8_to_wide(mode);
     if (!wp || !wm)
     {
         free(wp);
@@ -67,9 +67,9 @@ static FILE *_eos_fopen_utf8(const char *path, const char *mode)
     free(wm);
     return f;
 }
-static int _eos_wstat_utf8(const char *path, struct stat *st)
+static int _cos_wstat_utf8(const char *path, struct stat *st)
 {
-    wchar_t *wp = _eos_utf8_to_wide(path);
+    wchar_t *wp = _cos_utf8_to_wide(path);
     if (!wp) return -1;
     struct _stat wst;
     int r = _wstat(wp, &wst);
@@ -87,21 +87,21 @@ typedef struct
     struct _wfinddata_t data;
     int first;
     int done;
-} _eos_win_dir_t;
+} _cos_win_dir_t;
 #endif /* _WIN32 */
 
 /* Variables --------------------------------------------------*/
 
 /** Runtime root directory.
- *  When EOS_SYS_ROOT_DIR is defined (simulator build), use it as the filesystem root.
+ *  When COS_SYS_ROOT_DIR is defined (simulator build), use it as the filesystem root.
  *  Otherwise defaults to "/" → pass-through. */
-#ifdef EOS_SYS_ROOT_DIR
-static char _s_fs_root[FS_PATH_BUF_SIZE] = EOS_SYS_ROOT_DIR;
+#ifdef COS_SYS_ROOT_DIR
+static char _s_fs_root[FS_PATH_BUF_SIZE] = COS_SYS_ROOT_DIR;
 #else
 static char _s_fs_root[FS_PATH_BUF_SIZE] = "/";
 #endif
 
-void eos_fs_set_root(const char *root)
+void cos_fs_set_root(const char *root)
 {
     if (!root || root[0] == '\0')
     {
@@ -121,7 +121,7 @@ void eos_fs_set_root(const char *root)
     snprintf(_s_fs_root, sizeof(_s_fs_root), "%.*s", (int)len, root);
 }
 
-const char *eos_fs_realpath(const char *path, char *buf, size_t bufsz)
+const char *cos_fs_realpath(const char *path, char *buf, size_t bufsz)
 {
     if (!path || !buf || bufsz == 0)
         return NULL;
@@ -147,41 +147,41 @@ const char *eos_fs_realpath(const char *path, char *buf, size_t bufsz)
 /* ---------------- POSIX FS implementation ------------------ */
 
 /* Open file read-only */
-eos_file_t eos_fs_open_read(const char *path)
+cos_file_t cos_fs_open_read(const char *path)
 {
     if (!path)
         return NULL;
     char resolved[FS_PATH_BUF_SIZE];
 #ifdef _WIN32
-    return _eos_fopen_utf8(eos_fs_realpath(path, resolved, sizeof(resolved)), "rb");
+    return _cos_fopen_utf8(cos_fs_realpath(path, resolved, sizeof(resolved)), "rb");
 #else
-    FILE *fp = fopen(eos_fs_realpath(path, resolved, sizeof(resolved)), "rb");
+    FILE *fp = fopen(cos_fs_realpath(path, resolved, sizeof(resolved)), "rb");
     if (fp == NULL)
-        EOS_LOG_E("[eos_fs] open_read FAIL: '%s' errno=%d (%s) root='%s'",
+        COS_LOG_E("[cos_fs] open_read FAIL: '%s' errno=%d (%s) root='%s'",
                   resolved, errno, strerror(errno), _s_fs_root);
     return fp;
 #endif
 }
 
 /* Open file write-only (create if not exist, overwrite if exist) */
-eos_file_t eos_fs_open_write(const char *path)
+cos_file_t cos_fs_open_write(const char *path)
 {
     if (!path)
         return NULL;
     char resolved[FS_PATH_BUF_SIZE];
 #ifdef _WIN32
-    return _eos_fopen_utf8(eos_fs_realpath(path, resolved, sizeof(resolved)), "wb");
+    return _cos_fopen_utf8(cos_fs_realpath(path, resolved, sizeof(resolved)), "wb");
 #else
-    FILE *fp = fopen(eos_fs_realpath(path, resolved, sizeof(resolved)), "wb");
+    FILE *fp = fopen(cos_fs_realpath(path, resolved, sizeof(resolved)), "wb");
     if (fp == NULL)
-        EOS_LOG_E("[eos_fs] open_write FAIL: '%s' errno=%d (%s) root='%s'",
+        COS_LOG_E("[cos_fs] open_write FAIL: '%s' errno=%d (%s) root='%s'",
                   resolved, errno, strerror(errno), _s_fs_root);
     return fp;
 #endif
 }
 
 /* Read file data */
-int eos_fs_read(eos_file_t fp, void *buf, size_t len)
+int cos_fs_read(cos_file_t fp, void *buf, size_t len)
 {
     if (!fp || !buf)
         return -1;
@@ -192,7 +192,7 @@ int eos_fs_read(eos_file_t fp, void *buf, size_t len)
 }
 
 /* Write file data */
-int eos_fs_write(eos_file_t fp, const void *buf, size_t len)
+int cos_fs_write(cos_file_t fp, const void *buf, size_t len)
 {
     if (!fp || !buf)
         return -1;
@@ -203,161 +203,161 @@ int eos_fs_write(eos_file_t fp, const void *buf, size_t len)
 }
 
 /* File positioning */
-eos_result_t eos_fs_seek(eos_file_t fp, uint32_t pos)
+cos_result_t cos_fs_seek(cos_file_t fp, uint32_t pos)
 {
     if (!fp)
-        return EOS_ERR_IO;
-    return fseek((FILE *)fp, (long)pos, SEEK_SET) == 0 ? EOS_OK : EOS_ERR_IO;
+        return COS_ERR_IO;
+    return fseek((FILE *)fp, (long)pos, SEEK_SET) == 0 ? COS_OK : COS_ERR_IO;
 }
 
 /* Get file size */
-eos_result_t eos_fs_size(eos_file_t fp, uint32_t *size)
+cos_result_t cos_fs_size(cos_file_t fp, uint32_t *size)
 {
     if (!fp || !size)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     long cur = ftell((FILE *)fp);
     if (cur < 0)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     if (fseek((FILE *)fp, 0, SEEK_END) != 0)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     long end = ftell((FILE *)fp);
     if (end < 0)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     *size = (uint32_t)end;
     fseek((FILE *)fp, cur, SEEK_SET);
-    return EOS_OK;
+    return COS_OK;
 }
 
 /* Get current file position */
-eos_result_t eos_fs_tell(eos_file_t fp, uint32_t *pos)
+cos_result_t cos_fs_tell(cos_file_t fp, uint32_t *pos)
 {
     if (!fp || !pos)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     long cur = ftell((FILE *)fp);
     if (cur < 0)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     *pos = (uint32_t)cur;
-    return EOS_OK;
+    return COS_OK;
 }
 
 /* Close file */
-void eos_fs_close(eos_file_t fp)
+void cos_fs_close(cos_file_t fp)
 {
     if (fp)
         fclose((FILE *)fp);
 }
 
 /* Create directory (single level directory) */
-eos_result_t eos_fs_mkdir(const char *path)
+cos_result_t cos_fs_mkdir(const char *path)
 {
     if (!path)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     char resolved[FS_PATH_BUF_SIZE];
-    const char *rp = eos_fs_realpath(path, resolved, sizeof(resolved));
+    const char *rp = cos_fs_realpath(path, resolved, sizeof(resolved));
     if (!rp)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
 #ifdef _WIN32
-    wchar_t *wp = _eos_utf8_to_wide(rp);
+    wchar_t *wp = _cos_utf8_to_wide(rp);
     int r = wp ? _wmkdir(wp) : -1;
     free(wp);
-    return r == 0 ? EOS_OK : EOS_ERR_IO;
+    return r == 0 ? COS_OK : COS_ERR_IO;
 #else
     int mr = mkdir(rp, 0755);
     if (mr != 0)
-        EOS_LOG_E("[eos_fs] mkdir FAIL: '%s' errno=%d (%s)", rp, errno, strerror(errno));
-    return mr == 0 ? EOS_OK : EOS_ERR_IO;
+        COS_LOG_E("[cos_fs] mkdir FAIL: '%s' errno=%d (%s)", rp, errno, strerror(errno));
+    return mr == 0 ? COS_OK : COS_ERR_IO;
 #endif
 }
 
 /* Remove empty directory */
-eos_result_t eos_fs_rmdir(const char *path)
+cos_result_t cos_fs_rmdir(const char *path)
 {
     if (!path)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     char resolved[FS_PATH_BUF_SIZE];
-    const char *rp = eos_fs_realpath(path, resolved, sizeof(resolved));
+    const char *rp = cos_fs_realpath(path, resolved, sizeof(resolved));
     if (!rp)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
 #ifdef _WIN32
-    wchar_t *wp = _eos_utf8_to_wide(rp);
+    wchar_t *wp = _cos_utf8_to_wide(rp);
     int r = wp ? _wrmdir(wp) : -1;
     free(wp);
-    return r == 0 ? EOS_OK : EOS_ERR_IO;
+    return r == 0 ? COS_OK : COS_ERR_IO;
 #else
-    return rmdir(rp) == 0 ? EOS_OK : EOS_ERR_IO;
+    return rmdir(rp) == 0 ? COS_OK : COS_ERR_IO;
 #endif
 }
 
 /* Remove file */
-eos_result_t eos_fs_remove(const char *path)
+cos_result_t cos_fs_remove(const char *path)
 {
     if (!path)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     char resolved[FS_PATH_BUF_SIZE];
-    const char *rp = eos_fs_realpath(path, resolved, sizeof(resolved));
+    const char *rp = cos_fs_realpath(path, resolved, sizeof(resolved));
     if (!rp)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
 #ifdef _WIN32
-    wchar_t *wp = _eos_utf8_to_wide(rp);
+    wchar_t *wp = _cos_utf8_to_wide(rp);
     int r = wp ? _wremove(wp) : -1;
     free(wp);
-    return r == 0 ? EOS_OK : EOS_ERR_IO;
+    return r == 0 ? COS_OK : COS_ERR_IO;
 #else
-    return remove(rp) == 0 ? EOS_OK : EOS_ERR_IO;
+    return remove(rp) == 0 ? COS_OK : COS_ERR_IO;
 #endif
 }
 
 /* Check if file or directory exists */
-int eos_fs_exists(const char *path)
+int cos_fs_exists(const char *path)
 {
     if (!path)
-        return EOS_OK;
+        return COS_OK;
     char resolved[FS_PATH_BUF_SIZE];
-    const char *rp = eos_fs_realpath(path, resolved, sizeof(resolved));
+    const char *rp = cos_fs_realpath(path, resolved, sizeof(resolved));
     if (!rp)
-        return EOS_OK;
+        return COS_OK;
 #ifdef _WIN32
     struct stat st;
-    return _eos_wstat_utf8(rp, &st) == 0 ? 1 : 0;
+    return _cos_wstat_utf8(rp, &st) == 0 ? 1 : 0;
 #else
     struct stat st;
     return stat(rp, &st) == 0 ? 1 : 0;
 #endif
 }
 
-int eos_fs_type(const char *path)
+int cos_fs_type(const char *path)
 {
     char resolved[FS_PATH_BUF_SIZE];
-    const char *rp = eos_fs_realpath(path, resolved, sizeof(resolved));
+    const char *rp = cos_fs_realpath(path, resolved, sizeof(resolved));
     if (!rp)
-        return EOS_FS_TYPE_NOT_EXIST;
+        return COS_FS_TYPE_NOT_EXIST;
     struct stat st;
 #ifdef _WIN32
-    if (_eos_wstat_utf8(rp, &st) != 0)
-        return EOS_FS_TYPE_NOT_EXIST;
+    if (_cos_wstat_utf8(rp, &st) != 0)
+        return COS_FS_TYPE_NOT_EXIST;
 #else
     if (stat(rp, &st) != 0)
-        return EOS_FS_TYPE_NOT_EXIST;
+        return COS_FS_TYPE_NOT_EXIST;
 #endif
     if (S_ISDIR(st.st_mode))
-        return EOS_FS_TYPE_DIR;
-    return EOS_FS_TYPE_FILE;
+        return COS_FS_TYPE_DIR;
+    return COS_FS_TYPE_FILE;
 }
 
-eos_dir_t eos_fs_opendir(const char *path)
+cos_dir_t cos_fs_opendir(const char *path)
 {
     if (!path)
         return NULL;
     char resolved[FS_PATH_BUF_SIZE];
-    const char *rp = eos_fs_realpath(path, resolved, sizeof(resolved));
+    const char *rp = cos_fs_realpath(path, resolved, sizeof(resolved));
     if (!rp)
         return NULL;
 #ifdef _WIN32
-    _eos_win_dir_t *wd = (_eos_win_dir_t *)calloc(1, sizeof(_eos_win_dir_t));
+    _cos_win_dir_t *wd = (_cos_win_dir_t *)calloc(1, sizeof(_cos_win_dir_t));
     if (!wd)
         return NULL;
     wchar_t pattern[FS_PATH_BUF_SIZE * 2];
-    wchar_t *wp = _eos_utf8_to_wide(rp);
+    wchar_t *wp = _cos_utf8_to_wide(rp);
     if (!wp)
     {
         free(wd);
@@ -372,20 +372,20 @@ eos_dir_t eos_fs_opendir(const char *path)
         return NULL;
     }
     wd->first = 1;
-    return (eos_dir_t)wd;
+    return (cos_dir_t)wd;
 #else
     return opendir(rp);
 #endif
 }
 
-eos_result_t eos_fs_readdir(eos_dir_t dir, char *name, size_t max_len)
+cos_result_t cos_fs_readdir(cos_dir_t dir, char *name, size_t max_len)
 {
     if (!dir)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
 #ifdef _WIN32
-    _eos_win_dir_t *wd = (_eos_win_dir_t *)dir;
+    _cos_win_dir_t *wd = (_cos_win_dir_t *)dir;
     if (wd->done)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     if (wd->first)
     {
         wd->first = 0;
@@ -395,33 +395,33 @@ eos_result_t eos_fs_readdir(eos_dir_t dir, char *name, size_t max_len)
         if (_wfindnext(wd->handle, &wd->data) != 0)
         {
             wd->done = 1;
-            return EOS_ERR_IO;
+            return COS_ERR_IO;
         }
     }
-    char *u8 = _eos_wide_to_utf8(wd->data.name);
+    char *u8 = _cos_wide_to_utf8(wd->data.name);
     if (!u8)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     strncpy(name, u8, max_len - 1);
     name[max_len - 1] = '\0';
     free(u8);
-    return EOS_OK;
+    return COS_OK;
 #else
     struct dirent *entry = readdir(dir);
     if (!entry)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
 
     strncpy(name, entry->d_name, max_len - 1);
     name[max_len - 1] = '\0';
-    return EOS_OK;
+    return COS_OK;
 #endif
 }
 
-void eos_fs_closedir(eos_dir_t dir)
+void cos_fs_closedir(cos_dir_t dir)
 {
     if (!dir)
         return;
 #ifdef _WIN32
-    _eos_win_dir_t *wd = (_eos_win_dir_t *)dir;
+    _cos_win_dir_t *wd = (_cos_win_dir_t *)dir;
     if (wd->handle != -1)
         _findclose(wd->handle);
     free(wd);
@@ -430,26 +430,26 @@ void eos_fs_closedir(eos_dir_t dir)
 #endif
 }
 
-eos_result_t eos_fs_mv(const char *old_path, const char *new_path)
+cos_result_t cos_fs_mv(const char *old_path, const char *new_path)
 {
     if (!old_path || !new_path)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     char old_r[FS_PATH_BUF_SIZE], new_r[FS_PATH_BUF_SIZE];
-    const char *op = eos_fs_realpath(old_path, old_r, sizeof(old_r));
-    const char *np = eos_fs_realpath(new_path, new_r, sizeof(new_r));
+    const char *op = cos_fs_realpath(old_path, old_r, sizeof(old_r));
+    const char *np = cos_fs_realpath(new_path, new_r, sizeof(new_r));
     if (!op || !np)
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     if (rename(op, np) != 0)
     {
         perror("rename failed");
-        return EOS_ERR_IO;
+        return COS_ERR_IO;
     }
-    return EOS_OK;
+    return COS_OK;
 }
 
-eos_result_t eos_fs_sync(eos_file_t fp)
+cos_result_t cos_fs_sync(cos_file_t fp)
 {
-    return fflush(fp) == 0 ? EOS_OK : EOS_ERR_IO;
+    return fflush(fp) == 0 ? COS_OK : COS_ERR_IO;
 }
 
-#endif /* EOS_FS_TYPE */
+#endif /* COS_FS_TYPE */

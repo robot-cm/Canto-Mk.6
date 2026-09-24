@@ -42,19 +42,19 @@ python3.11 scripts/album_optimize.py --input "/home/erashaperavm/图片/cdpr" --
 
 python3.11 scripts/icon/sync_app_icons.py
 
-python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/alarm /home/erashaperavm/下载/ElenixOS-fork/eapk-target/alarm.eapk --type app 
+python3.11 scripts/cos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/alarm /home/erashaperavm/下载/ElenixOS-fork/eapk-target/alarm.eapk --type app 
 
-python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/breach /home/erashaperavm/下载/ElenixOS-fork/eapk-target/breach.eapk --type app 
+python3.11 scripts/cos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/breach /home/erashaperavm/下载/ElenixOS-fork/eapk-target/breach.eapk --type app 
 
-python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/calculator /home/erashaperavm/下载/ElenixOS-fork/eapk-target/calculator.eapk --type app 
+python3.11 scripts/cos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/calculator /home/erashaperavm/下载/ElenixOS-fork/eapk-target/calculator.eapk --type app 
 
-python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/calendar /home/erashaperavm/下载/ElenixOS-fork/eapk-target/calendar.eapk --type app 
+python3.11 scripts/cos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/calendar /home/erashaperavm/下载/ElenixOS-fork/eapk-target/calendar.eapk --type app 
 
-python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/globaltime /home/erashaperavm/下载/ElenixOS-fork/eapk-target/globaltime.eapk --type app 
+python3.11 scripts/cos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/globaltime /home/erashaperavm/下载/ElenixOS-fork/eapk-target/globaltime.eapk --type app 
 
-python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/stopwatch /home/erashaperavm/下载/ElenixOS-fork/eapk-target/stopwatch.eapk --type app 
+python3.11 scripts/cos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/stopwatch /home/erashaperavm/下载/ElenixOS-fork/eapk-target/stopwatch.eapk --type app 
 
-python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/timer /home/erashaperavm/下载/ElenixOS-fork/eapk-target/timer.eapk --type app 
+python3.11 scripts/cos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/apps/timer /home/erashaperavm/下载/ElenixOS-fork/eapk-target/timer.eapk --type app 
 
 
 

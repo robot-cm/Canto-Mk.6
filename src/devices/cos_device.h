@@ -1,10 +1,10 @@
 /**
- * @file eos_device.h
+ * @file cos_device.h
  * @brief Device management header file
  */
 
-#ifndef EOS_DEVICE_H
-#define EOS_DEVICE_H
+#ifndef COS_DEVICE_H
+#define COS_DEVICE_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,7 +24,7 @@ typedef enum
     DEV_STATE_READY, // Ready to use
     DEV_STATE_BUSY, // Busy with ongoing operations
     DEV_STATE_ERROR, // Error state, needs attention
-} eos_dev_state_t;
+} cos_dev_state_t;
 
 /* Public function prototypes --------------------------------*/
 
@@ -32,4 +32,4 @@ typedef enum
 }
 #endif
 
-#endif /* EOS_DEVICE_H */
+#endif /* COS_DEVICE_H */

@@ -1,4 +1,4 @@
-# ElenixOS ESP32-S3 板级移植工程
+# CantoMk6 ESP32-S3 板级移植工程
 # 目标:Seeed Studio XIAO ESP32-S3 + 1.28" Round Touch Display
 #
 # 用法(ESP-IDF v5.3+):
@@ -12,7 +12,7 @@
 
 # 把第三方 LVGL 作为 idf 组件引入(LVGL 原生支持 ESP_PLATFORM,
 # 通过 env_support/cmake/esp.cmake 的 idf_component_register 注册)
-# 路径:port/esp32s3/../../third_party/lvgl → ElenixOS-fork/third_party/lvgl
+# 路径:port/esp32s3/../../third_party/lvgl → CantoMk6-fork/third_party/lvgl
 set(EXTRA_COMPONENT_DIRS
     "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/lvgl"
 )
@@ -30,7 +30,7 @@ cmake_minimum_required(VERSION 3.16)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
-project(elenixos_esp32s3)
+project(cantomk6_esp32s3)
 
 # ── USB MSC App:TinyUSB 的 tusb_config.h 定位 ────────────────
 # espressif/tinyusb 私有源文件用 #include "tusb_config.h" 局部查找,只走

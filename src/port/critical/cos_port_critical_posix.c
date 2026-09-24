@@ -1,5 +1,5 @@
 /**
- * @file eos_port_critical_posix.c
+ * @file cos_port_critical_posix.c
  * @brief POSIX critical section implementation
  *
  * Since POSIX does not have interrupt disable/enable, we simulate
@@ -10,29 +10,29 @@
  * multi-threaded simulation environments.
  */
 
-#include "eos_config.h"
+#include "cos_config.h"
 
-#if EOS_RTOS_TYPE == EOS_RTOS_POSIX
+#if COS_RTOS_TYPE == COS_RTOS_POSIX
 
-#include "eos_port_critical.h"
+#include "cos_port_critical.h"
 
 /* Includes ---------------------------------------------------*/
 #include <pthread.h>
-#include "eos_port.h"
+#include "cos_port.h"
 
 /* Variables --------------------------------------------------*/
 static pthread_mutex_t s_critical_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-eos_critical_ctx_t eos_critical_enter(void)
+cos_critical_ctx_t cos_critical_enter(void)
 {
     pthread_mutex_lock(&s_critical_mutex);
     return 1;
 }
 
-void eos_critical_leave(eos_critical_ctx_t ctx)
+void cos_critical_leave(cos_critical_ctx_t ctx)
 {
     (void)ctx;
     pthread_mutex_unlock(&s_critical_mutex);
 }
 
-#endif /* EOS_RTOS_TYPE == EOS_RTOS_POSIX */
+#endif /* COS_RTOS_TYPE == COS_RTOS_POSIX */

@@ -1,12 +1,12 @@
 /**
- * @file eos_wos_transition.c
+ * @file cos_wos_transition.c
  * @brief WOS page transitions implementation
  */
-#include "eos_wos_transition.h"
+#include "cos_wos_transition.h"
 
-#include "eos_log.h"
+#include "cos_log.h"
 
-#define EOS_LOG_TAG "WosTrans"
+#define COS_LOG_TAG "WosTrans"
 
 #define OPEN_MS   200
 #define CLOSE_MS  150

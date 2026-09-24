@@ -1,10 +1,10 @@
 /**
- * @file eos_dev_power.h
+ * @file cos_dev_power.h
  * @brief Power device
  */
 
-#ifndef EOS_DEV_POWER_H
-#define EOS_DEV_POWER_H
+#ifndef COS_DEV_POWER_H
+#define COS_DEV_POWER_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,8 +13,8 @@ extern "C" {
 /* Includes ---------------------------------------------------*/
 #include <stdint.h>
 #include <stdbool.h>
-#include "eos_device.h"
-#include "eos_error.h"
+#include "cos_device.h"
+#include "cos_error.h"
 
 /* Public macros ----------------------------------------------*/
 
@@ -34,13 +34,13 @@ typedef struct
      * timed=0: 触摸模式,如累计 5 下点击开机)。真机板级实现;
      * 模拟器可留空(NULL),PM 服务会判空跳过。 */
     int (*set_poweroff_params)(bool timed, uint32_t wake_after_s);
-} eos_dev_power_ops_t;
+} cos_dev_power_ops_t;
 
 typedef struct
 {
-    const eos_dev_power_ops_t *ops;
-    eos_dev_state_t _state;
-} eos_dev_power_t;
+    const cos_dev_power_ops_t *ops;
+    cos_dev_state_t _state;
+} cos_dev_power_t;
 
 /* Public function prototypes --------------------------------*/
 
@@ -48,29 +48,29 @@ typedef struct
  * @brief Get power device instance
  * @return Power device instance
  */
-eos_dev_power_t *eos_dev_power_get_instance(void);
+cos_dev_power_t *cos_dev_power_get_instance(void);
 
 /**
  * @brief Register power device with OPS
  * @param ops Pointer to power OPS structure
- * @return EOS_OK if successful, error code otherwise
+ * @return COS_OK if successful, error code otherwise
  */
-eos_result_t eos_dev_power_register(const eos_dev_power_ops_t *ops);
+cos_result_t cos_dev_power_register(const cos_dev_power_ops_t *ops);
 
 /**
  * @brief Get power device state
  * @return Current device state
  */
-eos_dev_state_t eos_dev_power_get_state(void);
+cos_dev_state_t cos_dev_power_get_state(void);
 
 /**
  * @brief Report power device state (called by driver)
  * @param state New device state
  */
-void eos_dev_power_report(eos_dev_state_t state);
+void cos_dev_power_report(cos_dev_state_t state);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_DEV_POWER_H */
+#endif /* COS_DEV_POWER_H */

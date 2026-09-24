@@ -1,5 +1,5 @@
 /**
- * @file eos_dev_microphone.h
+ * @file cos_dev_microphone.h
  * @brief Microphone device - PCM capture via shared ring buffer
  *
  * Producer-consumer model: the DMA writes directly into a pre-registered
@@ -7,8 +7,8 @@
  * available data, reads directly from the shared buffer, and tracks its
  * own consumer position.  No inter-layer memcpy required.
  */
-#ifndef EOS_DEV_MICROPHONE_H
-#define EOS_DEV_MICROPHONE_H
+#ifndef COS_DEV_MICROPHONE_H
+#define COS_DEV_MICROPHONE_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,8 +17,8 @@ extern "C" {
 /* Includes ---------------------------------------------------*/
 #include <stdint.h>
 #include <stdbool.h>
-#include "eos_device.h"
-#include "eos_error.h"
+#include "cos_device.h"
+#include "cos_error.h"
 
 /* Public macros ----------------------------------------------*/
 
@@ -47,23 +47,23 @@ typedef struct
      * Consumer calculates available bytes from (write - read + size) % size.
      */
     uint32_t (*get_write_offset)(void); /**< Required */
-} eos_dev_microphone_ops_t;
+} cos_dev_microphone_ops_t;
 
 typedef struct
 {
-    const eos_dev_microphone_ops_t *ops;
-    eos_dev_state_t _state;
-} eos_dev_microphone_t;
+    const cos_dev_microphone_ops_t *ops;
+    cos_dev_state_t _state;
+} cos_dev_microphone_t;
 
 /* Public function prototypes --------------------------------*/
 
-eos_dev_microphone_t *eos_dev_microphone_get_instance(void);
-eos_result_t eos_dev_microphone_register(const eos_dev_microphone_ops_t *ops);
-eos_dev_state_t eos_dev_microphone_get_state(void);
-void eos_dev_microphone_report_state(eos_dev_state_t state);
+cos_dev_microphone_t *cos_dev_microphone_get_instance(void);
+cos_result_t cos_dev_microphone_register(const cos_dev_microphone_ops_t *ops);
+cos_dev_state_t cos_dev_microphone_get_state(void);
+void cos_dev_microphone_report_state(cos_dev_state_t state);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_DEV_MICROPHONE_H */
+#endif /* COS_DEV_MICROPHONE_H */

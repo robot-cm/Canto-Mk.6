@@ -2,8 +2,8 @@
  * @file mem_mgr.h
  * @brief Large-block memory allocation manager (PSRAM on ESP32)
  *
- * Used by the AUTO alloc provider (EOS_MEM_PROVIDER_AUTO) via
- * EOS_MEM_PROVIDER_AUTO_INCLUDE. Large allocations (>= EOS_MEM_POOL_ALLOC_THRESHOLD)
+ * Used by the AUTO alloc provider (COS_MEM_PROVIDER_AUTO) via
+ * COS_MEM_PROVIDER_AUTO_INCLUDE. Large allocations (>= COS_MEM_POOL_ALLOC_THRESHOLD)
  * are routed here so that big objects go to PSRAM while small, DMA-friendly
  * allocations stay in internal RAM (AGENTS.md section 22).
  */

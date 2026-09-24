@@ -1,9 +1,9 @@
 /**
- * @file eos_watchface_list.c
+ * @file cos_watchface_list.c
  * @brief Watchface list
  */
 
-#include "eos_watchface_list.h"
+#include "cos_watchface_list.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
@@ -11,25 +11,25 @@
 #include <string.h>
 #include "lvgl.h"
 #include "cJSON.h"
-#define EOS_LOG_TAG "WatchfaceList"
-#include "eos_log.h"
-#include "eos_watchface.h"
-#include "eos_basic_widgets.h"
-#include "eos_pkg_mgr.h"
-#include "eos_image.h"
-#include "eos_port.h"
-#include "eos_anim.h"
+#define COS_LOG_TAG "WatchfaceList"
+#include "cos_log.h"
+#include "cos_watchface.h"
+#include "cos_basic_widgets.h"
+#include "cos_pkg_mgr.h"
+#include "cos_image.h"
+#include "cos_port.h"
+#include "cos_anim.h"
 #include "script_engine_core.h"
-#include "eos_service_config.h"
-#include "eos_service_storage.h"
-#include "eos_activity.h"
-#include "eos_mem.h"
+#include "cos_service_config.h"
+#include "cos_service_storage.h"
+#include "cos_activity.h"
+#include "cos_mem.h"
 /* Macros and Definitions -------------------------------------*/
 
 #define _SNAPSHOT_CONTAINER_PAD 12
 #define _SNAPSHOT_CONTAINER_BORDER 5
-#define _SNAPSHOT_CONTAINER_W ((EOS_DISPLAY_WIDTH * 69) / 100)
-#define _SNAPSHOT_CONTAINER_H ((EOS_DISPLAY_HEIGHT * 69) / 100)
+#define _SNAPSHOT_CONTAINER_W ((COS_DISPLAY_WIDTH * 69) / 100)
+#define _SNAPSHOT_CONTAINER_H ((COS_DISPLAY_HEIGHT * 69) / 100)
 #define _SNAPSHOT_PRESS_ZOOM 245
 
 /* Variables --------------------------------------------------*/
@@ -42,21 +42,21 @@
 static void _watchface_list_btn_cb(lv_event_t *e)
 {
     const char *watchface_id = (const char *)lv_event_get_user_data(e);
-    EOS_CHECK_PTR_RETURN(watchface_id);
+    COS_CHECK_PTR_RETURN(watchface_id);
 
-    EOS_LOG_I("Watchface list: User selected watchface: %s", watchface_id);
+    COS_LOG_I("Watchface list: User selected watchface: %s", watchface_id);
 
     // Switch to the selected watchface
-    eos_watchface_switch_to(watchface_id);
+    cos_watchface_switch_to(watchface_id);
 }
 
-void eos_watchface_list_enter(void)
+void cos_watchface_list_enter(void)
 {
     // Create new page for drawing watchface list
-    eos_activity_t *a = eos_activity_create(NULL);
-    eos_activity_set_type(a, EOS_ACTIVITY_TYPE_WATCHFACE_LIST);
-    lv_obj_t *wf_list_view = eos_activity_get_view(a);
-    size_t watchface_list_size = eos_watchface_list_size();
+    cos_activity_t *a = cos_activity_create(NULL);
+    cos_activity_set_type(a, COS_ACTIVITY_TYPE_WATCHFACE_LIST);
+    lv_obj_t *wf_list_view = cos_activity_get_view(a);
+    size_t watchface_list_size = cos_watchface_list_size();
 
     lv_obj_t *cont = lv_list_create(wf_list_view);
     lv_obj_set_style_pad_all(cont, 24, 0);
@@ -72,11 +72,11 @@ void eos_watchface_list_enter(void)
     lv_obj_set_scroll_snap_x(cont, LV_SCROLL_SNAP_CENTER);
 
     lv_obj_t *selected_item = NULL;
-    char *current_wf_id = eos_config_get_string(EOS_CONFIG_KEY_WATCHFACE_ID_STR, NULL);
+    char *current_wf_id = cos_config_get_string(COS_CONFIG_KEY_WATCHFACE_ID_STR, NULL);
 
     for (size_t i = 0; i < watchface_list_size; i++)
     {
-        const char *watchface_id = eos_watchface_list_get_id(i);
+        const char *watchface_id = cos_watchface_list_get_id(i);
         lv_obj_t *item = lv_obj_create(cont);
         lv_obj_set_size(item, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
         lv_obj_set_flex_flow(item, LV_FLEX_FLOW_COLUMN); // Vertical layout
@@ -98,22 +98,22 @@ void eos_watchface_list_enter(void)
             selected_item = item;
         }
 
-        char icon_path[EOS_FS_PATH_MAX];
-        if (watchface_id && strcmp(watchface_id, EOS_WATCHFACE_BUILTIN_FALLBACK_ID) == 0)
+        char icon_path[COS_FS_PATH_MAX];
+        if (watchface_id && strcmp(watchface_id, COS_WATCHFACE_BUILTIN_FALLBACK_ID) == 0)
         {
-            memcpy(icon_path, EOS_IMG_WATCHFACE, sizeof(EOS_IMG_WATCHFACE));
+            memcpy(icon_path, COS_IMG_WATCHFACE, sizeof(COS_IMG_WATCHFACE));
         }
         else
         {
             snprintf(icon_path,
                      sizeof(icon_path),
-                     EOS_WATCHFACE_INSTALLED_DIR "%s/" EOS_WATCHFACE_SNAPSHOT_FILE_NAME,
+                     COS_WATCHFACE_INSTALLED_DIR "%s/" COS_WATCHFACE_SNAPSHOT_FILE_NAME,
                      watchface_id);
-            EOS_LOG_D("WFPATH:%s", icon_path);
-            if (!eos_storage_is_file(icon_path))
+            COS_LOG_D("WFPATH:%s", icon_path);
+            if (!cos_storage_is_file(icon_path))
             {
-                EOS_LOG_W("Watchface snapshot not found!");
-                memcpy(icon_path, EOS_IMG_WATCHFACE, sizeof(EOS_IMG_WATCHFACE));
+                COS_LOG_W("Watchface snapshot not found!");
+                memcpy(icon_path, COS_IMG_WATCHFACE, sizeof(COS_IMG_WATCHFACE));
             }
         }
 
@@ -121,7 +121,7 @@ void eos_watchface_list_enter(void)
         lv_obj_t *snapshot_container = lv_obj_create(item);
         lv_obj_set_size(snapshot_container, _SNAPSHOT_CONTAINER_W, _SNAPSHOT_CONTAINER_H);
         lv_obj_set_style_border_width(snapshot_container, _SNAPSHOT_CONTAINER_BORDER, 0);
-        lv_obj_set_style_radius(snapshot_container, EOS_DISPLAY_RADIUS, 0);
+        lv_obj_set_style_radius(snapshot_container, COS_DISPLAY_RADIUS, 0);
         lv_obj_set_style_clip_corner(snapshot_container, true, 0);
         lv_obj_set_style_pad_all(snapshot_container, _SNAPSHOT_CONTAINER_PAD, 0);
         lv_obj_set_style_shadow_width(snapshot_container, 0, 0);
@@ -136,7 +136,7 @@ void eos_watchface_list_enter(void)
         lv_obj_set_size(snapshot_clip_container,
                         _SNAPSHOT_CONTAINER_W - (_SNAPSHOT_CONTAINER_PAD * 2),
                         _SNAPSHOT_CONTAINER_H - (_SNAPSHOT_CONTAINER_PAD * 2));
-        lv_obj_set_style_radius(snapshot_clip_container, EOS_DISPLAY_RADIUS, 0);
+        lv_obj_set_style_radius(snapshot_clip_container, COS_DISPLAY_RADIUS, 0);
         lv_obj_set_style_clip_corner(snapshot_clip_container, true, 0);
         lv_obj_set_style_border_width(snapshot_clip_container, 0, 0);
         lv_obj_set_style_shadow_width(snapshot_clip_container, 0, 0);
@@ -159,39 +159,39 @@ void eos_watchface_list_enter(void)
         lv_obj_remove_flag(watchface_snapshot, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_remove_flag(watchface_snapshot, LV_OBJ_FLAG_CLICK_FOCUSABLE);
         lv_image_set_src(watchface_snapshot, icon_path);
-        eos_img_set_size(watchface_snapshot,
+        cos_img_set_size(watchface_snapshot,
                          _SNAPSHOT_CONTAINER_W - (_SNAPSHOT_CONTAINER_PAD * 2),
                          _SNAPSHOT_CONTAINER_H - (_SNAPSHOT_CONTAINER_PAD * 2));
         lv_obj_center(watchface_snapshot);
 
         // Add click event handler to parent object so that when user clicks on image, click event passes to parent
-        lv_obj_add_event_cb(item, _watchface_list_btn_cb, LV_EVENT_CLICKED, (void *)eos_watchface_list_get_id(i));
+        lv_obj_add_event_cb(item, _watchface_list_btn_cb, LV_EVENT_CLICKED, (void *)cos_watchface_list_get_id(i));
         // Ensure parent object is clickable
         lv_obj_add_flag(item, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_remove_flag(item, LV_OBJ_FLAG_CLICK_FOCUSABLE);
         // Display name
         lv_obj_t *label = lv_label_create(item);
-        if (watchface_id && strcmp(watchface_id, EOS_WATCHFACE_BUILTIN_FALLBACK_ID) == 0)
+        if (watchface_id && strcmp(watchface_id, COS_WATCHFACE_BUILTIN_FALLBACK_ID) == 0)
         {
             lv_label_set_text(label, "Fallback Watchface");
         }
         else
         {
-            char manifest_path[EOS_FS_PATH_MAX];
+            char manifest_path[COS_FS_PATH_MAX];
             snprintf(manifest_path,
                      sizeof(manifest_path),
-                     EOS_WATCHFACE_INSTALLED_DIR "%s/" EOS_WATCHFACE_MANIFEST_FILE_NAME,
+                     COS_WATCHFACE_INSTALLED_DIR "%s/" COS_WATCHFACE_MANIFEST_FILE_NAME,
                      watchface_id);
             script_pkg_t pkg = {0};
             pkg.type = SCRIPT_TYPE_WATCHFACE;
-            if (script_engine_get_manifest(manifest_path, &pkg) != EOS_OK)
+            if (script_engine_get_manifest(manifest_path, &pkg) != COS_OK)
             {
-                EOS_LOG_E("Read manifest failed: %s", manifest_path);
-                eos_pkg_free(&pkg);
+                COS_LOG_E("Read manifest failed: %s", manifest_path);
+                cos_pkg_free(&pkg);
                 continue;
             }
             lv_label_set_text(label, pkg.name);
-            eos_pkg_free(&pkg);
+            cos_pkg_free(&pkg);
         }
         lv_obj_set_width(label, LV_SIZE_CONTENT);
         lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
@@ -204,7 +204,7 @@ void eos_watchface_list_enter(void)
         lv_obj_update_snap(cont, LV_ANIM_OFF);
     }
 
-    eos_free(current_wf_id);
+    cos_free(current_wf_id);
 
-    eos_activity_enter(a);
+    cos_activity_enter(a);
 }

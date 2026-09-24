@@ -1,44 +1,44 @@
 /**
- * @file eos_watchface_builtin.c
+ * @file cos_watchface_builtin.c
  * @brief Built-in fallback watchface implementation
  */
 
-#include "eos_watchface_builtin.h"
+#include "cos_watchface_builtin.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <string.h>
 #include "lvgl.h"
-#define EOS_LOG_TAG "WFBuiltin"
-#include "eos_log.h"
-#include "eos_service_time.h"
-#include "eos_theme.h"
-#include "eos_mem.h"
-#include "eos_watchface_list.h"
-#include "eos_msg_list.h"
-#include "eos_control_center.h"
-#include "eos_swipe_panel.h"  /* eos_swipe_panel_slide_down to open overlay */
-#include "eos_chrome_manager.h" /* notify_overlay_opened for right-swipe fallback */
-#include "eos_activity.h"
-#include "eos_app_list.h"   /* eos_app_list_enter(): open the app list page */
-#include "eos_app_header.h" /* eos_app_header_set_back_btn_visible() */
-#include "eos_power_off_page.h" /* up-swipe: power-off page (hardware deep sleep) */
-#include "eos_service_power_save.h" /* 省电模式:手势/轮播收敛 */
+#define COS_LOG_TAG "WFBuiltin"
+#include "cos_log.h"
+#include "cos_service_time.h"
+#include "cos_theme.h"
+#include "cos_mem.h"
+#include "cos_watchface_list.h"
+#include "cos_msg_list.h"
+#include "cos_control_center.h"
+#include "cos_swipe_panel.h"  /* cos_swipe_panel_slide_down to open overlay */
+#include "cos_chrome_manager.h" /* notify_overlay_opened for right-swipe fallback */
+#include "cos_activity.h"
+#include "cos_app_list.h"   /* cos_app_list_enter(): open the app list page */
+#include "cos_app_header.h" /* cos_app_header_set_back_btn_visible() */
+#include "cos_power_off_page.h" /* up-swipe: power-off page (hardware deep sleep) */
+#include "cos_service_power_save.h" /* 省电模式:手势/轮播收敛 */
 
 /* 16px 中文子集字体(仅含轮播文案 177 字符,fallback 到全字库 han_sans_22) */
-LV_FONT_DECLARE(eos_font_han_sans_16);
+LV_FONT_DECLARE(cos_font_han_sans_16);
 
 /* Static Variables ------------------------------------------*/
 
-static void _builtin_on_enter(eos_activity_t *activity);
-static void _builtin_on_pause(eos_activity_t *activity);
-static void _builtin_on_resume(eos_activity_t *activity);
-static void _builtin_on_destroy(eos_activity_t *activity);
+static void _builtin_on_enter(cos_activity_t *activity);
+static void _builtin_on_pause(cos_activity_t *activity);
+static void _builtin_on_resume(cos_activity_t *activity);
+static void _builtin_on_destroy(cos_activity_t *activity);
 
 /**
  * @brief Activity lifecycle callbacks for built-in watchface
  */
-static const eos_activity_lifecycle_t _builtin_lifecycle = {
+static const cos_activity_lifecycle_t _builtin_lifecycle = {
     .on_enter = _builtin_on_enter,
     .on_pause = _builtin_on_pause,
     .on_resume = _builtin_on_resume,
@@ -125,50 +125,50 @@ static int _hint_frag_index = 0;
 static int _hint_remain_ms = 0;
 static bool _hint_in_gap = false;
 
-eos_watchface_instance_t *eos_watchface_builtin_create(void)
+cos_watchface_instance_t *cos_watchface_builtin_create(void)
 {
-    eos_watchface_instance_t *instance = eos_malloc(sizeof(eos_watchface_instance_t));
+    cos_watchface_instance_t *instance = cos_malloc(sizeof(cos_watchface_instance_t));
     if (!instance)
     {
-        EOS_LOG_E("Failed to allocate builtin watchface instance");
+        COS_LOG_E("Failed to allocate builtin watchface instance");
         return NULL;
     }
 
     memset(instance, 0, sizeof(*instance));
-    instance->type = EOS_WATCHFACE_TYPE_BUILTIN;
-    snprintf(instance->id, sizeof(instance->id), "%s", EOS_WATCHFACE_BUILTIN_FALLBACK_ID);
+    instance->type = COS_WATCHFACE_TYPE_BUILTIN;
+    snprintf(instance->id, sizeof(instance->id), "%s", COS_WATCHFACE_BUILTIN_FALLBACK_ID);
     instance->lifecycle = &_builtin_lifecycle;
 
-    instance->activity = eos_activity_create_root(&_builtin_lifecycle);
+    instance->activity = cos_activity_create_root(&_builtin_lifecycle);
     if (!instance->activity)
     {
-        EOS_LOG_E("Failed to create activity for builtin watchface");
-        eos_free(instance);
+        COS_LOG_E("Failed to create activity for builtin watchface");
+        cos_free(instance);
         return NULL;
     }
 
-    eos_activity_set_type(instance->activity, EOS_ACTIVITY_TYPE_WATCHFACE);
-    eos_activity_set_user_data(instance->activity, instance);
+    cos_activity_set_type(instance->activity, COS_ACTIVITY_TYPE_WATCHFACE);
+    cos_activity_set_user_data(instance->activity, instance);
 
-    EOS_LOG_I("Created builtin watchface instance");
+    COS_LOG_I("Created builtin watchface instance");
     return instance;
 }
 
-static void _builtin_on_enter(eos_activity_t *activity)
+static void _builtin_on_enter(cos_activity_t *activity)
 {
-    EOS_LOG_I("Builtin watchface: enter");
+    COS_LOG_I("Builtin watchface: enter");
 
     /* Watch face is time-only mode: restore the header back-button master
      * switch so subsequent non-app pages can show it again. */
-    eos_app_header_set_back_btn_visible(true);
+    cos_app_header_set_back_btn_visible(true);
 
-    eos_watchface_instance_t *self = eos_activity_get_user_data(activity);
+    cos_watchface_instance_t *self = cos_activity_get_user_data(activity);
 
-    // View is auto-created by framework (eos_activity_create_root + controller_init/replace_root)
-    lv_obj_t *view = eos_activity_get_view(activity);
+    // View is auto-created by framework (cos_activity_create_root + controller_init/replace_root)
+    lv_obj_t *view = cos_activity_get_view(activity);
     if (!view)
     {
-        EOS_LOG_E("Builtin watchface: view is NULL!");
+        COS_LOG_E("Builtin watchface: view is NULL!");
         return;
     }
 
@@ -188,7 +188,7 @@ static void _builtin_on_enter(eos_activity_t *activity)
     lv_obj_set_width(hint, 200);
     lv_obj_set_style_text_align(hint, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_color(hint, lv_color_hex(0xFF4040), 0);
-    lv_obj_set_style_text_font(hint, &eos_font_han_sans_16, 0);
+    lv_obj_set_style_text_font(hint, &cos_font_han_sans_16, 0);
     lv_obj_align(hint, LV_ALIGN_CENTER, 0, 36);
     lv_label_set_text(hint, _builtin_hint_playlist[0].text);
 
@@ -241,19 +241,19 @@ static void _builtin_on_enter(eos_activity_t *activity)
     lv_obj_add_event_cb(home, _builtin_gesture_cb, LV_EVENT_GESTURE, NULL);
     self->data.builtin.home_gesture_catcher = home;
 
-    eos_msg_list_show();
+    cos_msg_list_show();
     /* Control center starts CLOSED by default so the 'C' hotkey (and the
      * home right-swipe) is a genuine "one-key open". Previously it was
      * auto-shown on enter, so the first 'C' press only closed it and felt
      * like "no response". */
-    eos_control_center_hide();
+    cos_control_center_hide();
 }
 
-static void _builtin_on_pause(eos_activity_t *activity)
+static void _builtin_on_pause(cos_activity_t *activity)
 {
-    EOS_LOG_I("Builtin watchface: pause");
+    COS_LOG_I("Builtin watchface: pause");
 
-    eos_watchface_instance_t *self = eos_activity_get_user_data(activity);
+    cos_watchface_instance_t *self = cos_activity_get_user_data(activity);
 
     if (self->data.builtin.time_update_timer)
     {
@@ -264,15 +264,15 @@ static void _builtin_on_pause(eos_activity_t *activity)
         lv_timer_pause(_builtin_hint_timer);
     }
 
-    eos_control_center_hide();
-    eos_msg_list_hide();
+    cos_control_center_hide();
+    cos_msg_list_hide();
 }
 
-static void _builtin_on_resume(eos_activity_t *activity)
+static void _builtin_on_resume(cos_activity_t *activity)
 {
-    EOS_LOG_I("Builtin watchface: resume");
+    COS_LOG_I("Builtin watchface: resume");
 
-    eos_watchface_instance_t *self = eos_activity_get_user_data(activity);
+    cos_watchface_instance_t *self = cos_activity_get_user_data(activity);
 
     if (self->data.builtin.time_update_timer)
     {
@@ -283,15 +283,15 @@ static void _builtin_on_resume(eos_activity_t *activity)
         lv_timer_resume(_builtin_hint_timer);
     }
 
-    eos_msg_list_show();
+    cos_msg_list_show();
     /* Keep the control center CLOSED when returning to the watchface, so the
      * 'C' hotkey remains a consistent one-key open (see _builtin_on_enter). */
-    eos_control_center_hide();
+    cos_control_center_hide();
 }
 
-static void _builtin_on_destroy(eos_activity_t *activity)
+static void _builtin_on_destroy(cos_activity_t *activity)
 {
-    EOS_LOG_I("Builtin watchface: destroy");
+    COS_LOG_I("Builtin watchface: destroy");
 }
 
 static void _builtin_time_update_cb(lv_timer_t *timer)
@@ -302,7 +302,7 @@ static void _builtin_time_update_cb(lv_timer_t *timer)
         return;
     }
 
-    eos_datetime_t now = eos_time_get();
+    cos_datetime_t now = cos_time_get();
     char buf[64];
     snprintf(buf, sizeof(buf), "%02d:%02d", now.hour, now.min);
     lv_label_set_text(time_label, buf);
@@ -318,7 +318,7 @@ static void _builtin_hint_timer_cb(lv_timer_t *timer)
 
     /* 省电模式:暂停主界面文案轮播(文案静止在当前行,减少无效重绘;
      * 退出省电后轮播自动继续) */
-    if (eos_power_save_is_active())
+    if (cos_power_save_is_active())
     {
         return;
     }
@@ -394,20 +394,20 @@ static void _builtin_long_pressed_cb(lv_event_t *e)
     lv_coord_t dy = p.y - _catcher_press_pt.y;
     if (LV_ABS(dx) > 15 || LV_ABS(dy) > 15)
     {
-        EOS_LOG_D("home catcher long-press IGNORED (moved dx=%d dy=%d -> this is a swipe)",
+        COS_LOG_D("home catcher long-press IGNORED (moved dx=%d dy=%d -> this is a swipe)",
                   dx, dy);
         return;
     }
 
     /* 省电模式:不允许长按切换表盘(只能停留在当前主界面) */
-    if (eos_power_save_is_active())
+    if (cos_power_save_is_active())
     {
-        EOS_LOG_D("home catcher long-press IGNORED (power save active)");
+        COS_LOG_D("home catcher long-press IGNORED (power save active)");
         return;
     }
 
-    EOS_LOG_D("home catcher long-press accepted (dx=%d dy=%d) -> watchface list", dx, dy);
-    eos_watchface_list_enter();
+    COS_LOG_D("home catcher long-press accepted (dx=%d dy=%d) -> watchface list", dx, dy);
+    cos_watchface_list_enter();
 }
 
 static void _builtin_swipe_navigate(lv_coord_t dx, lv_coord_t dy)
@@ -418,13 +418,13 @@ static void _builtin_swipe_navigate(lv_coord_t dx, lv_coord_t dy)
 
     /* 省电模式:只保留右滑打开 Control Center(可在其中关闭省电开关),
      * 其余手势(左滑 App 列表 / 上滑关机 / 下滑通知)一律忽略。 */
-    if (eos_power_save_is_active())
+    if (cos_power_save_is_active())
     {
         if (LV_ABS(dx) > LV_ABS(dy) && dx > 0)
         {
-            eos_control_center_t *cc = eos_control_center_get_instance();
+            cos_control_center_t *cc = cos_control_center_get_instance();
             if (cc && cc->swipe_panel)
-                eos_swipe_panel_slide_down(cc->swipe_panel);
+                cos_swipe_panel_slide_down(cc->swipe_panel);
         }
         return;
     }
@@ -434,15 +434,15 @@ static void _builtin_swipe_navigate(lv_coord_t dx, lv_coord_t dy)
         if (dx < 0)
         {
             /* Left-swipe opens the app-list page. */
-            eos_app_list_enter();
+            cos_app_list_enter();
         }
         else
         {
             /* Right-swipe opens the control center (panel slides in from the
              * LEFT edge, Redmi-Watch style). */
-            eos_control_center_t *cc = eos_control_center_get_instance();
+            cos_control_center_t *cc = cos_control_center_get_instance();
             if (cc && cc->swipe_panel)
-                eos_swipe_panel_slide_down(cc->swipe_panel);
+                cos_swipe_panel_slide_down(cc->swipe_panel);
         }
     }
     else
@@ -455,13 +455,13 @@ static void _builtin_swipe_navigate(lv_coord_t dx, lv_coord_t dy)
          *   enter hardware deep sleep; 5 taps on screen power it on). */
         if (dy > 0)
         {
-            eos_msg_list_t *ml = eos_msg_list_get_instance();
+            cos_msg_list_t *ml = cos_msg_list_get_instance();
             if (ml && ml->swipe_panel)
-                eos_swipe_panel_slide_down(ml->swipe_panel);
+                cos_swipe_panel_slide_down(ml->swipe_panel);
         }
         else if (dy < 0)
         {
-            eos_power_off_page_open();
+            cos_power_off_page_open();
         }
     }
 }
@@ -475,7 +475,7 @@ static void _builtin_gesture_cb(lv_event_t *e)
 {
     /* Only the watch face (root activity) owns the home swipe navigation.
      * On app pages the App Manager / activity framework handle gestures. */
-    if (eos_activity_get_current() != eos_activity_get_root())
+    if (cos_activity_get_current() != cos_activity_get_root())
         return;
     lv_indev_t *indev = lv_event_get_indev(e);
     if (!indev)
@@ -493,12 +493,12 @@ static void _builtin_released_cb(lv_event_t *e)
     lv_indev_get_point(lv_indev_active(), &p);
     lv_coord_t dx = p.x - _catcher_press_pt.x;
     lv_coord_t dy = p.y - _catcher_press_pt.y;
-    EOS_LOG_D("home catcher release: dx=%d dy=%d (right-swipe->control center, left-swipe->app list)",
+    COS_LOG_D("home catcher release: dx=%d dy=%d (right-swipe->control center, left-swipe->app list)",
               dx, dy);
     _builtin_swipe_navigate(dx, dy);
 }
 
-void eos_watchface_builtin_test_swipe(lv_coord_t dx, lv_coord_t dy)
+void cos_watchface_builtin_test_swipe(lv_coord_t dx, lv_coord_t dy)
 {
     _builtin_swipe_navigate(dx, dy);
 }

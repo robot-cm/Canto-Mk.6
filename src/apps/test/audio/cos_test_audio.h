@@ -1,10 +1,10 @@
 /**
- * @file eos_test_audio.h
+ * @file cos_test_audio.h
  * @brief Audio subsystem test module
  */
 
-#ifndef EOS_TEST_AUDIO_H
-#define EOS_TEST_AUDIO_H
+#ifndef COS_TEST_AUDIO_H
+#define COS_TEST_AUDIO_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,15 +23,15 @@ extern "C" {
 /**
  * @brief Register all audio subsystem unit tests
  */
-void eos_test_audio_register_tests(void);
+void cos_test_audio_register_tests(void);
 
 /**
  * @brief Start audio subsystem unit tests UI page
  */
-void eos_test_audio_start(void);
+void cos_test_audio_start(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_TEST_AUDIO_H */
+#endif /* COS_TEST_AUDIO_H */

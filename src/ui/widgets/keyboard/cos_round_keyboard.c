@@ -1,5 +1,5 @@
 /*
- * eos_round_keyboard.c — 圆形屏半圆键盘
+ * cos_round_keyboard.c — 圆形屏半圆键盘
  *
  * 适配 240x240 圆屏, 键盘占屏幕下半部分半圆:
  *   - 键区为半圆内嵌矩形(不铺满半圆), 4 行 x 5 列
@@ -8,17 +8,17 @@
  *   - 支持 EN(两页) / SYM(两页) / NUM(单页) 三种输入法
  */
 
-#include "eos_round_keyboard.h"
+#include "cos_round_keyboard.h"
 
-#include "eos_theme.h"
-#include "eos_font.h"
-#include "eos_mem.h"
-#include "eos_log.h"
+#include "cos_theme.h"
+#include "cos_font.h"
+#include "cos_mem.h"
+#include "cos_log.h"
 
 #include <string.h>
 #include <stdio.h>
 
-#define EOS_LOG_TAG "RoundKB"
+#define COS_LOG_TAG "RoundKB"
 
 /* ── 布局常量(240x240 圆屏, 键盘占下半圆 y=120~240) ── */
 #define _RKB_H      120  /* 键盘总高(下半屏) */
@@ -60,7 +60,7 @@ typedef struct
     lv_obj_t *right_arrow;
     lv_obj_t *mode_btn;
     lv_obj_t *ta;
-    eos_rkb_mode_t mode;
+    cos_rkb_mode_t mode;
     uint8_t page;
 } rkb_t;
 
@@ -79,12 +79,12 @@ static rkb_t *_ctx_from_key(lv_obj_t *key)
     return root ? (rkb_t *)lv_obj_get_user_data(root) : NULL;
 }
 
-static const char *_mode_text(eos_rkb_mode_t mode)
+static const char *_mode_text(cos_rkb_mode_t mode)
 {
     switch (mode)
     {
-    case EOS_RKB_MODE_SYM: return "#";
-    case EOS_RKB_MODE_NUM: return "1";
+    case COS_RKB_MODE_SYM: return "#";
+    case COS_RKB_MODE_NUM: return "1";
     default: return "A";
     }
 }
@@ -111,16 +111,16 @@ static lv_obj_t *_rkb_make_key_at(lv_obj_t *area, int x, int y, int w, int h,
     if (cjk)
     {
         /* 中文候选: 20→18→16px 再收小 2, 仍用圆角裁剪收边 */
-        eos_label_set_font_size(label, EOS_FONT_SIZE_EXTRA_SMALL);
+        cos_label_set_font_size(label, COS_FONT_SIZE_EXTRA_SMALL);
         lv_obj_set_style_clip_corner(btn, true, 0);
     }
     else
     {
         /* 字母/数字/符号: 默认 26px → 22px → 20px 再收小 2
          * 复合符号(如 "<=" ">=")字号再收窄, 避免溢出按键 */
-        eos_label_set_font_size(label, (strlen(text) >= 2)
-                                        ? EOS_FONT_SIZE_EXTRA_SMALL
-                                        : EOS_FONT_SIZE_SMALL);
+        cos_label_set_font_size(label, (strlen(text) >= 2)
+                                        ? COS_FONT_SIZE_EXTRA_SMALL
+                                        : COS_FONT_SIZE_SMALL);
     }
     return btn;
 }
@@ -142,10 +142,10 @@ static void _rkb_make_ctrl_row(rkb_t *ctx)
 /* ── 重建键区 ── */
 
 /* 每个模式包含的页数(用于翻页箭头循环) */
-static int _rkb_mode_pages(eos_rkb_mode_t mode)
+static int _rkb_mode_pages(cos_rkb_mode_t mode)
 {
-    if (mode == EOS_RKB_MODE_SYM) return 3; /* 第 3 页为方程/不等式运算页 */
-    if (mode == EOS_RKB_MODE_NUM) return 1;
+    if (mode == COS_RKB_MODE_SYM) return 3; /* 第 3 页为方程/不等式运算页 */
+    if (mode == COS_RKB_MODE_NUM) return 1;
     return 2; /* EN 两页 */
 }
 
@@ -158,11 +158,11 @@ static void _rkb_rebuild(rkb_t *ctx)
 
     switch (ctx->mode)
     {
-    case EOS_RKB_MODE_EN:
+    case COS_RKB_MODE_EN:
         keys = ctx->page ? _EN_P1 : _EN_P0;
         count = 15;
         break;
-    case EOS_RKB_MODE_SYM:
+    case COS_RKB_MODE_SYM:
         if (ctx->page == 1)
             keys = _SYM_P1;
         else if (ctx->page == 2)
@@ -171,7 +171,7 @@ static void _rkb_rebuild(rkb_t *ctx)
             keys = _SYM_P0;
         count = 15;
         break;
-    case EOS_RKB_MODE_NUM:
+    case COS_RKB_MODE_NUM:
         keys = _NUM;
         count = 14;
         break;
@@ -192,7 +192,7 @@ static void _rkb_rebuild(rkb_t *ctx)
 
 static void _rkb_update_arrows(rkb_t *ctx)
 {
-    if (ctx->mode == EOS_RKB_MODE_NUM)
+    if (ctx->mode == COS_RKB_MODE_NUM)
     {
         lv_obj_add_state(ctx->left_arrow, LV_STATE_DISABLED);
         lv_obj_add_state(ctx->right_arrow, LV_STATE_DISABLED);
@@ -250,7 +250,7 @@ static void _rkb_arrow_cb(lv_event_t *e)
     lv_obj_t *btn = lv_event_get_target(e);
     lv_obj_t *root = lv_obj_get_parent(btn);
     rkb_t *ctx = root ? (rkb_t *)lv_obj_get_user_data(root) : NULL;
-    if (!ctx || ctx->mode == EOS_RKB_MODE_NUM)
+    if (!ctx || ctx->mode == COS_RKB_MODE_NUM)
         return;
     int npages = _rkb_mode_pages(ctx->mode);
     /* 左箭头(user_data==1)上一页, 右箭头下一页, 循环翻页 */
@@ -268,7 +268,7 @@ static void _rkb_mode_cb(lv_event_t *e)
     rkb_t *ctx = root ? (rkb_t *)lv_obj_get_user_data(root) : NULL;
     if (!ctx)
         return;
-    ctx->mode = (eos_rkb_mode_t)(((int)ctx->mode + 1) % 3);
+    ctx->mode = (cos_rkb_mode_t)(((int)ctx->mode + 1) % 3);
     ctx->page = 0;
 
     lv_obj_t *l = lv_obj_get_child(ctx->mode_btn, 0);
@@ -284,17 +284,17 @@ static void _rkb_delete_cb(lv_event_t *e)
     lv_obj_t *root = lv_event_get_target(e);
     rkb_t *ctx = (rkb_t *)lv_obj_get_user_data(root);
     if (ctx)
-        eos_free(ctx);
+        cos_free(ctx);
 }
 
 /* ── 公共 API ── */
 
-lv_obj_t *eos_round_keyboard_create(lv_obj_t *parent)
+lv_obj_t *cos_round_keyboard_create(lv_obj_t *parent)
 {
-    rkb_t *ctx = eos_malloc_zeroed(sizeof(rkb_t));
+    rkb_t *ctx = cos_malloc_zeroed(sizeof(rkb_t));
     if (!ctx)
         return NULL;
-    ctx->mode = EOS_RKB_MODE_EN;
+    ctx->mode = COS_RKB_MODE_EN;
 
     lv_obj_t *root = lv_obj_create(parent);
     lv_obj_set_size(root, 240, _RKB_H);
@@ -357,7 +357,7 @@ lv_obj_t *eos_round_keyboard_create(lv_obj_t *parent)
     lv_obj_add_event_cb(ctx->mode_btn, _rkb_mode_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_t *m_label = lv_label_create(ctx->mode_btn);
     lv_label_set_text(m_label, "A");
-    eos_label_set_font_size(m_label, EOS_FONT_SIZE_EXTRA_SMALL);
+    cos_label_set_font_size(m_label, COS_FONT_SIZE_EXTRA_SMALL);
     lv_obj_center(m_label);
 
     _rkb_update_arrows(ctx);
@@ -365,17 +365,17 @@ lv_obj_t *eos_round_keyboard_create(lv_obj_t *parent)
     return root;
 }
 
-void eos_round_keyboard_set_textarea(lv_obj_t *kb, lv_obj_t *ta)
+void cos_round_keyboard_set_textarea(lv_obj_t *kb, lv_obj_t *ta)
 {
     rkb_t *ctx = kb ? (rkb_t *)lv_obj_get_user_data(kb) : NULL;
     if (ctx)
         ctx->ta = ta;
 }
 
-void eos_round_keyboard_set_mode(lv_obj_t *kb, eos_rkb_mode_t mode)
+void cos_round_keyboard_set_mode(lv_obj_t *kb, cos_rkb_mode_t mode)
 {
     rkb_t *ctx = kb ? (rkb_t *)lv_obj_get_user_data(kb) : NULL;
-    if (!ctx || mode > EOS_RKB_MODE_NUM)
+    if (!ctx || mode > COS_RKB_MODE_NUM)
         return;
     ctx->mode = mode;
     ctx->page = 0;
@@ -386,13 +386,13 @@ void eos_round_keyboard_set_mode(lv_obj_t *kb, eos_rkb_mode_t mode)
     _rkb_rebuild(ctx);
 }
 
-eos_rkb_mode_t eos_round_keyboard_get_mode(lv_obj_t *kb)
+cos_rkb_mode_t cos_round_keyboard_get_mode(lv_obj_t *kb)
 {
     rkb_t *ctx = kb ? (rkb_t *)lv_obj_get_user_data(kb) : NULL;
-    return ctx ? ctx->mode : EOS_RKB_MODE_EN;
+    return ctx ? ctx->mode : COS_RKB_MODE_EN;
 }
 
-void eos_round_keyboard_send_key(lv_obj_t *kb, const char *key)
+void cos_round_keyboard_send_key(lv_obj_t *kb, const char *key)
 {
     rkb_t *ctx = kb ? (rkb_t *)lv_obj_get_user_data(kb) : NULL;
     if (!ctx || !key || !ctx->ta)

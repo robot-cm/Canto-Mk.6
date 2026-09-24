@@ -2,7 +2,7 @@
 //
 // 精度 v2：运行不再累加（elapsed += 100 在 LVGL tick 周期不准时必然漂移）。
 // 改为 ms 级绝对时间戳差值：elapsedMs() = accum + (nowMs() - runStartMs)，
-// nowMs = dateToSec(...)*1000 + eos.time.getNow().ms（RTC 秒 + tick 内插 ms）。
+// nowMs = dateToSec(...)*1000 + cos.time.getNow().ms（RTC 秒 + tick 内插 ms）。
 // 暂停落盘 accum，运行落盘 runStartMs（RTC 绝对毫秒）→ 退出期间 RTC 继续走，
 // 重进时 nowMs - runStartMs 自动补上退出时长，无需再存整秒。
 // 后台：manifest background=true（切后台计时继续）
@@ -11,9 +11,9 @@
 // 性能红线：同屏 anim ≤6；周期 ≥30ms
 // 红线：无 arc / 无 border 三件套 / radius<54 / 无 flex / opa 裸数字 / hex 数字
 
-var activity = eos.activity.current();
-var view = eos.activity.getView(activity);
-eos.activity.setTitle(activity, "Stopwatch");
+var activity = cos.activity.current();
+var view = cos.activity.getView(activity);
+cos.activity.setTitle(activity, "Stopwatch");
 
 function pad2(n) { return (n < 10 ? "0" : "") + n; }
 function hex(v) { return lv.color.hex(v); }
@@ -185,7 +185,7 @@ for (var li = 0; li < MAX_LAP_ROWS; li++) {
     lapRows.push(lr);
 }
 
-// ===================== 状态与逻辑（后台续计时：eos.config 持久化 + 毫秒时间戳补差） =====================
+// ===================== 状态与逻辑（后台续计时：cos.config 持久化 + 毫秒时间戳补差） =====================
 // 退出期间不计时（JS 程序销毁）→ 运行态持久化 runStartMs（RTC 绝对毫秒），
 // 重进 elapsedMs() = accum + (nowMs() - runStartMs) 自动补上退出时长。laps 也持久化。
 function dateToSec(y, m, d, h, mi, s) {          // days-from-civil（精确，跨月跨年正确）
@@ -198,22 +198,22 @@ function dateToSec(y, m, d, h, mi, s) {          // days-from-civil（精确，�
     return ((era * 146097 + doe - 719468) * 86400) + h * 3600 + mi * 60 + s;
 }
 function nowMs() {                               // ms 级绝对时间戳（RTC 秒 + tick 内插 ms）
-    var t = eos.time.getNow();
+    var t = cos.time.getNow();
     return dateToSec(t.year, t.month, t.day, t.hour, t.min, t.sec) * 1000 + (t.ms || 0);
 }
 
 var _savedRunning = false, _savedAccum = 0, _savedStart = 0, _savedLaps = [];
-try { _savedRunning = eos.config.getBool("timer.running") === true; } catch (e) {}
-try { _savedAccum = eos.config.getNumber("timer.accum") || 0; } catch (e) {}
-try { _savedStart = eos.config.getNumber("timer.start") || 0; } catch (e) {}
-try { var _ls = eos.config.getStr("timer.laps"); if (_ls) { _savedLaps = JSON.parse(_ls) || []; } } catch (e) {}
+try { _savedRunning = cos.config.getBool("timer.running") === true; } catch (e) {}
+try { _savedAccum = cos.config.getNumber("timer.accum") || 0; } catch (e) {}
+try { _savedStart = cos.config.getNumber("timer.start") || 0; } catch (e) {}
+try { var _ls = cos.config.getStr("timer.laps"); if (_ls) { _savedLaps = JSON.parse(_ls) || []; } } catch (e) {}
 
 var running = _savedRunning;
 var accum = _savedAccum;
 var runStartMs = _savedStart;
 if (running && runStartMs <= 0) {                // 旧版数据兼容：无 timer.start → 用旧整秒 sec 近似
     var _oldSec = 0;
-    try { _oldSec = eos.config.getNumber("timer.sec") || 0; } catch (e) {}
+    try { _oldSec = cos.config.getNumber("timer.sec") || 0; } catch (e) {}
     if (_oldSec > 0) { runStartMs = _oldSec * 1000; }
     else { running = false; accum = 0; }
 }
@@ -224,12 +224,12 @@ function elapsedMs() {                           // 当前累计毫秒（运行�
 }
 
 function saveState() {
-    try { eos.config.setBool("app.background", running); } catch (e) {}   // 最优先独立 try：异常不影响
+    try { cos.config.setBool("app.background", running); } catch (e) {}   // 最优先独立 try：异常不影响
     try {
-        eos.config.setNumber("timer.accum", accum);
-        eos.config.setBool("timer.running", running);
-        eos.config.setNumber("timer.start", running ? runStartMs : 0);
-        eos.config.setStr("timer.laps", JSON.stringify(laps));
+        cos.config.setNumber("timer.accum", accum);
+        cos.config.setBool("timer.running", running);
+        cos.config.setNumber("timer.start", running ? runStartMs : 0);
+        cos.config.setStr("timer.laps", JSON.stringify(laps));
     } catch (e) {}
 }
 
@@ -432,7 +432,7 @@ function audit(o, d, name) {
     try { r = o.getStyleRadius(0); } catch (e) {}
     try { bo = o.getStyleBgOpa(0); } catch (e) {}
     try { hid = o.hasFlag(lv.OBJ_FLAG_HIDDEN); } catch (e) {}
-    eos.console.log(indent + tag +
+    cos.console.log(indent + tag +
         " xywh=" + c.x1 + "," + c.y1 + "," + (c.x2 - c.x1) + "," + (c.y2 - c.y1) +
         " r=" + r + " bgOpa=" + bo + " hid=" + hid);
     var n = 0;
@@ -446,6 +446,6 @@ function audit(o, d, name) {
 try { view.updateLayout(); } catch (e) {}
 try { dial.updateLayout(); } catch (e) {}
 try { audit(dial, 0, "dial"); }
-catch (err) { eos.console.log("AUDIT FAILED: " + err); }
+catch (err) { cos.console.log("AUDIT FAILED: " + err); }
 
-eos.console.log("[timer] 秒表动效版完成");
+cos.console.log("[timer] 秒表动效版完成");

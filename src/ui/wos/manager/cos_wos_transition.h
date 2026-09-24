@@ -1,5 +1,5 @@
 /**
- * @file eos_wos_transition.h
+ * @file cos_wos_transition.h
  * @brief WOS page transitions (see design doc §6)
  *
  * Rules:
@@ -11,8 +11,8 @@
  * border-radius + clip_corner (round clip) renders garbage. The App root is
  * a plain container, so animating it is safe — do NOT round-clip the root.
  */
-#ifndef EOS_WOS_TRANSITION_H
-#define EOS_WOS_TRANSITION_H
+#ifndef COS_WOS_TRANSITION_H
+#define COS_WOS_TRANSITION_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,4 +50,4 @@ void wos_transition_pull_down(lv_obj_t *panel);
 }
 #endif
 
-#endif /* EOS_WOS_TRANSITION_H */
+#endif /* COS_WOS_TRANSITION_H */

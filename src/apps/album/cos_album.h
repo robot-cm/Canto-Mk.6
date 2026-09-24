@@ -1,18 +1,18 @@
 /**
- * @file eos_album.h
+ * @file cos_album.h
  * @brief Album - native C photo viewer (JPEG via TJpgDec, PNG via LVGL)
  */
-#ifndef EOS_ALBUM_H
-#define EOS_ALBUM_H
+#ifndef COS_ALBUM_H
+#define COS_ALBUM_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void eos_album_enter(void);
+void cos_album_enter(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_ALBUM_H */
+#endif /* COS_ALBUM_H */

@@ -1,5 +1,5 @@
 /**
- * @file eos_files.c
+ * @file cos_files.c
  * @brief Minimal file browser (native app)
  *
  * A two-mode native app:
@@ -11,24 +11,24 @@
  * and a "Back" button (shown only in VIEW mode) returns to the list.
  */
 
-#include "eos_files.h"
+#include "cos_files.h"
 
 #include <stdio.h>
 #include <string.h>
 
-#include "eos_log.h"
-#include "eos_config.h"
-#include "eos_activity.h"
-#include "eos_mem.h"
-#include "eos_service_storage.h"
-#include "eos_storage_paths.h"
+#include "cos_log.h"
+#include "cos_config.h"
+#include "cos_activity.h"
+#include "cos_mem.h"
+#include "cos_service_storage.h"
+#include "cos_storage_paths.h"
 #include "lvgl.h"
-#include "ui/system/eos_round_clip.h" /* eos_round_clip() */
+#include "ui/system/cos_round_clip.h" /* cos_round_clip() */
 
 /* ------------------------------------------------------------------ */
 /* Config                                                             */
 /* ------------------------------------------------------------------ */
-#define EOS_LOG_TAG "Files"
+#define COS_LOG_TAG "Files"
 
 #define FILES_MAX 64              /* max entries per directory listing   */
 
@@ -41,19 +41,19 @@ typedef enum
     FILES_STATE_VIEW
 } files_state_t;
 
-static char s_paths[FILES_MAX][EOS_FS_PATH_MAX];  /* full paths for current list */
+static char s_paths[FILES_MAX][COS_FS_PATH_MAX];  /* full paths for current list */
 static int  s_fcount = 0;
 
 typedef struct
 {
-    eos_activity_t *activity;
+    cos_activity_t *activity;
     lv_obj_t *title;
     lv_obj_t *content;   /* scrollable container holding rows / viewer text */
     lv_obj_t *back_btn;  /* visible only in VIEW mode                       */
     files_state_t state;
-    char cur_path[EOS_FS_PATH_MAX];
-    char view_path[EOS_FS_PATH_MAX];
-    char *view_text;     /* malloc'd by eos_storage_read_file; freed here   */
+    char cur_path[COS_FS_PATH_MAX];
+    char view_path[COS_FS_PATH_MAX];
+    char *view_text;     /* malloc'd by cos_storage_read_file; freed here   */
 } files_ctx_t;
 
 static files_ctx_t s_fctx = {0};
@@ -119,7 +119,7 @@ static void _files_build_list(void)
 
     _files_set_title(s_fctx.cur_path);
 
-    eos_dir_t dir = eos_storage_dir_open(s_fctx.cur_path);
+    cos_dir_t dir = cos_storage_dir_open(s_fctx.cur_path);
     if (!dir)
     {
         lv_obj_t *e = lv_label_create(s_fctx.content);
@@ -130,20 +130,20 @@ static void _files_build_list(void)
 
     char name[64];
     s_fcount = 0;
-    while (eos_storage_dir_read(dir, name, sizeof(name)) == EOS_OK && s_fcount < FILES_MAX)
+    while (cos_storage_dir_read(dir, name, sizeof(name)) == COS_OK && s_fcount < FILES_MAX)
     {
         if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
             continue;
 
-        char full[EOS_FS_PATH_MAX];
+        char full[COS_FS_PATH_MAX];
         int len = snprintf(full, sizeof(full), "%s%s", s_fctx.cur_path, name);
         if (len < 0 || len >= (int)sizeof(full)) {
             continue;  /* 路径截断,跳过 */
         }
-        strncpy(s_paths[s_fcount], full, EOS_FS_PATH_MAX - 1);
-        s_paths[s_fcount][EOS_FS_PATH_MAX - 1] = '\0';
+        strncpy(s_paths[s_fcount], full, COS_FS_PATH_MAX - 1);
+        s_paths[s_fcount][COS_FS_PATH_MAX - 1] = '\0';
         s_fcount++;    }
-    eos_storage_dir_close(dir);
+    cos_storage_dir_close(dir);
 
     if (s_fcount == 0)
     {
@@ -156,7 +156,7 @@ static void _files_build_list(void)
 
     for (int i = 0; i < s_fcount; i++)
     {
-        bool is_dir = eos_storage_is_dir(s_paths[i]);
+        bool is_dir = cos_storage_is_dir(s_paths[i]);
 
         lv_obj_t *row = lv_button_create(s_fctx.content);
         lv_obj_set_size(row, 210, 30);
@@ -195,8 +195,8 @@ static void _files_build_list(void)
 static void _files_open_viewer(const char *path)
 {
     /* copy the path before we clear the (still-alive) list content */
-    strncpy(s_fctx.view_path, path, EOS_FS_PATH_MAX - 1);
-    s_fctx.view_path[EOS_FS_PATH_MAX - 1] = '\0';
+    strncpy(s_fctx.view_path, path, COS_FS_PATH_MAX - 1);
+    s_fctx.view_path[COS_FS_PATH_MAX - 1] = '\0';
 
     _files_clear_content();
     s_fctx.state = FILES_STATE_VIEW;
@@ -209,11 +209,11 @@ static void _files_open_viewer(const char *path)
 
     if (s_fctx.view_text)
     {
-        eos_free(s_fctx.view_text);
+        cos_free(s_fctx.view_text);
         s_fctx.view_text = NULL;
     }
 
-    char *txt = eos_storage_read_file(path);
+    char *txt = cos_storage_read_file(path);
     s_fctx.view_text = txt;   /* freed on destroy / next open */
 
     lv_obj_t *ta = lv_label_create(s_fctx.content);
@@ -235,10 +235,10 @@ static void _files_row_cb(lv_event_t *e)
     if (!fp)
         return;
 
-    if (eos_storage_is_dir(fp))
+    if (cos_storage_is_dir(fp))
     {
-        strncpy(s_fctx.cur_path, fp, EOS_FS_PATH_MAX - 1);
-        s_fctx.cur_path[EOS_FS_PATH_MAX - 1] = '\0';
+        strncpy(s_fctx.cur_path, fp, COS_FS_PATH_MAX - 1);
+        s_fctx.cur_path[COS_FS_PATH_MAX - 1] = '\0';
         _files_ensure_trailing_slash();
         _files_build_list();
         return;
@@ -277,22 +277,22 @@ static void _files_viewer_back_cb(lv_event_t *e)
 static void _files_exit_cb(lv_event_t *e)
 {
     LV_UNUSED(e);
-    eos_activity_back();
+    cos_activity_back();
 }
 
 /* ------------------------------------------------------------------ */
 /* Activity lifecycle                                                 */
 /* ------------------------------------------------------------------ */
-static void _files_on_enter(eos_activity_t *activity)
+static void _files_on_enter(cos_activity_t *activity)
 {
-    lv_obj_t *view = eos_activity_get_view(activity);
-    eos_round_clip(view);
+    lv_obj_t *view = cos_activity_get_view(activity);
+    cos_round_clip(view);
     lv_obj_set_style_bg_color(view, lv_color_black(), 0);
 
     memset(&s_fctx, 0, sizeof(s_fctx));
     s_fctx.activity = activity;
-    strncpy(s_fctx.cur_path, EOS_FILES_ROOT_DIR, EOS_FS_PATH_MAX - 1);
-    s_fctx.cur_path[EOS_FS_PATH_MAX - 1] = '\0';
+    strncpy(s_fctx.cur_path, COS_FILES_ROOT_DIR, COS_FS_PATH_MAX - 1);
+    s_fctx.cur_path[COS_FS_PATH_MAX - 1] = '\0';
     _files_ensure_trailing_slash();
 
     /* title (current path) */
@@ -350,31 +350,31 @@ static void _files_on_enter(eos_activity_t *activity)
 
     _files_build_list();
 
-    EOS_LOG_I("Files opened at '%s'", s_fctx.cur_path);
+    COS_LOG_I("Files opened at '%s'", s_fctx.cur_path);
 }
 
-static void _files_on_destroy(eos_activity_t *activity)
+static void _files_on_destroy(cos_activity_t *activity)
 {
     LV_UNUSED(activity);
     if (s_fctx.view_text)
     {
-        eos_free(s_fctx.view_text);
+        cos_free(s_fctx.view_text);
         s_fctx.view_text = NULL;
     }
     memset(&s_fctx, 0, sizeof(s_fctx));
 }
 
-static const eos_activity_lifecycle_t s_files_lc = {
+static const cos_activity_lifecycle_t s_files_lc = {
     .on_enter = _files_on_enter,
     .on_destroy = _files_on_destroy,
 };
 
-void eos_files_enter(void)
+void cos_files_enter(void)
 {
-    eos_activity_t *a = eos_activity_create(&s_files_lc);
+    cos_activity_t *a = cos_activity_create(&s_files_lc);
     if (!a)
         return;
-    eos_activity_set_type(a, EOS_ACTIVITY_TYPE_APP);
-    eos_activity_enter(a);
+    cos_activity_set_type(a, COS_ACTIVITY_TYPE_APP);
+    cos_activity_enter(a);
 }
 

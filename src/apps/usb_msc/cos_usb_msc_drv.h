@@ -1,5 +1,5 @@
 /**
- * @file eos_usb_msc_drv.h
+ * @file cos_usb_msc_drv.h
  * @brief USB MSC 底层驱动:TinyUSB MSC 类 + SD 裸扇区绑定 + 互斥/释放。
  *
  * 设计约束(AGENTS.md 第25/26节:崩溃隔离 + 不可信输入):
@@ -13,8 +13,8 @@
  *   由其 sdmmc_read_sectors()/sdmmc_write_sectors() 在 SPI 上做 512B 扇区访问,
  *   FATFS 层被绕过(MSC 需要原始块设备语义)。
  */
-#ifndef EOS_USB_MSC_DRV_H
-#define EOS_USB_MSC_DRV_H
+#ifndef COS_USB_MSC_DRV_H
+#define COS_USB_MSC_DRV_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -30,43 +30,43 @@ extern "C" {
  */
 typedef enum
 {
-    EOS_USB_MSC_OK = 0,
-    EOS_USB_MSC_ERR_NO_SD = 201,     /* No removable SD card detected          */
-    EOS_USB_MSC_ERR_JTAG_BUSY = 202, /* USB port occupied by debug console     */
-    EOS_USB_MSC_ERR_TUSB_INIT = 203, /* USB device stack init failed           */
-    EOS_USB_MSC_ERR_NOT_ENUM = 204,  /* No USB host enumerated (charging only) */
-    EOS_USB_MSC_ERR_UNMOUNT = 205,   /* Failed to release SD from FATFS        */
-    EOS_USB_MSC_ERR_REMOUNT = 206,   /* Failed to re-mount SD after MSC        */
-} eos_usb_msc_err_t;
+    COS_USB_MSC_OK = 0,
+    COS_USB_MSC_ERR_NO_SD = 201,     /* No removable SD card detected          */
+    COS_USB_MSC_ERR_JTAG_BUSY = 202, /* USB port occupied by debug console     */
+    COS_USB_MSC_ERR_TUSB_INIT = 203, /* USB device stack init failed           */
+    COS_USB_MSC_ERR_NOT_ENUM = 204,  /* No USB host enumerated (charging only) */
+    COS_USB_MSC_ERR_UNMOUNT = 205,   /* Failed to release SD from FATFS        */
+    COS_USB_MSC_ERR_REMOUNT = 206,   /* Failed to re-mount SD after MSC        */
+} cos_usb_msc_err_t;
 
 /** @brief errcode → 英文 errmsg(失败页显示用)。 */
-const char *eos_usb_msc_strerror(eos_usb_msc_err_t e);
+const char *cos_usb_msc_strerror(cos_usb_msc_err_t e);
 
 /* ── 探测阶段(不改变系统状态) ───────────────────────────── */
 
 /** @brief /sdcard 是否是真 SD 卡(可做 MSC)。 */
-bool eos_usb_msc_drv_sd_available(void);
+bool cos_usb_msc_drv_sd_available(void);
 
 /** @brief USB 串口调试器是否在线(在线则禁止进入 MSC)。 */
-bool eos_usb_msc_drv_jtag_connected(void);
+bool cos_usb_msc_drv_jtag_connected(void);
 
 /* ── MSC 会话 ────────────────────────────────────────────── */
 
 /**
  * @brief 进入 MSC:释放 SD → 初始化 TinyUSB device(MSC)。
- * @return EOS_USB_MSC_OK 成功;其它为 errcode(失败时内部已回滚)。
+ * @return COS_USB_MSC_OK 成功;其它为 errcode(失败时内部已回滚)。
  */
-eos_usb_msc_err_t eos_usb_msc_drv_begin(void);
+cos_usb_msc_err_t cos_usb_msc_drv_begin(void);
 
 /** @brief PC 主机是否已完成枚举并挂载本设备。 */
-bool eos_usb_msc_drv_mounted(void);
+bool cos_usb_msc_drv_mounted(void);
 
 /**
  * @brief 退出 MSC:卸载 TinyUSB → 重新挂载 SD。
- * @return EOS_USB_MSC_OK 或 EOS_USB_MSC_ERR_REMOUNT。
+ * @return COS_USB_MSC_OK 或 COS_USB_MSC_ERR_REMOUNT。
  * @note 幂等;未进入时调用安全。
  */
-eos_usb_msc_err_t eos_usb_msc_drv_end(void);
+cos_usb_msc_err_t cos_usb_msc_drv_end(void);
 
 #endif /* CONFIG_USB_MSC_APP_ENABLE */
 
@@ -74,4 +74,4 @@ eos_usb_msc_err_t eos_usb_msc_drv_end(void);
 }
 #endif
 
-#endif /* EOS_USB_MSC_DRV_H */
+#endif /* COS_USB_MSC_DRV_H */

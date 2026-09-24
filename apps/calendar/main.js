@@ -9,9 +9,9 @@
 // Red lines: no arc / no border triple / radius<54 / no flex.
 // EVENT_CLICKED broken in this fork -> use EVENT_PRESSED.
 
-var activity = eos.activity.current();
-var view = eos.activity.getView(activity);
-eos.activity.setTitle(activity, "Calendar");
+var activity = cos.activity.current();
+var view = cos.activity.getView(activity);
+cos.activity.setTitle(activity, "Calendar");
 
 var BG = 0x0E0E14;
 var PANEL = 0x16161E;
@@ -161,8 +161,8 @@ function loadFest() {
     var t = new lv.timer(function () {
         var raw = undefined;
         try {
-            if (eos.fs.size(FEST_PATH) > 32768) { festLbl.setText("festival.json too big"); return; }
-            raw = eos.fs.read(FEST_PATH);
+            if (cos.fs.size(FEST_PATH) > 32768) { festLbl.setText("festival.json too big"); return; }
+            raw = cos.fs.read(FEST_PATH);
         } catch (e) {}
         if (!raw) { festLbl.setText("No /sdcard/calendar/festival.json"); return; }
         var data = null;
@@ -180,7 +180,7 @@ function loadFest() {
 }
 
 // ===================== month state =====================
-var now = eos.time.getNow();
+var now = cos.time.getNow();
 var Y = now.year, M = now.month;
 var dim = 0, firstWd = 0;
 var today = now.day, todayIdx = -1;

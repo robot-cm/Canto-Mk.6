@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 16 px
  * Bpp: 4
- * Opts: --bpp 4 --size 16 --format lvgl --no-compress --font /home/erashaperavm/下载/ElenixOS-fork/resources/font/ttf-dir/JetBrainsMono-Medium.ttf -r 0x20-0x7e,0xa0-0xff,0x2013-0x2026,0x2190-0x2193 --lv-fallback source_han_sans_16 --lv-font-name eos_font_jbm_16 -o /home/erashaperavm/下载/ElenixOS-fork/resources/font/eos_font_jbm_16.c
+ * Opts: --bpp 4 --size 16 --format lvgl --no-compress --font /home/erashaperavm/下载/CantoMk6-fork/resources/font/ttf-dir/JetBrainsMono-Medium.ttf -r 0x20-0x7e,0xa0-0xff,0x2013-0x2026,0x2190-0x2193 --lv-fallback source_han_sans_16 --lv-font-name cos_font_jbm_16 -o /home/erashaperavm/下载/CantoMk6-fork/resources/font/cos_font_jbm_16.c
  ******************************************************************************/
 
 #ifdef LV_LVGL_H_INCLUDE_SIMPLE
@@ -10,11 +10,11 @@
 #include "lvgl/lvgl.h"
 #endif
 
-#ifndef EOS_FONT_JBM_16
-#define EOS_FONT_JBM_16 1
+#ifndef COS_FONT_JBM_16
+#define COS_FONT_JBM_16 1
 #endif
 
-#if EOS_FONT_JBM_16
+#if COS_FONT_JBM_16
 
 /*-----------------
  *    BITMAPS
@@ -1962,7 +1962,7 @@ static lv_font_fmt_txt_dsc_t font_dsc = {
 #endif
 };
 
-extern const lv_font_t eos_font_han_sans_16;
+extern const lv_font_t cos_font_han_sans_16;
 
 
 /*-----------------
@@ -1971,9 +1971,9 @@ extern const lv_font_t eos_font_han_sans_16;
 
 /*Initialize a public general font descriptor*/
 #if LVGL_VERSION_MAJOR >= 8
-const lv_font_t eos_font_jbm_16 = {
+const lv_font_t cos_font_jbm_16 = {
 #else
-lv_font_t eos_font_jbm_16 = {
+lv_font_t cos_font_jbm_16 = {
 #endif
     .get_glyph_dsc = lv_font_get_glyph_dsc_fmt_txt,    /*Function pointer to get glyph's data*/
     .get_glyph_bitmap = lv_font_get_bitmap_fmt_txt,    /*Function pointer to get glyph's bitmap*/
@@ -1988,12 +1988,12 @@ lv_font_t eos_font_jbm_16 = {
 #endif
     .dsc = &font_dsc,          /*The custom font data. Will be accessed by `get_glyph_bitmap/dsc` */
 #if LV_VERSION_CHECK(8, 2, 0) || LVGL_VERSION_MAJOR >= 9
-    .fallback = &eos_font_han_sans_16,
+    .fallback = &cos_font_han_sans_16,
 #endif
     .user_data = NULL,
 };
 
 
 
-#endif /*#if EOS_FONT_JBM_16*/
+#endif /*#if COS_FONT_JBM_16*/
 

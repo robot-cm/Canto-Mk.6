@@ -1,5 +1,5 @@
 /**
- * @file eos_dictionary.c
+ * @file cos_dictionary.c
  * @brief Dictionary app — ECDICT .dat random-access reader on 240x240 round UI.
  *
  * Reads /sdcard/ecdict/ecdict.dat on demand (never loads the whole file,
@@ -33,18 +33,18 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "eos_config.h"
-#include "eos_dictionary.h"
-#include "eos_activity.h"
-#include "eos_theme.h"
-#include "eos_font.h"
-#include "eos_mem.h"
-#include "eos_round_clip.h"
-#include "eos_round_keyboard.h"
-#include "eos_service_storage.h"
-#include "eos_app_header.h"
-#include "eos_icon.h"
-#include "eos_log.h"
+#include "cos_config.h"
+#include "cos_dictionary.h"
+#include "cos_activity.h"
+#include "cos_theme.h"
+#include "cos_font.h"
+#include "cos_mem.h"
+#include "cos_round_clip.h"
+#include "cos_round_keyboard.h"
+#include "cos_service_storage.h"
+#include "cos_app_header.h"
+#include "cos_icon.h"
+#include "cos_log.h"
 
 /* ---------------------------------------------------------------- */
 /* .dat format constants (see scripts/ecdict/step4_1_export.py)       */
@@ -93,7 +93,7 @@ static uint64_t _rd_u64(const uint8_t *p)
 /* ---------------------------------------------------------------- */
 /* Engine state                                                      */
 /* ---------------------------------------------------------------- */
-static eos_file_t s_fp;
+static cos_file_t s_fp;
 static bool s_fp_open;
 static uint8_t *s_idx_buf;       /* bucket index cache (PSRAM)   */
 static uint8_t *s_bucket_buf;    /* current bucket data (PSRAM)  */
@@ -107,7 +107,7 @@ static bool _read_full(uint8_t *buf, size_t size)
 {
     size_t got = 0;
     while (got < size) {
-        ssize_t r = eos_storage_file_read(s_fp, buf + got, size - got);
+        ssize_t r = cos_storage_file_read(s_fp, buf + got, size - got);
         if (r <= 0) return false;
         got += (size_t)r;
     }
@@ -159,16 +159,16 @@ static size_t _norm(const char *in, char *out, size_t cap)
 static void _dict_close(void)
 {
     if (s_fp_open) {
-        eos_storage_file_close(s_fp);
+        cos_storage_file_close(s_fp);
         s_fp = NULL;
         s_fp_open = false;
     }
     if (s_idx_buf) {
-        eos_free(s_idx_buf);
+        cos_free(s_idx_buf);
         s_idx_buf = NULL;
     }
     if (s_bucket_buf) {
-        eos_free(s_bucket_buf);
+        cos_free(s_bucket_buf);
         s_bucket_buf = NULL;
     }
     s_loaded = false;
@@ -181,24 +181,24 @@ static bool _dict_open(void)
     if (s_loaded) return true;
 
     if (!s_fp_open) {
-        s_fp = eos_storage_file_open_read(DICT_PATH);
+        s_fp = cos_storage_file_open_read(DICT_PATH);
         if (!s_fp) {
-            EOS_LOG_E("dict: cannot open %s (SD mounted?)", DICT_PATH);
+            COS_LOG_E("dict: cannot open %s (SD mounted?)", DICT_PATH);
             return false;
         }
         s_fp_open = true;
     }
 
     uint8_t hdr[DICT_HEADER_SIZE];
-    if (eos_storage_file_seek(s_fp, 0) != EOS_OK) return false;
+    if (cos_storage_file_seek(s_fp, 0) != COS_OK) return false;
     if (!_read_full(hdr, DICT_HEADER_SIZE)) return false;
 
     if (memcmp(hdr, DICT_MAGIC, DICT_MAGIC_LEN) != 0) {
-        EOS_LOG_E("dict: bad magic (not a step4_1_export .dat?)");
+        COS_LOG_E("dict: bad magic (not a step4_1_export .dat?)");
         return false;
     }
     if (_rd_u32(hdr + 8) != DICT_VERSION) {
-        EOS_LOG_E("dict: unsupported version %u", (unsigned)_rd_u32(hdr + 8));
+        COS_LOG_E("dict: unsupported version %u", (unsigned)_rd_u32(hdr + 8));
         return false;
     }
     /* 76-byte header produced by step4_1_export.py, FMT "<8sIIIQIIIIQQQQ":
@@ -206,28 +206,28 @@ static bool _dict_open(void)
      * bucket_target@28 checkpoint_every@32 entry_header_size@36 reserved@40
      * bucket_index_off(Q)@44 bucket_data_off@52 total_data_size@60 sha256@68 */
     if (_rd_u32(hdr + 36) != DICT_ENTRY_HEADER_SIZE) {
-        EOS_LOG_E("dict: bad entry header size %u", (unsigned)_rd_u32(hdr + 36));
+        COS_LOG_E("dict: bad entry header size %u", (unsigned)_rd_u32(hdr + 36));
         return false;
     }
 
     s_bucket_count = (uint32_t)_rd_u64(hdr + 20);
     s_checkpoint_every = _rd_u32(hdr + 32);
     if (s_bucket_count == 0 || s_bucket_count > DICT_MAX_BUCKETS) {
-        EOS_LOG_E("dict: bad bucket count %u", (unsigned)s_bucket_count);
+        COS_LOG_E("dict: bad bucket count %u", (unsigned)s_bucket_count);
         return false;
     }
 
-    if (!s_idx_buf) s_idx_buf = (uint8_t *)eos_malloc((size_t)s_bucket_count * DICT_BUCKET_INDEX_ITEM);
+    if (!s_idx_buf) s_idx_buf = (uint8_t *)cos_malloc((size_t)s_bucket_count * DICT_BUCKET_INDEX_ITEM);
     if (!s_idx_buf) {
-        EOS_LOG_E("dict: no mem for bucket index");
+        COS_LOG_E("dict: no mem for bucket index");
         return false;
     }
-    if (eos_storage_file_seek(s_fp, (uint32_t)_rd_u64(hdr + 44)) != EOS_OK) return false;
+    if (cos_storage_file_seek(s_fp, (uint32_t)_rd_u64(hdr + 44)) != COS_OK) return false;
     if (!_read_full(s_idx_buf, (size_t)s_bucket_count * DICT_BUCKET_INDEX_ITEM)) return false;
 
-    if (!s_bucket_buf) s_bucket_buf = (uint8_t *)eos_malloc(DICT_BUCKET_BUF_CAP);
+    if (!s_bucket_buf) s_bucket_buf = (uint8_t *)cos_malloc(DICT_BUCKET_BUF_CAP);
     if (!s_bucket_buf) {
-        EOS_LOG_E("dict: no mem for bucket buffer");
+        COS_LOG_E("dict: no mem for bucket buffer");
         return false;
     }
 
@@ -241,8 +241,8 @@ static bool _dict_open(void)
 static bool _read_cp_from_file(uint64_t abs_off, char *norm, size_t cap)
 {
     uint8_t hdr[DICT_CHECKPOINT_HEADER];
-    if (eos_storage_file_seek(s_fp, (uint32_t)abs_off) != EOS_OK) {
-        EOS_LOG_E("dict: cp seek %llu failed", (unsigned long long)abs_off);
+    if (cos_storage_file_seek(s_fp, (uint32_t)abs_off) != COS_OK) {
+        COS_LOG_E("dict: cp seek %llu failed", (unsigned long long)abs_off);
         return false;
     }
     if (!_read_full(hdr, DICT_CHECKPOINT_HEADER)) return false;
@@ -282,18 +282,18 @@ static bool _load_bucket(uint32_t bi)
     const uint8_t *idx = s_idx_buf + (size_t)bi * DICT_BUCKET_INDEX_ITEM;
     uint64_t data_off = _rd_u64(idx + 32);
     uint32_t dsize = _rd_u32(idx + 16);
-    EOS_LOG_I("dict: load bucket=%u data_off=%llu dsize=%u",
+    COS_LOG_I("dict: load bucket=%u data_off=%llu dsize=%u",
               (unsigned)bi, (unsigned long long)data_off, (unsigned)dsize);
     if (dsize == 0 || dsize > DICT_BUCKET_BUF_CAP) {
-        EOS_LOG_E("dict: bad dsize=%u cap=%u", (unsigned)dsize, (unsigned)DICT_BUCKET_BUF_CAP);
+        COS_LOG_E("dict: bad dsize=%u cap=%u", (unsigned)dsize, (unsigned)DICT_BUCKET_BUF_CAP);
         return false;
     }
-    if (eos_storage_file_seek(s_fp, (uint32_t)data_off) != EOS_OK) {
-        EOS_LOG_E("dict: seek %llu failed", (unsigned long long)data_off);
+    if (cos_storage_file_seek(s_fp, (uint32_t)data_off) != COS_OK) {
+        COS_LOG_E("dict: seek %llu failed", (unsigned long long)data_off);
         return false;
     }
     if (!_read_full(s_bucket_buf, dsize)) {
-        EOS_LOG_E("dict: read bucket failed");
+        COS_LOG_E("dict: read bucket failed");
         return false;
     }
     s_cur_bucket_size = dsize;
@@ -348,7 +348,7 @@ static bool _lookup_in_bucket(const char *norm, char *out, size_t cap)
 
     /* bucket header */
     if (memcmp(b, "BKT1", 4) != 0) {
-        EOS_LOG_E("dict: bucket magic %.4s", (const char *)b);
+        COS_LOG_E("dict: bucket magic %.4s", (const char *)b);
         return false;
     }
     uint32_t b_entry_count = _rd_u32(b + 8);
@@ -356,12 +356,12 @@ static bool _lookup_in_bucket(const char *norm, char *out, size_t cap)
     uint32_t cp_start = _rd_u32(b + 16);
     uint32_t entry_start = _rd_u32(b + 20);
     uint32_t dsize = s_cur_bucket_size;
-    EOS_LOG_I("dict: bkt entries=%u cps=%u cp_start=%u ent_start=%u dsize=%u",
+    COS_LOG_I("dict: bkt entries=%u cps=%u cp_start=%u ent_start=%u dsize=%u",
               (unsigned)b_entry_count, (unsigned)b_cp_count,
               (unsigned)cp_start, (unsigned)entry_start, (unsigned)dsize);
 
     if (cp_start + DICT_CHECKPOINT_HEADER > entry_start || entry_start > dsize) {
-        EOS_LOG_E("dict: bad bucket layout");
+        COS_LOG_E("dict: bad bucket layout");
         return false;
     }
 
@@ -393,7 +393,7 @@ static bool _lookup_in_bucket(const char *norm, char *out, size_t cap)
         scanned++;
     }
     if (!have_sel) {
-        EOS_LOG_E("dict: no checkpoint selected (scan=%u off=%u ent_start=%u)",
+        COS_LOG_E("dict: no checkpoint selected (scan=%u off=%u ent_start=%u)",
                   (unsigned)scanned, (unsigned)off, (unsigned)entry_start);
         return false;
     }
@@ -403,7 +403,7 @@ static bool _lookup_in_bucket(const char *norm, char *out, size_t cap)
 
     uint32_t end_entry_idx = start_entry_idx + s_checkpoint_every;
     if (end_entry_idx > b_entry_count) end_entry_idx = b_entry_count;
-    EOS_LOG_I("dict: sel_cp idx=%u off=%u scan=[%u,%u)",
+    COS_LOG_I("dict: sel_cp idx=%u off=%u scan=[%u,%u)",
               (unsigned)start_entry_idx, (unsigned)start_entry_off,
               (unsigned)start_entry_idx, (unsigned)end_entry_idx);
 
@@ -432,11 +432,11 @@ static bool _lookup_in_bucket(const char *norm, char *out, size_t cap)
 
         int cmp = strcmp(nw, norm);
         if (cmp == 0) {
-            EOS_LOG_I("dict: hit '%s'", nw);
+            COS_LOG_I("dict: hit '%s'", nw);
             return _fill_result(b + eoff, out, cap);
         }
         if (cmp > 0) {
-            EOS_LOG_I("dict: miss, '%s' > '%s' after %u entries",
+            COS_LOG_I("dict: miss, '%s' > '%s' after %u entries",
                       nw, norm, (unsigned)(eidx - start_entry_idx));
             break;   /* sorted, rest are larger */
         }
@@ -444,7 +444,7 @@ static bool _lookup_in_bucket(const char *norm, char *out, size_t cap)
         eoff += total;
         eidx++;
     }
-    EOS_LOG_I("dict: miss, scanned %u entries eoff=%u dsize=%u",
+    COS_LOG_I("dict: miss, scanned %u entries eoff=%u dsize=%u",
               (unsigned)(eidx - start_entry_idx), (unsigned)eoff, (unsigned)dsize);
     return false;
 }
@@ -454,13 +454,13 @@ static bool dict_lookup(const char *query, char *out, size_t cap)
 {
     char norm[DICT_NORM_CAP];
     if (_norm(query, norm, sizeof(norm)) == 0) return false;
-    EOS_LOG_I("dict: lookup norm='%s'", norm);
+    COS_LOG_I("dict: lookup norm='%s'", norm);
 
     int32_t bi = _find_bucket(norm);
-    EOS_LOG_I("dict: bucket=%d", (int)bi);
+    COS_LOG_I("dict: bucket=%d", (int)bi);
     if (bi < 0) return false;
     if (!_load_bucket((uint32_t)bi)) {
-        EOS_LOG_E("dict: load bucket %d failed", (int)bi);
+        COS_LOG_E("dict: load bucket %d failed", (int)bi);
         return false;
     }
     return _lookup_in_bucket(norm, out, cap);
@@ -568,7 +568,7 @@ static bool _fuzzy_open(dict_fuzzy_t *fz, const char *query, char *first_word,
 {
     memset(fz, 0, sizeof(*fz));
     if (_norm(query, fz->prefix, sizeof(fz->prefix)) == 0) return false;
-    EOS_LOG_I("dict: fuzzy open prefix='%s'", fz->prefix);
+    COS_LOG_I("dict: fuzzy open prefix='%s'", fz->prefix);
 
     int32_t bi = _find_bucket(fz->prefix);
     if (bi < 0) {
@@ -610,9 +610,9 @@ static bool _fuzzy_open(dict_fuzzy_t *fz, const char *query, char *first_word,
 #define DICT_ROW_W     208
 #define DICT_ROW_X     8
 
-extern const lv_image_dsc_t eos_icon_search;
+extern const lv_image_dsc_t cos_icon_search;
 
-static eos_activity_t *s_act;
+static cos_activity_t *s_act;
 static lv_obj_t *s_root;
 static lv_obj_t *s_pill;     /* 底部悬浮胶囊(搜索) */
 static lv_obj_t *s_ta;       /* 输入框(圆 -> 胶囊) */
@@ -750,7 +750,7 @@ static void _run_lookup(void)
 }
 
 /* 在滚动区追加一行, 返回其 y 增量 */
-static void _add_row(const char *text, eos_font_size_t fs, uint32_t color, int *y)
+static void _add_row(const char *text, cos_font_size_t fs, uint32_t color, int *y)
 {
     if (!text || !text[0]) return;
     lv_obj_t *lb = lv_label_create(s_scroll);
@@ -758,7 +758,7 @@ static void _add_row(const char *text, eos_font_size_t fs, uint32_t color, int *
     lv_obj_set_width(lb, DICT_ROW_W);
     lv_obj_set_pos(lb, DICT_ROW_X, *y);
     lv_obj_set_style_text_color(lb, lv_color_hex(color), 0);
-    eos_label_set_font_size(lb, fs);
+    cos_label_set_font_size(lb, fs);
     lv_obj_set_style_text_line_space(lb, 2, 0);
     lv_label_set_text(lb, text);
     lv_obj_update_layout(s_scroll);
@@ -779,13 +779,13 @@ static void _render_result(const char *word, const char *phon, const char *rest)
     lv_obj_set_width(title, DICT_ROW_W);
     lv_obj_set_pos(title, DICT_ROW_X, y);
     lv_obj_set_style_text_color(title, lv_color_hex(_UI_ACCENT), 0);
-    eos_label_set_font_size(title, EOS_FONT_SIZE_TALL);
+    cos_label_set_font_size(title, COS_FONT_SIZE_TALL);
     lv_label_set_text(title, word);
     lv_obj_update_layout(s_scroll);
     y += lv_obj_get_height(title) + 6;
 
     if (phon && phon[0]) {
-        _add_row(phon, EOS_FONT_SIZE_MICRO, _UI_DIM, &y);
+        _add_row(phon, COS_FONT_SIZE_MICRO, _UI_DIM, &y);
     }
 
     /* rest 为 \n 分隔: translation / [pos] definition / ex: exchange */
@@ -794,9 +794,9 @@ static void _render_result(const char *word, const char *phon, const char *rest)
         char *nl = strchr(line, '\n');
         if (nl) *nl = '\0';
         if (strncmp(line, "ex: ", 4) == 0) {
-            _add_row(line, EOS_FONT_SIZE_MICRO, _UI_DIM, &y);
+            _add_row(line, COS_FONT_SIZE_MICRO, _UI_DIM, &y);
         } else {
-            _add_row(line, EOS_FONT_SIZE_MICRO, _UI_TEXT, &y);
+            _add_row(line, COS_FONT_SIZE_MICRO, _UI_TEXT, &y);
         }
         if (!nl) break;
         line = nl + 1;
@@ -879,7 +879,7 @@ static void _fuzzy_row_del_cb(lv_event_t *e)
     lv_obj_t *arrow = lv_event_get_target(e);
     char *w = lv_obj_get_user_data(arrow);
     if (w) {
-        eos_free(w);
+        cos_free(w);
         lv_obj_set_user_data(arrow, NULL);
     }
 }
@@ -903,7 +903,7 @@ static void _fuzzy_add_row(const char *word, const char *trans, int *y)
     lv_obj_set_width(title, DICT_ROW_W - 40);
     lv_obj_set_pos(title, 8, 5);
     lv_obj_set_style_text_color(title, lv_color_hex(_UI_TEXT), 0);
-    eos_label_set_font_size(title, EOS_FONT_SIZE_EXTRA_SMALL);
+    cos_label_set_font_size(title, COS_FONT_SIZE_EXTRA_SMALL);
     lv_label_set_text(title, word);
 
     /* 中文释义摘要 (前 10 字 + ...) */
@@ -915,7 +915,7 @@ static void _fuzzy_add_row(const char *word, const char *trans, int *y)
         lv_obj_set_width(sumlb, DICT_ROW_W - 40);
         lv_obj_set_pos(sumlb, 8, 25);
         lv_obj_set_style_text_color(sumlb, lv_color_hex(_UI_DIM), 0);
-        eos_label_set_font_size(sumlb, EOS_FONT_SIZE_MICRO);
+        cos_label_set_font_size(sumlb, COS_FONT_SIZE_MICRO);
         lv_label_set_text(sumlb, sum);
     }
 
@@ -927,9 +927,9 @@ static void _fuzzy_add_row(const char *word, const char *trans, int *y)
     lv_obj_add_flag(arrbtn, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(arrbtn, _fuzzy_row_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_add_event_cb(arrbtn, _fuzzy_row_del_cb, LV_EVENT_DELETE, NULL);
-    lv_obj_set_user_data(arrbtn, eos_strdup(word));
+    lv_obj_set_user_data(arrbtn, cos_strdup(word));
     lv_obj_t *arr = lv_label_create(arrbtn);
-    lv_obj_set_style_text_font(arr, &EOS_FONT_ICON, 0);
+    lv_obj_set_style_text_font(arr, &COS_FONT_ICON, 0);
     lv_obj_set_style_text_color(arr, lv_color_hex(_UI_DIM), 0);
     lv_label_set_text(arr, RI_ARROW_RIGHT_S_LINE);
     lv_obj_center(arr);
@@ -957,7 +957,7 @@ static void _fuzzy_load_more(void)
             lv_obj_set_width(end, DICT_ROW_W);
             lv_obj_set_pos(end, DICT_ROW_X, s_fuzzy_y);
             lv_obj_set_style_text_color(end, lv_color_hex(_UI_DIM), 0);
-            eos_label_set_font_size(end, EOS_FONT_SIZE_MICRO);
+            cos_label_set_font_size(end, COS_FONT_SIZE_MICRO);
             lv_label_set_text(end, "-- end of matches --");
             s_fuzzy_y += 18;
         }
@@ -995,7 +995,7 @@ static void _render_search_list(void)
     lv_obj_set_width(hint, DICT_ROW_W);
     lv_obj_set_pos(hint, DICT_ROW_X, s_fuzzy_y);
     lv_obj_set_style_text_color(hint, lv_color_hex(_UI_DIM), 0);
-    eos_label_set_font_size(hint, EOS_FONT_SIZE_MICRO);
+    cos_label_set_font_size(hint, COS_FONT_SIZE_MICRO);
     char hbuf[DICT_QUERY_CAP + 24];
     if (s_exact_word[0]) {
         snprintf(hbuf, sizeof(hbuf), "results: '%s'", s_query);
@@ -1046,7 +1046,7 @@ static void _show_msg(const char *msg)
     lv_label_set_long_mode(lb, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_width(lb, 200);
     lv_obj_set_style_text_color(lb, lv_color_hex(_UI_DIM), 0);
-    eos_label_set_font_size(lb, EOS_FONT_SIZE_EXTRA_SMALL);
+    cos_label_set_font_size(lb, COS_FONT_SIZE_EXTRA_SMALL);
     lv_obj_set_style_text_align(lb, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_center(lb);
     lv_label_set_text(lb, msg);
@@ -1073,35 +1073,35 @@ static void _show_idle(void)
 static void _save_history(const char *word)
 {
     if (!word || !word[0]) return;
-    eos_storage_mkdir_recursive(DICT_HIST_DIR);
+    cos_storage_mkdir_recursive(DICT_HIST_DIR);
 
-    char *old = eos_storage_read_file(DICT_HIST_FILE);
+    char *old = cos_storage_read_file(DICT_HIST_FILE);
     if (old) {
         /* 第一行已是该词则无需写 */
         char *nl = strchr(old, '\n');
         size_t fl = nl ? (size_t)(nl - old) : strlen(old);
         if (fl == strlen(word) && strncmp(old, word, fl) == 0) {
-            eos_free(old);
+            cos_free(old);
             return;
         }
     }
 
-    char buf[EOS_FS_PATH_MAX * 2];
+    char buf[COS_FS_PATH_MAX * 2];
     int n = snprintf(buf, sizeof(buf), "%s\n", word);
     if (old && n > 0 && (size_t)n + strlen(old) < sizeof(buf) - 1) {
         memcpy(buf + n, old, strlen(old) + 1);   /* 旧历史保留在其后 */
     }
-    if (old) eos_free(old);
-    eos_storage_write_file(DICT_HIST_FILE, buf, strlen(buf));
+    if (old) cos_free(old);
+    cos_storage_write_file(DICT_HIST_FILE, buf, strlen(buf));
 }
 
 static bool _load_history(char *out, size_t cap)
 {
     if (!out || cap == 0) return false;
     out[0] = '\0';
-    if (!eos_storage_is_file(DICT_HIST_FILE)) return false;
+    if (!cos_storage_is_file(DICT_HIST_FILE)) return false;
 
-    char *content = eos_storage_read_file(DICT_HIST_FILE);
+    char *content = cos_storage_read_file(DICT_HIST_FILE);
     if (!content) return false;
 
     /* line 1: 上次搜索的单词 */
@@ -1113,10 +1113,10 @@ static bool _load_history(char *out, size_t cap)
     }
     if (len > 0 && len < cap) {
         memcpy(out, content, len + 1);
-        eos_free(content);
+        cos_free(content);
         return true;
     }
-    eos_free(content);
+    cos_free(content);
     return false;
 }
 
@@ -1139,12 +1139,12 @@ static void _on_ta_ready(lv_event_t *e)
 /* ---------------------------------------------------------------- */
 /* UI build                                                          */
 /* ---------------------------------------------------------------- */
-static void _build_ui(eos_activity_t *act)
+static void _build_ui(cos_activity_t *act)
 {
     s_act = act;
-    s_root = eos_activity_get_view(act);
+    s_root = cos_activity_get_view(act);
     lv_obj_set_style_bg_color(s_root, lv_color_hex(_UI_BG), 0);
-    eos_round_clip(s_root);
+    cos_round_clip(s_root);
 
     /* 结果滚动区 (word 标题 + 字段) */
     s_scroll = lv_obj_create(s_root);
@@ -1190,9 +1190,9 @@ static void _build_ui(eos_activity_t *act)
     lv_obj_add_flag(s_ta, LV_OBJ_FLAG_HIDDEN);
 
     /* 圆形键盘 (默认隐藏, 点击胶囊后弹出) */
-    s_kb = eos_round_keyboard_create(s_root);
-    eos_round_keyboard_set_mode(s_kb, EOS_RKB_MODE_EN);
-    eos_round_keyboard_set_textarea(s_kb, s_ta);
+    s_kb = cos_round_keyboard_create(s_root);
+    cos_round_keyboard_set_mode(s_kb, COS_RKB_MODE_EN);
+    cos_round_keyboard_set_textarea(s_kb, s_ta);
     lv_obj_add_flag(s_kb, LV_OBJ_FLAG_HIDDEN);
 
     /* 底部悬浮胶囊: 搜索按钮 */
@@ -1206,14 +1206,14 @@ static void _build_ui(eos_activity_t *act)
     lv_obj_set_style_border_width(s_pill, 0, 0);
     lv_obj_add_event_cb(s_pill, _pill_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_t *ic = lv_image_create(s_pill);
-    lv_image_set_src(ic, &eos_icon_search);
+    lv_image_set_src(ic, &cos_icon_search);
     lv_obj_center(ic);
 }
 
 /* ---------------------------------------------------------------- */
 /* Lifecycle                                                         */
 /* ---------------------------------------------------------------- */
-static void _on_enter(eos_activity_t *act)
+static void _on_enter(cos_activity_t *act)
 {
     _build_ui(act);
 
@@ -1226,7 +1226,7 @@ static void _on_enter(eos_activity_t *act)
     }
 }
 
-static void _on_destroy(eos_activity_t *act)
+static void _on_destroy(cos_activity_t *act)
 {
     (void)act;
     _dict_close();
@@ -1234,7 +1234,7 @@ static void _on_destroy(eos_activity_t *act)
     s_root = NULL;
 }
 
-static bool _on_swipe_back(eos_activity_t *act, lv_dir_t dir)
+static bool _on_swipe_back(cos_activity_t *act, lv_dir_t dir)
 {
     (void)act;
     (void)dir;
@@ -1252,15 +1252,15 @@ static bool _on_swipe_back(eos_activity_t *act, lv_dir_t dir)
 /* ---------------------------------------------------------------- */
 /* App entry                                                         */
 /* ---------------------------------------------------------------- */
-void eos_dictionary_enter(void)
+void cos_dictionary_enter(void)
 {
-    static const eos_activity_lifecycle_t lifecycle = {
+    static const cos_activity_lifecycle_t lifecycle = {
         .on_enter = _on_enter,
         .on_destroy = _on_destroy,
         .on_swipe_back = _on_swipe_back,
     };
-    eos_activity_t *act = eos_activity_create(&lifecycle);
+    cos_activity_t *act = cos_activity_create(&lifecycle);
     if (!act) return;
-    eos_activity_set_type(act, EOS_ACTIVITY_TYPE_APP);
-    eos_activity_enter(act);
+    cos_activity_set_type(act, COS_ACTIVITY_TYPE_APP);
+    cos_activity_enter(act);
 }

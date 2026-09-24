@@ -1,5 +1,5 @@
 /**
- * @file eos_spotify.h
+ * @file cos_spotify.h
  * @brief Spotify App(USB UAC 耳机音乐播放器)。
  *
  * 交付批次:Batch 1 骨架(Batch 2/3/4 在本骨架内逐步填充)。
@@ -18,8 +18,8 @@
  *   - SD / USB PHY 互斥复用 USB MSC 已验证的 board_sd_* / usb_phy 机制;
  *   - 全仓新增点均由 CONFIG_USB_UAC_APP_ENABLE 包裹,关闭时产物与改动前一致。
  */
-#ifndef EOS_SPOTIFY_H
-#define EOS_SPOTIFY_H
+#ifndef COS_SPOTIFY_H
+#define COS_SPOTIFY_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,7 +31,7 @@ extern "C" {
  * @brief 进入 Spotify App(native app entry,由 App 列表点击触发)。
  * @note 必须在 LVGL(ui_task)上下文调用。
  */
-void eos_spotify_enter(void);
+void cos_spotify_enter(void);
 
 #endif /* CONFIG_USB_UAC_APP_ENABLE */
 
@@ -39,4 +39,4 @@ void eos_spotify_enter(void);
 }
 #endif
 
-#endif /* EOS_SPOTIFY_H */
+#endif /* COS_SPOTIFY_H */

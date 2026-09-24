@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
-# ElenixOS fork → 上传到你自己新建的 GitHub 仓库（绝不推官方 origin）
+# CantoMk6 fork → 上传到你自己新建的 GitHub 仓库（绝不推官方 origin）
 # 用法 (Git Bash):  bash publish.sh https://github.com/<你的用户名>/<仓库名>.git
 set -e
 
 REPO_URL="${1:-}"
 if [ -z "$REPO_URL" ]; then
   echo "用法: bash publish.sh <你的GitHub仓库URL>"
-  echo "示例: bash publish.sh https://github.com/alice/my-elenixos.git"
+  echo "示例: bash publish.sh https://github.com/alice/my-cantomk6os.git"
   exit 1
 fi
 
 # 安全护栏：禁止误推官方仓库
-if echo "$REPO_URL" | grep -qi "ElenixOS/ElenixOS"; then
-  echo "❌ 拒绝：检测到官方仓库地址 (github.com/ElenixOS/ElenixOS)。"
+if echo "$REPO_URL" | grep -qi "CantoMk6/CantoMk6"; then
+  echo "❌ 拒绝：检测到官方仓库地址 (github.com/CantoMk6/CantoMk6)。"
   echo "   请新建你自己的仓库，不要把 fork 推到官方。"
   exit 1
 fi
 
-# 切到仓库根（脚本应放在 ElenixOS 根目录）
+# 切到仓库根（脚本应放在 CantoMk6 根目录）
 cd "$(dirname "$0")"
 
 echo "[1/5] 清理嵌套仓库 cyberpunk2077-breach-protocol/.git (避免被当 submodule) ..."
@@ -42,4 +42,4 @@ echo "[4/5] 推送当前分支到 myfork (当前分支: $(git branch --show-curr
 git push -u myfork "$(git branch --show-current)"
 
 echo "[5/5] ✅ 完成。仓库已上传到: $REPO_URL"
-echo "      提示: 在 GitHub 仓库 About 注明 'Unofficial fork of ElenixOS'。"
+echo "      提示: 在 GitHub 仓库 About 注明 'Unofficial fork of CantoMk6'。"

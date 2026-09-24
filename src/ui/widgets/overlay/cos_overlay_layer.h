@@ -1,5 +1,5 @@
 /**
- * @file eos_overlay_layer.h
+ * @file cos_overlay_layer.h
  * @brief Layered overlay system on lv_layer_top()
  *
  * All layers are full-screen transparent containers with fixed sibling ordering.
@@ -20,8 +20,8 @@
  *   - App page is BELOW header/statusbar/notifications/indicators
  *   - Overlays cover everything naturally; no hide/show coordination needed
  */
-#ifndef EOS_OVERLAY_LAYER_H
-#define EOS_OVERLAY_LAYER_H
+#ifndef COS_OVERLAY_LAYER_H
+#define COS_OVERLAY_LAYER_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,50 +36,50 @@ extern "C" {
  * @brief Initialize the overlay layers on lv_layer_top()
  * @note Must be called once during system init, before app_header_init()
  */
-void eos_overlay_layer_init(void);
+void cos_overlay_layer_init(void);
 
 /**
  * @brief Get user top layer (layer 0 — bottommost, for future app-level overlays)
  */
-lv_obj_t *eos_overlay_get_user_top_layer(void);
+lv_obj_t *cos_overlay_get_user_top_layer(void);
 
 /**
  * @brief Get snapshot layer (layer 1 — transition snapshots, anim blockers)
  */
-lv_obj_t *eos_overlay_get_snapshot_layer(void);
+lv_obj_t *cos_overlay_get_snapshot_layer(void);
 
 /**
  * @brief Get app layer (layer 2 — current app page root, owned by App Manager)
  */
-lv_obj_t *eos_overlay_get_app_layer(void);
+lv_obj_t *cos_overlay_get_app_layer(void);
 
 /**
  * @brief Get header layer (layer 3 — app header)
  */
-lv_obj_t *eos_overlay_get_header_layer(void);
+lv_obj_t *cos_overlay_get_header_layer(void);
 
 /**
  * @brief Get notification layer (layer 4 — notification cards)
  */
-lv_obj_t *eos_overlay_get_notification_layer(void);
+lv_obj_t *cos_overlay_get_notification_layer(void);
 
 /**
  * @brief Get status bar layer (layer 5 — always-on status bar)
  */
-lv_obj_t *eos_overlay_get_statusbar_layer(void);
+lv_obj_t *cos_overlay_get_statusbar_layer(void);
 
 /**
  * @brief Get indicator layer (layer 6 — background app indicator icons)
  */
-lv_obj_t *eos_overlay_get_indicator_layer(void);
+lv_obj_t *cos_overlay_get_indicator_layer(void);
 
 /**
  * @brief Get overlay layer (layer 7 — topmost, for system overlays)
  */
-lv_obj_t *eos_overlay_get_overlay_layer(void);
+lv_obj_t *cos_overlay_get_overlay_layer(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EOS_OVERLAY_LAYER_H */
+#endif /* COS_OVERLAY_LAYER_H */

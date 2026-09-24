@@ -5,10 +5,10 @@
 //       装饰容器禁滚；timer≥30ms；anim 全池化（LVGL timer/overlay 步进）；事件 PRESSED；
 //       行宽 ≤ min(chord顶,chord底)−16。
 
-var activity = eos.activity.current();
-var view = eos.activity.getView(activity);
-eos.activity.setTitle(activity, "入侵协议");
-eos.activity.setAppHeaderVisible(activity, false);
+var activity = cos.activity.current();
+var view = cos.activity.getView(activity);
+cos.activity.setTitle(activity, "入侵协议");
+cos.activity.setAppHeaderVisible(activity, false);
 
 var BG     = 0x050508;   // 底
 var YELLOW = 0xFCEE0A;   // 主黄
@@ -19,10 +19,10 @@ var PANEL  = 0x111115;   // 矩阵/面板底（仓库矩阵底）
 
 function hex(v) { return lv.color.hex(v); }
 
-// 捕获 eos 日志句柄（加载期 eos 可解析；计时器/事件回调上下文里全局 eos 可能不可解析，
-// 故在加载期绑定闭包变量 LOG，避免回调里 "eos is not defined" 级联）。
+// 捕获 cos 日志句柄（加载期 cos 可解析；计时器/事件回调上下文里全局 cos 可能不可解析，
+// 故在加载期绑定闭包变量 LOG，避免回调里 "cos is not defined" 级联）。
 var LOG = function (m) {};
-try { var _eos = eos; LOG = function (m) { try { _eos.console.log(m); } catch (e2) {} }; } catch (e) {}
+try { var _cos = cos; LOG = function (m) { try { _cos.console.log(m); } catch (e2) {} }; } catch (e) {}
 
 // ===================== 红线：所有 lv.timer 回调首行包 try/catch =====================
 // 单点缺符号不再脑死亡全引擎（state=3 全拒收 → 卡死）。
@@ -32,7 +32,7 @@ function safeTimer(cb, period, data) {
         try { cb(); }
         catch (e) {
             if (typeof R !== "undefined" && R) R.jerryErrors++;
-            // 计时器回调上下文里全局 eos 可能不可解析；用加载期捕获的 LOG（闭包绑定），绝不依赖回调内全局 eos
+            // 计时器回调上下文里全局 cos 可能不可解析；用加载期捕获的 LOG（闭包绑定），绝不依赖回调内全局 cos
             LOG("[breach-err] timer cb error: " + (e && e.message ? e.message : String(e)));
         }
     }, period, data);
@@ -557,7 +557,7 @@ function newGame() {
     R.config = cfg;
     applyLayout();                       // 重排矩阵/缓冲槽/目标序列（等级切换时生效）
     var tt = null;
-    try { tt = eos.time.getNow(); } catch (e) { tt = null; }
+    try { tt = cos.time.getNow(); } catch (e) { tt = null; }
     var seed = tt ? ((tt.sec * 1000 + tt.ms + state.round * 2654435761) >>> 0)
                   : ((state.round * 2654435761 + 12345) >>> 0);
     var rng = mulberry32(seed);

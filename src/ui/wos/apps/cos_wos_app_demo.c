@@ -1,14 +1,14 @@
 /**
- * @file eos_wos_app_demo.c
+ * @file cos_wos_app_demo.c
  * @brief WOS demo app — validates the framework:
  *   flex layout, glass cards, ledger timer, clean teardown.
  */
-#include "eos_wos.h"
-#include "eos_log.h"
-#include "eos_mem.h"
+#include "cos_wos.h"
+#include "cos_log.h"
+#include "cos_mem.h"
 #include <stdio.h>
 
-#define EOS_LOG_TAG "WosDemo"
+#define COS_LOG_TAG "WosDemo"
 
 typedef struct
 {
@@ -18,7 +18,7 @@ typedef struct
 
 static void _tick_cb(lv_timer_t *tm)
 {
-    eos_wos_app_t *app = (eos_wos_app_t *)lv_timer_get_user_data(tm);
+    cos_wos_app_t *app = (cos_wos_app_t *)lv_timer_get_user_data(tm);
     if (!app || !app->user_data)
         return;
     demo_ctx_t *ctx = (demo_ctx_t *)app->user_data;
@@ -30,7 +30,7 @@ static void _tick_cb(lv_timer_t *tm)
     lv_label_set_text(ctx->counter_label, buf);
 }
 
-static void _demo_build(eos_wos_app_t *app)
+static void _demo_build(cos_wos_app_t *app)
 {
     /* page root: full-screen flex column, safe area reserved */
     lv_obj_t *root = app->root;
@@ -40,7 +40,7 @@ static void _demo_build(eos_wos_app_t *app)
     lv_obj_set_style_pad_hor(root, 16, 0);
     lv_obj_set_style_pad_row(root, 10, 0);
 
-    demo_ctx_t *ctx = (demo_ctx_t *)eos_malloc(sizeof(demo_ctx_t));
+    demo_ctx_t *ctx = (demo_ctx_t *)cos_malloc(sizeof(demo_ctx_t));
     ctx->ticks = 0;
     ctx->counter_label = NULL;
     app->user_data = ctx;
@@ -85,21 +85,21 @@ static void _demo_build(eos_wos_app_t *app)
     wos_app_timer(app, _tick_cb, 1000, app);
 }
 
-static void _demo_destroy(eos_wos_app_t *app)
+static void _demo_destroy(cos_wos_app_t *app)
 {
     if (app->user_data)
-        eos_free(app->user_data);
+        cos_free(app->user_data);
     app->user_data = NULL;
 }
 
-static const eos_wos_app_desc_t s_demo_desc = {
+static const cos_wos_app_desc_t s_demo_desc = {
     .id = "demo",
     .name = "Demo",
     .build = _demo_build,
     .destroy = _demo_destroy,
 };
 
-const eos_wos_app_desc_t *wos_demo_app_get_desc(void)
+const cos_wos_app_desc_t *wos_demo_app_get_desc(void)
 {
     return &s_demo_desc;
 }

@@ -1,15 +1,15 @@
-# ElenixOS ESP32-S3 main 组件
+# CantoMk6 ESP32-S3 main 组件
 #
 # 架构决策(2026-08-22 编译反馈后修正):
-#   ElenixOS Core 与 script engine 强耦合(eos_core.c / apps / widgets /
+#   CantoMk6 Core 与 script engine 强耦合(cos_core.c / apps / widgets /
 #   basic_widgets 均 #include script_engine_core.h → jerryscript.h),
 #   排除法行不通。改为:全量编译 src/ + JerryScript(jerry-core/ext/port),
 #   仅排除模拟器专属文件。
 
-set(EOS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
+set(COS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
 
 # microlink(Tailscale/WireGuard 客户端组件)目录存在时才作为依赖引入
-set(MICROLINK_COMPONENT_DIR "${EOS_ROOT}/microlink/components")
+set(MICROLINK_COMPONENT_DIR "${COS_ROOT}/microlink/components")
 set(MAIN_REQUIRES
     bt
     driver
@@ -33,7 +33,7 @@ endif()
 #   功能本身是"运行时 App"(用户从 App 列表打开/关闭),此处宏仅用于
 #   "完全移除该 App":把下面 1 改成 0 后,编译产物与改动前功能一致。
 #   TinyUSB 来自 espressif/tinyusb 托管组件(CMake 组件名 espressif__tinyusb,
-#   双下划线)。main 需 REQUIRES 它才能编译 eos_usb_msc_descriptors.c(tusb.h)。
+#   双下划线)。main 需 REQUIRES 它才能编译 cos_usb_msc_descriptors.c(tusb.h)。
 #
 #   关键:tusb_config.h 在 main 组件内,tinyusb 私有源文件(tusb_option.h:269)
 #   用 #include "tusb_config.h" 局部查找,只走 tinyusb 自己的 PRIV include +
@@ -43,8 +43,8 @@ endif()
 #   路径继承。该宏必须在 project() 之后的全局作用域定义(见
 #   port/esp32s3/CMakeLists.txt 的 add_compile_definitions),因为本文件处于
 #   组件的 requirements 解析阶段,不能调用 add_compile_definitions。
-set(EOS_USB_MSC_APP_ENABLE 1 CACHE STRING "Enable USB MSC App (1=on, 0=off)")
-if(EOS_USB_MSC_APP_ENABLE)
+set(COS_USB_MSC_APP_ENABLE 1 CACHE STRING "Enable USB MSC App (1=on, 0=off)")
+if(COS_USB_MSC_APP_ENABLE)
     # espressif__tinyusb 自身只 REQUIRES freertos,不含 usb/hal;而方案 B 需要:
     #   usb → esp_private/usb_phy.h(usb_new_phy / usb_del_phy)
     #   hal → hal/usb_serial_jtag_ll.h(退出时把内部 PHY 还给 USB-Serial-JTAG)
@@ -57,8 +57,8 @@ endif()
 #   注意:不复用 CONFIG_USB_MSC_APP_ENABLE —— 否则关掉 Spotify 会顺带
 #   删掉 U 盘功能,违反最小影响原则。二者各自独立。
 #   TinyUSB Host 侧(Audio 类)复用同一 espressif__tinyusb 组件。
-set(EOS_USB_UAC_APP_ENABLE 1 CACHE STRING "Enable USB UAC Spotify App (1=on, 0=off)")
-if(EOS_USB_UAC_APP_ENABLE)
+set(COS_USB_UAC_APP_ENABLE 1 CACHE STRING "Enable USB UAC Spotify App (1=on, 0=off)")
+if(COS_USB_UAC_APP_ENABLE)
     # UAC Host 需要 usb(usb_new_phy) + hal(PHY 归还);tinyusb 已在 MSC 分支
     # 或此处至少加入一次,重复 append 由 list 去重语义容忍(idf 内部会去重)。
     list(APPEND MAIN_REQUIRES espressif__tinyusb usb hal)
@@ -67,126 +67,126 @@ endif()
 # ── ProfMonitor App(资源占用率监视器) ───────────────────────
 #   功能本身是“运行时 App”(用户从 App 列表打开/关闭)。此处宏仅用于
 #   “完全移除该 App”:把下面 1 改成 0 后,不编译任何相关代码,产物与改动前一致。
-set(EOS_PROFMONITOR_APP_ENABLE 1 CACHE STRING "Enable ProfMonitor App (1=on, 0=off)")
+set(COS_PROFMONITOR_APP_ENABLE 1 CACHE STRING "Enable ProfMonitor App (1=on, 0=off)")
 
 idf_component_register(
     SRCS
         "main.c"
-        "eos_bt_esp32.c"
-        "eos_dev_display_gc9a01.c"
-        "eos_dev_touch_chsc6x.c"
-        "eos_dev_rtc_bm8563.c"
-        "eos_mem_align.c"
-        "eos_net_wifi_esp32.c"
+        "cos_bt_esp32.c"
+        "cos_dev_display_gc9a01.c"
+        "cos_dev_touch_chsc6x.c"
+        "cos_dev_rtc_bm8563.c"
+        "cos_mem_align.c"
+        "cos_net_wifi_esp32.c"
         # TinyUSB 用户端 USB 描述符回调(组件要求用户提供;MSC 单接口)
-        "eos_usb_msc_descriptors.c"
-        "${EOS_ROOT}/resources/images/icon/eos_icon_delete.c"
-        "${EOS_ROOT}/resources/images/icon/eos_icon_fm.c"
-        "${EOS_ROOT}/resources/images/icon/eos_icon_star.c"
-        "${EOS_ROOT}/resources/images/icon/eos_icon_search.c"
+        "cos_usb_msc_descriptors.c"
+        "${COS_ROOT}/resources/images/icon/cos_icon_delete.c"
+        "${COS_ROOT}/resources/images/icon/cos_icon_fm.c"
+        "${COS_ROOT}/resources/images/icon/cos_icon_star.c"
+        "${COS_ROOT}/resources/images/icon/cos_icon_search.c"
     INCLUDE_DIRS
         "."
-        "${EOS_ROOT}/third_party/cJSON"
+        "${COS_ROOT}/third_party/cJSON"
     REQUIRES
         ${MAIN_REQUIRES}
 )
 
-# ── ElenixOS Core 全部源文件(仅排除模拟器专属) ──────────
-file(GLOB_RECURSE EOS_CORE_SRCS CONFIGURE_DEPENDS "${EOS_ROOT}/src/**/*.c")
-list(FILTER EOS_CORE_SRCS EXCLUDE REGEX ".*eos_sim_hw_mock\\.c$")
-list(FILTER EOS_CORE_SRCS EXCLUDE REGEX ".*eos_virtual_display\\.c$")
-list(FILTER EOS_CORE_SRCS EXCLUDE REGEX ".*eos_net_sock_sim\\.c$")
+# ── CantoMk6 Core 全部源文件(仅排除模拟器专属) ──────────
+file(GLOB_RECURSE COS_CORE_SRCS CONFIGURE_DEPENDS "${COS_ROOT}/src/**/*.c")
+list(FILTER COS_CORE_SRCS EXCLUDE REGEX ".*cos_sim_hw_mock\\.c$")
+list(FILTER COS_CORE_SRCS EXCLUDE REGEX ".*cos_virtual_display\\.c$")
+list(FILTER COS_CORE_SRCS EXCLUDE REGEX ".*cos_net_sock_sim\\.c$")
 
 # ── cJSON(源码直接编入,根 CMake 用静态库) ──────────────
-set(CJSON_SRCS "${EOS_ROOT}/third_party/cJSON/cJSON.c")
+set(CJSON_SRCS "${COS_ROOT}/third_party/cJSON/cJSON.c")
 
 # ── JerryScript(jerry-core / jerry-ext / 默认 port) ─────
-#   jerry_port.c(ElenixOS 自定义)已在 EOS_CORE_SRCS 中
+#   jerry_port.c(CantoMk6 自定义)已在 COS_CORE_SRCS 中
 #   jerry-port/common + unix 提供 context/fs/date(ESP-IDF VFS/newlib 兼容)
-file(GLOB_RECURSE JERRY_CORE_SRCS CONFIGURE_DEPENDS "${EOS_ROOT}/third_party/jerryscript/jerry-core/**/*.c")
-file(GLOB_RECURSE JERRY_EXT_SRCS  CONFIGURE_DEPENDS "${EOS_ROOT}/third_party/jerryscript/jerry-ext/**/*.c")
+file(GLOB_RECURSE JERRY_CORE_SRCS CONFIGURE_DEPENDS "${COS_ROOT}/third_party/jerryscript/jerry-core/**/*.c")
+file(GLOB_RECURSE JERRY_EXT_SRCS  CONFIGURE_DEPENDS "${COS_ROOT}/third_party/jerryscript/jerry-ext/**/*.c")
 # 排除 debugger 扩展(未启用,且依赖 socket)
 list(FILTER JERRY_EXT_SRCS EXCLUDE REGEX ".*/jerry-ext/debugger/.*")
 # 排除平台无关的测试工具
 list(FILTER JERRY_EXT_SRCS EXCLUDE REGEX ".*test262\\.c$")
 list(FILTER JERRY_EXT_SRCS EXCLUDE REGEX ".*repl\\.c$")
 set(JERRY_PORT_SRCS
-    "${EOS_ROOT}/third_party/jerryscript/jerry-port/common/jerry-port-context.c"
-    "${EOS_ROOT}/third_party/jerryscript/jerry-port/common/jerry-port-fs.c"
-    "${EOS_ROOT}/third_party/jerryscript/jerry-port/common/jerry-port-io.c"
-    "${EOS_ROOT}/third_party/jerryscript/jerry-port/common/jerry-port-process.c"
-    "${EOS_ROOT}/third_party/jerryscript/jerry-port/unix/jerry-port-unix-date.c"
-    "${EOS_ROOT}/third_party/jerryscript/jerry-port/unix/jerry-port-unix-fs.c"
+    "${COS_ROOT}/third_party/jerryscript/jerry-port/common/jerry-port-context.c"
+    "${COS_ROOT}/third_party/jerryscript/jerry-port/common/jerry-port-fs.c"
+    "${COS_ROOT}/third_party/jerryscript/jerry-port/common/jerry-port-io.c"
+    "${COS_ROOT}/third_party/jerryscript/jerry-port/common/jerry-port-process.c"
+    "${COS_ROOT}/third_party/jerryscript/jerry-port/unix/jerry-port-unix-date.c"
+    "${COS_ROOT}/third_party/jerryscript/jerry-port/unix/jerry-port-unix-fs.c"
 )
 
 # ── 字体:内置 C 字体编译进 Flash(XIP 映射,不占 PSRAM) ──
-#    EOS_FONT_C_MULTI 模式(eos_platform_config.h 强制)下,eos_font_c_multi.c 依赖
-#    eos_font_jbm_{16,20,26,30}(JetBrains Mono,ASCII/拉丁/箭头,共 ~600KB)。
-#    fallback 链:jbm_16 -> han_sans_16 -> eos_font_icon;jbm_20 -> han_sans_22 -> eos_font_icon;
-#    jbm_26/30 -> eos_font_icon。
+#    COS_FONT_C_MULTI 模式(cos_platform_config.h 强制)下,cos_font_c_multi.c 依赖
+#    cos_font_jbm_{16,20,26,30}(JetBrains Mono,ASCII/拉丁/箭头,共 ~600KB)。
+#    fallback 链:jbm_16 -> han_sans_16 -> cos_font_icon;jbm_20 -> han_sans_22 -> cos_font_icon;
+#    jbm_26/30 -> cos_font_icon。
 
 target_sources(${COMPONENT_LIB} PRIVATE
-    ${EOS_CORE_SRCS}
+    ${COS_CORE_SRCS}
     ${CJSON_SRCS}
     ${JERRY_CORE_SRCS}
     ${JERRY_EXT_SRCS}
     ${JERRY_PORT_SRCS}
-    # 内置 C 字体(EOS_FONT_C_MULTI 必需)
+    # 内置 C 字体(COS_FONT_C_MULTI 必需)
     # 小字号:jbm_10(≤10px)/jbm_13(11..13px),fallback han_sans_16(常用字子集)
     # 中档:jbm_16(16..17px)/jbm_18(18..19px)/jbm_20(20..21px)/jbm_22(22..25px)/jbm_26(26..29px)/jbm_30(≥30px)
-    "${EOS_ROOT}/resources/font/eos_font_jbm_10.c"
-    "${EOS_ROOT}/resources/font/eos_font_jbm_13.c"
-    "${EOS_ROOT}/resources/font/eos_font_jbm_16.c"
-    "${EOS_ROOT}/resources/font/eos_font_jbm_18.c"
-    "${EOS_ROOT}/resources/font/eos_font_jbm_20.c"
-    "${EOS_ROOT}/resources/font/eos_font_jbm_22.c"
-    "${EOS_ROOT}/resources/font/eos_font_jbm_26.c"
-    "${EOS_ROOT}/resources/font/eos_font_jbm_30.c"
+    "${COS_ROOT}/resources/font/cos_font_jbm_10.c"
+    "${COS_ROOT}/resources/font/cos_font_jbm_13.c"
+    "${COS_ROOT}/resources/font/cos_font_jbm_16.c"
+    "${COS_ROOT}/resources/font/cos_font_jbm_18.c"
+    "${COS_ROOT}/resources/font/cos_font_jbm_20.c"
+    "${COS_ROOT}/resources/font/cos_font_jbm_22.c"
+    "${COS_ROOT}/resources/font/cos_font_jbm_26.c"
+    "${COS_ROOT}/resources/font/cos_font_jbm_30.c"
     # 10px 中文子集字体(jbm_10 的 fallback,GB2312 一级 3755 字,约 0.32MB flash)
-    "${EOS_ROOT}/resources/font/eos_font_han_sans_10.c"
+    "${COS_ROOT}/resources/font/cos_font_han_sans_10.c"
     # 13px 中文子集字体(jbm_13 的 fallback,GB2312 一级 3755 字,约 0.54MB flash)
-    "${EOS_ROOT}/resources/font/eos_font_han_sans_13.c"
-    # 中文子集字体(eos_font_jbm_22 的 fallback,GB2312 全量,约 1MB)
-    "${EOS_ROOT}/resources/font/eos_font_han_sans_22.c"
+    "${COS_ROOT}/resources/font/cos_font_han_sans_13.c"
+    # 中文子集字体(cos_font_jbm_22 的 fallback,GB2312 全量,约 1MB)
+    "${COS_ROOT}/resources/font/cos_font_han_sans_22.c"
     # 16px 中文子集字体(表盘 hint 轮播,177 字符,fallback han_sans_22 兜底)
-    "${EOS_ROOT}/resources/font/eos_font_han_sans_16.c"
+    "${COS_ROOT}/resources/font/cos_font_han_sans_16.c"
     # 图标字体子集(RI_*/LV_SYMBOL_* 字符,jbm/han_sans 的 fallback,约 90KB)
-    "${EOS_ROOT}/resources/font/eos_font_icon.c"
-    # 全量 Remix 图标字体(30px,eos_font.h 的 EOS_FONT_ICON 宏引用,app 页翻页箭头等)
+    "${COS_ROOT}/resources/font/cos_font_icon.c"
+    # 全量 Remix 图标字体(30px,cos_font.h 的 COS_FONT_ICON 宏引用,app 页翻页箭头等)
     #   源码约 6MB,编译进 flash 约 700-800KB(factory 5.94MB,余量 1.87MB,可容纳)
-    "${EOS_ROOT}/resources/font/RemixIcon.c"
+    "${COS_ROOT}/resources/font/RemixIcon.c"
     # Control Center 彩色图标(webp 转换的 ARGB8888 静态图)
-    "${EOS_ROOT}/resources/images/icon/eos_icon_bluetooth.c"
-    "${EOS_ROOT}/resources/images/icon/eos_icon_wifi.c"
-    "${EOS_ROOT}/resources/images/icon/eos_icon_torch.c"
-    "${EOS_ROOT}/resources/images/icon/eos_icon_powersave.c"
-    "${EOS_ROOT}/resources/images/icon/eos_icon_beastmode.c"
-    "${EOS_ROOT}/resources/images/icon/eos_icon_setting.c"
-    "${EOS_ROOT}/resources/images/icon/eos_icon_devmode.c"
-    "${EOS_ROOT}/resources/images/icon/eos_icon_settings_apps.c"
-    "${EOS_ROOT}/resources/images/icon/eos_icon_bootanim.c"
+    "${COS_ROOT}/resources/images/icon/cos_icon_bluetooth.c"
+    "${COS_ROOT}/resources/images/icon/cos_icon_wifi.c"
+    "${COS_ROOT}/resources/images/icon/cos_icon_torch.c"
+    "${COS_ROOT}/resources/images/icon/cos_icon_powersave.c"
+    "${COS_ROOT}/resources/images/icon/cos_icon_beastmode.c"
+    "${COS_ROOT}/resources/images/icon/cos_icon_setting.c"
+    "${COS_ROOT}/resources/images/icon/cos_icon_devmode.c"
+    "${COS_ROOT}/resources/images/icon/cos_icon_settings_apps.c"
+    "${COS_ROOT}/resources/images/icon/cos_icon_bootanim.c"
     # Settings 页面图标(wireguard.webp 普通转换; pwd.webp 白色抠图生成)
-    "${EOS_ROOT}/resources/images/icon/eos_icon_wireguard.c"
-    "${EOS_ROOT}/resources/images/icon/eos_icon_pwd.c"
+    "${COS_ROOT}/resources/images/icon/cos_icon_wireguard.c"
+    "${COS_ROOT}/resources/images/icon/cos_icon_pwd.c"
 )
 
 # ── Include 目录(复刻根 CMakeLists.txt:所有含头文件的目录) ──
-file(GLOB_RECURSE EOS_HEADER_FILES "${EOS_ROOT}/src/**/*.h")
-set(EOS_INC_DIRS "${EOS_ROOT}/src" "${EOS_ROOT}/resources")
-foreach(h ${EOS_HEADER_FILES})
+file(GLOB_RECURSE COS_HEADER_FILES "${COS_ROOT}/src/**/*.h")
+set(COS_INC_DIRS "${COS_ROOT}/src" "${COS_ROOT}/resources")
+foreach(h ${COS_HEADER_FILES})
     get_filename_component(dir ${h} DIRECTORY)
-    list(APPEND EOS_INC_DIRS ${dir})
+    list(APPEND COS_INC_DIRS ${dir})
 endforeach()
-list(REMOVE_DUPLICATES EOS_INC_DIRS)
+list(REMOVE_DUPLICATES COS_INC_DIRS)
 
 # ── JerryScript:内部使用无前缀平铺 include(如 "lit-globals.h"),
 #    必须把 jerry-core/ext/port 下所有含头文件的子目录全部加入 include 路径 ──
 file(GLOB_RECURSE JERRY_HEADER_FILES
-    "${EOS_ROOT}/third_party/jerryscript/jerry-core/**/*.h"
-    "${EOS_ROOT}/third_party/jerryscript/jerry-ext/**/*.h"
-    "${EOS_ROOT}/third_party/jerryscript/jerry-port/**/*.h"
+    "${COS_ROOT}/third_party/jerryscript/jerry-core/**/*.h"
+    "${COS_ROOT}/third_party/jerryscript/jerry-ext/**/*.h"
+    "${COS_ROOT}/third_party/jerryscript/jerry-port/**/*.h"
 )
-set(JERRY_INC_DIRS "${EOS_ROOT}/third_party/jerryscript")
+set(JERRY_INC_DIRS "${COS_ROOT}/third_party/jerryscript")
 foreach(h ${JERRY_HEADER_FILES})
     get_filename_component(dir ${h} DIRECTORY)
     list(APPEND JERRY_INC_DIRS ${dir})
@@ -194,29 +194,29 @@ endforeach()
 list(REMOVE_DUPLICATES JERRY_INC_DIRS)
 
 target_include_directories(${COMPONENT_LIB} PUBLIC
-    ${EOS_INC_DIRS}
-    "${EOS_ROOT}/third_party"
-    "${EOS_ROOT}/third_party/lvgl"
-    "${EOS_ROOT}/third_party/lvgl/src"
+    ${COS_INC_DIRS}
+    "${COS_ROOT}/third_party"
+    "${COS_ROOT}/third_party/lvgl"
+    "${COS_ROOT}/third_party/lvgl/src"
     ${JERRY_INC_DIRS}
     # jerry-core 根目录含 config.h 模板,必须显式加入
-    "${EOS_ROOT}/third_party/jerryscript/jerry-core"
-    "${EOS_ROOT}/third_party/jerryscript/jerry-core/include"
-    "${EOS_ROOT}/third_party/jerryscript/jerry-ext"
-    "${EOS_ROOT}/third_party/jerryscript/jerry-ext/include"
-    "${EOS_ROOT}/third_party/jerryscript/jerry-port"
-    "${EOS_ROOT}/third_party/cJSON"
+    "${COS_ROOT}/third_party/jerryscript/jerry-core"
+    "${COS_ROOT}/third_party/jerryscript/jerry-core/include"
+    "${COS_ROOT}/third_party/jerryscript/jerry-ext"
+    "${COS_ROOT}/third_party/jerryscript/jerry-ext/include"
+    "${COS_ROOT}/third_party/jerryscript/jerry-port"
+    "${COS_ROOT}/third_party/cJSON"
 )
 
 # ── 编译定义 ────────────────────────────────────────────
 target_compile_definitions(${COMPONENT_LIB} PUBLIC
-    EOS_PLATFORM_ESP32=1
-    EOSUSE_VIRTUAL_DISPLAY=0
-    EOS_SIMULATOR=0
+    COS_PLATFORM_ESP32=1
+    COSUSE_VIRTUAL_DISPLAY=0
+    COS_SIMULATOR=0
     LV_CONF_INCLUDE_SIMPLE=1
     LV_KCONFIG_IGNORE=1
-    # 注意:不用 -D 定义 EOS_SYS_ROOT_DIR。
-    # 由 eos_platform_config.h 定义为 "/sdcard"(真机 SD 挂载点),
+    # 注意:不用 -D 定义 COS_SYS_ROOT_DIR。
+    # 由 cos_platform_config.h 定义为 "/sdcard"(真机 SD 挂载点),
     # -D 会先于 #ifndef 生效导致覆盖错误。
     # JerryScript 配置(对齐根 CMakeLists.txt)
     JERRY_VM_HALT=1
@@ -239,25 +239,25 @@ target_compile_definitions(${COMPONENT_LIB} PUBLIC
     JERRY_EXTERNAL_CONTEXT=1
     JERRY_CPOINTER_32_BIT=1
 )
-# microlink 已接入 → eos_net_vpn.c 编译真机驱动路径(目录存在时才启用)
+# microlink 已接入 → cos_net_vpn.c 编译真机驱动路径(目录存在时才启用)
 if(EXISTS "${MICROLINK_COMPONENT_DIR}")
-    target_compile_definitions(${COMPONENT_LIB} PUBLIC EOS_HAVE_MICROLINK=1)
+    target_compile_definitions(${COMPONENT_LIB} PUBLIC COS_HAVE_MICROLINK=1)
 endif()
 
 # ── USB MSC App:编译宏 + 图标资源 ─────────────────────────
 #   全仓所有新增/修改点均由 CONFIG_USB_MSC_APP_ENABLE 包裹;
 #   关闭时(上面 set 改 0)不编译任何相关代码与图标,产物与改动前一致。
-if(EOS_USB_MSC_APP_ENABLE)
+if(COS_USB_MSC_APP_ENABLE)
     target_compile_definitions(${COMPONENT_LIB} PUBLIC CONFIG_USB_MSC_APP_ENABLE=1)
     target_sources(${COMPONENT_LIB} PRIVATE
         # App 图标 / 成功图标 / 失败图标(LVGL ARGB8888,编译进 Flash)
-        "${EOS_ROOT}/resources/images/icon/eos_icon_usb_msc.c"
-        "${EOS_ROOT}/resources/images/icon/eos_icon_usb_ok.c"
-        "${EOS_ROOT}/resources/images/icon/eos_icon_usb_err.c"
+        "${COS_ROOT}/resources/images/icon/cos_icon_usb_msc.c"
+        "${COS_ROOT}/resources/images/icon/cos_icon_usb_ok.c"
+        "${COS_ROOT}/resources/images/icon/cos_icon_usb_err.c"
     )
-    # 强制提取 eos_usb_msc_descriptors.c.obj(与文件末尾 BT 后端那条 -u 同理)。
+    # 强制提取 cos_usb_msc_descriptors.c.obj(与文件末尾 BT 后端那条 -u 同理)。
     # 原因:libmain.a 在整个链接里只被扫描一次,且早于 usbd.c.obj 被提取
-    # (usbd.c 只因 eos_usb_msc_drv.c 引用 tud_task_ext 才被拉入,这发生在
+    # (usbd.c 只因 cos_usb_msc_drv.c 引用 tud_task_ext 才被拉入,这发生在
     #  第二次扫描 libespressif__tinyusb.a 时)。若不预先把这几个符号标为
     # 未定义,ld 扫 libmain.a 时不会回头提取描述符目标文件,usbd.c 对
     # tud_descriptor_*_cb 的引用就会 undefined reference。
@@ -272,24 +272,24 @@ endif()
 #   全仓所有新增点由 CONFIG_PROFMONITOR_APP_ENABLE 包裹;关闭(上面 set 改 0)时
 #   不编译任何相关代码,产物与改动前一致。App 源文件由 src/**/*.c 通配自动编入,
 #   图标走 sdcard/theme/icons/profmonitor.bin(SD 加载,无需编入 Flash)。
-if(EOS_PROFMONITOR_APP_ENABLE)
+if(COS_PROFMONITOR_APP_ENABLE)
     target_compile_definitions(${COMPONENT_LIB} PUBLIC CONFIG_PROFMONITOR_APP_ENABLE=1)
 endif()
 
 # ── Spotify App:编译宏 + 图标资源 ──────────────────────────
 #   全仓所有新增/修改点均由 CONFIG_USB_UAC_APP_ENABLE 包裹;
 #   关闭时(上面 set 改 0)不编译任何相关代码与图标,产物与改动前一致。
-if(EOS_USB_UAC_APP_ENABLE)
+if(COS_USB_UAC_APP_ENABLE)
     target_compile_definitions(${COMPONENT_LIB} PUBLIC CONFIG_USB_UAC_APP_ENABLE=1)
     # minimp3(单头文件 MP3 解码器,CC0)位于 App 自己的 third_party/。
     # 不放进全局 third_party/,保持 App 自包含以便整体移除。
     target_include_directories(${COMPONENT_LIB} PRIVATE
-        "${EOS_ROOT}/src/apps/spotify/third_party"
+        "${COS_ROOT}/src/apps/spotify/third_party"
     )
     target_sources(${COMPONENT_LIB} PRIVATE
         # App 图标(36x36) / 耳机失败图标(94x94),LVGL ARGB8888 编译进 Flash
-        "${EOS_ROOT}/resources/images/icon/eos_icon_spotify.c"
-        "${EOS_ROOT}/resources/images/icon/eos_icon_earphone_err.c"
+        "${COS_ROOT}/resources/images/icon/cos_icon_spotify.c"
+        "${COS_ROOT}/resources/images/icon/cos_icon_earphone_err.c"
     )
 
     # ── TinyUSB Host 栈源文件(组件 CMakeLists.txt 未包含) ──────
@@ -303,7 +303,7 @@ if(EOS_USB_UAC_APP_ENABLE)
     #     src/host/hub.c             根 hub / 设备树(hub.c 被 usbh.c 引用)
     #     src/portable/synopsys/dwc2/hcd_dwc2.c   Host 控制器驱动
     #   共用源(tusb.c / tusb_fifo.c / dwc2_common.c)已由组件编译。
-    set(TINYUSB_DIR "${EOS_ROOT}/port/esp32s3/managed_components/espressif__tinyusb")
+    set(TINYUSB_DIR "${COS_ROOT}/port/esp32s3/managed_components/espressif__tinyusb")
     if(EXISTS "${TINYUSB_DIR}/src/host/usbh.c")
         target_sources(${COMPONENT_LIB} PRIVATE
             "${TINYUSB_DIR}/src/host/usbh.c"
@@ -330,22 +330,22 @@ if(EOS_USB_UAC_APP_ENABLE)
             "-Wl,-u,usbh_app_driver_get_cb"
         )
     else()
-        message(WARNING "[ElenixOS] TinyUSB Host sources not found; Spotify UAC will not link")
+        message(WARNING "[CantoMk6] TinyUSB Host sources not found; Spotify UAC will not link")
     endif()
 endif()
 
 # ── 链接:--wrap 重定向 malloc/free/realloc/calloc 到 8 字节对齐实现 ──
 #   ESP-IDF malloc 仅 4 字节对齐;JerryScript JERRY_CPOINTER_32_BIT 要求
-#   JMEM_ALIGNMENT(8) 对齐(eos_mem_align.c 提供 __wrap_* 实现)
+#   JMEM_ALIGNMENT(8) 对齐(cos_mem_align.c 提供 __wrap_* 实现)
 target_link_options(${COMPONENT_LIB} INTERFACE
     "-Wl,--wrap=malloc"
     "-Wl,--wrap=free"
     "-Wl,--wrap=realloc"
     "-Wl,--wrap=calloc"
-    # 强制提取 eos_bt_esp32.c.obj(strong 后端)。
-    # GNU ld 单遍扫描 libmain.a 时,strong 定义排在引用者(eos_net_bt.c.obj)
+    # 强制提取 cos_bt_esp32.c.obj(strong 后端)。
+    # GNU ld 单遍扫描 libmain.a 时,strong 定义排在引用者(cos_net_bt.c.obj)
     # 之前不会被提取,导致 weak stub 胜出、NimBLE 依赖链未被拉入。
-    "-Wl,-u,eos_net_bt_backend_set_enabled"
+    "-Wl,-u,cos_net_bt_backend_set_enabled"
 )
 
 # ── 警告抑制(原项目源码在 xtensa GCC 下,不改原代码) ──────

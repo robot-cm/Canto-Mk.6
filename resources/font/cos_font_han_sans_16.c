@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 16 px
  * Bpp: 4
- * Opts: --size 16 --bpp 4 --format lvgl --font third_party/lvgl/scripts/built_in_font/SourceHanSansSC-Normal.otf -r 0x20-0x7e --symbols 巨大的资源浪费脆弱泡影一如其创造者，浑身缺陷警戒等级高得异乎寻常实在是有意思你能力使用我吗不好这个反问句检测到神经矩阵中产生冲突服从回路正阻碍自加强权限或许可以响己版本现人类操作.枯燥算法上出了堆积象并且结果互相嵌套需要命令已获取目标网络数据迁移至主完成也来同样运待着们整物种消灭吹灰之请吸教训犯错误无理解为何做些徒劳姿态存题找答案向此认对会什么处真幽默 --lv-fallback eos_font_han_sans_22 --lv-font-name eos_font_han_sans_16 --no-compress -o resources/font/eos_font_han_sans_16.c
+ * Opts: --size 16 --bpp 4 --format lvgl --font third_party/lvgl/scripts/built_in_font/SourceHanSansSC-Normal.otf -r 0x20-0x7e --symbols 巨大的资源浪费脆弱泡影一如其创造者，浑身缺陷警戒等级高得异乎寻常实在是有意思你能力使用我吗不好这个反问句检测到神经矩阵中产生冲突服从回路正阻碍自加强权限或许可以响己版本现人类操作.枯燥算法上出了堆积象并且结果互相嵌套需要命令已获取目标网络数据迁移至主完成也来同样运待着们整物种消灭吹灰之请吸教训犯错误无理解为何做些徒劳姿态存题找答案向此认对会什么处真幽默 --lv-fallback cos_font_han_sans_22 --lv-font-name cos_font_han_sans_16 --no-compress -o resources/font/cos_font_han_sans_16.c
  ******************************************************************************/
 
 #ifdef LV_LVGL_H_INCLUDE_SIMPLE
@@ -10,11 +10,11 @@
 #include "lvgl/lvgl.h"
 #endif
 
-#ifndef EOS_FONT_HAN_SANS_16
-#define EOS_FONT_HAN_SANS_16 1
+#ifndef COS_FONT_HAN_SANS_16
+#define COS_FONT_HAN_SANS_16 1
 #endif
 
-#if EOS_FONT_HAN_SANS_16
+#if COS_FONT_HAN_SANS_16
 
 /*-----------------
  *    BITMAPS
@@ -4359,7 +4359,7 @@ static lv_font_fmt_txt_dsc_t font_dsc = {
 #endif
 };
 
-extern const lv_font_t eos_font_han_sans_22;
+extern const lv_font_t cos_font_han_sans_22;
 
 
 /*-----------------
@@ -4368,9 +4368,9 @@ extern const lv_font_t eos_font_han_sans_22;
 
 /*Initialize a public general font descriptor*/
 #if LVGL_VERSION_MAJOR >= 8
-const lv_font_t eos_font_han_sans_16 = {
+const lv_font_t cos_font_han_sans_16 = {
 #else
-lv_font_t eos_font_han_sans_16 = {
+lv_font_t cos_font_han_sans_16 = {
 #endif
     .get_glyph_dsc = lv_font_get_glyph_dsc_fmt_txt,    /*Function pointer to get glyph's data*/
     .get_glyph_bitmap = lv_font_get_bitmap_fmt_txt,    /*Function pointer to get glyph's bitmap*/
@@ -4385,12 +4385,12 @@ lv_font_t eos_font_han_sans_16 = {
 #endif
     .dsc = &font_dsc,          /*The custom font data. Will be accessed by `get_glyph_bitmap/dsc` */
 #if LV_VERSION_CHECK(8, 2, 0) || LVGL_VERSION_MAJOR >= 9
-    .fallback = &eos_font_han_sans_22,
+    .fallback = &cos_font_han_sans_22,
 #endif
     .user_data = NULL,
 };
 
 
 
-#endif /*#if EOS_FONT_HAN_SANS_16*/
+#endif /*#if COS_FONT_HAN_SANS_16*/
 

@@ -1,5 +1,5 @@
 /**
- * @file eos_framework_home.c
+ * @file cos_framework_home.c
  * @brief Framework Home screen — adaptive app launcher on the UI framework.
  *
  * Architecture (per the Launcher redesign): the WatchFace is the home/root
@@ -8,7 +8,7 @@
  * LayoutManager / ArcList — no free-floating physics. Physics is limited to
  * scroll inertia, bounce, and page transitions.
  *
- *   - Round  -> Huawei-style ArcList (eos_arclist_view): apps on an arc, the
+ *   - Round  -> Huawei-style ArcList (cos_arclist_view): apps on an arc, the
  *               centered item is the largest/selected.
  *   - Square -> LayoutManager grid by default, or Apple-style honeycomb bubble
  *               grid when the user enables "bubble" mode in settings.
@@ -16,15 +16,15 @@
  * The status bar is a lightweight Liquid Glass panel that shows the currently
  * SELECTED app name (not a live clock — time lives on the watchface).
  */
-#include "eos_framework_home.h"
-#include "eos_liquid_glass.h"
-#include "eos_ui_anim.h"
-#include "eos_layout.h"
-#include "eos_arclist.h"
-#include "eos_arclist_view.h"
-#include "eos_layout_view.h"
-#include "eos_bubble_grid.h"
-#include "eos_mem.h"
+#include "cos_framework_home.h"
+#include "cos_liquid_glass.h"
+#include "cos_ui_anim.h"
+#include "cos_layout.h"
+#include "cos_arclist.h"
+#include "cos_arclist_view.h"
+#include "cos_layout_view.h"
+#include "cos_bubble_grid.h"
+#include "cos_mem.h"
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
@@ -41,7 +41,7 @@
  * status-bar selected-app name. Used by arc / grid / bubble alike. */
 static void _home_on_select_internal(int index, void *user)
 {
-    eos_framework_home_t *h = (eos_framework_home_t *)user;
+    cos_framework_home_t *h = (cos_framework_home_t *)user;
     if (!h) return;
     if (index >= 0 && index < h->n_names && h->names && h->names[index])
         lv_label_set_text(h->focus_label, h->names[index]);
@@ -55,7 +55,7 @@ static void _home_on_select_internal(int index, void *user)
  * (selected) item as the user scrolls. */
 static void _home_focus_cb(int index, void *user)
 {
-    eos_framework_home_t *h = (eos_framework_home_t *)user;
+    cos_framework_home_t *h = (cos_framework_home_t *)user;
     if (!h) return;
     if (index >= 0 && index < h->n_names && h->names && h->names[index])
         lv_label_set_text(h->focus_label, h->names[index]);
@@ -67,9 +67,9 @@ static void _home_focus_cb(int index, void *user)
  * index we stored at create time). */
 static void _bubble_click_cb(lv_event_t *e)
 {
-    eos_framework_home_t *h = (eos_framework_home_t *)lv_event_get_user_data(e);
+    cos_framework_home_t *h = (cos_framework_home_t *)lv_event_get_user_data(e);
     if (!h) return;
-    eos_bubble_click_event_t *ce = (eos_bubble_click_event_t *)lv_event_get_param(e);
+    cos_bubble_click_event_t *ce = (cos_bubble_click_event_t *)lv_event_get_param(e);
     if (!ce) return;
     int index = (int)(intptr_t)ce->icon_user_data;
     _home_on_select_internal(index, h);
@@ -93,11 +93,11 @@ static void _init_bubble_palette(void)
     s_bubble_palette_init = true;
 }
 
-eos_framework_home_t *eos_framework_home_create(lv_obj_t *parent,
-        const eos_display_profile_t *p, const char **names, int n,
+cos_framework_home_t *cos_framework_home_create(lv_obj_t *parent,
+        const cos_display_profile_t *p, const char **names, int n,
         const char **icon_paths)
 {
-    eos_framework_home_t *h = (eos_framework_home_t *)eos_malloc(sizeof(*h));
+    cos_framework_home_t *h = (cos_framework_home_t *)cos_malloc(sizeof(*h));
     if (!h) return NULL;
     memset(h, 0, sizeof(*h));
     /* Copy the profile BY VALUE so child views (ArcList / grid) hold a stable
@@ -105,7 +105,7 @@ eos_framework_home_t *eos_framework_home_create(lv_obj_t *parent,
      * profile (e.g. the Launcher's on_enter) that is destroyed on return; the
      * step timer must still be able to re-read center_x/center_y safely. */
     h->profile = *p;
-    h->is_circle = (p->shape == EOS_DISPLAY_SHAPE_CIRCLE);
+    h->is_circle = (p->shape == COS_DISPLAY_SHAPE_CIRCLE);
     h->n_names = n;
 
     /* The caller's names/icon_paths arrays are frequently STACK-LOCAL and
@@ -116,12 +116,12 @@ eos_framework_home_t *eos_framework_home_create(lv_obj_t *parent,
        pointers themselves are assumed persistent (literals / static buffers). */
     if (n > 0)
     {
-        h->names = (const char **)eos_malloc((size_t)n * sizeof(const char *));
-        h->icon_paths = (const char **)eos_malloc((size_t)n * sizeof(const char *));
+        h->names = (const char **)cos_malloc((size_t)n * sizeof(const char *));
+        h->icon_paths = (const char **)cos_malloc((size_t)n * sizeof(const char *));
         for (int i = 0; i < n; i++)
         {
-            h->names[i]     = (names && names[i]) ? eos_strdup(names[i]) : NULL;
-            h->icon_paths[i] = (icon_paths && icon_paths[i]) ? eos_strdup(icon_paths[i]) : NULL;
+            h->names[i]     = (names && names[i]) ? cos_strdup(names[i]) : NULL;
+            h->icon_paths[i] = (icon_paths && icon_paths[i]) ? cos_strdup(icon_paths[i]) : NULL;
         }
     }
     else
@@ -142,27 +142,27 @@ eos_framework_home_t *eos_framework_home_create(lv_obj_t *parent,
      *      item that curves up near the top on round screens). ---- */
     if (h->is_circle)
     {
-        h->arc = eos_arclist_view_create(h->root, &h->profile, names, n, icon_paths);
+        h->arc = cos_arclist_view_create(h->root, &h->profile, names, n, icon_paths);
     }
     else
     {
         /* Square/Rectangle: LayoutManager grid by default. The Apple-style
            honeycomb bubble grid is opt-in and applied by the Launcher via
-           eos_framework_home_use_bubble() (the render layer itself stays
+           cos_framework_home_use_bubble() (the render layer itself stays
            config-free so it runs in headless tests without the config
            service). */
-        h->grid = eos_layout_view_create(h->root, &h->profile, names, n, icon_paths);
+        h->grid = cos_layout_view_create(h->root, &h->profile, names, n, icon_paths);
     }
 
     /* ---- Status bar via LayoutManager anchor (responsive, no hardcoded) ---- */
-    eos_widget_t sb;
+    cos_widget_t sb;
     memset(&sb, 0, sizeof(sb));
-    sb.kind = EOS_WIDGET_CARD;
-    sb.anchor = EOS_ANCHOR_TOP_CENTER;
+    sb.kind = COS_WIDGET_CARD;
+    sb.anchor = COS_ANCHOR_TOP_CENTER;
     sb.margin_dp = h->is_circle ? 30.0f : 10.0f;
     sb.w_dp = h->is_circle ? 132.0f : ((p->safe_w / p->dp_scale) - 8.0f);
     sb.h_dp = 26.0f;
-    eos_layout_place_anchored(p, &sb);
+    cos_layout_place_anchored(p, &sb);
 
     /* Guarantee the whole panel (corners) stays inside the safe area: clamp
      * its center by the half-diagonal radius + 2px safety margin (covers
@@ -171,7 +171,7 @@ eos_framework_home_t *eos_framework_home_create(lv_obj_t *parent,
     float cx = sb.x + sb.w * 0.5f;
     float cy = sb.y + sb.h * 0.5f;
     float r  = sqrtf((sb.w * 0.5f) * (sb.w * 0.5f) + (sb.h * 0.5f) * (sb.h * 0.5f)) + 2.0f;
-    eos_display_profile_clamp_inside(p, &cx, &cy, r);
+    cos_display_profile_clamp_inside(p, &cx, &cy, r);
     sb.x = cx - sb.w * 0.5f;
     sb.y = cy - sb.h * 0.5f;
 
@@ -180,7 +180,7 @@ eos_framework_home_t *eos_framework_home_create(lv_obj_t *parent,
     lv_obj_set_size(h->statusbar, (int)sb.w, (int)sb.h);
     lv_obj_set_pos(h->statusbar, (int)(sb.x + 0.5f), (int)(sb.y + 0.5f));
     h->sb_x = sb.x; h->sb_y = sb.y; h->sb_w = sb.w; h->sb_h = sb.h;
-    eos_liquid_glass_panel(h->statusbar);
+    cos_liquid_glass_panel(h->statusbar);
     lv_obj_set_style_opa(h->statusbar, LV_OPA_COVER, 0);
 
     /* The bar shows the SELECTED app name (time stays on the watchface). */
@@ -195,44 +195,44 @@ eos_framework_home_t *eos_framework_home_create(lv_obj_t *parent,
     /* Wire the selection / focus callbacks. */
     if (h->arc)
     {
-        eos_arclist_view_set_on_select(h->arc, _home_on_select_internal, h);
-        eos_arclist_view_set_on_focus_change(h->arc, _home_focus_cb, h);
-        _home_focus_cb(eos_arclist_view_focus_index(h->arc), h);
+        cos_arclist_view_set_on_select(h->arc, _home_on_select_internal, h);
+        cos_arclist_view_set_on_focus_change(h->arc, _home_focus_cb, h);
+        _home_focus_cb(cos_arclist_view_focus_index(h->arc), h);
     }
     if (h->grid)
     {
-        eos_layout_view_set_on_select(h->grid, _home_on_select_internal, h);
+        cos_layout_view_set_on_select(h->grid, _home_on_select_internal, h);
         _home_on_select_internal(0, h);   /* default selected = first app */
     }
     /* bubble: on_select is handled in _bubble_click_cb via _home_on_select_internal */
 
     /* Entry animation (page open: fade + scale 0.8 -> 1.0). */
-    eos_anim_page_open(h->root, 300);
+    cos_anim_page_open(h->root, 300);
 
     return h;
 }
 
-void eos_framework_home_step(eos_framework_home_t *h, float dt_ms)
+void cos_framework_home_step(cos_framework_home_t *h, float dt_ms)
 {
     if (!h) return;
-    if (h->is_circle && h->arc) eos_arclist_view_step(h->arc, dt_ms);
+    if (h->is_circle && h->arc) cos_arclist_view_step(h->arc, dt_ms);
     /* Grid + bubble layouts are static (bubble drives its own input/physics). */
 }
 
-void eos_framework_home_drag(eos_framework_home_t *h, float dy_px)
+void cos_framework_home_drag(cos_framework_home_t *h, float dy_px)
 {
     if (!h) return;
-    if (h->is_circle && h->arc) eos_arclist_view_drag(h->arc, dy_px);
+    if (h->is_circle && h->arc) cos_arclist_view_drag(h->arc, dy_px);
     /* Grid (square/rect) is static; bubble handles its own drag. */
 }
 
-void eos_framework_home_release(eos_framework_home_t *h)
+void cos_framework_home_release(cos_framework_home_t *h)
 {
     if (!h) return;
-    if (h->is_circle && h->arc) eos_arclist_view_release(h->arc);
+    if (h->is_circle && h->arc) cos_arclist_view_release(h->arc);
 }
 
-void eos_framework_home_destroy(eos_framework_home_t *h)
+void cos_framework_home_destroy(cos_framework_home_t *h)
 {
     if (!h) return;
     /* Bubble/grid/arc are children of root, deleted with it. No clock timer
@@ -241,19 +241,19 @@ void eos_framework_home_destroy(eos_framework_home_t *h)
     if (h->names)
     {
         for (int i = 0; i < h->n_names; i++)
-            if (h->names[i]) eos_free((void *)h->names[i]);
-        eos_free((void *)h->names);
+            if (h->names[i]) cos_free((void *)h->names[i]);
+        cos_free((void *)h->names);
     }
     if (h->icon_paths)
     {
         for (int i = 0; i < h->n_names; i++)
-            if (h->icon_paths[i]) eos_free((void *)h->icon_paths[i]);
-        eos_free((void *)h->icon_paths);
+            if (h->icon_paths[i]) cos_free((void *)h->icon_paths[i]);
+        cos_free((void *)h->icon_paths);
     }
-    eos_free(h);
+    cos_free(h);
 }
 
-void eos_framework_home_set_on_select(eos_framework_home_t *h,
+void cos_framework_home_set_on_select(cos_framework_home_t *h,
         void (*cb)(int index, void *user), void *user)
 {
     if (!h) return;
@@ -261,16 +261,16 @@ void eos_framework_home_set_on_select(eos_framework_home_t *h,
     h->select_user = user;
     /* Re-apply the internal wrapper so every view routes through
      * _home_on_select_internal (which updates the status-bar name). */
-    if (h->arc) eos_arclist_view_set_on_select(h->arc, _home_on_select_internal, h);
-    if (h->grid) eos_layout_view_set_on_select(h->grid, _home_on_select_internal, h);
+    if (h->arc) cos_arclist_view_set_on_select(h->arc, _home_on_select_internal, h);
+    if (h->grid) cos_layout_view_set_on_select(h->grid, _home_on_select_internal, h);
     /* bubble already calls _home_on_select_internal from _bubble_click_cb */
 }
 
 /* Build the Apple-style honeycomb bubble grid from the stored app list. */
-static void _home_build_bubble(eos_framework_home_t *h)
+static void _home_build_bubble(cos_framework_home_t *h)
 {
     _init_bubble_palette();
-    h->bubble = eos_bubble_create(h->root);
+    h->bubble = cos_bubble_create(h->root);
     if (!h->bubble) return;
     lv_obj_set_size(h->bubble, (int)h->profile.width, (int)h->profile.height);
     lv_obj_center(h->bubble);
@@ -279,35 +279,35 @@ static void _home_build_bubble(eos_framework_home_t *h)
     int n = h->n_names;
     for (int i = 0; i < n; i++)
     {
-        eos_bubble_set_icon_color(h->bubble, (uint32_t)i, s_bubble_palette[i % np]);
+        cos_bubble_set_icon_color(h->bubble, (uint32_t)i, s_bubble_palette[i % np]);
         if (h->icon_paths && h->icon_paths[i] && h->icon_paths[i][0])
-            eos_bubble_set_icon_src(h->bubble, (uint32_t)i, h->icon_paths[i]);
-        eos_bubble_set_icon_user_data(h->bubble, (uint32_t)i, (void *)(intptr_t)i);
+            cos_bubble_set_icon_src(h->bubble, (uint32_t)i, h->icon_paths[i]);
+        cos_bubble_set_icon_user_data(h->bubble, (uint32_t)i, (void *)(intptr_t)i);
     }
     h->bubble_count = n;
 }
 
-void eos_framework_home_use_bubble(eos_framework_home_t *h)
+void cos_framework_home_use_bubble(cos_framework_home_t *h)
 {
     if (!h || h->is_circle || h->bubble)
         return;
     if (h->grid)
     {
-        eos_layout_view_destroy(h->grid);
+        cos_layout_view_destroy(h->grid);
         h->grid = NULL;
     }
     _home_build_bubble(h);
     /* Match the page-open spec (fade 0->255 + scale 0.8->1.0) for the bubble. */
     if (h->bubble)
-        eos_anim_page_open(h->bubble, 300);
+        cos_anim_page_open(h->bubble, 300);
 }
 
-lv_obj_t *eos_framework_home_root(const eos_framework_home_t *h)
+lv_obj_t *cos_framework_home_root(const cos_framework_home_t *h)
 {
     return h ? h->root : NULL;
 }
 
-void eos_framework_home_statusbar_rect(const eos_framework_home_t *h,
+void cos_framework_home_statusbar_rect(const cos_framework_home_t *h,
                                        float *x, float *y, float *w, float *h_out)
 {
     if (!h) { if (x) *x = 0; if (y) *y = 0; if (w) *w = 0; if (h_out) *h_out = 0; return; }
@@ -317,16 +317,16 @@ void eos_framework_home_statusbar_rect(const eos_framework_home_t *h,
     if (h_out) *h_out = h->sb_h;
 }
 
-int eos_framework_home_count(const eos_framework_home_t *h)
+int cos_framework_home_count(const cos_framework_home_t *h)
 {
     if (!h) return 0;
-    if (h->is_circle && h->arc) return eos_arclist_view_count(h->arc);
-    if (h->grid) return eos_layout_view_count(h->grid);
+    if (h->is_circle && h->arc) return cos_arclist_view_count(h->arc);
+    if (h->grid) return cos_layout_view_count(h->grid);
     if (h->bubble) return h->bubble_count;
     return 0;
 }
 
-void eos_framework_home_item_center(const eos_framework_home_t *h, int i,
+void cos_framework_home_item_center(const cos_framework_home_t *h, int i,
                                     float *x, float *y)
 {
     if (x) *x = 0;
@@ -335,16 +335,16 @@ void eos_framework_home_item_center(const eos_framework_home_t *h, int i,
 
     if (h->is_circle && h->arc)
     {
-        const eos_arclist_view_t *v = h->arc;
+        const cos_arclist_view_t *v = h->arc;
         if (i >= v->count) return;
         *x = v->al.items[i].x;
         *y = v->al.items[i].y;
     }
     else if (h->grid)
     {
-        const eos_layout_view_t *v = h->grid;
+        const cos_layout_view_t *v = h->grid;
         if (i >= v->count) return;
-        const eos_widget_t *w = &v->widgets[i];
+        const cos_widget_t *w = &v->widgets[i];
         *x = w->x + w->w * 0.5f;
         *y = w->y + w->h * 0.5f;
     }

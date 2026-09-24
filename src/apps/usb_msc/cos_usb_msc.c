@@ -1,5 +1,5 @@
 /**
- * @file eos_usb_msc.c
+ * @file cos_usb_msc.c
  * @brief USB MSC App 主体:USB 检测 / 模式切换 / 界面冻结 / 图标显示 / 退出恢复。
  *
  * 交付批次:②USB 检测与模式切换 ③界面冻结与图标 ④集成与退出。
@@ -26,24 +26,24 @@
  *     · SD 已由 drv_begin() 从 FATFS 释放 → 其它 App 的 SD 访问返回错误而非写坏卡。
  *   这样既满足"MSC 期间界面冻结、触摸失效、SD 独占",又不会与 LVGL 自身死锁。
  */
-#include "eos_usb_msc.h"
+#include "cos_usb_msc.h"
 
 #if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
 
 #include <stdio.h>
 
 #include "lvgl.h"
-#include "eos_core.h"
-#include "eos_activity.h"
-#include "ui/system/eos_round_clip.h"
+#include "cos_core.h"
+#include "cos_activity.h"
+#include "ui/system/cos_round_clip.h"
 
-#define EOS_LOG_TAG "UsbMscApp"
-#include "eos_log.h"
+#define COS_LOG_TAG "UsbMscApp"
+#include "cos_log.h"
 
-#include "eos_usb_msc_drv.h"
-#include "eos_usb_msc_board.h"
-#include "eos_font.h"
-#include "eos_service_pm.h"   /* eos_pm_wake_up() */
+#include "cos_usb_msc_drv.h"
+#include "cos_usb_msc_board.h"
+#include "cos_font.h"
+#include "cos_service_pm.h"   /* cos_pm_wake_up() */
 
 /* 配色(参考其它 App 的深色风格) */
 #define UI_BG      0x000000
@@ -57,7 +57,7 @@
 #define TICK_MS         200u    /* 状态机轮询周期 */
 
 /* ── 布局常量(240x240 圆形屏) ─────────────────────────────
- * 主题默认字号为 30px(EOS_FONT_CFG_LARGE_SIZE),若不显式指定字体,
+ * 主题默认字号为 30px(COS_FONT_CFG_LARGE_SIZE),若不显式指定字体,
  * 长 errmsg 会溢出圆形屏并与其它控件重叠。这里所有文本显式用小字号,
  * 并固定各元素纵向位置,确保内容落在圆内接区域内、且不与底部按钮重叠。
  * 纵向预算:图标 10..104 → 标题 108..130 → 错误码 130..147 → 正文 149..185
@@ -73,9 +73,9 @@
 #define BTN_Y_OFF      (-18)    /* 按钮底边距屏幕底部 18px */
 
 /* 图标资源(resources/images/icon 下的 .c 文件,size 94x94 / 36x36) */
-extern const lv_image_dsc_t eos_icon_usb_msc;
-extern const lv_image_dsc_t eos_icon_usb_ok;
-extern const lv_image_dsc_t eos_icon_usb_err;
+extern const lv_image_dsc_t cos_icon_usb_msc;
+extern const lv_image_dsc_t cos_icon_usb_ok;
+extern const lv_image_dsc_t cos_icon_usb_err;
 
 typedef enum
 {
@@ -85,7 +85,7 @@ typedef enum
     STAGE_DONE,
 } usb_msc_stage_t;
 
-static eos_activity_t *s_act = NULL;
+static cos_activity_t *s_act = NULL;
 static lv_obj_t *s_root = NULL;
 static lv_obj_t *s_img = NULL;
 static lv_obj_t *s_title = NULL;
@@ -142,7 +142,7 @@ static void _make_exit_button(void)
     lv_obj_t *lbl = lv_label_create(btn);
     lv_label_set_text(lbl, "Exit");
     /* 按钮文字同样显式设字号,避免继承 30px 默认字号溢出按钮 */
-    eos_label_set_font_size(lbl, EOS_FONT_SIZE_EXTRA_SMALL);
+    cos_label_set_font_size(lbl, COS_FONT_SIZE_EXTRA_SMALL);
     lv_obj_set_style_text_color(lbl, lv_color_hex(UI_TEXT), 0);
     lv_obj_center(lbl);
 
@@ -161,7 +161,7 @@ static void _render_icon(const lv_image_dsc_t *dsc, uint32_t color_hex)
         /* 94x94 大图标(成功/失败)与 36x36 小图标(等待)顶端基线不同,
          * 让两者视觉重心落在同一区域 */
         lv_obj_align(s_img, LV_ALIGN_TOP_MID, 0,
-                     (dsc == &eos_icon_usb_msc) ? ICON_Y_SMALL : ICON_Y_BIG);
+                     (dsc == &cos_icon_usb_msc) ? ICON_Y_SMALL : ICON_Y_BIG);
     } else {
         lv_obj_add_flag(s_img, LV_OBJ_FLAG_HIDDEN);
     }
@@ -176,7 +176,7 @@ static void _set_text(const char *title, const char *msg, uint32_t color_hex)
         lv_obj_set_width(s_title, 200);
         lv_obj_set_style_text_align(s_title, LV_TEXT_ALIGN_CENTER, 0);
         /* 标题 16px;默认 30px 在圆屏上会溢出并与正文重叠 */
-        eos_label_set_font_size(s_title, EOS_FONT_SIZE_EXTRA_SMALL);
+        cos_label_set_font_size(s_title, COS_FONT_SIZE_EXTRA_SMALL);
     }
     if (s_msg == NULL) {
         s_msg = lv_label_create(s_root);
@@ -185,7 +185,7 @@ static void _set_text(const char *title, const char *msg, uint32_t color_hex)
         lv_obj_set_style_text_align(s_msg, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_text_color(s_msg, lv_color_hex(UI_SUB), 0);
         /* 正文 13px 小字并自动换行,保证长 errmsg 在圆屏内完整可见 */
-        eos_label_set_font_size(s_msg, EOS_FONT_SIZE_MICRO);
+        cos_label_set_font_size(s_msg, COS_FONT_SIZE_MICRO);
     }
 
     lv_label_set_text(s_title, title ? title : "");
@@ -193,14 +193,14 @@ static void _set_text(const char *title, const char *msg, uint32_t color_hex)
     lv_label_set_text(s_msg, msg ? msg : "");
 }
 
-static void _set_error_code(eos_usb_msc_err_t code)
+static void _set_error_code(cos_usb_msc_err_t code)
 {
     if (s_code == NULL) {
         s_code = lv_label_create(s_root);
         /* 放在标题正下方(而非贴底),避免与正文/按钮重叠 */
         lv_obj_align(s_code, LV_ALIGN_TOP_MID, 0, CODE_Y);
         lv_obj_set_style_text_color(s_code, lv_color_hex(UI_SUB), 0);
-        eos_label_set_font_size(s_code, EOS_FONT_SIZE_MICRO);
+        cos_label_set_font_size(s_code, COS_FONT_SIZE_MICRO);
     }
     char buf[48];
     snprintf(buf, sizeof(buf), "Error code: %d", (int)code);
@@ -210,7 +210,7 @@ static void _set_error_code(eos_usb_msc_err_t code)
 
 static void _show_ok(void)
 {
-    _render_icon(&eos_icon_usb_ok, UI_OK);
+    _render_icon(&cos_icon_usb_ok, UI_OK);
     _set_text("USB Drive Mode", "Sharing SD card with the PC.\nEject or swipe back to exit.", UI_OK);
     if (s_code) {
         lv_obj_add_flag(s_code, LV_OBJ_FLAG_HIDDEN);
@@ -228,10 +228,10 @@ static void _show_ok(void)
     }
 }
 
-static void _show_error(eos_usb_msc_err_t code)
+static void _show_error(cos_usb_msc_err_t code)
 {
-    _render_icon(&eos_icon_usb_err, UI_ERR);
-    _set_text("USB Drive Failed", eos_usb_msc_strerror(code), UI_ERR);
+    _render_icon(&cos_icon_usb_err, UI_ERR);
+    _set_text("USB Drive Failed", cos_usb_msc_strerror(code), UI_ERR);
     _set_error_code(code);
     _make_exit_button();
     if (s_btn) {
@@ -241,7 +241,7 @@ static void _show_error(eos_usb_msc_err_t code)
 
 static void _show_waiting(void)
 {
-    _render_icon(&eos_icon_usb_msc, UI_TEXT);
+    _render_icon(&cos_icon_usb_msc, UI_TEXT);
     _set_text("Waiting for PC", "Negotiating with the PC...", UI_TEXT);
     if (s_code) {
         lv_obj_add_flag(s_code, LV_OBJ_FLAG_HIDDEN);
@@ -262,8 +262,8 @@ static void _teardown(void)
 
     /* 1) 卸载 USB + 重新挂载 SD(批量④退出恢复步骤 1-3) */
     if (s_msc_started) {
-        eos_usb_msc_err_t e = eos_usb_msc_drv_end();
-        if (e != EOS_USB_MSC_OK && s_root != NULL) {
+        cos_usb_msc_err_t e = cos_usb_msc_drv_end();
+        if (e != COS_USB_MSC_OK && s_root != NULL) {
             /* 重挂载失败也只提示,不 panic */
             _show_error(e);
         }
@@ -293,9 +293,9 @@ static void _leave(void)
     _teardown();
     /* 主动/拔线退出后确保亮屏:MSC 期间可能已熄屏(DISPOFF),
      * 若不唤醒,回到桌面仍是黑屏,用户误以为卡死需重启。 */
-    eos_pm_wake_up();
+    cos_pm_wake_up();
     if (s_act != NULL) {
-        eos_activity_back();
+        cos_activity_back();
     }
 }
 
@@ -308,8 +308,8 @@ static void _tick(lv_timer_t *t)
     switch (s_stage) {
         case STAGE_INIT: {
             /* 步骤 1:SD 是否为真可移动卡 */
-            if (!eos_usb_msc_drv_sd_available()) {
-                _show_error(EOS_USB_MSC_ERR_NO_SD);
+            if (!cos_usb_msc_drv_sd_available()) {
+                _show_error(COS_USB_MSC_ERR_NO_SD);
                 s_stage = STAGE_DONE;
                 break;
             }
@@ -321,8 +321,8 @@ static void _tick(lv_timer_t *t)
 
             /* 步骤 3:释放 SD + 启动 TinyUSB MSC(会接管 USB 口) */
             _show_waiting();
-            eos_usb_msc_err_t e = eos_usb_msc_drv_begin();
-            if (e != EOS_USB_MSC_OK) {
+            cos_usb_msc_err_t e = cos_usb_msc_drv_begin();
+            if (e != COS_USB_MSC_OK) {
                 _show_error(e);
                 s_stage = STAGE_DONE;
                 break;
@@ -334,20 +334,20 @@ static void _tick(lv_timer_t *t)
         }
 
         case STAGE_WAIT_ENUM: {
-            if (eos_usb_msc_drv_mounted()) {
+            if (cos_usb_msc_drv_mounted()) {
                 /* 成功:保持触摸可用(用户需能点 Disconnect / 滑回桌面主动退出),
                  * 仅禁止 Light Sleep 以免打断 USB。 */
                 board_pm_usb_msc_hold(true);
                 _show_ok();
                 s_stage = STAGE_ACTIVE;
-                EOS_LOG_I("USB MSC: host mounted, UI active");
+                COS_LOG_I("USB MSC: host mounted, UI active");
                 break;
             }
             if ((int32_t)(lv_tick_get() - s_deadline) >= 0) {
                 /* 超时未枚举:多为纯充电 / 非数据线 */
                 s_msc_started = false;
-                eos_usb_msc_drv_end();
-                _show_error(EOS_USB_MSC_ERR_NOT_ENUM);
+                cos_usb_msc_drv_end();
+                _show_error(COS_USB_MSC_ERR_NOT_ENUM);
                 s_stage = STAGE_DONE;
             }
             break;
@@ -355,8 +355,8 @@ static void _tick(lv_timer_t *t)
 
         case STAGE_ACTIVE: {
             /* 拔线 → PC 卸载 → 自动退出并恢复 */
-            if (!eos_usb_msc_drv_mounted()) {
-                EOS_LOG_I("USB MSC: cable removed, restoring");
+            if (!cos_usb_msc_drv_mounted()) {
+                COS_LOG_I("USB MSC: cable removed, restoring");
                 _leave();
             }
             break;
@@ -370,7 +370,7 @@ static void _tick(lv_timer_t *t)
 
 /* ── 生命周期 ─────────────────────────────────────────────── */
 
-static bool _swipe_back(eos_activity_t *self, lv_dir_t dir)
+static bool _swipe_back(cos_activity_t *self, lv_dir_t dir)
 {
     (void)self;
     (void)dir;
@@ -380,17 +380,17 @@ static bool _swipe_back(eos_activity_t *self, lv_dir_t dir)
     return true;
 }
 
-static void _build_ui(eos_activity_t *act)
+static void _build_ui(cos_activity_t *act)
 {
-    s_root = eos_activity_get_view(act);
+    s_root = cos_activity_get_view(act);
     lv_obj_set_style_bg_color(s_root, lv_color_hex(UI_BG), 0);
     lv_obj_set_style_bg_opa(s_root, LV_OPA_COVER, 0);
-    eos_round_clip(s_root);
+    cos_round_clip(s_root);
 
     _show_waiting();
 }
 
-static void _on_enter(eos_activity_t *act)
+static void _on_enter(cos_activity_t *act)
 {
     s_act = act;
 
@@ -407,8 +407,8 @@ static void _on_enter(eos_activity_t *act)
     s_msc_started = false;
     s_teardown_done = false;
 
-    eos_activity_set_app_header_visible(act, false);
-    eos_activity_set_swipe_back_handler(act, _swipe_back);
+    cos_activity_set_app_header_visible(act, false);
+    cos_activity_set_swipe_back_handler(act, _swipe_back);
 
     _build_ui(act);
 
@@ -416,7 +416,7 @@ static void _on_enter(eos_activity_t *act)
     s_timer = lv_timer_create(_tick, TICK_MS, NULL);
 }
 
-static void _on_destroy(eos_activity_t *act)
+static void _on_destroy(cos_activity_t *act)
 {
     (void)act;
     /* 兜底:无论从哪条路径离开,都确保 USB 卸载 / SD 重挂载 / 触摸恢复 */
@@ -430,7 +430,7 @@ static void _on_destroy(eos_activity_t *act)
     s_act = NULL;
 }
 
-static const eos_activity_lifecycle_t s_lifecycle = {
+static const cos_activity_lifecycle_t s_lifecycle = {
     .on_enter = _on_enter,
     .on_destroy = _on_destroy,
     .on_pause = NULL,
@@ -438,17 +438,17 @@ static const eos_activity_lifecycle_t s_lifecycle = {
     .on_swipe_back = NULL,
 };
 
-void eos_usb_msc_enter(void)
+void cos_usb_msc_enter(void)
 {
-    EOS_LOG_I("USB MSC: enter");
+    COS_LOG_I("USB MSC: enter");
 
-    eos_activity_t *act = eos_activity_create(&s_lifecycle);
+    cos_activity_t *act = cos_activity_create(&s_lifecycle);
     if (act == NULL) {
-        EOS_LOG_E("USB MSC: activity create failed");
+        COS_LOG_E("USB MSC: activity create failed");
         return;
     }
-    eos_activity_set_type(act, EOS_ACTIVITY_TYPE_APP);
-    eos_activity_enter(act);
+    cos_activity_set_type(act, COS_ACTIVITY_TYPE_APP);
+    cos_activity_enter(act);
 }
 
 #endif /* CONFIG_USB_MSC_APP_ENABLE */

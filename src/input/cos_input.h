@@ -1,10 +1,10 @@
 /**
- * @file eos_input.h
+ * @file cos_input.h
  * @brief Input handling header file
  */
 
-#ifndef EOS_INPUT_H
-#define EOS_INPUT_H
+#ifndef COS_INPUT_H
+#define COS_INPUT_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,12 +23,12 @@ extern "C" {
  */
 typedef enum
 {
-    EOS_BUTTON_STATE_CLICKED,
-    EOS_BUTTON_STATE_PRESSED,
-    EOS_BUTTON_STATE_LONG_PRESSED,
-    EOS_BUTTON_STATE_RELEASED,
-    EOS_BUTTON_STATE_DOUBLE_CLICKED
-} eos_button_state_t;
+    COS_BUTTON_STATE_CLICKED,
+    COS_BUTTON_STATE_PRESSED,
+    COS_BUTTON_STATE_LONG_PRESSED,
+    COS_BUTTON_STATE_RELEASED,
+    COS_BUTTON_STATE_DOUBLE_CLICKED
+} cos_button_state_t;
 
 /* Public function prototypes --------------------------------*/
 
@@ -36,4 +36,4 @@ typedef enum
 }
 #endif
 
-#endif /* EOS_INPUT_H */
+#endif /* COS_INPUT_H */
