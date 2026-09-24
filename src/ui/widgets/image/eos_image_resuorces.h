@@ -31,6 +31,7 @@ extern "C" {
 /* Spotify App 图标:仓库内无 spotify.bin,实际由编译进 Flash 的
  * eos_icon_spotify(lv_image_dsc_t)直接作为图标源,此路径仅作占位/回退。 */
 #define EOS_IMG_SPOTIFY "/sdcard/theme/icons/spotify.bin"
+#define EOS_IMG_PROFMONITOR "/sdcard/theme/icons/profmonitor.bin"
 
 #ifdef __cplusplus
 }

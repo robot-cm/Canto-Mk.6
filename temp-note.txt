@@ -1,8 +1,9 @@
-cd /home/erashaperavm/下载/ElenixOS-fork-stable/port/esp32s3 && idf.py -p /dev/ttyACM0 build flash monitor
+cd /home/erashaperavm/下载/ElenixOS-fork/port/esp32s3 && idf.py -p /dev/ttyACM0 build flash monitor
 
-cd /home/erashaperavm/下载/ElenixOS-fork-stable/port/esp32s3 && idf.py -p /dev/ttyACM0 monitor
+cd /home/erashaperavm/下载/ElenixOS-fork/port/esp32s3 && idf.py -p /dev/ttyACM0 monitor
 
-cd /home/erashaperavm/下载/ElenixOS-fork-stable/ && python3 scripts/icon/webp2c.py --size 24 resources/images/icon/star.webp
+cd /home/erashaperavm/下载/ElenixOS-fork/ && python3 scripts/icon/webp2c.py --size 24 resources/images/icon/star.webp
+cd /home/erashaperavm/下载/ElenixOS-fork/ && python3 scripts/icon/webp2bin.py eqsolver
 
 [apps] installed: 14
   0: com.cantomk6.alarm
@@ -60,14 +61,19 @@ python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/ap
 /sdcard/apps/<任意文件名>.eapk
 /sdcard/album/
 /sdcard/calendar/festival.json
- /sdcard/ecdict/ecdict.dat
-/sdcard/texthub/
-/sdcard/history/bt
-/sdcard/history/wifi
-/sdcard/history/album
-/sdcard/history/texthub
-/sdcard/font/font.ttf
-/sdcard/theme/icon/album.bin, texthub.bin, dictionary.bin
+/sdcard/ecdict/ecdict.dat
+/sdcard/flash/color.txt
+/sdcard/history/album/history.txt
+/sdcard/history/bt/history.txt
+/sdcard/history/cc/settings.txt
+/sdcard/history/deepsleep/latest_ui.txt
+/sdcard/history/ecdict/history.txt
+/sdcard/texthub/latest.txt
+/sdcard/history/wifi/history.txt
+/sdcard/history/th_stars.txt
+/sdcard/spotify/*.lrc,*.mp3,*.wav
+/sdcard/texthub
+/sdcard/theme/icon/album.bin, texthub.bin, dictionary.bin, profmonitor.bin, eqsolver.bin
 /.sys/app/app_data/com.cantomk6.alarm/config.json
 /.sys/app/app_data/com.cantomk6.breach/config.json
 /.sys/app/app_data/com.cantomk6.calculator/config.json
@@ -77,4 +83,3 @@ python3.11 scripts/eos_pkg_builder.py /home/erashaperavm/下载/ElenixOS-fork/ap
 /.sys/app/app_data/com.cantomk6.timer/config.json
 /.sys/app/app_data/com.cantomk6.album/config.json
 /.sys/app/app_data/com.cantomk6.texthub/config.json
-/.sys/app/app_data/com.cantomk6.sleep/config.json

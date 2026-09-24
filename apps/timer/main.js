@@ -59,7 +59,7 @@ function fmt(sec) {
 var root = new lv.obj(view);
 root.setSize(240, 240);
 root.setPos(0, 0);
-root.setStyleRadius(0, 0);
+eos.roundClip(root);   /* round the background + black out the bezel corners */
 root.setStyleBgOpa(255, 0);
 root.setStyleBgColor(hex(BG), 0);
 root.setStylePadAll(0, 0);

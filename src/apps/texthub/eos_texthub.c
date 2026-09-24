@@ -1193,7 +1193,6 @@ static void _fm_open(void)
     lv_obj_add_event_cb(s_fm_star_btn, _fm_star_cb, LV_EVENT_CLICKED, NULL);
     s_fm_star_img = lv_image_create(s_fm_star_btn);
     lv_image_set_src(s_fm_star_img, &eos_icon_star);
-    lv_image_set_size(s_fm_star_img, TH_ICON_SZ, TH_ICON_SZ);
     lv_obj_center(s_fm_star_img);
     lv_obj_remove_flag(s_fm_star_img, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_remove_flag(s_fm_star_img, LV_OBJ_FLAG_SCROLLABLE);
@@ -1474,7 +1473,6 @@ static void _stars_rebuild(void)
                             (void *)(intptr_t)i);
         lv_obj_t *star = lv_image_create(starbtn);
         lv_image_set_src(star, &eos_icon_star);
-        lv_image_set_size(star, TH_ICON_ROW, TH_ICON_ROW);
         lv_obj_center(star);
         lv_obj_remove_flag(star, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_remove_flag(star, LV_OBJ_FLAG_SCROLLABLE);
@@ -1595,7 +1593,6 @@ static void _stars_open(void)
     lv_obj_add_event_cb(s_stars_fab_btn, _stars_fab_cb, LV_EVENT_CLICKED, NULL);
     s_stars_fab_img = lv_image_create(s_stars_fab_btn);
     lv_image_set_src(s_stars_fab_img, &eos_icon_star);
-    lv_image_set_size(s_stars_fab_img, TH_ICON_SZ, TH_ICON_SZ);
     lv_obj_center(s_stars_fab_img);
     lv_obj_remove_flag(s_stars_fab_img, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_remove_flag(s_stars_fab_img, LV_OBJ_FLAG_SCROLLABLE);
@@ -1628,7 +1625,6 @@ static lv_obj_t *_make_img_btn(lv_obj_t *parent, int w, int h, uint32_t bg,
 
     lv_obj_t *ic = lv_image_create(btn);
     lv_image_set_src(ic, img);
-    lv_image_set_size(ic, TH_ICON_SZ, TH_ICON_SZ);
     lv_obj_center(ic);
     lv_obj_remove_flag(ic, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_remove_flag(ic, LV_OBJ_FLAG_SCROLLABLE);

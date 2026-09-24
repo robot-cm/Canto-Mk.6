@@ -88,6 +88,14 @@ var tickCount = 0;
 /* ---------- root ---------- */
 /* Note: the activity view wrapper has no removeFlag() — do not touch it.
  * Children below manage their own flags. */
+/* Full-screen rounded background: the transparent home/edit/ring containers
+ * would otherwise let the square framebuffer corners show through. */
+var root = new lv.obj(view);
+root.setSize(240, 240); root.setPos(0, 0);
+root.setStyleBgOpa(255, 0);
+root.setStyleBgColor(hex(COL_BG), 0);
+eos.roundClip(root);
+
 var homeC = new lv.obj(view);
 homeC.setSize(240, 210); homeC.setPos(0, 30);
 homeC.setStyleBgOpa(0, 0);

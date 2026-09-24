@@ -64,6 +64,11 @@ if(EOS_USB_UAC_APP_ENABLE)
     list(APPEND MAIN_REQUIRES espressif__tinyusb usb hal)
 endif()
 
+# ── ProfMonitor App(资源占用率监视器) ───────────────────────
+#   功能本身是“运行时 App”(用户从 App 列表打开/关闭)。此处宏仅用于
+#   “完全移除该 App”:把下面 1 改成 0 后,不编译任何相关代码,产物与改动前一致。
+set(EOS_PROFMONITOR_APP_ENABLE 1 CACHE STRING "Enable ProfMonitor App (1=on, 0=off)")
+
 idf_component_register(
     SRCS
         "main.c"
@@ -261,6 +266,14 @@ if(EOS_USB_MSC_APP_ENABLE)
         "-Wl,-u,tud_descriptor_configuration_cb"
         "-Wl,-u,tud_descriptor_string_cb"
     )
+endif()
+
+# ── ProfMonitor App:编译宏 ─────────────────────────────────
+#   全仓所有新增点由 CONFIG_PROFMONITOR_APP_ENABLE 包裹;关闭(上面 set 改 0)时
+#   不编译任何相关代码,产物与改动前一致。App 源文件由 src/**/*.c 通配自动编入,
+#   图标走 sdcard/theme/icons/profmonitor.bin(SD 加载,无需编入 Flash)。
+if(EOS_PROFMONITOR_APP_ENABLE)
+    target_compile_definitions(${COMPONENT_LIB} PUBLIC CONFIG_PROFMONITOR_APP_ENABLE=1)
 endif()
 
 # ── Spotify App:编译宏 + 图标资源 ──────────────────────────

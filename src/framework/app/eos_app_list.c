@@ -29,6 +29,9 @@
 #include "eos_album.h"
 #include "eos_texthub.h"
 #include "eos_dictionary.h"
+#if defined(CONFIG_PROFMONITOR_APP_ENABLE) && CONFIG_PROFMONITOR_APP_ENABLE
+#include "apps/profmonitor/eos_profmonitor.h"
+#endif
 #if defined(CONFIG_USB_MSC_APP_ENABLE) && CONFIG_USB_MSC_APP_ENABLE
 #include "eos_usb_msc.h"
 /* App 图标编译进 Flash(resources/images/icon/eos_icon_usb_msc.c) */
@@ -110,6 +113,9 @@ const char *eos_native_app_id_list[EOS_NATIVE_APP_LAST] = {
 #if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
     "com.cantomk6.spotify",
 #endif
+#if defined(CONFIG_PROFMONITOR_APP_ENABLE) && CONFIG_PROFMONITOR_APP_ENABLE
+    "com.cantomk6.profmonitor",
+#endif
 };
 
 const char *eos_native_app_icon_list[EOS_NATIVE_APP_LAST] = {
@@ -122,6 +128,9 @@ const char *eos_native_app_icon_list[EOS_NATIVE_APP_LAST] = {
 #if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
     EOS_IMG_SPOTIFY,
 #endif
+#if defined(CONFIG_PROFMONITOR_APP_ENABLE) && CONFIG_PROFMONITOR_APP_ENABLE
+    EOS_IMG_PROFMONITOR,
+#endif
 };
 
 const eos_sys_app_entry_t eos_native_app_entry_list[EOS_NATIVE_APP_LAST] = {
@@ -133,6 +142,9 @@ const eos_sys_app_entry_t eos_native_app_entry_list[EOS_NATIVE_APP_LAST] = {
 #endif
 #if defined(CONFIG_USB_UAC_APP_ENABLE) && CONFIG_USB_UAC_APP_ENABLE
     eos_spotify_enter,
+#endif
+#if defined(CONFIG_PROFMONITOR_APP_ENABLE) && CONFIG_PROFMONITOR_APP_ENABLE
+    eos_profmonitor_enter,
 #endif
 };
 

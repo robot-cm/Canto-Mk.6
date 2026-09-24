@@ -30,6 +30,7 @@
 #include "spm.h"                       /* 笔记: ime 回调经 spm_call 调 JS */
 #include "sni_callback_runtime.h"      /* 笔记: sni_cb_get_context */
 #include "eos_ww_clock_hand.h"
+#include "ui/system/eos_round_clip.h"   /* eos_round_clip() exposed to JS */
 #include "sni_api_eos_permission.h"
 /* Macros and Definitions -------------------------------------*/
 #define EOS_API_NAME "eos"
@@ -279,6 +280,29 @@ jerry_value_t sni_api_eos_view_active(const jerry_call_info_t *call_info_p,
 
     lv_obj_t *result = eos_view_active();
     return sni_tb_c2js(&result, SNI_H_LV_OBJ);
+}
+
+/* ---- eos.roundClip(view): expose eos_round_clip() to JS scripts ---- */
+jerry_value_t sni_api_eos_round_clip(const jerry_call_info_t *call_info_p,
+                                     const jerry_value_t args_p[],
+                                     const jerry_length_t args_count)
+{
+    lv_obj_t *view;
+
+    (void)call_info_p;
+
+    if (args_count != 1)
+    {
+        return sni_api_throw_error("Usage: roundClip(view)");
+    }
+
+    if (!sni_tb_js2c(args_p[0], SNI_H_LV_OBJ, &view) || !view)
+    {
+        return sni_api_throw_error("Invalid view argument");
+    }
+
+    eos_round_clip(view);
+    return jerry_undefined();
 }
 
 jerry_value_t sni_api_eos_config_set_str(const jerry_call_info_t *call_info_p,
@@ -2134,6 +2158,32 @@ const sni_constant_desc_t eos_root_constants[] = {
     {.name = NULL, .type = SNI_CONST_INT, .value.i = 0},
 };
 
+/* Root-level methods on the `eos` object (e.g. eos.roundClip(view)).
+ * sni_register_methods is file-static in sni_api_export.c and not reusable,
+ * so we mirror ui_register_methods here. */
+static const sni_method_desc_t eos_root_static_methods[] = {
+    {.name = "roundClip", .handler = sni_api_eos_round_clip},
+    {.name = NULL, .handler = NULL},
+};
+
+static void sni_api_eos_register_methods(const sni_method_desc_t *methods, jerry_value_t target)
+{
+    if (!methods)
+        return;
+    for (size_t i = 0; methods[i].name != NULL && methods[i].handler != NULL; i++)
+    {
+        jerry_value_t func = jerry_function_external(methods[i].handler);
+        if (jerry_value_is_exception(func))
+        {
+            jerry_value_free(func);
+            return;
+        }
+        jerry_value_t set = jerry_object_set_sz(target, methods[i].name, func);
+        jerry_value_free(func);
+        jerry_value_free(set);
+    }
+}
+
 void sni_api_eos_init(void)
 {
     eos_api_obj = sni_api_build(eos_api_classes);
@@ -2146,6 +2196,7 @@ void sni_api_eos_init(void)
     {
         EOS_LOG_E("Failed to register ElenixOS API constants");
     }
+    sni_api_eos_register_methods(eos_root_static_methods, eos_api_obj);
 }
 
 void sni_api_eos_mount(jerry_value_t realm)
