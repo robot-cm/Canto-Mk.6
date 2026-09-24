@@ -2,22 +2,28 @@
 """把 webp 图标转换为 LVGL ARGB8888 C 数组(嵌入式, 免运行时解码)。
 
 用法:
-    python3 scripts/icon/webp2c.py [--size 36] bluetooth wifi torch powersave
-    # 抠图(把接近某色的像素转透明, 例如白色背景的 pwd.webp):
-    python3 scripts/icon/webp2c.py --key FFFFFF --key-tol 48 pwd
+    # 直接指定源文件路径
+    python3 scripts/icon/webp2c.py resources/images/icon/bluetooth.webp
+    # 指定尺寸
+    python3 scripts/icon/webp2c.py --size 96 path/to/wifi.webp
+    # 抠图(把接近某色的像素转透明, 例如白色背景):
+    python3 scripts/icon/webp2c.py --key FFFFFF --key-tol 48 path/to/pwd.webp
     # 文件名含 '.' 等非法标识符字符时用 --name 指定 C 变量名:
-    python3 scripts/icon/webp2c.py --size 96 --name settings_apps settings.apps
+    python3 scripts/icon/webp2c.py --size 96 --name settings_apps path/to/settings.apps.webp
+    # 指定输出目录(默认 resources/images/icon)
+    python3 scripts/icon/webp2c.py --out-dir build/icons path/to/a.webp
 输出:
-    resources/images/icon/eos_icon_<name>.c
+    <out-dir>/eos_icon_<name>.c
 """
 import argparse
+import re
 import struct
 from pathlib import Path
 
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT_DIR = ROOT / "resources" / "images" / "icon"
+DEFAULT_OUT_DIR = ROOT / "resources" / "images" / "icon"
 
 MAGIC = 0x19          # LV_IMAGE_HEADER_MAGIC
 CF_ARGB8888 = 0x10    # LV_COLOR_FORMAT_ARGB8888
@@ -26,17 +32,19 @@ CF_ARGB8888 = 0x10    # LV_COLOR_FORMAT_ARGB8888
 def key_out(r: int, g: int, b: int, a: int, key: tuple, tol: int) -> int:
     """把接近 key 颜色的像素 alpha 线性过渡到 0, 边缘平滑无白边。"""
     kr, kg, kb = key
-    # Chebyshev 距离: 颜色分明的图足够, 且对单个通道噪声不敏感
     d = max(abs(r - kr), abs(g - kg), abs(b - kb))
     if d >= tol:
         return a
-    # d: 0 → 全透明, tol → 保留原 alpha
     return int(a * d / tol)
+
+
+def sanitize(name: str) -> str:
+    """把文件名转成合法 C 标识符片段。"""
+    return re.sub(r"[^0-9a-zA-Z_]", "_", name)
 
 
 def gen_c(src: Path, name: str, size: int, key: tuple = None, key_tol: int = 40) -> str:
     im = Image.open(src).convert("RGBA")
-    # 缩放到目标尺寸
     if im.size != (size, size):
         im = im.resize((size, size), Image.LANCZOS)
     pixels = im.load()
@@ -47,7 +55,6 @@ def gen_c(src: Path, name: str, size: int, key: tuple = None, key_tol: int = 40)
             r, g, b, a = pixels[x, y]
             if key is not None:
                 a = key_out(r, g, b, a, key, key_tol)
-            # ARGB8888 小端内存布局: [B, G, R, A]
             data += struct.pack("<I", (a << 24) | (r << 16) | (g << 8) | b)
 
     stride = size * 4
@@ -79,28 +86,39 @@ const lv_image_dsc_t {name} = {{
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("names", nargs="+")
+    ap.add_argument("files", nargs="+",
+                    help="源 .webp 文件路径(可多个)")
     ap.add_argument("--size", type=int, default=36)
     ap.add_argument("--key", default=None,
                     help="抠图: 把接近该 RGB(如 FFFFFF) 的像素转透明")
     ap.add_argument("--key-tol", type=int, default=40,
                     help="抠图容差(0-255), 默认 40")
     ap.add_argument("--name", default=None,
-                    help="生成的 C 变量名/输出文件名(默认 eos_icon_<name>;"
-                         "文件名含 '.' 等非法字符时必需, 如 settings.apps → settings_apps)")
+                    help="生成的 C 变量名/输出文件名(不含 eos_icon_ 前缀)。"
+                         "不指定时从源文件名推导(非法字符转 _)。")
+    ap.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR),
+                    help="输出目录, 默认 resources/images/icon")
     args = ap.parse_args()
+
+    if args.name and len(args.files) > 1:
+        ap.error("--name 只能配合单个源文件使用(否则变量名会重复)")
 
     key = None
     if args.key:
         key = (int(args.key[0:2], 16), int(args.key[2:4], 16), int(args.key[4:6], 16))
 
-    for name in args.names:
-        src = ROOT / "resources" / "images" / "icon" / f"{name}.webp"
+    out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    for f in args.files:
+        src = Path(f)
         if not src.exists():
-            print(f"SKIP {name}: {src} 不存在")
+            print(f"SKIP {f}: 文件不存在")
             continue
-        var = f"eos_icon_{args.name}" if args.name else f"eos_icon_{name}"
-        out = OUT_DIR / f"{var}.c"
+
+        base = args.name if args.name else sanitize(src.stem)
+        var = f"eos_icon_{base}"
+        out = out_dir / f"{var}.c"
         out.write_text(gen_c(src, var, args.size, key, args.key_tol),
                        encoding="utf-8")
         print(f"生成 {out} ({out.stat().st_size} B)")

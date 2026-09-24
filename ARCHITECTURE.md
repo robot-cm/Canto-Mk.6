@@ -12,9 +12,13 @@
    硬件与驱动信息以 `port/esp32s3/main/*.c` 与 `src/` 现有符号为准。
 2. **Core 与 Script Engine 强耦合。** `eos_core.c`、`apps`、`widgets`、`basic_widgets` 均
    直接 `#include script_engine_core.h → jerryscript.h`。**不能**单独剔除脚本引擎。
-3. **所有 UI App 是 JavaScript。** 经 JerryScript 引擎在 C 侧用 SNI 桥接调用 LVGL。
-   App 资源（`.js` + `manifest.json` + `icon.bin`）打包为 `.eapk`，存于 Flash 内 SPIFFS
-   （挂载为 `/sdcard`，非真实 SD 卡）。
+3. **可安装的 UI App 是 JavaScript**，经 JerryScript 引擎在 C 侧用 SNI 桥接调用 LVGL；
+   资源（`.js` + `manifest.json` + `icon.bin`）打包为 `.eapk`，存于 Flash 内 SPIFFS
+   （挂载为 `/sdcard`；默认是内部 SPIFFS，**插入物理 SD 卡时 `board_sd` 会覆盖挂载为真实 SD 卡**，
+   无卡时退回 SPIFFS。详见 `agent-experience.md` §17）。
+   **但本系统同时包含若干内置原生 C App**（Texthub、Album、Control Center 等），它们直接编译进
+   Flash（`EOS_NATIVE_APP_*` 枚举，`src/framework/app/eos_app_list.h`），**不是** `.eapk`，
+   图标走 `/sdcard/theme/icons/*.bin`。详见 `agent-experience.md` §9（Texthub 改回原生 C）、§12（Album 改回原生 C）。
 4. **Shell 属于 Core，不依赖 SD/脚本。** 即使脚本引擎崩溃，底层 Shell 仍可用。
 5. **ESP-IDF v5.3.1**，目标 `XIAO ESP32-S3`（ESP32-S3R8：8MB Flash / 8MB PSRAM）。
    普通版，**无** Sense 摄像头/麦克风/板载 SD。
@@ -52,11 +56,17 @@ JERRY_CPOINTER_32_BIT=1     # 要求 8 字节对齐
 > 提供的 8 字节对齐实现（ESP-IDF 默认仅 4 字节对齐，不满足 JerryScript 要求）。
 > **不要移除这些 `--wrap` 链接选项。**
 
-### LVGL 配置（来自 `port/esp32s3/main/lv_conf.h`）
+### LVGL 配置（`lv_conf.h` **不参与编译**，`sdkconfig` 才是真正来源）
 
 - `LV_COLOR_16_SWAP` 相关：GC9A01 大端 RGB565，flush 时自行做字节交换（不依赖宏）。
 - LVGL 池与 draw buffer 优先放 PSRAM（见第 3 章）。
-- `LV_CONF_INCLUDE_SIMPLE=1`，`LV_KCONFIG_IGNORE=1`。
+- **`CONFIG_LV_CONF_SKIP=y`**（`port/esp32s3/sdkconfig`）：`lv_conf.h` 整个被跳过，
+  `lv_conf_internal.h` 直接吃 Kconfig 默认值 + `sdkconfig` 覆盖。改 LVGL 配置先
+  `grep CONFIG_LV_CONF_SKIP sdkconfig` 确认，再去改 `sdkconfig`/`Kconfig`，**不要改 `lv_conf.h`**
+  （改了也不生效，见 `agent-experience.md` §15 / §27 Watchface 崩溃复盘）。
+- 对应 `lv_conf.h` 里的开关在 sdkconfig 中是 `CONFIG_LV_*` 形式，例如
+  `CONFIG_LV_FONT_FMT_TXT_LARGE_LIMIT`、`CONFIG_LV_USE_BIDI`、`CONFIG_LV_USE_ARABIC_PERSIAN_CHARS`、
+  `CONFIG_LV_DRAW_SW_ASM_NONE`、`CONFIG_LV_USE_OWN_POSIX`。
 
 ---
 
@@ -118,7 +128,9 @@ ElenixOS-fork-stable/
 应用/Core
    │
    ├─ eos_malloc / eos_free / eos_realloc / eos_calloc   (eos_mem.h)
-   │     └─ 默认转发到标准 malloc；可开启追踪(EOS_MEM_TRACK_ENABLE)
+   │     └─ `eos_mem_auto.c`：每次分配前置 8 字节头(`EOS_MEM_HEADER_MAGIC=0xE5A0`)；
+   │        `eos_free` 校验 magic，foreign pointer(非 eos 分配)直接拒绝并泄漏(计数见
+   │        `agent-experience.md` §3)；可开追踪(EOS_MEM_TRACK_ENABLE)
    │        与 LVGL stdlib 替换(EOS_OVERRIDE_LVGL_STDLIB_MALLOC_ENABLE)
    │
    ├─ mem_mgr_alloc / mem_mgr_free   (port/memory/mem_mgr.h)
@@ -136,7 +148,7 @@ ElenixOS-fork-stable/
 | **Internal RAM / DRAM** | 实时任务栈、DMA 缓冲、高频结构、Core 关键对象 | UI 任务栈 48KB（internal）；**绝不能让 largest-free-block 跌破 ~50KB**，否则 `ui_task` 创建失败 |
 | **PSRAM (8MB)** | LVGL draw buffer、图片/动画缓存、JerryScript 512KB 堆、App 运行时大对象 | S3 SPI2 IDMA 原生支持 PSRAM 地址 |
 | **Flash (8MB)** | Core + LVGL + JerryScript + 编译进 Flash 的字体/图标（XIP 映射，不占 PSRAM/RAM） | 见分区表 |
-| **SPIFFS (2MB)** | `/sdcard` 挂载点：config / state / eapk 源+解包 / 系统资源 | 逻辑“SD”，非物理 SD 卡 |
+| **SPIFFS (1MB)** | `/sdcard` 挂载点：config / state / eapk 源+解包 / 系统资源。插入物理 SD 卡时 `board_sd` 覆盖挂载为真实 SD 卡 | 逻辑“SD”；无卡时为内部 SPIFFS |
 
 ### 3.3 PSRAM 分配陷阱（历史踩坑，务必遵守）
 
@@ -159,8 +171,10 @@ ElenixOS-fork-stable/
 
 ### 4.1 形态
 
-- App = **JavaScript 脚本** + `manifest.json` + `icon.bin`。
+- **可安装 App** = **JavaScript 脚本** + `manifest.json` + `icon.bin`。
 - 打包为 `.eapk`（由 `scripts/eos_pkg_builder.py` 生成），存于 SPIFFS `/sdcard/apps/...`。
+- **内置系统 App**（Texthub / Album / Control Center 等）= 原生 C，编译进 Flash
+  (`EOS_NATIVE_APP_*`)，不打包为 `.eapk`，入口由 C 直接注册（见 `agent-experience.md` §9 / §12）。
 - 运行时经 **JerryScript** 执行；JS 通过 **SNI（Script Native Interface）** 调用 C 侧 LVGL/服务。
 
 ### 4.2 三层管理架构
@@ -267,10 +281,10 @@ uint32_t eos_tick_get(void) { return lv_tick_get(); }
 |---|---|---|---|---|
 | nvs | data/nvs | 0x9000 | 16KB | 键值配置（`wifi.*` / `proxy.*`） |
 | phy_init | data/phy | 0xF000 | 4KB | PHY 校准 |
-| factory | app | 0x10000 | **5.94MB** | Core + Service + LVGL + JerryScript + 系统资源 |
-| spiffs | data/spiffs | 0x600000 | **2MB** | `/sdcard`：config / state / eapk 源+解包 / 资源 |
+| factory | app | 0x10000 | **6.94MB** | Core + Service + LVGL + JerryScript + 系统资源 |
+| spiffs | data/spiffs | 0x700000 | **1MB** | `/sdcard`：config / state / eapk 源+解包 / 资源 |
 
-- 当前固件约 3.88MB，factory 余量约 2MB（2MB SPIFFS 由 512KB 扩容而来，容纳 9 个 eapk）。
+- 当前固件约 3.88MB，factory 余量约 2MB（SPIFFS 现为 1MB：512KB→2MB→1MB 演变，详见 partitions.csv 头注释）。
 - **已主动删 OTA**：收益是 Core 最大可用空间；代价是固件更新只能 USB 重刷。
   如需恢复 OTA，先评估再改分区表。
 
@@ -282,7 +296,7 @@ uint32_t eos_tick_get(void) { return lv_tick_get(); }
 Plugin Manager (src/services/plugin/eos_plugin_manager)
    └─ 扫描 SPIFFS /sdcard/apps/*.eapk
         ├─ 解析 manifest（id/version/permissions/min_api_level）
-        ├─ 校验（路径穿越、大小、entry 存在）
+        ├─ 校验（pkg_id 合法、路径穿越、大小限制；入口恒为 main.js，不存在 entry 字段概念）
         └─ 构建 script_pkg_t
              └─ eos_app_run() → spm_app_run() → spm_start_program()
                   └─ SEC: jerry_parse + jerry_run (512KB 外部堆)

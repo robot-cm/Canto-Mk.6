@@ -77,6 +77,7 @@ idf_component_register(
         "eos_usb_msc_descriptors.c"
         "${EOS_ROOT}/resources/images/icon/eos_icon_delete.c"
         "${EOS_ROOT}/resources/images/icon/eos_icon_fm.c"
+        "${EOS_ROOT}/resources/images/icon/eos_icon_star.c"
         "${EOS_ROOT}/resources/images/icon/eos_icon_search.c"
     INCLUDE_DIRS
         "."

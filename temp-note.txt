@@ -2,9 +2,9 @@ cd /home/erashaperavm/下载/ElenixOS-fork-stable/port/esp32s3 && idf.py -p /dev
 
 cd /home/erashaperavm/下载/ElenixOS-fork-stable/port/esp32s3 && idf.py -p /dev/ttyACM0 monitor
 
+cd /home/erashaperavm/下载/ElenixOS-fork-stable/ && python3 scripts/icon/webp2c.py --size 24 resources/images/icon/star.webp
 
-
-[apps] installed: 12
+[apps] installed: 14
   0: com.cantomk6.alarm
   1: com.cantomk6.breach
   2: com.cantomk6.calculator
@@ -16,7 +16,9 @@ cd /home/erashaperavm/下载/ElenixOS-fork-stable/port/esp32s3 && idf.py -p /dev
   8: sys.flash_light
   9: com.cantomk6.album
   10: com.cantomk6.texthub
-  11: com.cantomk6.usb_msc
+  11: com.cantomk6.dictionary
+  12: com.cantomk6.usb_msc
+  13: com.cantomk6.spotify
 
 
 
