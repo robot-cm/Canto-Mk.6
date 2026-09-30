@@ -1,12 +1,12 @@
 /**
- * @file cos_theme_manager.h
+ * @file eos_theme_manager.h
  * @brief Theme manager — Liquid Glass theme params + apply (req #5/#6).
  *
  * Holds the visual theme (background alpha, accent, radius, glow, glass flag)
  * and can apply it to any LVGL object. Serialisable for persistence.
  */
-#ifndef COS_THEME_MANAGER_H
-#define COS_THEME_MANAGER_H
+#ifndef EOS_THEME_MANAGER_H
+#define EOS_THEME_MANAGER_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -24,21 +24,21 @@ typedef struct {
     uint16_t radius;      /**< card corner radius (px)                */
     uint8_t glow;         /**< subtle glow / shadow strength 0..255   */
     bool    glass;        /**< use liquid-glass look                  */
-} cos_theme_t;
+} eos_theme_t;
 
-void cos_theme_manager_init(cos_theme_t *t);
-void cos_theme_manager_set(cos_theme_t *t, const char *name,
+void eos_theme_manager_init(eos_theme_t *t);
+void eos_theme_manager_set(eos_theme_t *t, const char *name,
                            uint8_t bg_alpha, uint32_t accent,
                            uint16_t radius, uint8_t glow, bool glass);
 
 /** @brief Apply the theme to an object (NULL-safe). is_card => card styling. */
-void cos_theme_manager_apply(const cos_theme_t *t, lv_obj_t *obj, bool is_card);
+void eos_theme_manager_apply(const eos_theme_t *t, lv_obj_t *obj, bool is_card);
 
 /** @brief Serialise/deserialise to a text buffer (for persistence). */
-int  cos_theme_manager_serialize(const cos_theme_t *t, char *buf, int buflen);
-bool cos_theme_manager_deserialize(cos_theme_t *t, const char *buf);
+int  eos_theme_manager_serialize(const eos_theme_t *t, char *buf, int buflen);
+bool eos_theme_manager_deserialize(eos_theme_t *t, const char *buf);
 
 #ifdef __cplusplus
 }
 #endif
-#endif /* COS_THEME_MANAGER_H */
+#endif /* EOS_THEME_MANAGER_H */

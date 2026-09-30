@@ -1,5 +1,5 @@
 /**
- * @file cos_port_critical_rtthread.c
+ * @file eos_port_critical_rtthread.c
  * @brief RT-Thread critical section implementation
  *
  * Uses rt_hw_interrupt_disable() / rt_hw_interrupt_enable()
@@ -10,24 +10,24 @@
  * rt_hw_interrupt_enable() for proper nesting support.
  */
 
-#include "cos_config.h"
+#include "eos_config.h"
 
-#if COS_RTOS_TYPE == COS_RTOS_RTTHREAD
+#if EOS_RTOS_TYPE == EOS_RTOS_RTTHREAD
 
-#include "cos_port_critical.h"
+#include "eos_port_critical.h"
 
 /* Includes ---------------------------------------------------*/
 #include <rtthread.h>
-#include "cos_port.h"
+#include "eos_port.h"
 
-cos_critical_ctx_t cos_critical_enter(void)
+eos_critical_ctx_t eos_critical_enter(void)
 {
-    return (cos_critical_ctx_t)rt_hw_interrupt_disable();
+    return (eos_critical_ctx_t)rt_hw_interrupt_disable();
 }
 
-void cos_critical_leave(cos_critical_ctx_t ctx)
+void eos_critical_leave(eos_critical_ctx_t ctx)
 {
     rt_hw_interrupt_enable((rt_base_t)ctx);
 }
 
-#endif /* COS_RTOS_TYPE == COS_RTOS_RTTHREAD */
+#endif /* EOS_RTOS_TYPE == EOS_RTOS_RTTHREAD */

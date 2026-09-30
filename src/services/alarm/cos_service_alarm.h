@@ -1,5 +1,5 @@
 /**
- * @file cos_service_alarm.h
+ * @file eos_service_alarm.h
  * @brief Persistent alarm trigger service (Core)
  *
  * JS 插件退出后代码不再执行，无法自行到点提醒。
@@ -7,17 +7,17 @@
  * config.json 中的 "alarms" 字段，命中到点闹钟时将 App 拉回前台，
  * 响铃 UI（白屏闪烁 / 关闭 / 贪睡）完全由 App 内 JS 呈现。
  */
-#ifndef COS_SERVICE_ALARM_H
-#define COS_SERVICE_ALARM_H
+#ifndef EOS_SERVICE_ALARM_H
+#define EOS_SERVICE_ALARM_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void cos_service_alarm_init(void);
+void eos_service_alarm_init(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* COS_SERVICE_ALARM_H */
+#endif /* EOS_SERVICE_ALARM_H */

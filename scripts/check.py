@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CantoMk6 unified system check entry point.
+"""ElenixOS unified system check entry point.
 
 Usage:
     python3 scripts/check.py                   # Run all checks
@@ -38,7 +38,7 @@ EXIT_WARNING = 2
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="CantoMk6 system check tool",
+        description="ElenixOS system check tool",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(

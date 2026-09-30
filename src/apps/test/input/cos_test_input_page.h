@@ -1,10 +1,10 @@
 /**
- * @file cos_test_input_page.h
+ * @file eos_test_input_page.h
  * @brief Input page test module
  */
 
-#ifndef COS_TEST_INPUT_PAGE_H
-#define COS_TEST_INPUT_PAGE_H
+#ifndef EOS_TEST_INPUT_PAGE_H
+#define EOS_TEST_INPUT_PAGE_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,10 +22,10 @@ extern "C" {
 /**
  * @brief Start input page test
  */
-void cos_test_input_page_start(void);
+void eos_test_input_page_start(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* COS_TEST_INPUT_PAGE_H */
+#endif /* EOS_TEST_INPUT_PAGE_H */

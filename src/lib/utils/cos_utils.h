@@ -1,10 +1,10 @@
 /**
- * @file cos_utils.h
+ * @file eos_utils.h
  * @brief Utility functions and macros
  */
 
-#ifndef COS_UTILS_H
-#define COS_UTILS_H
+#ifndef EOS_UTILS_H
+#define EOS_UTILS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,7 +16,7 @@ extern "C" {
 
 /* Public macros ----------------------------------------------*/
 
-#define COS_CLAMP(val, min, max) ((val) < (min) ? (min) : ((val) > (max) ? (max) : (val)))
+#define EOS_CLAMP(val, min, max) ((val) < (min) ? (min) : ((val) > (max) ? (max) : (val)))
 
 /* Public typedefs --------------------------------------------*/
 
@@ -26,4 +26,4 @@ extern "C" {
 }
 #endif
 
-#endif /* COS_UTILS_H */
+#endif /* EOS_UTILS_H */

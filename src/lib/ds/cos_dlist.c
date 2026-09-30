@@ -1,30 +1,30 @@
 /**
- * @file cos_dlist.c
+ * @file eos_dlist.c
  * @brief Doubly linked list
  */
 
-#include "cos_dlist.h"
+#include "eos_dlist.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
-#define COS_LOG_TAG "DList"
-#include "cos_log.h"
-#include "cos_mem.h"
+#define EOS_LOG_TAG "DList"
+#include "eos_log.h"
+#include "eos_mem.h"
 
 /* Macros and Definitions -------------------------------------*/
 
-struct cos_dlist_node_t
+struct eos_dlist_node_t
 {
     void *data;
-    struct cos_dlist_node_t *prev;
-    struct cos_dlist_node_t *next;
+    struct eos_dlist_node_t *prev;
+    struct eos_dlist_node_t *next;
 };
 
-struct cos_dlist_t
+struct eos_dlist_t
 {
-    struct cos_dlist_node_t *head;
-    struct cos_dlist_node_t *tail;
+    struct eos_dlist_node_t *head;
+    struct eos_dlist_node_t *tail;
     size_t size;
 };
 
@@ -32,34 +32,34 @@ struct cos_dlist_t
 
 /* Function Implementations -----------------------------------*/
 
-cos_dlist_t *cos_dlist_create(void)
+eos_dlist_t *eos_dlist_create(void)
 {
-    cos_dlist_t *list = cos_malloc_zeroed(sizeof(cos_dlist_t));
-    COS_CHECK_PTR_RETURN_VAL(list, NULL);
+    eos_dlist_t *list = eos_malloc_zeroed(sizeof(eos_dlist_t));
+    EOS_CHECK_PTR_RETURN_VAL(list, NULL);
 
     list->head = NULL;
     list->tail = NULL;
     list->size = 0;
 
-    COS_LOG_I("dlist created");
+    EOS_LOG_I("dlist created");
     return list;
 }
 
-void cos_dlist_destroy(cos_dlist_t *list)
+void eos_dlist_destroy(eos_dlist_t *list)
 {
-    COS_CHECK_PTR_RETURN(list);
+    EOS_CHECK_PTR_RETURN(list);
 
-    cos_dlist_clear(list);
-    cos_free(list);
-    COS_LOG_I("dlist destroyed");
+    eos_dlist_clear(list);
+    eos_free(list);
+    EOS_LOG_I("dlist destroyed");
 }
 
-bool cos_dlist_push_front(cos_dlist_t *list, void *data)
+bool eos_dlist_push_front(eos_dlist_t *list, void *data)
 {
-    COS_CHECK_PTR_RETURN_VAL(list, false);
+    EOS_CHECK_PTR_RETURN_VAL(list, false);
 
-    struct cos_dlist_node_t *node = cos_malloc_zeroed(sizeof(struct cos_dlist_node_t));
-    COS_CHECK_PTR_RETURN_VAL(node, false);
+    struct eos_dlist_node_t *node = eos_malloc_zeroed(sizeof(struct eos_dlist_node_t));
+    EOS_CHECK_PTR_RETURN_VAL(node, false);
 
     node->data = data;
     node->prev = NULL;
@@ -73,16 +73,16 @@ bool cos_dlist_push_front(cos_dlist_t *list, void *data)
     list->head = node;
     list->size++;
 
-    COS_LOG_I("push_front data[%p]", data);
+    EOS_LOG_I("push_front data[%p]", data);
     return true;
 }
 
-bool cos_dlist_push_back(cos_dlist_t *list, void *data)
+bool eos_dlist_push_back(eos_dlist_t *list, void *data)
 {
-    COS_CHECK_PTR_RETURN_VAL(list, false);
+    EOS_CHECK_PTR_RETURN_VAL(list, false);
 
-    struct cos_dlist_node_t *node = cos_malloc_zeroed(sizeof(struct cos_dlist_node_t));
-    COS_CHECK_PTR_RETURN_VAL(node, false);
+    struct eos_dlist_node_t *node = eos_malloc_zeroed(sizeof(struct eos_dlist_node_t));
+    EOS_CHECK_PTR_RETURN_VAL(node, false);
 
     node->data = data;
     node->prev = list->tail;
@@ -96,29 +96,29 @@ bool cos_dlist_push_back(cos_dlist_t *list, void *data)
     list->tail = node;
     list->size++;
 
-    COS_LOG_I("push_back data[%p]", data);
+    EOS_LOG_I("push_back data[%p]", data);
     return true;
 }
 
-bool cos_dlist_insert_at(cos_dlist_t *list, size_t index, void *data)
+bool eos_dlist_insert_at(eos_dlist_t *list, size_t index, void *data)
 {
-    COS_CHECK_PTR_RETURN_VAL(list, false);
+    EOS_CHECK_PTR_RETURN_VAL(list, false);
 
     if (index > list->size)
         return false;
 
     if (index == 0)
-        return cos_dlist_push_front(list, data);
+        return eos_dlist_push_front(list, data);
 
     if (index == list->size)
-        return cos_dlist_push_back(list, data);
+        return eos_dlist_push_back(list, data);
 
-    struct cos_dlist_node_t *node = cos_malloc_zeroed(sizeof(struct cos_dlist_node_t));
-    COS_CHECK_PTR_RETURN_VAL(node, false);
+    struct eos_dlist_node_t *node = eos_malloc_zeroed(sizeof(struct eos_dlist_node_t));
+    EOS_CHECK_PTR_RETURN_VAL(node, false);
 
     node->data = data;
 
-    struct cos_dlist_node_t *cur = list->head;
+    struct eos_dlist_node_t *cur = list->head;
     for (size_t i = 0; i < index; i++)
         cur = cur->next;
 
@@ -128,18 +128,18 @@ bool cos_dlist_insert_at(cos_dlist_t *list, size_t index, void *data)
     cur->prev = node;
     list->size++;
 
-    COS_LOG_I("insert_at data[%p] at index %zu", data, index);
+    EOS_LOG_I("insert_at data[%p] at index %zu", data, index);
     return true;
 }
 
-void *cos_dlist_pop_front(cos_dlist_t *list)
+void *eos_dlist_pop_front(eos_dlist_t *list)
 {
-    COS_CHECK_PTR_RETURN_VAL(list, NULL);
+    EOS_CHECK_PTR_RETURN_VAL(list, NULL);
 
     if (list->size == 0)
         return NULL;
 
-    struct cos_dlist_node_t *node = list->head;
+    struct eos_dlist_node_t *node = list->head;
     void *data = node->data;
 
     list->head = node->next;
@@ -149,20 +149,20 @@ void *cos_dlist_pop_front(cos_dlist_t *list)
         list->tail = NULL;
 
     list->size--;
-    cos_free(node);
+    eos_free(node);
 
-    COS_LOG_I("pop_front data[%p]", data);
+    EOS_LOG_I("pop_front data[%p]", data);
     return data;
 }
 
-void *cos_dlist_pop_back(cos_dlist_t *list)
+void *eos_dlist_pop_back(eos_dlist_t *list)
 {
-    COS_CHECK_PTR_RETURN_VAL(list, NULL);
+    EOS_CHECK_PTR_RETURN_VAL(list, NULL);
 
     if (list->size == 0)
         return NULL;
 
-    struct cos_dlist_node_t *node = list->tail;
+    struct eos_dlist_node_t *node = list->tail;
     void *data = node->data;
 
     list->tail = node->prev;
@@ -172,26 +172,26 @@ void *cos_dlist_pop_back(cos_dlist_t *list)
         list->head = NULL;
 
     list->size--;
-    cos_free(node);
+    eos_free(node);
 
-    COS_LOG_I("pop_back data[%p]", data);
+    EOS_LOG_I("pop_back data[%p]", data);
     return data;
 }
 
-void *cos_dlist_remove_at(cos_dlist_t *list, size_t index)
+void *eos_dlist_remove_at(eos_dlist_t *list, size_t index)
 {
-    COS_CHECK_PTR_RETURN_VAL(list, NULL);
+    EOS_CHECK_PTR_RETURN_VAL(list, NULL);
 
     if (index >= list->size)
         return NULL;
 
     if (index == 0)
-        return cos_dlist_pop_front(list);
+        return eos_dlist_pop_front(list);
 
     if (index == list->size - 1)
-        return cos_dlist_pop_back(list);
+        return eos_dlist_pop_back(list);
 
-    struct cos_dlist_node_t *cur = list->head;
+    struct eos_dlist_node_t *cur = list->head;
     for (size_t i = 0; i < index; i++)
         cur = cur->next;
 
@@ -200,17 +200,17 @@ void *cos_dlist_remove_at(cos_dlist_t *list, size_t index)
 
     void *data = cur->data;
     list->size--;
-    cos_free(cur);
+    eos_free(cur);
 
-    COS_LOG_I("remove_at data[%p] at index %zu", data, index);
+    EOS_LOG_I("remove_at data[%p] at index %zu", data, index);
     return data;
 }
 
-bool cos_dlist_remove(cos_dlist_t *list, void *data)
+bool eos_dlist_remove(eos_dlist_t *list, void *data)
 {
-    COS_CHECK_PTR_RETURN_VAL(list, false);
+    EOS_CHECK_PTR_RETURN_VAL(list, false);
 
-    struct cos_dlist_node_t *cur = list->head;
+    struct eos_dlist_node_t *cur = list->head;
     while (cur)
     {
         if (cur->data == data)
@@ -226,9 +226,9 @@ bool cos_dlist_remove(cos_dlist_t *list, void *data)
                 list->tail = cur->prev;
 
             list->size--;
-            cos_free(cur);
+            eos_free(cur);
 
-            COS_LOG_I("remove data[%p]", data);
+            EOS_LOG_I("remove data[%p]", data);
             return true;
         }
         cur = cur->next;
@@ -237,15 +237,15 @@ bool cos_dlist_remove(cos_dlist_t *list, void *data)
     return false;
 }
 
-void cos_dlist_clear(cos_dlist_t *list)
+void eos_dlist_clear(eos_dlist_t *list)
 {
-    COS_CHECK_PTR_RETURN(list);
+    EOS_CHECK_PTR_RETURN(list);
 
-    struct cos_dlist_node_t *cur = list->head;
+    struct eos_dlist_node_t *cur = list->head;
     while (cur)
     {
-        struct cos_dlist_node_t *next = cur->next;
-        cos_free(cur);
+        struct eos_dlist_node_t *next = cur->next;
+        eos_free(cur);
         cur = next;
     }
 
@@ -253,12 +253,12 @@ void cos_dlist_clear(cos_dlist_t *list)
     list->tail = NULL;
     list->size = 0;
 
-    COS_LOG_I("dlist cleared");
+    EOS_LOG_I("dlist cleared");
 }
 
-void *cos_dlist_get_front(cos_dlist_t *list)
+void *eos_dlist_get_front(eos_dlist_t *list)
 {
-    COS_CHECK_PTR_RETURN_VAL(list, NULL);
+    EOS_CHECK_PTR_RETURN_VAL(list, NULL);
 
     if (list->size == 0)
         return NULL;
@@ -266,9 +266,9 @@ void *cos_dlist_get_front(cos_dlist_t *list)
     return list->head->data;
 }
 
-void *cos_dlist_get_back(cos_dlist_t *list)
+void *eos_dlist_get_back(eos_dlist_t *list)
 {
-    COS_CHECK_PTR_RETURN_VAL(list, NULL);
+    EOS_CHECK_PTR_RETURN_VAL(list, NULL);
 
     if (list->size == 0)
         return NULL;
@@ -276,38 +276,38 @@ void *cos_dlist_get_back(cos_dlist_t *list)
     return list->tail->data;
 }
 
-void *cos_dlist_get_at(cos_dlist_t *list, size_t index)
+void *eos_dlist_get_at(eos_dlist_t *list, size_t index)
 {
-    COS_CHECK_PTR_RETURN_VAL(list, NULL);
+    EOS_CHECK_PTR_RETURN_VAL(list, NULL);
 
     if (index >= list->size)
         return NULL;
 
-    struct cos_dlist_node_t *cur = list->head;
+    struct eos_dlist_node_t *cur = list->head;
     for (size_t i = 0; i < index; i++)
         cur = cur->next;
 
     return cur->data;
 }
 
-size_t cos_dlist_get_size(cos_dlist_t *list)
+size_t eos_dlist_get_size(eos_dlist_t *list)
 {
-    COS_CHECK_PTR_RETURN_VAL(list, 0);
+    EOS_CHECK_PTR_RETURN_VAL(list, 0);
     return list->size;
 }
 
-bool cos_dlist_is_empty(cos_dlist_t *list)
+bool eos_dlist_is_empty(eos_dlist_t *list)
 {
     if (!list)
         return true;
     return list->size == 0;
 }
 
-int cos_dlist_find(cos_dlist_t *list, void *data)
+int eos_dlist_find(eos_dlist_t *list, void *data)
 {
-    COS_CHECK_PTR_RETURN_VAL(list, -1);
+    EOS_CHECK_PTR_RETURN_VAL(list, -1);
 
-    struct cos_dlist_node_t *cur = list->head;
+    struct eos_dlist_node_t *cur = list->head;
     size_t index = 0;
 
     while (cur)
@@ -321,15 +321,15 @@ int cos_dlist_find(cos_dlist_t *list, void *data)
     return -1;
 }
 
-bool cos_dlist_reverse(cos_dlist_t *list)
+bool eos_dlist_reverse(eos_dlist_t *list)
 {
-    COS_CHECK_PTR_RETURN_VAL(list, false);
+    EOS_CHECK_PTR_RETURN_VAL(list, false);
 
     if (list->size <= 1)
         return true;
 
-    struct cos_dlist_node_t *cur = list->head;
-    struct cos_dlist_node_t *tmp = NULL;
+    struct eos_dlist_node_t *cur = list->head;
+    struct eos_dlist_node_t *tmp = NULL;
 
     while (cur)
     {
@@ -343,16 +343,16 @@ bool cos_dlist_reverse(cos_dlist_t *list)
     list->head = list->tail;
     list->tail = tmp;
 
-    COS_LOG_I("dlist reversed");
+    EOS_LOG_I("dlist reversed");
     return true;
 }
 
-bool cos_dlist_iterate(cos_dlist_t *list, cos_dlist_iter_cb_t callback, void *user_data)
+bool eos_dlist_iterate(eos_dlist_t *list, eos_dlist_iter_cb_t callback, void *user_data)
 {
-    COS_CHECK_PTR_RETURN_VAL(list, false);
-    COS_CHECK_PTR_RETURN_VAL(callback, false);
+    EOS_CHECK_PTR_RETURN_VAL(list, false);
+    EOS_CHECK_PTR_RETURN_VAL(callback, false);
 
-    struct cos_dlist_node_t *cur = list->head;
+    struct eos_dlist_node_t *cur = list->head;
     while (cur)
     {
         if (!callback(cur->data, user_data))
@@ -363,7 +363,7 @@ bool cos_dlist_iterate(cos_dlist_t *list, cos_dlist_iter_cb_t callback, void *us
     return true;
 }
 
-void **cos_dlist_to_array(cos_dlist_t *list, size_t *out_size)
+void **eos_dlist_to_array(eos_dlist_t *list, size_t *out_size)
 {
     if (!list || !out_size)
         return NULL;
@@ -373,10 +373,10 @@ void **cos_dlist_to_array(cos_dlist_t *list, size_t *out_size)
     if (list->size == 0)
         return NULL;
 
-    void **arr = cos_malloc(list->size * sizeof(void *));
-    COS_CHECK_PTR_RETURN_VAL(arr, NULL);
+    void **arr = eos_malloc(list->size * sizeof(void *));
+    EOS_CHECK_PTR_RETURN_VAL(arr, NULL);
 
-    struct cos_dlist_node_t *cur = list->head;
+    struct eos_dlist_node_t *cur = list->head;
     size_t i = 0;
 
     while (cur)

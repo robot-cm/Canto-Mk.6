@@ -1,13 +1,13 @@
 /**
- * @file cos_test_runner.h
+ * @file eos_test_runner.h
  * @brief Global unit test runner - aggregates all unit test registrations
  */
 
-#ifndef COS_TEST_RUNNER_H
-#define COS_TEST_RUNNER_H
+#ifndef EOS_TEST_RUNNER_H
+#define EOS_TEST_RUNNER_H
 
-#include "cos_config.h"
-#if COS_ENABLE_TEST_APP
+#include "eos_config.h"
+#if EOS_ENABLE_TEST_APP
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,12 +22,12 @@ extern "C" {
 /* Public typedefs --------------------------------------------*/
 
 /* Public function prototypes --------------------------------*/
-void cos_test_runner_register_all(void);
-void cos_test_runner_start(void);
+void eos_test_runner_register_all(void);
+void eos_test_runner_start(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* COS_ENABLE_TEST_APP */
-#endif /* COS_TEST_RUNNER_H */
+#endif /* EOS_ENABLE_TEST_APP */
+#endif /* EOS_TEST_RUNNER_H */

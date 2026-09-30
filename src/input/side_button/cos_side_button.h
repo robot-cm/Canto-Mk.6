@@ -1,10 +1,10 @@
 /**
- * @file cos_side_button.h
+ * @file eos_side_button.h
  * @brief Side button
  */
 
-#ifndef COS_SIDE_BUTTON_H
-#define COS_SIDE_BUTTON_H
+#ifndef EOS_SIDE_BUTTON_H
+#define EOS_SIDE_BUTTON_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,8 +13,8 @@ extern "C" {
 /* Includes ---------------------------------------------------*/
 #include <stdint.h>
 #include <stdbool.h>
-#include "cos_core.h"
-#include "input/cos_input.h"
+#include "eos_core.h"
+#include "input/eos_input.h"
 /* Public macros ----------------------------------------------*/
 
 /* Public typedefs --------------------------------------------*/
@@ -24,9 +24,9 @@ extern "C" {
  * @brief Report side button state
  * @param state State value
  */
-void cos_side_button_report(cos_button_state_t state);
+void eos_side_button_report(eos_button_state_t state);
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* COS_SIDE_BUTTON_H */
+#endif /* EOS_SIDE_BUTTON_H */

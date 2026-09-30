@@ -1,9 +1,9 @@
 /**
- * @file cos_wos_theme.h
+ * @file eos_wos_theme.h
  * @brief WOS design tokens + glass style helpers (see design doc §1)
  */
-#ifndef COS_WOS_THEME_H
-#define COS_WOS_THEME_H
+#ifndef EOS_WOS_THEME_H
+#define EOS_WOS_THEME_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,4 +57,4 @@ void wos_style_text_secondary(lv_obj_t *label, int size);
 }
 #endif
 
-#endif /* COS_WOS_THEME_H */
+#endif /* EOS_WOS_THEME_H */

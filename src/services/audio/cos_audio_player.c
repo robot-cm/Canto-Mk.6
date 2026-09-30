@@ -1,18 +1,18 @@
 /**
- * @file cos_audio_player.c
+ * @file eos_audio_player.c
  * @brief Audio player implementation
  */
-#include "cos_audio_player.h"
+#include "eos_audio_player.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "cos_mem.h"
-#define COS_LOG_TAG "AudioPlayer"
-#include "cos_log.h"
-#include "cos_dev_speaker.h"
-#include "cos_audio_feed.h"
+#include "eos_mem.h"
+#define EOS_LOG_TAG "AudioPlayer"
+#include "eos_log.h"
+#include "eos_dev_speaker.h"
+#include "eos_audio_feed.h"
 
 /* Macros and Definitions -------------------------------------*/
 
@@ -23,11 +23,11 @@
 
 /* Function Implementations -----------------------------------*/
 
-static void _player_stop_internal(cos_audio_player_t *p);
+static void _player_stop_internal(eos_audio_player_t *p);
 
-static bool _player_fill_one_buffer(cos_audio_player_t *p)
+static bool _player_fill_one_buffer(eos_audio_player_t *p)
 {
-    cos_dev_speaker_t *spk = cos_dev_speaker_get_instance();
+    eos_dev_speaker_t *spk = eos_dev_speaker_get_instance();
     if (spk == NULL || spk->ops == NULL)
         return false;
 
@@ -44,22 +44,22 @@ static bool _player_fill_one_buffer(cos_audio_player_t *p)
     }
 
     uint32_t bytes_read = 0;
-    cos_result_t res = cos_audio_decoder_read(&p->dsc, buf, cap, &bytes_read);
+    eos_result_t res = eos_audio_decoder_read(&p->dsc, buf, cap, &bytes_read);
 
-    if (res == COS_OK && bytes_read == 0 && p->dsc.format.total_samples > 0
+    if (res == EOS_OK && bytes_read == 0 && p->dsc.format.total_samples > 0
         && p->dsc.current_sample < p->dsc.format.total_samples)
     {
         p->dsc.current_sample = p->dsc.format.total_samples;
     }
 
     spk->ops->enqueue(buf, bytes_read);
-    return (res == COS_OK && bytes_read > 0);
+    return (res == EOS_OK && bytes_read > 0);
 }
 
 static void _feed_cb(void *user_data)
 {
-    cos_audio_player_t *p = (cos_audio_player_t *)user_data;
-    if (p->state != COS_AUDIO_PLAYING)
+    eos_audio_player_t *p = (eos_audio_player_t *)user_data;
+    if (p->state != EOS_AUDIO_PLAYING)
         return;
 
     while (_player_fill_one_buffer(p))
@@ -68,7 +68,7 @@ static void _feed_cb(void *user_data)
 
     if (p->dsc.current_sample >= p->dsc.format.total_samples && p->dsc.format.total_samples > 0)
     {
-        COS_LOG_I("Playback complete");
+        EOS_LOG_I("Playback complete");
         _player_stop_internal(p);
         if (p->done_cb)
         {
@@ -77,15 +77,15 @@ static void _feed_cb(void *user_data)
     }
 }
 
-static void _player_stop_internal(cos_audio_player_t *p)
+static void _player_stop_internal(eos_audio_player_t *p)
 {
     if (p->feed)
     {
-        cos_audio_feed_delete(p->feed);
+        eos_audio_feed_delete(p->feed);
         p->feed = NULL;
     }
 
-    cos_dev_speaker_t *spk = cos_dev_speaker_get_instance();
+    eos_dev_speaker_t *spk = eos_dev_speaker_get_instance();
     if (spk && spk->ops && spk->ops->stop)
     {
         spk->ops->stop();
@@ -93,76 +93,76 @@ static void _player_stop_internal(cos_audio_player_t *p)
 
     if (p->decoder_open)
     {
-        cos_audio_decoder_close(&p->dsc);
+        eos_audio_decoder_close(&p->dsc);
         p->decoder_open = false;
     }
 
-    p->state = COS_AUDIO_IDLE;
+    p->state = EOS_AUDIO_IDLE;
 }
 
-static void _player_start_feed(cos_audio_player_t *p)
+static void _player_start_feed(eos_audio_player_t *p)
 {
     if (p->feed)
     {
-        cos_audio_feed_delete(p->feed);
+        eos_audio_feed_delete(p->feed);
     }
-    p->feed = cos_audio_feed_create(FEED_TIMER_PERIOD_MS, _feed_cb, p);
+    p->feed = eos_audio_feed_create(FEED_TIMER_PERIOD_MS, _feed_cb, p);
 }
 
-void cos_audio_player_init(cos_audio_player_t *p)
+void eos_audio_player_init(eos_audio_player_t *p)
 {
     if (p == NULL)
         return;
     memset(p, 0, sizeof(*p));
-    p->state = COS_AUDIO_IDLE;
+    p->state = EOS_AUDIO_IDLE;
     p->volume = 50;
     p->muted = false;
-    COS_LOG_I("Audio player initialized");
+    EOS_LOG_I("Audio player initialized");
 }
 
-cos_result_t cos_audio_player_play(cos_audio_player_t *p, const void *src, cos_audio_src_type_t src_type)
+eos_result_t eos_audio_player_play(eos_audio_player_t *p, const void *src, eos_audio_src_type_t src_type)
 {
     if (p == NULL || src == NULL)
-        return COS_ERR_INVALID_ARG;
+        return EOS_ERR_INVALID_ARG;
 
-    if (src_type == COS_AUDIO_SRC_NONE)
+    if (src_type == EOS_AUDIO_SRC_NONE)
     {
-        src_type = cos_audio_src_get_type(src);
-        if (src_type == COS_AUDIO_SRC_NONE)
-            return COS_ERR_INVALID_ARG;
+        src_type = eos_audio_src_get_type(src);
+        if (src_type == EOS_AUDIO_SRC_NONE)
+            return EOS_ERR_INVALID_ARG;
     }
 
-    if (p->state != COS_AUDIO_IDLE)
+    if (p->state != EOS_AUDIO_IDLE)
     {
         _player_stop_internal(p);
     }
 
-    if (p->cached_src && p->cached_src_type == COS_AUDIO_SRC_FILE)
+    if (p->cached_src && p->cached_src_type == EOS_AUDIO_SRC_FILE)
     {
-        cos_free(p->cached_src);
+        eos_free(p->cached_src);
     }
     p->cached_src = NULL;
-    if (src_type == COS_AUDIO_SRC_FILE && src)
+    if (src_type == EOS_AUDIO_SRC_FILE && src)
     {
-        p->cached_src = cos_strdup((const char *)src);
-        p->cached_src_type = COS_AUDIO_SRC_FILE;
+        p->cached_src = eos_strdup((const char *)src);
+        p->cached_src_type = EOS_AUDIO_SRC_FILE;
     }
     else
     {
         p->cached_src = NULL;
-        p->cached_src_type = COS_AUDIO_SRC_NONE;
+        p->cached_src_type = EOS_AUDIO_SRC_NONE;
     }
 
-    cos_dev_speaker_t *spk = cos_dev_speaker_get_instance();
+    eos_dev_speaker_t *spk = eos_dev_speaker_get_instance();
     if (spk == NULL || spk->ops == NULL)
     {
-        return COS_ERR_DEV_NOT_FOUND;
+        return EOS_ERR_DEV_NOT_FOUND;
     }
 
-    cos_result_t res = cos_audio_decoder_open(&p->dsc, src, src_type);
-    if (res != COS_OK)
+    eos_result_t res = eos_audio_decoder_open(&p->dsc, src, src_type);
+    if (res != EOS_OK)
     {
-        COS_LOG_E("Failed to open decoder");
+        EOS_LOG_E("Failed to open decoder");
         return res;
     }
     p->decoder_open = true;
@@ -170,10 +170,10 @@ cos_result_t cos_audio_player_play(cos_audio_player_t *p, const void *src, cos_a
     int ret = spk->ops->open(p->dsc.format.sample_rate, p->dsc.format.channels, p->dsc.format.bits_per_sample);
     if (ret != 0)
     {
-        COS_LOG_E("Failed to open speaker");
-        cos_audio_decoder_close(&p->dsc);
+        EOS_LOG_E("Failed to open speaker");
+        eos_audio_decoder_close(&p->dsc);
         p->decoder_open = false;
-        return COS_ERR_DEV_ERROR;
+        return EOS_ERR_DEV_ERROR;
     }
 
     if (spk->ops->set_volume)
@@ -192,61 +192,61 @@ cos_result_t cos_audio_player_play(cos_audio_player_t *p, const void *src, cos_a
 
     if (filled == 0 && p->dsc.format.total_samples == 0)
     {
-        COS_LOG_E("Cannot play: source has no samples and unknown duration");
+        EOS_LOG_E("Cannot play: source has no samples and unknown duration");
         if (spk->ops->stop)
             spk->ops->stop();
-        cos_audio_decoder_close(&p->dsc);
+        eos_audio_decoder_close(&p->dsc);
         p->decoder_open = false;
-        p->state = COS_AUDIO_IDLE;
-        return COS_ERR_DEV_ERROR;
+        p->state = EOS_AUDIO_IDLE;
+        return EOS_ERR_DEV_ERROR;
     }
 
-    p->state = COS_AUDIO_PLAYING;
+    p->state = EOS_AUDIO_PLAYING;
     _player_start_feed(p);
 
-    COS_LOG_I("Playing: %s", (const char *)src);
+    EOS_LOG_I("Playing: %s", (const char *)src);
 
-    return COS_OK;
+    return EOS_OK;
 }
 
-cos_result_t cos_audio_player_stop(cos_audio_player_t *p)
+eos_result_t eos_audio_player_stop(eos_audio_player_t *p)
 {
     if (p == NULL)
-        return COS_ERR_INVALID_ARG;
+        return EOS_ERR_INVALID_ARG;
     _player_stop_internal(p);
-    if (p->cached_src_type == COS_AUDIO_SRC_FILE && p->cached_src)
+    if (p->cached_src_type == EOS_AUDIO_SRC_FILE && p->cached_src)
     {
-        cos_free(p->cached_src);
+        eos_free(p->cached_src);
     }
     p->cached_src = NULL;
-    p->cached_src_type = COS_AUDIO_SRC_NONE;
-    return COS_OK;
+    p->cached_src_type = EOS_AUDIO_SRC_NONE;
+    return EOS_OK;
 }
 
-cos_result_t cos_audio_player_pause(cos_audio_player_t *p)
+eos_result_t eos_audio_player_pause(eos_audio_player_t *p)
 {
     if (p == NULL)
-        return COS_ERR_INVALID_ARG;
-    if (p->state != COS_AUDIO_PLAYING)
-        return COS_ERR_INVALID_STATE;
+        return EOS_ERR_INVALID_ARG;
+    if (p->state != EOS_AUDIO_PLAYING)
+        return EOS_ERR_INVALID_STATE;
 
-    cos_audio_feed_pause(p->feed);
+    eos_audio_feed_pause(p->feed);
 
-    cos_dev_speaker_t *spk = cos_dev_speaker_get_instance();
+    eos_dev_speaker_t *spk = eos_dev_speaker_get_instance();
     if (spk && spk->ops && spk->ops->pause)
     {
         spk->ops->pause();
     }
-    p->state = COS_AUDIO_PAUSED;
-    return COS_OK;
+    p->state = EOS_AUDIO_PAUSED;
+    return EOS_OK;
 }
 
-cos_result_t cos_audio_player_resume(cos_audio_player_t *p)
+eos_result_t eos_audio_player_resume(eos_audio_player_t *p)
 {
     if (p == NULL)
-        return COS_ERR_INVALID_ARG;
-    if (p->state != COS_AUDIO_PAUSED)
-        return COS_ERR_INVALID_STATE;
+        return EOS_ERR_INVALID_ARG;
+    if (p->state != EOS_AUDIO_PAUSED)
+        return EOS_ERR_INVALID_STATE;
 
     for (int i = 0; i < PRE_FILL_BUFFERS; i++)
     {
@@ -254,59 +254,59 @@ cos_result_t cos_audio_player_resume(cos_audio_player_t *p)
             break;
     }
 
-    cos_dev_speaker_t *spk = cos_dev_speaker_get_instance();
+    eos_dev_speaker_t *spk = eos_dev_speaker_get_instance();
     if (spk && spk->ops && spk->ops->resume)
     {
         spk->ops->resume();
     }
-    p->state = COS_AUDIO_PLAYING;
-    cos_audio_feed_resume(p->feed);
-    return COS_OK;
+    p->state = EOS_AUDIO_PLAYING;
+    eos_audio_feed_resume(p->feed);
+    return EOS_OK;
 }
 
-cos_result_t cos_audio_player_seek(cos_audio_player_t *p, uint32_t sample)
+eos_result_t eos_audio_player_seek(eos_audio_player_t *p, uint32_t sample)
 {
     if (p == NULL)
-        return COS_ERR_INVALID_ARG;
+        return EOS_ERR_INVALID_ARG;
     if (!p->decoder_open)
-        return COS_ERR_INVALID_STATE;
+        return EOS_ERR_INVALID_STATE;
 
     uint32_t total = p->dsc.format.total_samples;
     if (total == 0)
-        return COS_ERR_INVALID_STATE;
+        return EOS_ERR_INVALID_STATE;
     if (sample >= total)
         sample = total - 1;
 
     if (p->dsc.decoder && p->dsc.decoder->seek_cb)
     {
-        cos_result_t res = cos_audio_decoder_seek(&p->dsc, sample);
-        if (res == COS_OK)
+        eos_result_t res = eos_audio_decoder_seek(&p->dsc, sample);
+        if (res == EOS_OK)
         {
-            COS_LOG_I("Seeked to sample %u / %u (native)", sample, total);
-            return COS_OK;
+            EOS_LOG_I("Seeked to sample %u / %u (native)", sample, total);
+            return EOS_OK;
         }
         /* Fall through: decoder has seek_cb but it failed — use reopen fallback */
     }
 
-    cos_audio_player_state_t prev_state = p->state;
+    eos_audio_player_state_t prev_state = p->state;
 
     if (p->feed)
     {
-        cos_audio_feed_delete(p->feed);
+        eos_audio_feed_delete(p->feed);
         p->feed = NULL;
     }
 
     if (p->decoder_open)
     {
-        cos_audio_decoder_close(&p->dsc);
+        eos_audio_decoder_close(&p->dsc);
         p->decoder_open = false;
     }
 
-    cos_result_t res = cos_audio_decoder_open(&p->dsc, p->cached_src, p->cached_src_type);
-    if (res != COS_OK)
+    eos_result_t res = eos_audio_decoder_open(&p->dsc, p->cached_src, p->cached_src_type);
+    if (res != EOS_OK)
     {
-        COS_LOG_E("Seek: failed to re-open decoder");
-        p->state = COS_AUDIO_IDLE;
+        EOS_LOG_E("Seek: failed to re-open decoder");
+        p->state = EOS_AUDIO_IDLE;
         return res;
     }
     p->decoder_open = true;
@@ -319,7 +319,7 @@ cos_result_t cos_audio_player_seek(cos_audio_player_t *p, uint32_t sample)
             aligned_chunk = 1024;
         uint32_t to_skip = sample * bytes_per_frame;
         uint32_t skipped = 0;
-        uint8_t *discard = cos_malloc(aligned_chunk);
+        uint8_t *discard = eos_malloc(aligned_chunk);
 
         if (discard)
         {
@@ -327,26 +327,26 @@ cos_result_t cos_audio_player_seek(cos_audio_player_t *p, uint32_t sample)
             {
                 uint32_t chunk = (to_skip - skipped) > aligned_chunk ? aligned_chunk : (to_skip - skipped);
                 uint32_t bytes_read = 0;
-                res = cos_audio_decoder_read(&p->dsc, discard, chunk, &bytes_read);
-                if (res != COS_OK || bytes_read == 0)
+                res = eos_audio_decoder_read(&p->dsc, discard, chunk, &bytes_read);
+                if (res != EOS_OK || bytes_read == 0)
                     break;
                 skipped += bytes_read;
             }
-            cos_free(discard);
+            eos_free(discard);
         }
     }
     p->dsc.current_sample = sample;
 
-    cos_dev_speaker_t *spk = cos_dev_speaker_get_instance();
+    eos_dev_speaker_t *spk = eos_dev_speaker_get_instance();
     if (spk && spk->ops)
     {
         int ret = spk->ops->open(p->dsc.format.sample_rate, p->dsc.format.channels, p->dsc.format.bits_per_sample);
         if (ret != 0)
         {
-            cos_audio_decoder_close(&p->dsc);
+            eos_audio_decoder_close(&p->dsc);
             p->decoder_open = false;
-            p->state = COS_AUDIO_IDLE;
-            return COS_ERR_DEV_ERROR;
+            p->state = EOS_AUDIO_IDLE;
+            return EOS_ERR_DEV_ERROR;
         }
 
         if (spk->ops->set_volume)
@@ -355,7 +355,7 @@ cos_result_t cos_audio_player_seek(cos_audio_player_t *p, uint32_t sample)
         }
     }
 
-    if (prev_state != COS_AUDIO_IDLE)
+    if (prev_state != EOS_AUDIO_IDLE)
     {
         for (int i = 0; i < PRE_FILL_BUFFERS; i++)
         {
@@ -365,79 +365,79 @@ cos_result_t cos_audio_player_seek(cos_audio_player_t *p, uint32_t sample)
     }
 
     p->state = prev_state;
-    if (prev_state != COS_AUDIO_IDLE)
+    if (prev_state != EOS_AUDIO_IDLE)
     {
         _player_start_feed(p);
     }
 
-    COS_LOG_I("Seeked to sample %u / %u", sample, total);
-    return COS_OK;
+    EOS_LOG_I("Seeked to sample %u / %u", sample, total);
+    return EOS_OK;
 }
 
-cos_audio_player_state_t cos_audio_player_get_state(cos_audio_player_t *p)
+eos_audio_player_state_t eos_audio_player_get_state(eos_audio_player_t *p)
 {
     if (p == NULL)
-        return COS_AUDIO_IDLE;
+        return EOS_AUDIO_IDLE;
     return p->state;
 }
 
-uint32_t cos_audio_player_get_position(cos_audio_player_t *p)
+uint32_t eos_audio_player_get_position(eos_audio_player_t *p)
 {
     if (p == NULL || !p->decoder_open)
         return 0;
     return p->dsc.current_sample;
 }
 
-uint32_t cos_audio_player_get_duration(cos_audio_player_t *p)
+uint32_t eos_audio_player_get_duration(eos_audio_player_t *p)
 {
     if (p == NULL || !p->decoder_open)
         return 0;
     return p->dsc.format.total_samples;
 }
 
-uint32_t cos_audio_player_get_sample_rate(cos_audio_player_t *p)
+uint32_t eos_audio_player_get_sample_rate(eos_audio_player_t *p)
 {
     if (p == NULL || !p->decoder_open)
         return 0;
     return p->dsc.format.sample_rate;
 }
 
-cos_result_t cos_audio_player_set_volume(cos_audio_player_t *p, uint8_t vol)
+eos_result_t eos_audio_player_set_volume(eos_audio_player_t *p, uint8_t vol)
 {
     if (p == NULL)
-        return COS_ERR_INVALID_ARG;
+        return EOS_ERR_INVALID_ARG;
     if (vol > 100)
         vol = 100;
     p->volume = vol;
-    return COS_OK;
+    return EOS_OK;
 }
 
-void cos_audio_player_apply_volume(cos_audio_player_t *p)
+void eos_audio_player_apply_volume(eos_audio_player_t *p)
 {
     if (p == NULL)
         return;
-    cos_dev_speaker_t *spk = cos_dev_speaker_get_instance();
+    eos_dev_speaker_t *spk = eos_dev_speaker_get_instance();
     if (spk && spk->ops && spk->ops->set_volume)
     {
         spk->ops->set_volume(p->volume);
     }
 }
 
-void cos_audio_player_set_mute(cos_audio_player_t *p, bool mute)
+void eos_audio_player_set_mute(eos_audio_player_t *p, bool mute)
 {
     if (p == NULL)
         return;
     p->muted = mute;
 }
 
-bool cos_audio_player_is_muted(cos_audio_player_t *p)
+bool eos_audio_player_is_muted(eos_audio_player_t *p)
 {
     if (p == NULL)
         return false;
     return p->muted;
 }
 
-void cos_audio_player_set_done_callback(cos_audio_player_t *p, cos_audio_player_done_cb cb, void *user_data)
+void eos_audio_player_set_done_callback(eos_audio_player_t *p, eos_audio_player_done_cb cb, void *user_data)
 {
     if (p == NULL)
         return;
@@ -445,9 +445,9 @@ void cos_audio_player_set_done_callback(cos_audio_player_t *p, cos_audio_player_
     p->done_user_data = user_data;
 }
 
-void cos_audio_player_save_state(cos_audio_player_t *p,
+void eos_audio_player_save_state(eos_audio_player_t *p,
                                  void **saved_src,
-                                 cos_audio_src_type_t *saved_type,
+                                 eos_audio_src_type_t *saved_type,
                                  uint32_t *saved_pos)
 {
     if (p == NULL || saved_src == NULL || saved_type == NULL || saved_pos == NULL)
@@ -456,26 +456,26 @@ void cos_audio_player_save_state(cos_audio_player_t *p,
     *saved_type = p->cached_src_type;
     *saved_pos = p->dsc.current_sample;
     p->cached_src = NULL;
-    p->cached_src_type = COS_AUDIO_SRC_NONE;
+    p->cached_src_type = EOS_AUDIO_SRC_NONE;
 }
 
-cos_result_t cos_audio_player_restore_state(cos_audio_player_t *p,
+eos_result_t eos_audio_player_restore_state(eos_audio_player_t *p,
                                             void *src,
-                                            cos_audio_src_type_t src_type,
+                                            eos_audio_src_type_t src_type,
                                             uint32_t position)
 {
     if (p == NULL || src == NULL)
-        return COS_ERR_INVALID_ARG;
-    if (p->state != COS_AUDIO_IDLE)
-        return COS_ERR_INVALID_STATE;
+        return EOS_ERR_INVALID_ARG;
+    if (p->state != EOS_AUDIO_IDLE)
+        return EOS_ERR_INVALID_STATE;
 
-    cos_result_t r = cos_audio_player_play(p, src, src_type);
-    if (r != COS_OK)
+    eos_result_t r = eos_audio_player_play(p, src, src_type);
+    if (r != EOS_OK)
         return r;
 
     if (position > 0)
     {
-        r = cos_audio_player_seek(p, position);
+        r = eos_audio_player_seek(p, position);
     }
     return r;
 }

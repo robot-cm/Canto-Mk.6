@@ -3,13 +3,13 @@
 //       UI 任务单次执行过久被 task_wdt 重置（fatal code=10）。
 // 处理：按需求移除地球点阵，仅保留五个地区时间（按钮切换 + 聚焦城市时间 HUD）。
 
-var activity = cos.activity.current();
-var view = cos.activity.getView(activity);
-cos.activity.setTitle(activity, "环球时间");
+var activity = eos.activity.current();
+var view = eos.activity.getView(activity);
+eos.activity.setTitle(activity, "环球时间");
 
 // ===================== 根容器 =====================
 var root = new lv.obj(view);
-root.setSize(cos.DISPLAY_WIDTH, cos.DISPLAY_HEIGHT);
+root.setSize(eos.DISPLAY_WIDTH, eos.DISPLAY_HEIGHT);
 root.setPos(0, 0);
 root.setStyleRadius(0, 0);
 root.setStyleBgOpa(255, 0);
@@ -121,7 +121,7 @@ function layoutHud() {
 }
 
 function updateHud() {
-    var t = cos.time.getNow();
+    var t = eos.time.getNow();
     var c = CITIES[focusCity];
     var h = (t.hour + c.off - 8 + 24) % 24;    // 设备时区 +8 → 城市 = 本地 + off - 8
     hudMain.setText(c.code + " " + pad2(h) + ":" + pad2(t.min));
@@ -142,4 +142,4 @@ focusCity = "香港";
 updateBtns();
 updateHud();
 
-cos.console.log("[globaltime] lite: earth dots removed, 5 city times only");
+eos.console.log("[globaltime] lite: earth dots removed, 5 city times only");

@@ -1,10 +1,10 @@
 /**
- * @file cos_settings.h
+ * @file eos_settings.h
  * @brief System settings
  */
 
-#ifndef COS_SETTINGS_H
-#define COS_SETTINGS_H
+#ifndef EOS_SETTINGS_H
+#define EOS_SETTINGS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,7 +13,7 @@ extern "C" {
 /* Includes ---------------------------------------------------*/
 #include <stdint.h>
 #include <stdbool.h>
-#include "cos_core.h"
+#include "eos_core.h"
 
 /* Public macros ----------------------------------------------*/
 
@@ -23,19 +23,19 @@ extern "C" {
 
 /**
  * @brief Enter settings page
- * @return cos_activity_t* Settings page activity pointer, returns NULL on failure
+ * @return eos_activity_t* Settings page activity pointer, returns NULL on failure
  */
-void cos_settings_enter(void);
+void eos_settings_enter(void);
 /**
  * @brief Enable silent mode
  */
-void cos_settings_slient_mode_on(void);
+void eos_settings_slient_mode_on(void);
 /**
  * @brief Disable silent mode
  */
-void cos_settings_slient_mode_off(void);
+void eos_settings_slient_mode_off(void);
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* COS_SETTINGS_H */
+#endif /* EOS_SETTINGS_H */

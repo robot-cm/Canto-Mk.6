@@ -1,10 +1,10 @@
 /**
- * @file cos_audio_decoder_wav.h
+ * @file eos_audio_decoder_wav.h
  * @brief WAV decoder: PCM audio from RIFF/WAV files
  */
 
-#ifndef COS_AUDIO_DECODER_WAV_H
-#define COS_AUDIO_DECODER_WAV_H
+#ifndef EOS_AUDIO_DECODER_WAV_H
+#define EOS_AUDIO_DECODER_WAV_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,10 +19,10 @@ extern "C" {
 
 /* Public function prototypes --------------------------------*/
 
-void cos_audio_decoder_wav_init(void);
+void eos_audio_decoder_wav_init(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* COS_AUDIO_DECODER_WAV_H */
+#endif /* EOS_AUDIO_DECODER_WAV_H */

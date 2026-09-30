@@ -1,15 +1,15 @@
 /**
- * @file cos_darray.c
+ * @file eos_darray.c
  * @brief Dynamic array
  */
 
-#include "cos_darray.h"
+#include "eos_darray.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "cos_mem.h"
+#include "eos_mem.h"
 
 /* Macros and Definitions -------------------------------------*/
 #define _SHRINK_ENABLE 1
@@ -17,7 +17,7 @@
 #define _SHRINK_PROPORTION 2
 #define _CAPACITY_GROWTH 2
 
-struct cos_darray_t
+struct eos_darray_t
 {
     void **buffer;
     size_t size;
@@ -28,21 +28,21 @@ struct cos_darray_t
 
 /* Function Implementations -----------------------------------*/
 
-static bool _darray_expand(cos_darray_t *arr)
+static bool _darray_expand(eos_darray_t *arr)
 {
     size_t new_capacity = arr->capacity * _CAPACITY_GROWTH;
-    void **new_buffer = cos_malloc_zeroed(new_capacity * sizeof(void *));
+    void **new_buffer = eos_malloc_zeroed(new_capacity * sizeof(void *));
     if (!new_buffer)
         return false;
 
     memcpy(new_buffer, arr->buffer, arr->size * sizeof(void *));
-    cos_free(arr->buffer);
+    eos_free(arr->buffer);
     arr->buffer = new_buffer;
     arr->capacity = new_capacity;
     return true;
 }
 
-static bool _darray_shrink(cos_darray_t *arr)
+static bool _darray_shrink(eos_darray_t *arr)
 {
 #if _SHRINK_ENABLE
     if (arr->capacity <= arr->min_capacity)
@@ -54,31 +54,31 @@ static bool _darray_shrink(cos_darray_t *arr)
     if (new_capacity < arr->min_capacity)
         new_capacity = arr->min_capacity;
 
-    void **new_buffer = cos_malloc_zeroed(new_capacity * sizeof(void *));
+    void **new_buffer = eos_malloc_zeroed(new_capacity * sizeof(void *));
     if (!new_buffer)
         return false;
 
     memcpy(new_buffer, arr->buffer, arr->size * sizeof(void *));
-    cos_free(arr->buffer);
+    eos_free(arr->buffer);
     arr->buffer = new_buffer;
     arr->capacity = new_capacity;
 #endif
     return true;
 }
 
-cos_darray_t *cos_darray_create(size_t init_capacity)
+eos_darray_t *eos_darray_create(size_t init_capacity)
 {
     if (init_capacity == 0)
         init_capacity = 4;
 
-    cos_darray_t *arr = cos_malloc_zeroed(sizeof(cos_darray_t));
+    eos_darray_t *arr = eos_malloc_zeroed(sizeof(eos_darray_t));
     if (!arr)
         return NULL;
 
-    arr->buffer = cos_malloc_zeroed(init_capacity * sizeof(void *));
+    arr->buffer = eos_malloc_zeroed(init_capacity * sizeof(void *));
     if (!arr->buffer)
     {
-        cos_free(arr);
+        eos_free(arr);
         return NULL;
     }
 
@@ -88,7 +88,7 @@ cos_darray_t *cos_darray_create(size_t init_capacity)
     return arr;
 }
 
-bool cos_darray_set(cos_darray_t *arr, size_t index, void *data)
+bool eos_darray_set(eos_darray_t *arr, size_t index, void *data)
 {
     if (!arr)
         return false;
@@ -107,7 +107,7 @@ bool cos_darray_set(cos_darray_t *arr, size_t index, void *data)
     return true;
 }
 
-void *cos_darray_get(cos_darray_t *arr, size_t index)
+void *eos_darray_get(eos_darray_t *arr, size_t index)
 {
     if (!arr || index >= arr->size)
         return NULL;
@@ -121,18 +121,18 @@ void *cos_darray_get(cos_darray_t *arr, size_t index)
     return data;
 }
 
-size_t cos_darray_get_size(cos_darray_t *arr)
+size_t eos_darray_get_size(eos_darray_t *arr)
 {
     if (!arr)
         return 0;
     return arr->size;
 }
 
-void cos_darray_destroy(cos_darray_t *arr)
+void eos_darray_destroy(eos_darray_t *arr)
 {
     if (!arr)
         return;
 
-    cos_free(arr->buffer);
-    cos_free(arr);
+    eos_free(arr->buffer);
+    eos_free(arr);
 }

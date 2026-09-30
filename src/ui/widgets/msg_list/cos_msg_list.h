@@ -1,10 +1,10 @@
 /**
- * @file cos_msg_list.h
+ * @file eos_msg_list.h
  * @brief Drop-down message list
  */
 
-#ifndef COS_MSG_LIST_H
-#define COS_MSG_LIST_H
+#ifndef EOS_MSG_LIST_H
+#define EOS_MSG_LIST_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,13 +14,13 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 #include "lvgl.h"
-#include "cos_chrome_manager.h"
-#include "cos_swipe_panel.h"
+#include "eos_chrome_manager.h"
+#include "eos_swipe_panel.h"
 /* Public macros ----------------------------------------------*/
 
 /* Public typedefs --------------------------------------------*/
 
-typedef struct cos_msg_list_t cos_msg_list_t; // Forward declaration
+typedef struct eos_msg_list_t eos_msg_list_t; // Forward declaration
 
 /**
  * @brief Message list item structure
@@ -32,7 +32,7 @@ typedef struct cos_msg_list_t cos_msg_list_t; // Forward declaration
  */
 typedef struct
 {
-    cos_msg_list_t *msg_list;
+    eos_msg_list_t *msg_list;
     lv_obj_t *container;
     lv_obj_t *row1;
     lv_obj_t *icon;
@@ -41,7 +41,7 @@ typedef struct
     lv_obj_t *time_label;
     const char *msg_str; /**< Message string */
     bool is_deleted;
-} cos_msg_list_item_t;
+} eos_msg_list_item_t;
 
 /**
  * @brief Message list structure
@@ -56,9 +56,9 @@ typedef struct
  *      no_msg_label
  * }
  */
-struct cos_msg_list_t
+struct eos_msg_list_t
 {
-    cos_swipe_panel_t *swipe_panel; /**< Drag object pointer */
+    eos_swipe_panel_t *swipe_panel; /**< Drag object pointer */
     lv_obj_t *list; /**< List object pointer */
     lv_obj_t *clear_all_btn; /**< Clear all messages button pointer */
     lv_obj_t *no_msg_label; /**< No message prompt label */
@@ -69,69 +69,69 @@ struct cos_msg_list_t
 /**
  * @brief Create message item
  * @param list Parent message list of the message item
- * @return cos_msg_list_item_t* Pointer to the created message item (dynamic memory allocation)
+ * @return eos_msg_list_item_t* Pointer to the created message item (dynamic memory allocation)
  */
-cos_msg_list_item_t *cos_msg_list_item_create(cos_msg_list_t *list);
+eos_msg_list_item_t *eos_msg_list_item_create(eos_msg_list_t *list);
 /**
  * @brief Delete message item
  * @param item Pointer to the message item to delete
  */
-void cos_msg_list_item_delete(cos_msg_list_item_t *item);
+void eos_msg_list_item_delete(eos_msg_list_item_t *item);
 /**
  * @brief Set message content
  * @param item Target message item
  * @param msg Message string
  */
-void cos_msg_list_item_set_msg(cos_msg_list_item_t *item, const char *msg);
+void eos_msg_list_item_set_msg(eos_msg_list_item_t *item, const char *msg);
 
 /**
  * @brief Set title
  * @param item Target message item
  * @param title Message title (APP) string
  */
-void cos_msg_list_item_set_title(cos_msg_list_item_t *item, const char *title);
+void eos_msg_list_item_set_title(eos_msg_list_item_t *item, const char *title);
 
 /**
  * @brief Set time text
  * @param item Target message item
  * @param time Message receive time string (e.g.: "12:30", "One hour ago")
  */
-void cos_msg_list_item_set_time(cos_msg_list_item_t *item, const char *time);
+void eos_msg_list_item_set_time(eos_msg_list_item_t *item, const char *time);
 /**
  * @brief Set icon
  * @param item Target message item
  * @param src Image source
  */
-void cos_msg_list_item_icon_set_src(cos_msg_list_item_t *item, const char *src);
+void eos_msg_list_item_icon_set_src(eos_msg_list_item_t *item, const char *src);
 /**
  * @brief Delete message list
  * @param list Target list
  */
-void cos_msg_list_delete(cos_msg_list_t *list);
+void eos_msg_list_delete(eos_msg_list_t *list);
 /**
  * @brief Get message list instance
- * @return cos_msg_list_t*
+ * @return eos_msg_list_t*
  */
-cos_msg_list_t *cos_msg_list_get_instance(void);
+eos_msg_list_t *eos_msg_list_get_instance(void);
 /**
  * @brief Initialize message list
  */
-void cos_msg_list_init(void);
+void eos_msg_list_init(void);
 /**
  * @brief Close detail page if open (for chrome manager integration)
  */
-void cos_msg_list_close_detail(void);
+void eos_msg_list_close_detail(void);
 /**
  * @brief Show message list
  */
-void cos_msg_list_show(void);
+void eos_msg_list_show(void);
 /**
  * @brief Hide message list
  */
-void cos_msg_list_hide(void);
-const cos_chrome_overlay_t *cos_msg_list_get_overlay_descriptor(void);
+void eos_msg_list_hide(void);
+const eos_chrome_overlay_t *eos_msg_list_get_overlay_descriptor(void);
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* COS_MSG_LIST_H */
+#endif /* EOS_MSG_LIST_H */

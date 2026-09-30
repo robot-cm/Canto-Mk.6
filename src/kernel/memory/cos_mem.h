@@ -1,10 +1,10 @@
 /**
- * @file cos_mem.h
+ * @file eos_mem.h
  * @brief Memory allocation
  */
 
-#ifndef COS_MEM_H
-#define COS_MEM_H
+#ifndef EOS_MEM_H
+#define EOS_MEM_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,7 +25,7 @@ extern "C" {
  * @param size Memory size, unit: bytes
  * @return void* Returns memory address on success, otherwise returns NULL
  */
-void *cos_malloc(size_t size);
+void *eos_malloc(size_t size);
 
 /**
  * @brief Create a copy of the given string
@@ -33,22 +33,22 @@ void *cos_malloc(size_t size);
  * @return char* Returns newly allocated string pointer on success
  *
  * Returns NULL if memory allocation fails
- * @note Use `cos_free(str)` to release the copied string
+ * @note Use `eos_free(str)` to release the copied string
  */
-char *cos_strdup(const char *s);
+char *eos_strdup(const char *s);
 
 /**
  * @brief Allocate a block of continuous memory and fill it with zeros
  * @param size Memory size, unit: bytes
  * @return void* Returns memory address on success, otherwise returns NULL
  */
-void *cos_malloc_zeroed(size_t size);
+void *eos_malloc_zeroed(size_t size);
 
 /**
  * @brief Free target memory
  * @param ptr Target memory pointer
  */
-void cos_free(void *ptr);
+void eos_free(void *ptr);
 
 /**
  * @brief Reallocate target memory
@@ -56,10 +56,10 @@ void cos_free(void *ptr);
  * @param new_size New memory size
  * @return void* Returns memory address on success, otherwise returns NULL
  */
-void *cos_realloc(void *ptr, size_t new_size);
+void *eos_realloc(void *ptr, size_t new_size);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* COS_MEM_H */
+#endif /* EOS_MEM_H */

@@ -1,16 +1,16 @@
 /**
- * @file cos_stack.c
+ * @file eos_stack.c
  * @brief Stack
  */
 
-#include "cos_stack.h"
+#include "eos_stack.h"
 
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
-#define COS_LOG_TAG "Stack"
-#include "cos_log.h"
-#include "cos_mem.h"
+#define EOS_LOG_TAG "Stack"
+#include "eos_log.h"
+#include "eos_mem.h"
 
 /* Macros and Definitions -------------------------------------*/
 #define _SHRINK_ENABLE 1
@@ -18,40 +18,40 @@
 #define _SHRINK_PROPORTION (2)
 #define _CAPACITY_GROWTH (2)
 
-struct cos_stack_t
+struct eos_stack_t
 {
     void **buffer;
     size_t size;
     size_t capacity;
     size_t min_capacity;
-    cos_stack_capacity_mode_t mode;
+    eos_stack_capacity_mode_t mode;
 };
 
 /* Variables --------------------------------------------------*/
 
 /* Function Implementations -----------------------------------*/
 
-static bool _stack_expand(cos_stack_t *stack)
+static bool _stack_expand(eos_stack_t *stack)
 {
     size_t new_capacity = stack->capacity * _CAPACITY_GROWTH;
-    void **new_buffer = cos_malloc_zeroed(new_capacity * sizeof(void *));
-    COS_CHECK_PTR_RETURN_VAL(new_buffer, false);
+    void **new_buffer = eos_malloc_zeroed(new_capacity * sizeof(void *));
+    EOS_CHECK_PTR_RETURN_VAL(new_buffer, false);
 
     for (size_t i = 0; i < stack->size; i++)
     {
         new_buffer[i] = stack->buffer[i];
     }
 
-    cos_free(stack->buffer);
+    eos_free(stack->buffer);
     stack->buffer = new_buffer;
-    COS_LOG_I("stack expanded: %zu -> %zu", stack->capacity, new_capacity);
+    EOS_LOG_I("stack expanded: %zu -> %zu", stack->capacity, new_capacity);
     stack->capacity = new_capacity;
     return true;
 }
 
-static bool _stack_shrink(cos_stack_t *stack)
+static bool _stack_shrink(eos_stack_t *stack)
 {
-    COS_CHECK_PTR_RETURN_VAL(stack, false);
+    EOS_CHECK_PTR_RETURN_VAL(stack, false);
 
     if (stack->capacity <= stack->min_capacity)
         return true;
@@ -62,54 +62,54 @@ static bool _stack_shrink(cos_stack_t *stack)
     if (new_capacity < stack->min_capacity)
         new_capacity = stack->min_capacity;
 
-    void **new_buffer = cos_malloc_zeroed(new_capacity * sizeof(void *));
-    COS_CHECK_PTR_RETURN_VAL(new_buffer, false);
+    void **new_buffer = eos_malloc_zeroed(new_capacity * sizeof(void *));
+    EOS_CHECK_PTR_RETURN_VAL(new_buffer, false);
 
     for (size_t i = 0; i < stack->size; i++)
     {
         new_buffer[i] = stack->buffer[i];
     }
 
-    cos_free(stack->buffer);
+    eos_free(stack->buffer);
     stack->buffer = new_buffer;
-    COS_LOG_I("stack shrinked: %zu -> %zu", stack->capacity, new_capacity);
+    EOS_LOG_I("stack shrinked: %zu -> %zu", stack->capacity, new_capacity);
     stack->capacity = new_capacity;
     return true;
 }
 
-cos_stack_t *cos_stack_create(size_t init_capacity)
+eos_stack_t *eos_stack_create(size_t init_capacity)
 {
-    return cos_stack_create_with_mode(init_capacity, COS_STACK_CAPACITY_DYNAMIC);
+    return eos_stack_create_with_mode(init_capacity, EOS_STACK_CAPACITY_DYNAMIC);
 }
 
-cos_stack_t *cos_stack_create_with_mode(size_t init_capacity, cos_stack_capacity_mode_t mode)
+eos_stack_t *eos_stack_create_with_mode(size_t init_capacity, eos_stack_capacity_mode_t mode)
 {
     if (init_capacity == 0)
         init_capacity = 4;
 
-    cos_stack_t *stack = cos_malloc_zeroed(sizeof(cos_stack_t));
-    COS_CHECK_PTR_RETURN_VAL(stack, NULL);
+    eos_stack_t *stack = eos_malloc_zeroed(sizeof(eos_stack_t));
+    EOS_CHECK_PTR_RETURN_VAL(stack, NULL);
 
-    stack->buffer = cos_malloc_zeroed(init_capacity * sizeof(void *));
-    COS_CHECK_PTR_RETURN_VAL_FREE(stack->buffer, NULL, stack);
+    stack->buffer = eos_malloc_zeroed(init_capacity * sizeof(void *));
+    EOS_CHECK_PTR_RETURN_VAL_FREE(stack->buffer, NULL, stack);
 
     stack->size = 0;
     stack->capacity = init_capacity;
     stack->min_capacity = init_capacity;
     stack->mode = mode;
-    COS_LOG_I("stack created, mode=%s", mode == COS_STACK_CAPACITY_DYNAMIC ? "dynamic" : "fixed");
+    EOS_LOG_I("stack created, mode=%s", mode == EOS_STACK_CAPACITY_DYNAMIC ? "dynamic" : "fixed");
     return stack;
 }
 
-bool cos_stack_push(cos_stack_t *stack, void *data)
+bool eos_stack_push(eos_stack_t *stack, void *data)
 {
-    COS_CHECK_PTR_RETURN_VAL(stack, false);
+    EOS_CHECK_PTR_RETURN_VAL(stack, false);
 
     if (stack->size == stack->capacity)
     {
-        if (stack->mode == COS_STACK_CAPACITY_FIXED)
+        if (stack->mode == EOS_STACK_CAPACITY_FIXED)
         {
-            COS_LOG_W("Push failed: fixed-capacity stack is full");
+            EOS_LOG_W("Push failed: fixed-capacity stack is full");
             return false;
         }
 
@@ -118,13 +118,13 @@ bool cos_stack_push(cos_stack_t *stack, void *data)
     }
 
     stack->buffer[stack->size++] = data;
-    COS_LOG_I("Push data[%p]", data);
+    EOS_LOG_I("Push data[%p]", data);
     return true;
 }
 
-void *cos_stack_pop(cos_stack_t *stack)
+void *eos_stack_pop(eos_stack_t *stack)
 {
-    COS_CHECK_PTR_RETURN_VAL(stack, NULL);
+    EOS_CHECK_PTR_RETURN_VAL(stack, NULL);
     if (stack->size == 0)
         return NULL;
 
@@ -133,45 +133,45 @@ void *cos_stack_pop(cos_stack_t *stack)
     stack->size--;
 
 #if _SHRINK_ENABLE
-    if (stack->mode == COS_STACK_CAPACITY_DYNAMIC)
+    if (stack->mode == EOS_STACK_CAPACITY_DYNAMIC)
         _stack_shrink(stack);
 #endif
 
-    COS_LOG_I("Pop data[%p]", data);
+    EOS_LOG_I("Pop data[%p]", data);
     return data;
 }
 
-void *cos_stack_peek(cos_stack_t *stack)
+void *eos_stack_peek(eos_stack_t *stack)
 {
-    COS_CHECK_PTR_RETURN_VAL(stack, NULL);
+    EOS_CHECK_PTR_RETURN_VAL(stack, NULL);
     if (stack->size == 0)
         return NULL;
 
     return stack->buffer[stack->size - 1];
 }
 
-size_t cos_stack_get_size(cos_stack_t *stack)
+size_t eos_stack_get_size(eos_stack_t *stack)
 {
-    COS_CHECK_PTR_RETURN_VAL(stack, 0);
+    EOS_CHECK_PTR_RETURN_VAL(stack, 0);
     return stack->size;
 }
 
-cos_stack_capacity_mode_t cos_stack_get_capacity_mode(cos_stack_t *stack)
+eos_stack_capacity_mode_t eos_stack_get_capacity_mode(eos_stack_t *stack)
 {
-    COS_CHECK_PTR_RETURN_VAL(stack, COS_STACK_CAPACITY_FIXED);
+    EOS_CHECK_PTR_RETURN_VAL(stack, EOS_STACK_CAPACITY_FIXED);
     return stack->mode;
 }
 
-void cos_stack_destroy(cos_stack_t *stack)
+void eos_stack_destroy(eos_stack_t *stack)
 {
-    COS_CHECK_PTR_RETURN(stack);
-    cos_free(stack->buffer);
-    cos_free(stack);
+    EOS_CHECK_PTR_RETURN(stack);
+    eos_free(stack->buffer);
+    eos_free(stack);
 }
 
-void *cos_stack_get_at(cos_stack_t *stack, size_t index)
+void *eos_stack_get_at(eos_stack_t *stack, size_t index)
 {
-    COS_CHECK_PTR_RETURN_VAL(stack, NULL);
+    EOS_CHECK_PTR_RETURN_VAL(stack, NULL);
     if (index >= stack->size)
     {
         return NULL;

@@ -8,7 +8,7 @@
  * Script Engine Core (SEC).
  *
  * Architecture constraint:
- *   Upper layers (cos_watchface_js, cos_app) must ONLY use spm_watchface_*
+ *   Upper layers (eos_watchface_js, eos_app) must ONLY use spm_watchface_*
  *   and spm_app_* convenience APIs. Direct Core access is forbidden.
  */
 
@@ -51,7 +51,7 @@ typedef enum
 typedef struct
 {
     char error_info[SPM_ERROR_INFO_MAX];
-    cos_script_error_type_t error_type;
+    eos_script_error_type_t error_type;
     script_error_location_t error_location;
     script_error_location_t backtrace[SPM_BACKTRACE_MAX_FRAMES];
     uint32_t backtrace_count;
@@ -87,10 +87,10 @@ typedef struct script_program
 /**@{*/
 /**
  * @brief Initialize the Script Program Manager
- * @return COS_OK on success
+ * @return EOS_OK on success
  * @note Must be called after script_engine_init()
  */
-cos_result_t spm_init(void);
+eos_result_t spm_init(void);
 
 /**
  * @brief Emergency destroy all programs during engine fatal recovery
@@ -121,33 +121,33 @@ script_program_t *spm_start_program(const script_pkg_t *pkg);
 /**
  * @brief Suspend a script program (WatchFace only)
  * @param prog Program handle
- * @return COS_OK on success
+ * @return EOS_OK on success
  *
  * Preconditions: prog->type == SCRIPT_TYPE_WATCHFACE, prog->state == ACTIVE, Core == IDLE
  * Operations: save realm to prog, pause SNI callbacks, prog->state = SUSPENDED
  */
-cos_result_t spm_suspend_program(script_program_t *prog);
+eos_result_t spm_suspend_program(script_program_t *prog);
 
 /**
  * @brief Resume a script program (WatchFace only)
  * @param prog Program handle
- * @return COS_OK on success
+ * @return EOS_OK on success
  *
  * Preconditions: prog->state == SUSPENDED, Core == IDLE
  * Operations: restore realm to Core, resume SNI callbacks, prog->state = ACTIVE
  */
-cos_result_t spm_resume_program(script_program_t *prog);
+eos_result_t spm_resume_program(script_program_t *prog);
 
 /**
  * @brief Terminate a script program (async safe)
  * @param prog Program handle
- * @return COS_OK on success
+ * @return EOS_OK on success
  *
  * Terminal entry point:
  *   - ACTIVE -> STOPPING (async wait for Core stop) -> TERMINATED
  *   - SUSPENDED -> STOPPING (direct cleanup) -> TERMINATED
  */
-cos_result_t spm_terminate_program(script_program_t *prog);
+eos_result_t spm_terminate_program(script_program_t *prog);
 
 /**
  * @brief Terminate all programs of a given type
@@ -216,7 +216,7 @@ const char *spm_get_program_error_info(script_program_t *prog);
  * @param prog Program handle
  * @return Error type
  */
-cos_script_error_type_t spm_get_program_error_type(script_program_t *prog);
+eos_script_error_type_t spm_get_program_error_type(script_program_t *prog);
 
 /**
  * @brief Get error location from a program
@@ -234,20 +234,20 @@ const spm_error_t *spm_get_last_error(void);
 
 /** @name Simplified WatchFace APIs */
 /**@{*/
-cos_result_t spm_watchface_start(const script_pkg_t *pkg, void *view);
+eos_result_t spm_watchface_start(const script_pkg_t *pkg, void *view);
 void spm_watchface_set_view_cleanup(void *view);
-cos_result_t spm_watchface_pause(void);
-cos_result_t spm_watchface_resume(void);
-cos_result_t spm_watchface_destroy(void);
+eos_result_t spm_watchface_pause(void);
+eos_result_t spm_watchface_resume(void);
+eos_result_t spm_watchface_destroy(void);
 bool spm_watchface_has_context(void);
 /**@}*/
 
 /** @name Simplified Application APIs */
 /**@{*/
-cos_result_t spm_app_run(const script_pkg_t *pkg);
-cos_result_t spm_app_stop(void);
-cos_result_t spm_app_suspend(void);
-cos_result_t spm_app_resume(void);
+eos_result_t spm_app_run(const script_pkg_t *pkg);
+eos_result_t spm_app_stop(void);
+eos_result_t spm_app_suspend(void);
+eos_result_t spm_app_resume(void);
 /**@}*/
 
 #ifdef __cplusplus

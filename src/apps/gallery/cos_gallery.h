@@ -1,13 +1,13 @@
 /**
- * @file cos_gallery.h
+ * @file eos_gallery.h
  * @brief Minimal image viewer (native app)
  *
- * Scans COS_GALLERY_DIR for PNG images and lets the user cycle through them
+ * Scans EOS_GALLERY_DIR for PNG images and lets the user cycle through them
  * with prev/next buttons. Images are fit-scaled to the round display.
  */
 
-#ifndef COS_GALLERY_H
-#define COS_GALLERY_H
+#ifndef EOS_GALLERY_H
+#define EOS_GALLERY_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,10 +20,10 @@ extern "C" {
 /**
  * @brief Enter the Gallery image viewer.
  */
-void cos_gallery_enter(void);
+void eos_gallery_enter(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* COS_GALLERY_H */
+#endif /* EOS_GALLERY_H */

@@ -1,10 +1,10 @@
 /**
- * @file cos_watchface_list.h
+ * @file eos_watchface_list.h
  * @brief Watchface list
  */
 
-#ifndef COS_WATCHFACE_LIST_H
-#define COS_WATCHFACE_LIST_H
+#ifndef EOS_WATCHFACE_LIST_H
+#define EOS_WATCHFACE_LIST_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,8 +13,8 @@ extern "C" {
 /* Includes ---------------------------------------------------*/
 #include <stdint.h>
 #include <stdbool.h>
-#include "cos_core.h"
-#include "cos_activity.h"
+#include "eos_core.h"
+#include "eos_activity.h"
 /* Public macros ----------------------------------------------*/
 
 /* Public typedefs --------------------------------------------*/
@@ -23,11 +23,11 @@ extern "C" {
 
 /**
  * @brief Enter watchface list page
- * @return cos_activity_t* Watchface list page Activity
+ * @return eos_activity_t* Watchface list page Activity
  */
-void cos_watchface_list_enter(void);
+void eos_watchface_list_enter(void);
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* COS_WATCHFACE_LIST_H */
+#endif /* EOS_WATCHFACE_LIST_H */

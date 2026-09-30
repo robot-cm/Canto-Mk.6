@@ -1,10 +1,10 @@
 /**
- * @file cos_dictionary.h
+ * @file eos_dictionary.h
  * @brief Dictionary app entry
  */
 
-#ifndef COS_DICTIONARY_H
-#define COS_DICTIONARY_H
+#ifndef EOS_DICTIONARY_H
+#define EOS_DICTIONARY_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,10 +15,10 @@ extern "C" {
 /**
  * @brief Enter the dictionary app (native C app entry, registered in launcher)
  */
-void cos_dictionary_enter(void);
+void eos_dictionary_enter(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* COS_DICTIONARY_H */
+#endif /* EOS_DICTIONARY_H */

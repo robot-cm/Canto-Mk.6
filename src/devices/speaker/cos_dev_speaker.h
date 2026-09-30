@@ -1,10 +1,10 @@
 /**
- * @file cos_dev_speaker.h
+ * @file eos_dev_speaker.h
  * @brief Speaker device - pure PCM output sink
  */
 
-#ifndef COS_DEV_SPEAKER_H
-#define COS_DEV_SPEAKER_H
+#ifndef EOS_DEV_SPEAKER_H
+#define EOS_DEV_SPEAKER_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,8 +13,8 @@ extern "C" {
 /* Includes ---------------------------------------------------*/
 #include <stdint.h>
 #include <stdbool.h>
-#include "cos_device.h"
-#include "cos_error.h"
+#include "eos_device.h"
+#include "eos_error.h"
 
 /* Public macros ----------------------------------------------*/
 
@@ -32,43 +32,43 @@ typedef struct
     int (*resume)(void);
     int (*set_volume)(uint8_t volume);
     bool (*is_available)(void);
-} cos_dev_speaker_ops_t;
+} eos_dev_speaker_ops_t;
 
 typedef struct
 {
-    const cos_dev_speaker_ops_t *ops;
-    cos_dev_state_t _state;
-} cos_dev_speaker_t;
+    const eos_dev_speaker_ops_t *ops;
+    eos_dev_state_t _state;
+} eos_dev_speaker_t;
 
 /* Public function prototypes --------------------------------*/
 
 /**
  * @brief Get the singleton speaker device instance
- * @return cos_dev_speaker_t* Pointer to speaker device, or NULL if not registered
+ * @return eos_dev_speaker_t* Pointer to speaker device, or NULL if not registered
  */
-cos_dev_speaker_t *cos_dev_speaker_get_instance(void);
+eos_dev_speaker_t *eos_dev_speaker_get_instance(void);
 
 /**
  * @brief Register speaker device operations
  * @param ops Pointer to operations struct, must have open and borrow functions
- * @return cos_result_t COS_OK on success, or error code on failure
+ * @return eos_result_t EOS_OK on success, or error code on failure
  */
-cos_result_t cos_dev_speaker_register(const cos_dev_speaker_ops_t *ops);
+eos_result_t eos_dev_speaker_register(const eos_dev_speaker_ops_t *ops);
 
 /**
  * @brief Get the current state of the speaker device
- * @return cos_dev_state_t Current state of the speaker device
+ * @return eos_dev_state_t Current state of the speaker device
  */
-cos_dev_state_t cos_dev_speaker_get_state(void);
+eos_dev_state_t eos_dev_speaker_get_state(void);
 
 /**
  * @brief Report the state of the speaker device
  * @param state New state to report
  */
-void cos_dev_speaker_report_state(cos_dev_state_t state);
+void eos_dev_speaker_report_state(eos_dev_state_t state);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* COS_DEV_SPEAKER_H */
+#endif /* EOS_DEV_SPEAKER_H */

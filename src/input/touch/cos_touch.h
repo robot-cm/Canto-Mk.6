@@ -1,10 +1,10 @@
 /**
- * @file cos_touch.h
+ * @file eos_touch.h
  * @brief Get touch device
  */
 
-#ifndef COS_TOUCH_H
-#define COS_TOUCH_H
+#ifndef EOS_TOUCH_H
+#define EOS_TOUCH_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,9 +23,9 @@ extern "C" {
  * @brief Get the first touch device
  * @return lv_indev_t* Returns touch device pointer if successful, otherwise returns NULL
  */
-lv_indev_t *cos_touch_get_indev(void);
+lv_indev_t *eos_touch_get_indev(void);
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* COS_TOUCH_H */
+#endif /* EOS_TOUCH_H */
