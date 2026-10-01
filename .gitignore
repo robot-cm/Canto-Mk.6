@@ -57,7 +57,6 @@ simulator/screen_*.png
 simulator/album_*.png
 simulator/*.bat
 simulator/*.ps1
-simulator/lv_conf.h
 simulator/eos_platform_config.h
 simulator/*_log.txt
 simulator/*_err.txt
