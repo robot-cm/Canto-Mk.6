@@ -83,6 +83,34 @@ python3.11 scripts/cos_pkg_builder.py apps/stopwatch eapk-target/stopwatch.eapk 
 python3.11 scripts/cos_pkg_builder.py apps/timer eapk-target/timer.eapk --type app 
 ```
 
+## 更新日志
+
+### 20261001
+
+**修复**
+
+- **JS App 全部无法打开（严重）** — `spm_start_program()` 在"同类型脚本程序已存活"时仍会再创建一个程序：旧程序不会被 `spm_app_stop()` 命中（它按 `SCRIPT_TYPE_APPLICATION` 只取第一个），也不再被任何路径销毁，于是永久滞留在 `s_program_list` 中。其 realm 与 SNI context（[sni_context.c](src/script_engine/sni/sni_context.c)）随之泄漏 —— 而 SNI context 对脚本创建的每一个 JS/LVGL 对象都持有强引用（`jerry_value_copy`），因此**每次启动泄漏约 16.5 KB JerryScript 堆**。堆被吃满后 `jerry_parse` 对所有脚本一律失败，表现为：
+
+  ```
+  [ScriptEngine] Script Parse Error: null
+  [ScriptEngine] ENGINE_RUN: returning result=-701
+  [SPM] spm_start_program: execution failed ret=-701
+  [AppList] Application encounter a fatal error
+  ```
+
+  且**不可恢复** —— 此后所有 JS App 都打不开。修复方式是在 [spm.c](src/script_engine/spm/spm.c) 的 `spm_start_program()` 中按类型强制"同类型仅一个存活程序"，复用既有的 `spm_terminate_programs_by_type()`。该不变式本来就是 `spm_app_stop()` / `spm_app_suspend()` / `spm_app_resume()` 三者的前提（它们都用 `spm_get_program_by_type()` 去找"那个"程序）。
+
+  > 归属说明：`db2f5f6`（计时器/闹钟圆角修复 + ProfMonitor）只改动 App 的 JS 与资源，未触碰 `spm.c`、`sni/*`、`script_engine` 核心，因此该泄漏本身是既有缺陷，`db2f5f6` 只是让它更快触发。已在修复版上实测排除 `roundClip` 相关嫌疑。
+
+  **验证**：`--stress-test` 40 轮 80 次启动，修复前 56 次终止（24 个孤儿程序，堆满后必失败）、修复后 79 次终止（仅剩进程退出时仍存活的 1 个），`Script Parse Error` / `ret=-701` 均为 0；16 个 headless 探针（shell / keyboard / ui-framework / launcher / ui-js / notes / breach×2 / watchface-gesture / home-gesture×2 / cards×2 / alarm / render-check / stress）全部通过。
+
+**新增**
+
+- **桌面模拟器（Windows / Linux 双平台）** — 新增 `simulator/`，SDL2 渲染 + 19 个 headless 自检开关，可在 PC 上跑完整 UI / JS 回归，无需真机。
+  - Windows：将 `SDL2.dll` 所在目录（如 `...\Library\bin`）加入 `PATH` 后运行 `simulator\build\cantomk6os_sim.exe`
+  - Ubuntu：`bash simulator/test_sim.sh`
+  - 模拟器目录需自备 SD 卡镜像根 `simulator/build/fs/`，构建时自动铺设
+
 ## 硬件兼容性提醒
 - 仅测试过普通 **XIAO ESP32-S3**（非 Sense 非 Plus版），不使用摄像头/麦克风/板载 SD
 - 测试硬件链接：

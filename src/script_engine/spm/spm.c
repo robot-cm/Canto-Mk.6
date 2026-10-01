@@ -244,6 +244,20 @@ script_program_t *spm_start_program(const script_pkg_t *pkg)
     }
     prog->sni_ctx->owner = prog;
 
+    /* Enforce the "at most one live program per type" invariant that
+     * spm_app_stop / spm_app_suspend / spm_app_resume already rely on (they
+     * all resolve "the" program of a type). Starting a second program of the
+     * same type without this would orphan the previous one: it stays in
+     * s_program_list, so its realm and SNI context are never released, and the
+     * SNI context holds a strong jerry_value reference to every JS/LVGL object
+     * the script created. The JerryScript heap then grows on every launch
+     * until it is exhausted, at which point jerry_parse fails and every JS app
+     * becomes permanently unusable ("Script Parse Error: null", ret=-701). */
+    if (pkg->type != SCRIPT_TYPE_UNKNOWN)
+    {
+        spm_terminate_programs_by_type(pkg->type);
+    }
+
     _program_list_add(prog);
     COS_LOG_I("Starting program %p type=%d id=%s", (void *)prog, prog->type, pkg->id ? pkg->id : "unknown");
 
