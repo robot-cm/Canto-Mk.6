@@ -15,6 +15,8 @@ output/
 __pycache__/
 # Build files
 build/
+# ESP-IDF backup build dir (keep on disk, do not track)
+build.esp32-bak/
 # Cache
 .cache/
 

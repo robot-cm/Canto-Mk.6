@@ -83,6 +83,9 @@ python3.11 scripts/cos_pkg_builder.py apps/stopwatch eapk-target/stopwatch.eapk 
 python3.11 scripts/cos_pkg_builder.py apps/timer eapk-target/timer.eapk --type app 
 ```
 
+## 模拟器编译说明
+1. todo
+
 ## 更新日志
 
 ### 20261001
