@@ -39,14 +39,15 @@
 #include "framework/watchface/cos_watchface.h"
 #include "cos_service_display.h"
 #include "cos_service_cc_snapshot.h" /* cc:控制中心设置快照诊断 */
+#include "cos_prof.h"               /* prof:一站式性能诊断 */
 #include "lvgl.h"
 #ifdef COS_PLATFORM_ESP32
 #include "esp_spiffs.h"    /* cmd_sd: SPIFFS 兜底时的容量统计 */
 #include "esp_pm.h"        /* power status: DFS / Light-sleep 诊断 */
-#include "esp_heap_caps.h" /* cmd_prof: heap_caps 内存池统计 */
+#include "esp_heap_caps.h" /* cmd_sd/cmd_memlog: heap_caps 内存统计 */
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/task.h" /* cmd_prof: uxTaskGetSystemState 采样 */
+#include "freertos/task.h"
 #endif
 
 #define COS_LOG_TAG "Shell"
@@ -144,7 +145,7 @@ static const cos_shell_cmd_t s_cmds[] =
     {"launcher","launcher mode <v1|v2>  (switch launcher impl)", cmd_launcher},
     {"power",   "power <status|deep-sleep [sec]|standby|wake>  (PM control)", cmd_power},
     {"wos",     "wos <list|open <id>|close|status|notify>  (WOS UI framework)", cmd_wos},
-    {"prof",    "prof - show resource utilization (SRAM/PSRAM/DMA/CPU)", cmd_prof},
+    {"prof",    "prof [-t ms] [-n frames] | prof status | prof reset", cmd_prof},
     {"cc",      "cc <show|save|load>  (/sdcard/history/cc settings snapshot)", cmd_cc},
 };
 
@@ -248,148 +249,13 @@ static void cmd_cc(cos_shell_output_cb_t out, void *user, int argc, char **argv)
     sh_out(out, user, "usage: cc <show|save|load>");
 }
 
-/* prof - simple performance monitor: SRAM / PSRAM / DMA utilization and
- * dual-core CPU usage sampled from FreeRTOS run-time stats over 100ms. */
+/* prof - one-shot performance profiler. `prof` samples for 3s (or -t/-n),
+ * then prints a full report: frame-time histogram, phase breakdown, CPU/PSRAM/
+ * SPI details and an automatic Diagnosis. Implementation is in
+ * src/kernel/diag/cos_prof.c (kept out of Core shell to stay self-contained). */
 static void cmd_prof(cos_shell_output_cb_t out, void *user, int argc, char **argv)
 {
-    (void)argc;
-    (void)argv;
-#ifdef COS_PLATFORM_ESP32
-    /* ---- memory pools ---- */
-    static const struct
-    {
-        const char *name;
-        uint32_t caps;
-    } pools[] = {
-        {"SRAM", MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT},
-        {"PSRAM", MALLOC_CAP_SPIRAM},
-        {"DMA", MALLOC_CAP_DMA},
-    };
-    size_t i;
-    for (i = 0; i < sizeof(pools) / sizeof(pools[0]); i++)
-    {
-        size_t total = heap_caps_get_total_size(pools[i].caps);
-        size_t free_b = heap_caps_get_free_size(pools[i].caps);
-        size_t used = total - free_b;
-        unsigned pct = total ? (unsigned)((used * 1000u) / total) : 0u;
-        sh_out(out, user, "  %-5s: used=%uKB (%u.%u%%)  free=%uKB  largest=%uKB",
-               pools[i].name,
-               (unsigned)(used / 1024u), pct / 10u, pct % 10u,
-               (unsigned)(free_b / 1024u),
-               (unsigned)(heap_caps_get_largest_free_block(pools[i].caps) / 1024u));
-    }
-    size_t min_int = heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-    size_t min_psr = heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM);
-    sh_out(out, user, "  min-free (all-time low): SRAM=%uKB PSRAM=%uKB",
-           (unsigned)(min_int / 1024u), (unsigned)(min_psr / 1024u));
-
-    /* ---- CPU: FreeRTOS run-time stats over a 100ms window ---- */
-    UBaseType_t n = uxTaskGetNumberOfTasks();
-    if (n == 0)
-    {
-        return;
-    }
-    TaskStatus_t *arr = (TaskStatus_t *)cos_malloc(n * sizeof(TaskStatus_t));
-    if (!arr)
-    {
-        sh_out(out, user, "  CPU: sample failed (no memory)");
-        return;
-    }
-    uint32_t *run_a = (uint32_t *)cos_malloc(n * sizeof(uint32_t));
-    if (!run_a)
-    {
-        cos_free(arr);
-        sh_out(out, user, "  CPU: sample failed (no memory)");
-        return;
-    }
-
-    uint32_t total_a = 0, total_b = 0;
-    UBaseType_t cap = n; /* array capacity = initial task count */
-    n = uxTaskGetSystemState(arr, cap, &total_a);
-    for (UBaseType_t k = 0; k < n; k++)
-    {
-        run_a[k] = arr[k].ulRunTimeCounter;
-    }
-
-    vTaskDelay(pdMS_TO_TICKS(100));
-
-    UBaseType_t n2 = uxTaskGetSystemState(arr, cap, &total_b);
-    if (n2 < n)
-    {
-        n = n2; /* a task exited during the window; only compare common indices */
-    }
-    /* Run-time counter is uint32_t (CONFIG_FREERTOS_RUN_TIME_COUNTER_TYPE_U32)
-     * and ticks at 1MHz via ESP timer -> overflows after ~71min. Compute the
-     * delta in 64-bit with wrap-around compensation so dt never goes negative
-     * or explodes into thousands of percent. */
-    uint64_t dt = (uint64_t)total_b - (uint64_t)total_a;
-    if (total_b < total_a)
-    {
-        dt += (uint64_t)1u << 32; /* counter wrapped between samples */
-    }
-    if (dt == 0)
-    {
-        sh_out(out, user, "  CPU: run-time counter not ticking");
-        cos_free(run_a);
-        cos_free(arr);
-        return;
-    }
-
-    /* total busy = 100% - combined idle (one IDLE task per core) */
-    uint64_t idle_run = 0;
-    for (UBaseType_t k = 0; k < n; k++)
-    {
-        if (strncmp(arr[k].pcTaskName, "IDLE", 4) == 0)
-        {
-            uint64_t dr = (uint64_t)arr[k].ulRunTimeCounter - (uint64_t)run_a[k];
-            if (arr[k].ulRunTimeCounter < run_a[k])
-            {
-                dr += (uint64_t)1u << 32; /* per-task wrap */
-            }
-            idle_run += dr;
-        }
-    }
-    uint32_t busy = (uint32_t)(1000u - (idle_run * 1000u) / dt);
-
-    sh_out(out, user, "  CPU  : %u.%u%% busy  (dual-core, %u tasks, 100ms window)",
-           busy / 10u, busy % 10u, (unsigned)n2);
-
-    sh_out(out, user, "  top tasks:");
-    UBaseType_t shown = 0;
-    while (shown < n && shown < 8)
-    {
-        UBaseType_t best = 0;
-        uint64_t best_dr = 0;
-        for (UBaseType_t k = 0; k < n; k++)
-        {
-            uint64_t dr = (uint64_t)arr[k].ulRunTimeCounter - (uint64_t)run_a[k];
-            if (arr[k].ulRunTimeCounter < run_a[k])
-            {
-                dr += (uint64_t)1u << 32; /* per-task wrap */
-            }
-            if (dr > best_dr)
-            {
-                best_dr = dr;
-                best = k;
-            }
-        }
-        if (best_dr == 0)
-        {
-            break;
-        }
-        uint32_t pct = (uint32_t)((best_dr * 1000u) / dt);
-        sh_out(out, user, "    %-12s %u.%u%%", arr[best].pcTaskName, pct / 10u, pct % 10u);
-        run_a[best] = arr[best].ulRunTimeCounter; /* exclude from next pick */
-        shown++;
-    }
-
-    cos_free(run_a);
-    cos_free(arr);
-#else
-    sh_out(out, user, "[prof] performance monitor: N/A on simulator toolchain");
-    sh_out(out, user, "  On real ESP32-S3 this reports SRAM / PSRAM / DMA usage and");
-    sh_out(out, user, "  dual-core CPU utilization (100ms run-time-stats sample).");
-#endif
+    cos_prof_cli(out, user, argc, argv);
 }
 
 static void cmd_memlog(cos_shell_output_cb_t out, void *user, int argc, char **argv)

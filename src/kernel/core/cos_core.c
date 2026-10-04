@@ -63,6 +63,7 @@
 #include "cos_dfw.h"
 #include "cos_app_header.h"
 #include "cos_shell.h"
+#include "cos_prof.h" /* prof: 帧/阶段采样钩子 */
 #include "services/plugin/cos_plugin_manager.h"
 #include "cos_net_proxy.h"
 #include "cos_net_wifi.h"
@@ -385,8 +386,17 @@ uint32_t cos_main_loop(void)
         else if (cos_activity_controller_init(root_activity) != COS_OK)
             _sys_init_err_handler("Failed to initialize activity controller");
     }
+    /* prof 采样钩子:包住一轮主循环(未采样时零开销)。
+     * lvgl 耗时含 flush;纯渲染由 prof 报告内部再减去 flush 提交/等待。 */
+    cos_prof_hook_frame_begin();
+    cos_prof_hook_app_begin();
     cos_dispatch_tick();
-    return lv_timer_handler();
+    cos_prof_hook_app_end();
+    cos_prof_hook_lvgl_begin();
+    uint32_t ret = lv_timer_handler();
+    cos_prof_hook_lvgl_end();
+    cos_prof_hook_frame_end();
+    return ret;
 }
 
 uint32_t cos_tick_get(void)

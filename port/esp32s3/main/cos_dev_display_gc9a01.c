@@ -23,6 +23,7 @@
 #include "board_xiao_esp32s3_round.h"
 #include "cos_dev_display_gc9a01.h"
 #include "cos_dev_display.h"
+#include "cos_prof.h"   /* prof: flush 提交/等待采样钩子 */
 
 #include <string.h>
 #include <stddef.h>   /* offsetof(flush_containing) */
@@ -639,6 +640,7 @@ static void flush_pre_cb(spi_transaction_t *t)
 static void display_flush_wait_cb(lv_display_t *disp)
 {
     (void)disp;
+    cos_prof_hook_flush_wait_begin();
     while (s_pending_tx > 0)
     {
         spi_transaction_t *t;
@@ -646,6 +648,7 @@ static void display_flush_wait_cb(lv_display_t *disp)
             break;   /* 极端:避免死循环,交给 LVGL 继续 */
         s_pending_tx--;
     }
+    cos_prof_hook_flush_wait_end();
 }
 
 /* 初始化各 slot 事务组(每帧仅重写 col_buf/row_buf/ramwr_byte 内容) */
@@ -679,6 +682,7 @@ static void display_flush_tx_init(void)
 
 static void display_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
 {
+    cos_prof_hook_flush_submit_begin();
     s_flush_total++;
     uint16_t w = area->x2 - area->x1 + 1;
     uint16_t h = area->y2 - area->y1 + 1;
@@ -738,6 +742,9 @@ static void display_flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t 
         ESP_LOGE(TAG, "flush queue failed (%d/6 queued), sync polling fallback", queued);
         spi_device_polling_transmit(s_spi, &fs->pixel.base);
     }
+
+    /* prof:提交耗时(含 PSRAM 读取 + 字节交换 + 入队)与本次区域字节数 */
+    cos_prof_hook_flush_submit_end(len, queued);
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -909,5 +916,11 @@ esp_err_t cos_dev_display_gc9a01_lvgl_init(void)
 
     ESP_LOGI(TAG, "LVGL display registered (%dx%d, partial %u px)",
              BOARD_GC9A01_WIDTH, BOARD_GC9A01_HEIGHT, (unsigned)buf_pixels);
+
+    /* prof:登记 framebuffer / SPI 参数,供 `prof` 报告使用
+     * (6 = 每次 flush 入队的 SPI 事务数:0x2A cmd+data / 0x2B cmd+data / 0x2C / pixel) */
+    cos_prof_set_display_info(buf1, buf2, buf_bytes, 2,
+                              BOARD_GC9A01_WIDTH, BOARD_GC9A01_HEIGHT, 16,
+                              DISPLAY_SPI_CLK_HZ, 6, FLUSH_BUF_BYTES);
     return ESP_OK;
 }
