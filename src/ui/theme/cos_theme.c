@@ -77,9 +77,12 @@ void _init_style_view(void)
     lv_style_init(&style_view);
     lv_style_set_bg_color(&style_view, VIEW_BG_COLOR);
     lv_style_set_bg_opa(&style_view, LV_OPA_COVER);
-    /* 尺寸/坐标不在此设置:该样式会套到各 view 上,若强制 240x240 会让每个
-     * view 都成为全屏不透明填充(overdraw 来源之一),而实际尺寸应由各 view
-     * 自行决定(多数已是全屏,少数是子容器)。仅保留背景色与不透明度。 */
+    /* 注意:尺寸/坐标必须保留。C App 的根 view 依赖本样式固定在 (0,0) 且
+     * 240x240;一旦移除,view 会塌缩成"内容大小"并停在左上角(实测事故)。
+     * 如需消除 overdraw,只能逐个 App 改为自己 set_size,不能改这里。 */
+    lv_style_set_size(&style_view, COS_DISPLAY_WIDTH, COS_DISPLAY_HEIGHT);
+    lv_style_set_x(&style_view, 0);
+    lv_style_set_y(&style_view, 0);
     lv_style_set_border_width(&style_view, 0);
 }
 

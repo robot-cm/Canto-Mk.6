@@ -668,7 +668,10 @@ cos_card_pager_t *cos_card_pager_create(lv_obj_t *parent, cos_card_pager_dir_t d
     _page_init(cp->background);
     lv_obj_set_size(cp->background, COS_DISPLAY_WIDTH, COS_DISPLAY_HEIGHT);
     lv_obj_set_pos(cp->background, 0, 0);
-    lv_obj_set_style_bg_opa(cp->background, LV_OPA_COVER, 0);
+    /* 该层夹在"activity view(已不透明)"与"page"之间,永远被完全遮挡。
+     * 原先设为全屏不透明黑,等于每帧白刷一次 57600 px(overdraw 主因之一);
+     * 改为透明后视觉无变化,纯省一次全屏填充。 */
+    lv_obj_set_style_bg_opa(cp->background, LV_OPA_TRANSP, 0);
     lv_obj_set_style_bg_color(cp->background, COS_COLOR_BLACK, 0);
 
     lv_obj_t *indicator_container = lv_obj_create(cp->container);
