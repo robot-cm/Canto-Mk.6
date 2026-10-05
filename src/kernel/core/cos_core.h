@@ -52,6 +52,13 @@ uint32_t cos_tick_get(void);
  */
 void cos_logo_play(bool anim);
 /**
+ * @brief Remove the boot logo splash container.
+ * @note The container is full-screen and opaque; leaving it alive makes LVGL
+ *       repaint a 240x240 fill every frame (overdraw). Call once the Launcher
+ *       is ready.
+ */
+void cos_logo_hide(void);
+/**
  * @brief Set periodic memory report interval (real ESP32-S3 only)
  * @param sec Report every N seconds; 0 disables the periodic report.
  * @note The report is emitted through the log system at INFO level so it can

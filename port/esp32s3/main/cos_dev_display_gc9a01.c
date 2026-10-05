@@ -40,6 +40,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "lvgl.h"
+#include "esp_timer.h"   /* [COS-DIAG] 绘制耗时统计 */
 
 #define TAG "GC9A01"
 
@@ -867,6 +868,96 @@ void cos_dev_display_gc9a01_display_on(void)
              (unsigned)(s_flush_total - s_flush_at_off), (unsigned)s_flush_total);
 }
 
+/* [COS-DIAG] 绘制阶段耗时 + draw task 类型/面积统计(临时诊断,诊断完可整段移除)。
+ * 目的:拆解 render 阶段耗时构成,并量化 overdraw(绘制总面积 / 屏幕面积)。
+ * 数据源:LVGL 的 LV_EVENT_RENDER_START/READY + lv_draw.c 里的 task 统计。 */
+extern uint32_t lv_draw_diag_task_count[16];
+extern uint64_t lv_draw_diag_task_area[16];
+
+static const char *const s_diag_task_names[16] = {
+    "NONE", "FILL", "BORDER", "BOX_SHADOW", "LETTER", "LABEL",
+    "IMAGE", "LAYER", "LINE", "ARC", "TRIANGLE", "MASK_RECT", "MASK_BITMAP",
+    "VECTOR", "3D", "?"
+};
+
+#define COS_DIAG_FRAMES 32
+
+static int64_t  s_diag_render_begin_us = 0;
+static uint64_t s_diag_render_sum_us   = 0;
+static uint32_t s_diag_render_frames   = 0;
+
+static void display_diag_render_cb(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+
+    if (code == LV_EVENT_RENDER_START) {
+        s_diag_render_begin_us = esp_timer_get_time();
+        return;
+    }
+
+    /* LV_EVENT_RENDER_READY */
+    if (s_diag_render_begin_us != 0) {
+        s_diag_render_sum_us += (uint64_t)(esp_timer_get_time() - s_diag_render_begin_us);
+        s_diag_render_begin_us = 0;
+    }
+    s_diag_render_frames++;
+
+    if (s_diag_render_frames < COS_DIAG_FRAMES) return;
+
+    uint64_t total_area = 0;
+    for (int i = 1; i < 16; i++) total_area += lv_draw_diag_task_area[i];
+
+    const uint64_t screen = (uint64_t)BOARD_GC9A01_WIDTH * BOARD_GC9A01_HEIGHT;
+    const uint64_t base   = screen * (uint64_t)s_diag_render_frames;
+
+    ESP_LOGI(TAG, "[DRAW-DIAG] frames=%u render_avg=%llu us | overdraw=%.2fx | task_area=%llu px",
+             (unsigned)s_diag_render_frames,
+             (unsigned long long)(s_diag_render_sum_us / s_diag_render_frames),
+             base ? (double)total_area / (double)base : 0.0,
+             (unsigned long long)total_area);
+
+    for (int i = 1; i < 16; i++) {
+        if (lv_draw_diag_task_count[i] == 0) continue;
+        ESP_LOGI(TAG, "[DRAW-DIAG]   %-11s cnt=%-6u avg=%llu px",
+                 s_diag_task_names[i],
+                 (unsigned)lv_draw_diag_task_count[i],
+                 (unsigned long long)(lv_draw_diag_task_area[i] / lv_draw_diag_task_count[i]));
+    }
+
+    /* [COS-DIAG] FILL 溯源:按面积降序列出前 5 个全屏填充对象 */
+    extern void       *lv_draw_diag_fill_obj[16];
+    extern uint32_t    lv_draw_diag_fill_area[16];
+    extern const void *lv_draw_diag_fill_class[16];
+    extern int         lv_draw_diag_fill_n;
+    for (int rank = 0; rank < 5; rank++) {
+        int best = -1;
+        for (int i = 0; i < lv_draw_diag_fill_n; i++) {
+            if (lv_draw_diag_fill_obj[i] == NULL) continue;
+            if (best < 0 || lv_draw_diag_fill_area[i] > lv_draw_diag_fill_area[best]) best = i;
+        }
+        if (best < 0) break;
+
+        const void *cls = lv_draw_diag_fill_class[best];
+        const char *cls_name = "OTHER";
+        if (cls == (const void *)&lv_obj_class)        cls_name = "lv_obj";
+        else if (cls == (const void *)&lv_image_class) cls_name = "lv_image";
+        else if (cls == (const void *)&lv_label_class) cls_name = "lv_label";
+
+        ESP_LOGI(TAG, "[DRAW-DIAG]   FILL-TOP#%d obj=%p cls=%s area=%lu px",
+                 rank, lv_draw_diag_fill_obj[best], cls_name,
+                 (unsigned long)lv_draw_diag_fill_area[best]);
+        lv_draw_diag_fill_obj[best] = NULL;   /* 标记已输出 */
+    }
+    lv_draw_diag_fill_n = 0;
+
+    for (int i = 0; i < 16; i++) {
+        lv_draw_diag_task_count[i] = 0;
+        lv_draw_diag_task_area[i]  = 0;
+    }
+    s_diag_render_sum_us = 0;
+    s_diag_render_frames = 0;
+}
+
 /* LVGL 显示初始化:lv_display_create + 双缓冲(PARTIAL) + flush_cb */
 esp_err_t cos_dev_display_gc9a01_lvgl_init(void)
 {
@@ -913,6 +1004,10 @@ esp_err_t cos_dev_display_gc9a01_lvgl_init(void)
      * 相比 ISR 里调 lv_display_flush_ready,避开 ISR 调 LVGL timer 的风险。 */
     lv_display_set_flush_wait_cb(disp, display_flush_wait_cb);
     lv_display_set_default(disp);
+
+    /* [COS-DIAG] 注册绘制耗时 / overdraw 统计(临时诊断) */
+    lv_display_add_event_cb(disp, display_diag_render_cb, LV_EVENT_RENDER_START, NULL);
+    lv_display_add_event_cb(disp, display_diag_render_cb, LV_EVENT_RENDER_READY, NULL);
 
     ESP_LOGI(TAG, "LVGL display registered (%dx%d, partial %u px)",
              BOARD_GC9A01_WIDTH, BOARD_GC9A01_HEIGHT, (unsigned)buf_pixels);

@@ -208,6 +208,10 @@ void _sys_init_err_handler(const char *err_msg)
     }
 }
 
+/* Logo 启动屏容器。全屏 + 不透明黑底,若一直挂在屏幕上会每帧被重复填充
+ * (实测 FILL-TOP 里面积 57600 的常驻对象之一),故在启动完成后显式删除。 */
+static lv_obj_t *s_logo_container = NULL;
+
 void cos_logo_play(bool anim)
 {
     cos_display_set_brightness(COS_DISPLAY_BRIGHTNESS_MAX, COS_DISPLAY_DURATION_OFF, false);
@@ -223,6 +227,7 @@ void cos_logo_play(bool anim)
 
     // Create full screen container
     lv_obj_t *logo_container = lv_obj_create(scr);
+    s_logo_container = logo_container;
     lv_obj_set_style_bg_color(logo_container, COS_COLOR_BLACK, 0);
     lv_obj_set_size(logo_container, lv_pct(100), lv_pct(100));
     lv_obj_set_style_border_width(logo_container, 0, 0);
@@ -238,6 +243,17 @@ void cos_logo_play(bool anim)
      * image"). The logo screen is a transient boot splash that
      * cos_activity_controller_init() replaces with the Launcher. */
     lv_timer_handler();
+}
+
+void cos_logo_hide(void)
+{
+    if (s_logo_container == NULL)
+        return;
+
+    if (lv_obj_is_valid(s_logo_container))
+        lv_obj_delete(s_logo_container);
+
+    s_logo_container = NULL;
 }
 
 void cos_init(void)
@@ -379,7 +395,9 @@ uint32_t cos_main_loop(void)
     if (_pending_root_start)
     {
         _pending_root_start = false;
-        /* Activity controller will automatically delete Logo Screen */
+        /* 启动完成:显式删除 Logo 全屏黑底容器(原注释假设 controller 会自动
+         * 删除,实际没有 → 它常驻屏幕上,每帧被重复填充 57600 px)。 */
+        cos_logo_hide();
         cos_activity_t *root_activity = cos_watchface_get_activity();
         if (!root_activity)
             _sys_init_err_handler("Failed to get watchface activity");

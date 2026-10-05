@@ -27,7 +27,7 @@ cmake --build simulator/build -j 8
 
 
 > memlog          → 查看当前状态
-> memlog 10       → 改成每 10 秒报一次
+> memlog 5       → 改成每 5 秒报一次
 > memlog off      → 关闭周期报告
 
 

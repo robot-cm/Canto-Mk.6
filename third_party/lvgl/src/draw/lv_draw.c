@@ -129,11 +129,68 @@ lv_draw_task_t * lv_draw_add_task(lv_layer_t * layer, const lv_area_t * coords, 
     return new_task;
 }
 
+/* [COS-DIAG] draw task 统计(临时诊断):按类型累计任务数与像素面积,用于诊断 overdraw
+ * (总面积 / 屏幕面积 = 同一像素被重复绘制的倍数)。项目侧 extern 读取并定期打印清零;
+ * 诊断完成后可整段移除。 */
+uint32_t lv_draw_diag_task_count[16];
+uint64_t lv_draw_diag_task_area[16];
+
+/* [COS-DIAG] FILL 对象溯源:记录本窗口内面积最大的若干次 FILL,定位"全屏不透明层"。
+ * area 单调递减存储(容量 16),同一个对象只记一次(避免动画重复刷屏)。 */
+void       *lv_draw_diag_fill_obj[16];
+uint32_t    lv_draw_diag_fill_area[16];
+const void *lv_draw_diag_fill_class[16];
+int         lv_draw_diag_fill_n = 0;
+
 void lv_draw_finalize_task_creation(lv_layer_t * layer, lv_draw_task_t * t)
 {
     LV_PROFILER_DRAW_BEGIN;
     lv_draw_dsc_base_t * base_dsc = t->draw_dsc;
     base_dsc->layer = layer;
+
+    /* [COS-DIAG] 累计任务类型与面积 */
+    {
+        int diag_idx = (int)t->type;
+        if(diag_idx > 0 && diag_idx < 16) {
+            lv_draw_diag_task_count[diag_idx]++;
+            int32_t diag_w = lv_area_get_width(&t->area);
+            int32_t diag_h = lv_area_get_height(&t->area);
+            if(diag_w > 0 && diag_h > 0) {
+                lv_draw_diag_task_area[diag_idx] += (uint64_t)diag_w * (uint64_t)diag_h;
+            }
+
+            /* [COS-DIAG] FILL 溯源:按面积降序保留前 16 个不重复的对象 */
+            if(t->type == LV_DRAW_TASK_TYPE_FILL && base_dsc->obj && diag_w > 0 && diag_h > 0) {
+                uint32_t area_now = (uint32_t)diag_w * (uint32_t)diag_h;
+                int found = -1;
+                for(int k = 0; k < lv_draw_diag_fill_n; k++) {
+                    if(lv_draw_diag_fill_obj[k] == base_dsc->obj) { found = k; break; }
+                }
+                if(found >= 0) {
+                    if(area_now > lv_draw_diag_fill_area[found]) lv_draw_diag_fill_area[found] = area_now;
+                }
+                else if(lv_draw_diag_fill_n < 16) {
+                    lv_draw_diag_fill_obj[lv_draw_diag_fill_n]     = base_dsc->obj;
+                    lv_draw_diag_fill_area[lv_draw_diag_fill_n]    = area_now;
+                    /* 借 class_p 指针做"谁"的身份标识(不取值,打印时转地址) */
+                    lv_draw_diag_fill_class[lv_draw_diag_fill_n]   = lv_obj_get_class(base_dsc->obj);
+                    lv_draw_diag_fill_n++;
+                }
+                else {
+                    /* 已满:替换掉最小的那个 */
+                    int min_k = 0;
+                    for(int k = 1; k < 16; k++) {
+                        if(lv_draw_diag_fill_area[k] < lv_draw_diag_fill_area[min_k]) min_k = k;
+                    }
+                    if(area_now > lv_draw_diag_fill_area[min_k]) {
+                        lv_draw_diag_fill_obj[min_k]   = base_dsc->obj;
+                        lv_draw_diag_fill_area[min_k]  = area_now;
+                        lv_draw_diag_fill_class[min_k] = lv_obj_get_class(base_dsc->obj);
+                    }
+                }
+            }
+        }
+    }
 
     lv_draw_global_info_t * info = &_draw_info;
 

@@ -122,7 +122,9 @@ void cos_watchface_list_enter(void)
         lv_obj_set_size(snapshot_container, _SNAPSHOT_CONTAINER_W, _SNAPSHOT_CONTAINER_H);
         lv_obj_set_style_border_width(snapshot_container, _SNAPSHOT_CONTAINER_BORDER, 0);
         lv_obj_set_style_radius(snapshot_container, COS_DISPLAY_RADIUS, 0);
-        lv_obj_set_style_clip_corner(snapshot_container, true, 0);
+        /* 外层不裁剪:内层 snapshot_clip_container 已裁剪,外层再裁会多一次
+         * layer + mask(每个缩略图每帧各一次)。 */
+        lv_obj_set_style_clip_corner(snapshot_container, false, 0);
         lv_obj_set_style_pad_all(snapshot_container, _SNAPSHOT_CONTAINER_PAD, 0);
         lv_obj_set_style_shadow_width(snapshot_container, 0, 0);
         lv_obj_set_style_bg_opa(snapshot_container, LV_OPA_TRANSP, 0);

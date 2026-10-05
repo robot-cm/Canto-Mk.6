@@ -1133,7 +1133,10 @@ static void create_icon_object(cos_bubble_grid_t *wb, icon_node_t *node)
     lv_obj_set_style_bg_color(bubble, node->bubble_color, 0);
     lv_obj_set_style_border_width(bubble, 0, 0);
     lv_obj_set_style_pad_all(bubble, 0, 0);
-    lv_obj_set_style_clip_corner(bubble, true, 0);
+    /* 气泡是圆形,图标同尺寸且居中(见下方 LV_IMAGE_ALIGN_CENTER),不会溢出圆,
+     * 故无需 clip_corner —— 它会让每个气泡每帧多一次 layer + 圆角 mask
+     * (实测 ~20 个气泡/屏,是 LAYER/MASK_RECT 成对爆炸的主因)。 */
+    lv_obj_set_style_clip_corner(bubble, false, 0);
     lv_obj_add_flag(bubble, LV_OBJ_FLAG_HIDDEN);
     lv_obj_remove_flag(bubble, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_remove_flag(bubble, LV_OBJ_FLAG_CLICKABLE);

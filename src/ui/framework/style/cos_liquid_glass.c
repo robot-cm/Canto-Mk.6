@@ -15,10 +15,11 @@ void cos_liquid_glass_card(void *obj)
     lv_obj_set_style_border_width(o, 1, 0);
     lv_obj_set_style_border_opa(o, 80, 0);
     lv_obj_set_style_border_color(o, lv_color_white(), 0);
-    lv_obj_set_style_shadow_width(o, 16, 0);
-    lv_obj_set_style_shadow_opa(o, 50, 0);
-    lv_obj_set_style_shadow_color(o, lv_color_hex(0x1f6feb), 0);
-    lv_obj_set_style_shadow_spread(o, 0, 0);
+    lv_obj_set_style_shadow_width(o, 0, 0);
+    /* 16px 模糊阴影是逐像素开销大户(每帧多 pass 模糊 + 逐像素 mask),
+     * 卡片本身已有 1px 高光边框,去掉阴影视觉损失很小;改用略强的边框
+     * 补偿立体感。 */
+    lv_obj_set_style_border_opa(o, 120, 0);
 }
 
 void cos_liquid_glass_panel(void *obj)
