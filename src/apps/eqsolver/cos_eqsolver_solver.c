@@ -234,7 +234,12 @@ static int _solve_linear(eq_node_t *asts[], int n, const char letters[], int m,
     {
         for (int j = 0; j < m; j++)
         {
-            float h = 1e-3f * fmaxf(1.0f, fabsf(v0[(int)(letters[j] - 'a')]));
+            /* Step of ~1 (not a tiny 1e-3): a central difference of a *linear*
+             * function is exact for any step, and a small step makes
+             * f(x+h)-f(x-h) suffer catastrophic cancellation in float32 (the
+             * difference is ~1e-3 while |f| can be ~1e2), which shows up as
+             * solutions like 3499/350 instead of 10. */
+            float h = fmaxf(1.0f, fabsf(v0[(int)(letters[j] - 'a')]));
             float saved = v0[(int)(letters[j] - 'a')];
             v0[(int)(letters[j] - 'a')] = saved + h;
             float fp = eq_eval(asts[i], v0);

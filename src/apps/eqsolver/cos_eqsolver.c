@@ -22,6 +22,7 @@
 #include "cos_round_keyboard.h"
 
 #include "cos_mem.h"
+#include "cos_log.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -364,7 +365,15 @@ static void _solve_clicked_cb(lv_event_t *e)
         _build_result(g_ctx);
         return;
     }
+    /* Solve log: without it a wrong/unexpected result is impossible to
+     * diagnose from the serial console (issue #3). */
+    COS_LOG_I("EqSolver: solving %d equation(s)", n);
+    for (int i = 0; i < n; i++)
+    {
+        COS_LOG_I("EqSolver:   [%d] %s", i + 1, ptrs[i]);
+    }
     cos_eqsolve(ptrs, n, g_ctx->result_buf, sizeof(g_ctx->result_buf));
+    COS_LOG_I("EqSolver: result: %s", g_ctx->result_buf);
     g_ctx->screen = SCR_RESULT;
     _clear_cont(g_ctx);
     _build_result(g_ctx);

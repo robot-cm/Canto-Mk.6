@@ -1,8 +1,10 @@
 # CantoMk6OS 桌面模拟器（Windows / Ubuntu）
 
 在 **Windows 与 Ubuntu** 上用 SDL2 窗口 1:1 复刻 CantoMk6 硬件（240×240 圆形触摸屏、
-表冠、侧键、电池、时间、传感器），完整运行 CantoMk6OS Core + JerryScript 脚本引擎，
-真机代码（`src/`、`port/`、`third_party/`、根 `CMakeLists.txt`）**不做任何修改**。
+表冠、侧键、电池、时间、传感器），完整运行 CantoMk6OS Core + JerryScript 脚本引擎。
+「让真机代码在 PC 上编译运行」不需要改动 `src/`、`port/`、`third_party/` 与根
+`CMakeLists.txt`，适配全部在 `simulator/`。`src/apps/` 下的改动属于 issue #3 的真机
+固件 bug 修复（EqSolver 精度/日志、ProfMonitor 绝对路径），与模拟器适配无关。
 
 > 两个平台的差异仅在构建系统层：Windows 走 conda `elenixos` 环境的 MinGW 工具链 +
 > 该环境自带 SDL2；Ubuntu 走系统 `gcc`/`cmake` + `libsdl2-dev`。C 源码通过
@@ -39,6 +41,11 @@ bash simulator/test_sim.sh
 
 脚本会：配置 → 构建 → 逐项跑全部 headless 自检并打印验证结论。平台自动识别
 （Windows 用 MinGW Makefiles，Ubuntu 用系统默认生成器）。
+
+> 脚本显式以 **DEV 模式**（`-DCMAKE_BUILD_TYPE=`）配置构建。脚本末尾的「断言级验证」
+> 依赖串口日志，而 Release 模式下根 `CMakeLists.txt` 会定义 `COS_LOG_DISABLE=1`，
+> 使全部 `COS_LOG_*`（含 JS 侧 `cos.console.log` 的 `[OK]` / `[FAIL]`）变成空操作，
+> 断言将全部失效。手动构建时若要看日志，请勿传 `-DCMAKE_BUILD_TYPE=Release`。
 
 ## 手动构建
 
@@ -104,6 +111,8 @@ SDL_VIDEODRIVER=dummy ./cantomk6os_sim --<flag>       # Ubuntu
 | `--screen-snap` | 截图诊断（watchface / app 页 / 控制中心） |
 | `--pixel-probe` | 读取 SDL 纹理逐行亮度诊断 |
 | `--render-check` | 导出实际呈现像素（含 overlay）为 PPM |
+| `--profmonitor-probe` | 原生 ProfMonitor：启动 / UI / CPU 读数 / SRAM / 持久化 |
+| `--eqsolver-test` | EqSolver：单 / 多变量求解与结果格式化 |
 
 ## 目录结构
 
@@ -113,7 +122,8 @@ simulator/
 ├── main.c                  # 模拟器入口：SDL 窗口/输入接线 + 全部 --flag 自检分支
 ├── lv_conf.h               # LVGL 配置（SDL2 显示、单线程 LV_OS_NONE、widget 全开）
 ├── cos_platform_config.h   # 平台覆盖（240x240、POSIX FS、C 字体），优先于 port/esp32s3/main/
-├── esp_shim/               # ESP-IDF 头文件垫片（esp_heap_caps.h/.c、esp_sntp_shim.c）
+├── esp_shim/               # ESP-IDF 垫片（esp_heap_caps、esp_sntp_shim、
+│                           #   freertos_shim.c + freertos/，供 ProfMonitor 采样）
 ├── tools/version.py        # jerryscript 版本号桩（CMAKE_SOURCE_DIR 指向 simulator/ 时用）
 ├── test_sim.sh             # 一键构建 + headless 自检脚本
 └── build/                  # 构建输出（含 fs/ 模拟文件系统，git 忽略）

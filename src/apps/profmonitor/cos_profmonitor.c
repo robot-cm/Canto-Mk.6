@@ -37,8 +37,11 @@
 #include "esp_heap_caps.h"
 
 /* ---- config ---- */
-#define PM_DIR          "sdcard/prof_monitor"
-#define PM_FILE         "sdcard/prof_monitor/latest.txt"
+/* Absolute paths: on device the SD card is mounted at /sdcard; on the
+ * simulator cos_fs_realpath() prefixes COS_SYS_ROOT_DIR for absolute paths
+ * only (relative paths would resolve against the process CWD). */
+#define PM_DIR          "/sdcard/prof_monitor"
+#define PM_FILE         "/sdcard/prof_monitor/latest.txt"
 #define PM_SAMPLES      60
 #define PM_PERIOD_MS    200
 #define PM_MAX_TASKS    64

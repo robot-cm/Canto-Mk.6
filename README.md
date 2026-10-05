@@ -84,7 +84,178 @@ python3.11 scripts/cos_pkg_builder.py apps/timer eapk-target/timer.eapk --type a
 ```
 
 ## 模拟器编译说明
-1. todo
+
+在 PC 上用 SDL2 窗口 1:1 复刻真机（240×240 圆屏、表冠、侧键、假电池/时间/传感器），
+无需硬件即可跑完整 UI / JS 回归。「让真机代码能在 PC 上编译运行」这件事**不需要改动
+`src/`**，全部适配位于 `simulator/`（含头文件垫片、编译宏、LVGL/SDL 接线）。
+
+> 注意：`src/apps/` 下确实有改动，但那是 issue #3 报告的**真机固件 bug 修复**
+> （EqSolver float32 精度与求解日志、ProfMonitor 持久化绝对路径），真机同样受影响，
+> 与模拟器适配无关。
+
+### 1. 前置条件
+
+- **Windows**：conda 环境 `elenixos`（含 cmake / gcc / make / SDL2）
+
+```
+I:\Anaconda3\Scripts\conda.exe create -n elenixos cmake gcc gxx ninja make sdl2 -c conda-forge -y
+```
+
+- **Ubuntu / Debian**：
+
+```
+sudo apt install build-essential cmake python3 libsdl2-dev fonts-noto-cjk
+```
+
+（`fonts-noto-cjk` 提供中文 TinyTTF 字体，缺失时中文显示为方框。）
+
+### 2. 一键构建 + 自检（推荐）
+
+Windows 在 Git Bash / MSYS2 下、Ubuntu 在任意 bash 下运行：
+
+```
+bash simulator/test_sim.sh
+```
+
+脚本自动识别平台，执行「配置 → 构建 → 逐项跑全部 headless 自检并打印结论」。
+输出分两段：每项探针的**退出码**，以及末尾的**断言级验证**（逐条 `[OK]` / `[FAIL]`）。
+
+> 注意：断言级验证依赖串口日志，因此脚本会显式以 **DEV 模式**（`CMAKE_BUILD_TYPE=`）配置构建。
+> 若用 `-DCMAKE_BUILD_TYPE=Release` 配置过同一 build 目录，根 CMakeLists 会定义
+> `COS_LOG_DISABLE=1` 让所有 `COS_LOG_*`（含 JS 侧 `cos.console.log`）变成空操作，
+> 断言将全部失效。脚本每次配置都会把 build type 写回空值以避免该缓存陷阱。
+
+### 3. 手动构建
+
+Windows（cmd，需先把 conda 工具链加入 PATH）：
+
+```
+set CONDA_PREFIX=I:\Anaconda3\envs\elenixos
+set PATH=%CONDA_PREFIX%\Library\bin;%CONDA_PREFIX%\Library\x86_64-w64-mingw32\bin;%CONDA_PREFIX%;%PATH%
+
+cmake -S simulator -B simulator\build -G "MinGW Makefiles" ^
+    -DCMAKE_C_COMPILER=%CONDA_PREFIX%\Library\bin\x86_64-w64-mingw32-gcc.exe ^
+    -DCMAKE_CXX_COMPILER=%CONDA_PREFIX%\Library\bin\x86_64-w64-mingw32-g++.exe ^
+    -DCMAKE_AR=%CONDA_PREFIX%\Library\bin\x86_64-w64-mingw32-ar.exe ^
+    -DCMAKE_RANLIB=%CONDA_PREFIX%\Library\bin\x86_64-w64-mingw32-ranlib.exe ^
+    -DCMAKE_MAKE_PROGRAM=%CONDA_PREFIX%\Library\bin\mingw32-make.exe
+
+cmake --build simulator\build -j 8
+```
+
+Ubuntu / Debian：
+
+```
+cmake -S simulator -B simulator/build
+cmake --build simulator/build -j 8
+```
+
+### 4. 运行
+
+Windows 上 `SDL2.dll` 所在目录**必须**在 `PATH` 上，否则报 `0xC0000135` / 退出码 `-1073741515`：
+
+```
+set PATH=%CONDA_PREFIX%\Library\bin;%PATH%
+simulator\build\cantomk6os_sim.exe
+```
+
+Ubuntu 无需额外设置：
+
+```
+./simulator/build/cantomk6os_sim
+```
+
+### 5. 交互方式
+
+模拟器窗口出现后**先点一下窗口**让 SDL 拿到焦点，然后：
+
+| 硬件 | 鼠标 / 键盘操作 |
+| --- | --- |
+| 触摸屏 | 按住左键拖动 = 触摸滑动；单击 = 点按 |
+| 表冠旋转 | 滚轮上/下（或滚轮左右） |
+| 表冠按下 | 鼠标中键 |
+| 侧键 | 鼠标 X1（后退键） |
+
+键盘热键：
+
+| 键 | 作用 |
+| --- | --- |
+| `C` | 开/关控制中心 |
+| `L` | 打开应用列表（Launcher） |
+| `H` | 直接回到表盘 |
+| `R` | 返回上一级（等同手势返回） |
+| `W` | 切换 WOS 演示 App |
+| `Esc` | 退出模拟器 |
+
+启动时会打印上述操作提示。模拟器默认**关闭自动熄屏**（把熄屏超时拉到 1e6 秒），
+避免放着不动就黑屏、单击又唤不醒（真机 SLEEP 态需双击亮屏）。
+
+### 6. 模拟 SD 卡 / 系统盘
+
+根文件系统重定向到 `simulator/build/fs/`（构建时自动铺设），结构对应真机分区：
+
+```
+simulator/build/fs/
+├── sdcard/                 # 真机 SD 卡
+│   ├── apps/               #   .eapk 插件（构建时自动布防内置 App）
+│   ├── album/ 、history/ …  #   相册 / 历史 / 词典等运行数据
+└── .sys/                   # 系统分区
+    ├── app/apps/<id>/      #   已安装 App（manifest.json / main.js / icon.bin）
+    ├── app/app_data/<id>/  #   App 私有配置 config.json（模拟器启动时按需补种）
+    ├── res/img、res/font   #   图标 / 字体资源
+    └── wf/faces            #   表盘
+```
+
+把真机 SD 卡内容拷进 `fs/sdcard/` 即可加载相册、词典（`ecdict.dat`）、`.eapk` 等数据；
+示例数据目录结构参考 `examples-sdcard/`。
+
+### 7. headless 自检（无需桌面）
+
+单个探针可直接跑（`SDL_VIDEODRIVER=dummy` 表示不弹窗口）：
+
+```
+cd simulator/build
+SDL_VIDEODRIVER=dummy ./cantomk6os_sim.exe --<开关>   # Windows
+SDL_VIDEODRIVER=dummy ./cantomk6os_sim --<开关>        # Ubuntu
+```
+
+| 开关 | 覆盖内容 |
+| --- | --- |
+| `--shell-test` | Shell / App / WiFi / BT / Proxy / Plugin / IME |
+| `--keyboard-test` | 键盘控件 EN / ZH 输入法 |
+| `--ui-framework-test` | 自适应布局系统 54 项断言（4 屏） |
+| `--ui-framework-demo` | 渲染层 demo：ArcList / Grid / Liquid Glass / 动画 |
+| `--launcher-test` | 真实 Plugin-Manager 应用列表 × 4 屏 |
+| `--ui-js-test` | `cos.ui.*` JerryScript 桥接 × 4 屏 |
+| `--notes-probe` | `cos.fs.write/read`（字符串+Uint8Array）/ `cos.ime.open` |
+| `--alarm-test` | 闹钟：空态 / 列表 / 向导 / 持久化 / 响铃层 / OFF |
+| `--breach-launch` | Breach Protocol：Boot + 结构 / Boot→Hack 转场 |
+| `--breach-result` | Breach：真实点击启动倒计时 → 超时 → Result overlay |
+| `--watchface-gesture-test` | 表盘全屏 CLICKABLE 手势 catcher |
+| `--home-gesture-sim-test` | 主页左/右/上滑动路由（PRESS/RELEASE） |
+| `--home-gesture-indev-test` | 主页滑动真实事件路径（`lv_indev_read` 注入） |
+| `--cards-page-test` | 小卡片页容器 / 种子卡 / chrome 注册 |
+| `--cards-api-test` | 小卡片 App 注册接口（register/unregister/dedup） |
+| `--stress-test` | 40 轮生命周期压力测试（卡死闪退加固） |
+| `--screen-snap` | 截图诊断（watchface / app 页 / 控制中心） |
+| `--pixel-probe` | 读取 SDL 纹理逐行亮度诊断 |
+| `--render-check` | 导出实际呈现像素（含 overlay）为 PPM |
+| `--profmonitor-probe` | 原生 ProfMonitor：启动 / UI / CPU 读数 / SRAM / 持久化 |
+| `--eqsolver-test` | EqSolver：单/多变量求解与结果格式化 |
+
+### 8. 常见问题
+
+- **`0xC0000135` / 退出码 `-1073741515`**：Windows 找不到 `SDL2.dll`，把
+  `%CONDA_PREFIX%\Library\bin` 加进 `PATH`。
+- **窗口全黑 / 放着不动就黑屏**：模拟器已禁用自动熄屏；若仍异常，确认
+  `simulator/lv_conf.h` 里 `LV_SDL_ACCELERATED` 为 `0`（软件渲染）。
+- **无桌面环境（CI / SSH）**：加 `SDL_VIDEODRIVER=dummy`，或直接跑
+  `bash simulator/test_sim.sh`（全部自检均为 headless）。
+- **断言级验证全 `[FAIL]`**：多半是用 Release 配置过同一 build 目录（日志被
+  `COS_LOG_DISABLE` 关掉）；删掉 `simulator/build` 重新配置，或用
+  `bash simulator/test_sim.sh`（脚本会强制 DEV 模式）。
+
+更深入的细节（运行时行为、已知限制）见 [simulator/README.md](simulator/README.md)。
 
 ## 更新日志
 
