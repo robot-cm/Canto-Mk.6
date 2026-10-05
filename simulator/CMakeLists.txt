@@ -196,6 +196,10 @@ target_compile_definitions(cantomk6os_sim PRIVATE
     LV_CONF_INCLUDE_SIMPLE=1
     LV_KCONFIG_IGNORE=1
     COS_PLATFORM="Native"
+    # Linux/glibc:CMAKE_C_STANDARD 11 走严格 -std=c11,默认不暴露 POSIX/GNU 扩展,
+    # 导致 clock_gettime(CLOCK_MONOTONIC)、ucontext 的 REG_RIP 等不可见。
+    # 显式开启 _GNU_SOURCE(隐含 _POSIX_C_SOURCE/_DEFAULT_SOURCE);MinGW/macOS 忽略。
+    _GNU_SOURCE=1
 )
 
 # 同 cantomk6os_lib:GCC14+ 默认错误降级(见上方说明)

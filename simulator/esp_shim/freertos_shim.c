@@ -22,6 +22,7 @@
 #else
 #include <sys/resource.h>
 #include <sys/time.h>
+#include <time.h>   /* clock_gettime / CLOCK_MONOTONIC */
 #endif
 
 /* ── busy CPU milliseconds of the whole process ─────────────────────── */

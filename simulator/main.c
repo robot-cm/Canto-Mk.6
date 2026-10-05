@@ -1764,7 +1764,7 @@ static int sim_run_eqsolver_test(void)
 {
     printf("=== EqSolver probe (headless) ===\n");
     int fail = 0;
-    static const struct { const char *eqs[2]; int n; const char *expect; } cases[] = {
+    static struct { const char *eqs[2]; int n; const char *expect; } cases[] = {
         { { "3x+9=39" },        1, "x = 10"  },
         { { "2x+3=7" },         1, "x = 2"   },
         { { "3x/2=12" },        1, "x = 8"   },

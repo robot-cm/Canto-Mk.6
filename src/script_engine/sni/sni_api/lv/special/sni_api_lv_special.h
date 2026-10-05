@@ -12,6 +12,7 @@ extern "C" {
 
 /* Includes ---------------------------------------------------*/
 #include "jerryscript.h"
+#include "lvgl.h"
 
 /* Macros and Definitions -------------------------------------*/
 
@@ -187,6 +188,18 @@ jerry_value_t sni_api_lv_calendar_set_chinese_mode(const jerry_call_info_t *call
                                                    const jerry_length_t args_count);
 
 /* dropdown */
+/* LVGL 部分 API(lv_dropdown_set_text / lv_dropdown_set_symbol 等)只保存传入字符串的
+ * 指针、不做复制。JS 侧传入的是 sni_tb_js2c_string 分配的临时串,直接交给它们会在
+ * 临时串释放后悬垂,不释放则每次调用泄漏。下面用"槽位"把字符串复制一份持久绑定到
+ * 对象上:替换时释放旧值,对象删除时自动释放。 */
+typedef enum
+{
+    SNI_LV_STR_SLOT_DROPDOWN_TEXT = 0,
+    SNI_LV_STR_SLOT_DROPDOWN_SYMBOL = 1,
+} sni_lv_str_slot_t;
+
+void sni_lv_str_bind(lv_obj_t *obj, sni_lv_str_slot_t slot, const char *value);
+
 jerry_value_t sni_api_lv_dropdown_set_symbol(const jerry_call_info_t *call_info_p,
                                              const jerry_value_t args_p[],
                                              const jerry_length_t args_count);

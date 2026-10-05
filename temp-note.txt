@@ -5,6 +5,9 @@ cd /home/erashaperavm/下载/Canto-Mk.6/port/esp32s3 && idf.py -p /dev/ttyACM0 m
 cd /home/erashaperavm/下载/Canto-Mk.6 && python3 scripts/icon/webp2c.py --size 24 resources/images/icon/star.webp
 cd /home/erashaperavm/下载/Canto-Mk.6 && python3 scripts/icon/webp2bin.py eqsolver
 
+cmake -S simulator -B simulator/build
+cmake --build simulator/build -j 8
+
 [apps] installed: 14
   0: com.cantomk6.alarm
   1: com.cantomk6.breach

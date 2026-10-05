@@ -40,6 +40,7 @@ HEADER_TEXT = """/**
 #include "sni_callback_runtime.h"
 #include "sni_api_lv_special.h"
 #include "cos_log.h"
+#include "cos_mem.h"
 /* Macros and Definitions -------------------------------------*/
 #define LV_API_NAME "lv"
 /* Variables --------------------------------------------------*/
@@ -147,6 +148,31 @@ SPECIAL_EXTRA_METHODS: Dict[str, List[Tuple[str, str]]] = {
         ("initBuffer", "sni_api_lv_canvas_init_buffer"),
         ("freeBuffer", "sni_api_lv_canvas_free_buffer"),
     ],
+}
+
+
+# sni_tb_js2c_string 返回 cos_malloc 分配的临时串,调用方必须释放(见 sni_type_bridge.h)。
+# 绝大多数 setter 内部会复制字符串,调用后即可安全 cos_free;下面两张表列出例外。
+#
+# 1) 不自动释放:首参是"调用方提供的输出缓冲区"(如 lv_dropdown_get_selected_str),
+#    或该 API 只保存指针且已由 SPECIAL_METHOD_WRAPPERS 手写接管。
+STRING_ARG_KEEP_FUNCS: Set[str] = {
+    "lv_dropdown_get_selected_str",
+}
+
+# 2) 需要持久绑定:该 API 只保存指针,且未由手写 wrapper 接管。生成器会追加
+#    sni_lv_str_bind(self_obj, <slot>, arg) + cos_free(arg),由 special 层完成
+#    "复制副本 + 替换时释放 + 对象删除时释放"。值即绑定槽位常量名。
+STRING_ARG_OWNED_FUNCS: Dict[str, str] = {
+    "lv_dropdown_set_text": "SNI_LV_STR_SLOT_DROPDOWN_TEXT",
+}
+
+# 3) 需要改写为复制语义:这些 *_static API 只保存指针,替换为对应的复制版后即可
+#    安全释放临时串(走默认的 cos_free 路径)。
+STRING_ARG_COPY_FUNCS: Dict[str, str] = {
+    "lv_dropdown_set_options_static": "lv_dropdown_set_options",
+    "lv_label_set_text_static": "lv_label_set_text",
+    "lv_span_set_text_static": "lv_span_set_text",
 }
 
 
@@ -1003,6 +1029,7 @@ def render_arg_conversion(
     c_var_name: str,
     allow_null: bool = False,
     output_only_value_arg: bool = False,
+    func_name: Optional[str] = None,
 ) -> ArgRenderResult:
     # Nullable pointer handle types (SNI_H_* or SNI_T_PTR) accept JS null → C NULL
     is_nullable_ptr = (
@@ -1068,11 +1095,21 @@ def render_arg_conversion(
         lines.append("    }")
 
     lines.append(f"    {arg.c_type} {c_var_name};")
+    post_lines: List[str] = []
 
     if arg.bridge.js2c_mode == "macro" and arg.bridge.js2c_expr:
         lines.append(f"    {c_var_name} = {arg.bridge.js2c_expr}({arg_expr});")
     elif arg.bridge.js2c_mode == "string_fn" and arg.bridge.js2c_expr:
         lines.append(f"    {c_var_name} = {arg.bridge.js2c_expr}({arg_expr});")
+        # sni_tb_js2c_string 返回的临时串必须释放;按所有权策略决定如何处理。
+        if func_name in STRING_ARG_OWNED_FUNCS:
+            slot = STRING_ARG_OWNED_FUNCS[func_name]
+            post_lines.append(f"    sni_lv_str_bind(self_obj, {slot}, {c_var_name});")
+            post_lines.append(f"    cos_free((void *){c_var_name});")
+        elif func_name in STRING_ARG_KEEP_FUNCS:
+            pass
+        else:
+            post_lines.append(f"    cos_free((void *){c_var_name});")
     elif arg.bridge.js2c_mode == "bridge" and arg.bridge.sni_type:
         lines.append(f"    if (!sni_tb_js2c({arg_expr}, {arg.bridge.sni_type}, &{c_var_name}))")
         lines.append("    {")
@@ -1081,7 +1118,7 @@ def render_arg_conversion(
     else:
         lines.append('    return sni_api_throw_error("Unsupported argument conversion");')
 
-    return ArgRenderResult(call_expr=c_var_name, post_lines=[])
+    return ArgRenderResult(call_expr=c_var_name, post_lines=post_lines)
 
 
 def render_return_conversion(lines: List[str], func: ApiFunction, result_var: str) -> None:
@@ -1126,7 +1163,7 @@ def render_constructor_wrapper(cls: ApiClass, ctor_func: ApiFunction) -> str:
     call_args: List[str] = []
     for idx, arg in enumerate(ctor_func.args):
         c_var = f"arg_{arg.name}"
-        render_result = render_arg_conversion(lines, f"args_p[{idx}]", arg, c_var, allow_null=True)
+        render_result = render_arg_conversion(lines, f"args_p[{idx}]", arg, c_var, allow_null=True, func_name=ctor_func.name)
         call_args.append(render_result.call_expr)
         lines.append("")
 
@@ -1202,21 +1239,22 @@ def render_method_wrapper(cls: ApiClass, func: ApiFunction) -> str:
     for idx, arg in enumerate(func.args[1:]):
         c_var = f"arg_{arg.name}"
         output_only_value_arg = should_treat_as_output_only_value_arg(func, arg)
-        render_result = render_arg_conversion(lines, f"args_p[{idx}]", arg, c_var, output_only_value_arg=output_only_value_arg)
+        render_result = render_arg_conversion(lines, f"args_p[{idx}]", arg, c_var, output_only_value_arg=output_only_value_arg, func_name=func.name)
         call_args.append(render_result.call_expr)
         post_call_lines.extend(render_result.post_lines)
         lines.append("")
 
     call_text = ", ".join(call_args)
+    call_name = STRING_ARG_COPY_FUNCS.get(func.name, func.name)
     if func.return_bridge.c2js_mode == "void":
-        lines.append(f"    {func.name}({call_text});")
+        lines.append(f"    {call_name}({call_text});")
         if post_call_lines:
             lines.extend(post_call_lines)
         lines.append("    return jerry_undefined();")
         lines.append("}")
         return "\n".join(lines)
 
-    lines.append(f"    {func.return_type} result = {func.name}({call_text});")
+    lines.append(f"    {func.return_type} result = {call_name}({call_text});")
     if func.lifecycle_class == "sub_resource" and _is_create_method_for_sub_resource(func.name):
         lines.append(f"    sni_tb_link_sub_resource(self_obj, result, {func.return_bridge.sni_type});")
     if post_call_lines:
@@ -1247,21 +1285,22 @@ def render_static_wrapper(func: ApiFunction) -> str:
     for idx, arg in enumerate(func.args):
         c_var = f"arg_{arg.name}"
         output_only_value_arg = should_treat_as_output_only_value_arg(func, arg)
-        render_result = render_arg_conversion(lines, f"args_p[{idx}]", arg, c_var, output_only_value_arg=output_only_value_arg)
+        render_result = render_arg_conversion(lines, f"args_p[{idx}]", arg, c_var, output_only_value_arg=output_only_value_arg, func_name=func.name)
         call_args.append(render_result.call_expr)
         post_call_lines.extend(render_result.post_lines)
         lines.append("")
 
     call_text = ", ".join(call_args)
+    call_name = STRING_ARG_COPY_FUNCS.get(func.name, func.name)
     if func.return_bridge.c2js_mode == "void":
-        lines.append(f"    {func.name}({call_text});" if call_text else f"    {func.name}();")
+        lines.append(f"    {call_name}({call_text});" if call_text else f"    {call_name}();")
         if post_call_lines:
             lines.extend(post_call_lines)
         lines.append("    return jerry_undefined();")
         lines.append("}")
         return "\n".join(lines)
 
-    lines.append(f"    {func.return_type} result = {func.name}({call_text});" if call_text else f"    {func.return_type} result = {func.name}();")
+    lines.append(f"    {func.return_type} result = {call_name}({call_text});" if call_text else f"    {func.return_type} result = {call_name}();")
     if post_call_lines:
         lines.extend(post_call_lines)
     render_return_conversion(lines, func, "result")
@@ -1323,9 +1362,10 @@ def render_property_setter_wrapper(cls: ApiClass, prop: ApiProperty, func: ApiFu
 
     self_render = render_arg_conversion(lines, "call_info_p->this_value", this_arg, "self_obj")
     lines.append("")
-    value_render = render_arg_conversion(lines, "args_p[0]", value_arg, "prop_value")
+    value_render = render_arg_conversion(lines, "args_p[0]", value_arg, "prop_value", func_name=func.name)
     lines.append("")
-    lines.append(f"    {func.name}({self_render.call_expr}, {value_render.call_expr});")
+    call_name = STRING_ARG_COPY_FUNCS.get(func.name, func.name)
+    lines.append(f"    {call_name}({self_render.call_expr}, {value_render.call_expr});")
     if value_render.post_lines:
         lines.extend(value_render.post_lines)
     lines.append("    return jerry_undefined();")

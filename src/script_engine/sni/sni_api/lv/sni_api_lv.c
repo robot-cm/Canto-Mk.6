@@ -19,6 +19,7 @@
 #include "sni_callback_runtime.h"
 #include "sni_api_lv_special.h"
 #include "cos_log.h"
+#include "cos_mem.h"
 /* Macros and Definitions -------------------------------------*/
 #define LV_API_NAME "lv"
 /* Variables --------------------------------------------------*/
@@ -11250,6 +11251,7 @@ jerry_value_t sni_api_lv_obj_calculate_style_text_align(const jerry_call_info_t*
     arg_txt = sni_tb_js2c_string(args_p[1]);
 
     lv_text_align_t result = lv_obj_calculate_style_text_align(self_obj, arg_part, arg_txt);
+    cos_free((void *)arg_txt);
     return sni_tb_c2js(&result, SNI_T_INT32);
 }
 
@@ -13322,6 +13324,7 @@ jerry_value_t sni_api_lv_label_set_text(const jerry_call_info_t* call_info_p,
     arg_text = sni_tb_js2c_string(args_p[0]);
 
     lv_label_set_text(self_obj, arg_text);
+    cos_free((void *)arg_text);
     return jerry_undefined();
 }
 
@@ -13650,6 +13653,7 @@ jerry_value_t sni_api_lv_label_ins_text(const jerry_call_info_t* call_info_p,
     arg_txt = sni_tb_js2c_string(args_p[1]);
 
     lv_label_ins_text(self_obj, arg_pos, arg_txt);
+    cos_free((void *)arg_txt);
     return jerry_undefined();
 }
 
@@ -13795,6 +13799,7 @@ jerry_value_t sni_api_prop_set_label_text(const jerry_call_info_t* call_info_p,
     prop_value = sni_tb_js2c_string(args_p[0]);
 
     lv_label_set_text(self_obj, prop_value);
+    cos_free((void *)prop_value);
     return jerry_undefined();
 }
 
@@ -18154,6 +18159,7 @@ jerry_value_t sni_api_lv_checkbox_set_text(const jerry_call_info_t* call_info_p,
     arg_txt = sni_tb_js2c_string(args_p[0]);
 
     lv_checkbox_set_text(self_obj, arg_txt);
+    cos_free((void *)arg_txt);
     return jerry_undefined();
 }
 
@@ -18231,6 +18237,7 @@ jerry_value_t sni_api_prop_set_checkbox_text(const jerry_call_info_t* call_info_
     prop_value = sni_tb_js2c_string(args_p[0]);
 
     lv_checkbox_set_text(self_obj, prop_value);
+    cos_free((void *)prop_value);
     return jerry_undefined();
 }
 
@@ -18299,7 +18306,9 @@ jerry_value_t sni_api_lv_dropdown_set_text(const jerry_call_info_t* call_info_p,
     const char* arg_txt;
     arg_txt = sni_tb_js2c_string(args_p[0]);
 
-    lv_dropdown_set_text(self_obj, arg_txt);
+    /* lv_dropdown_set_text 只保存指针:绑定持久副本,再释放临时串 */
+    sni_lv_str_bind(self_obj, SNI_LV_STR_SLOT_DROPDOWN_TEXT, arg_txt);
+    cos_free((void *)arg_txt);
     return jerry_undefined();
 }
 
@@ -18330,6 +18339,7 @@ jerry_value_t sni_api_lv_dropdown_set_options(const jerry_call_info_t* call_info
     arg_options = sni_tb_js2c_string(args_p[0]);
 
     lv_dropdown_set_options(self_obj, arg_options);
+    cos_free((void *)arg_options);
     return jerry_undefined();
 }
 
@@ -18359,7 +18369,10 @@ jerry_value_t sni_api_lv_dropdown_set_options_static(const jerry_call_info_t* ca
     const char* arg_options;
     arg_options = sni_tb_js2c_string(args_p[0]);
 
-    lv_dropdown_set_options_static(self_obj, arg_options);
+    /* lv_dropdown_set_options_static 只保存指针,而 JS 传入的字符串是临时分配的,
+     * 直接保存会造成悬垂指针 + 内存泄漏;改用复制语义的 set_options 后释放。 */
+    lv_dropdown_set_options(self_obj, arg_options);
+    cos_free((void *)arg_options);
     return jerry_undefined();
 }
 
@@ -18391,12 +18404,14 @@ jerry_value_t sni_api_lv_dropdown_add_option(const jerry_call_info_t* call_info_
 
     if (!jerry_value_is_number(args_p[1]))
     {
+        cos_free((void *)arg_option);
         return sni_api_throw_error("Invalid argument type");
     }
     uint32_t arg_pos;
     arg_pos = sni_tb_js2c_uint32(args_p[1]);
 
     lv_dropdown_add_option(self_obj, arg_option, arg_pos);
+    cos_free((void *)arg_option);
     return jerry_undefined();
 }
 
@@ -18651,8 +18666,9 @@ jerry_value_t sni_api_lv_dropdown_get_selected_str(const jerry_call_info_t* call
     {
         return sni_api_throw_error("Invalid argument type");
     }
-    char* arg_buf;
-    arg_buf = (char *)sni_tb_js2c_string(args_p[0]);
+    /* 原实现把临时分配的字符串当作输出缓冲区:JS 侧拿不到结果,又泄漏内存,
+     * 且 arg_buf_size 大于实际分配长度时会越界写。改用固定栈缓冲区。 */
+    char arg_buf[128];
 
     if (!jerry_value_is_number(args_p[1]))
     {
@@ -18661,7 +18677,16 @@ jerry_value_t sni_api_lv_dropdown_get_selected_str(const jerry_call_info_t* call
     uint32_t arg_buf_size;
     arg_buf_size = sni_tb_js2c_uint32(args_p[1]);
 
+    if (arg_buf_size == 0)
+    {
+        return jerry_undefined();
+    }
+    if (arg_buf_size > sizeof(arg_buf))
+    {
+        arg_buf_size = sizeof(arg_buf);
+    }
     lv_dropdown_get_selected_str(self_obj, arg_buf, arg_buf_size);
+    arg_buf[sizeof(arg_buf) - 1] = '\0';
     return jerry_undefined();
 }
 
@@ -18692,6 +18717,7 @@ jerry_value_t sni_api_lv_dropdown_get_option_index(const jerry_call_info_t* call
     arg_option = sni_tb_js2c_string(args_p[0]);
 
     int32_t result = lv_dropdown_get_option_index(self_obj, arg_option);
+    cos_free((void *)arg_option);
     return sni_tb_c2js(&result, SNI_T_INT32);
 }
 
@@ -18963,6 +18989,7 @@ jerry_value_t sni_api_prop_set_dropdown_options(const jerry_call_info_t* call_in
     prop_value = sni_tb_js2c_string(args_p[0]);
 
     lv_dropdown_set_options(self_obj, prop_value);
+    cos_free((void *)prop_value);
     return jerry_undefined();
 }
 
@@ -18992,7 +19019,9 @@ jerry_value_t sni_api_prop_set_dropdown_options_static(const jerry_call_info_t* 
     const char* prop_value;
     prop_value = sni_tb_js2c_string(args_p[0]);
 
-    lv_dropdown_set_options_static(self_obj, prop_value);
+    /* 同 set_options_static:避免保存临时串指针造成悬垂+泄漏,改用复制语义。 */
+    lv_dropdown_set_options(self_obj, prop_value);
+    cos_free((void *)prop_value);
     return jerry_undefined();
 }
 
@@ -19178,7 +19207,9 @@ jerry_value_t sni_api_prop_set_dropdown_text(const jerry_call_info_t* call_info_
     const char* prop_value;
     prop_value = sni_tb_js2c_string(args_p[0]);
 
-    lv_dropdown_set_text(self_obj, prop_value);
+    /* lv_dropdown_set_text 只保存指针:绑定持久副本,再释放临时串 */
+    sni_lv_str_bind(self_obj, SNI_LV_STR_SLOT_DROPDOWN_TEXT, prop_value);
+    cos_free((void *)prop_value);
     return jerry_undefined();
 }
 

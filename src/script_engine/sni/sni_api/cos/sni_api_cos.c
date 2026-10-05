@@ -1993,7 +1993,10 @@ jerry_value_t sni_api_cos_draw_save(const jerry_call_info_t *call_info_p,
     uint32_t total = 6 + 2 + 2 + 1 + px_bytes;
     uint8_t *out = (uint8_t *)cos_malloc(total);
     if (!out)
+    {
+        cos_free((void *)path);
         return sni_api_throw_error("draw.save: out of memory");
+    }
     uint8_t *p = out;
     memcpy(p, "ELDRW1", 6); p += 6;
     *p++ = (uint8_t)(g_draw.w & 0xFF);
@@ -2011,6 +2014,7 @@ jerry_value_t sni_api_cos_draw_save(const jerry_call_info_t *call_info_p,
 
     bool ok = false;
     cos_file_t fp = cos_fs_open_write(path);
+    cos_free((void *)path); /* path 已用完;否则每次 draw.save 都会泄漏一份 */
     if (fp)
     {
         ssize_t written = cos_fs_write(fp, out, total);
@@ -2034,6 +2038,7 @@ jerry_value_t sni_api_cos_draw_load(const jerry_call_info_t *call_info_p,
         return sni_api_throw_error("draw.load: invalid path");
 
     cos_file_t fp = cos_fs_open_read(path);
+    cos_free((void *)path); /* path 已用完;否则每次 draw.load 都会泄漏一份 */
     if (!fp)
         return jerry_boolean(false);
 
