@@ -82,6 +82,13 @@ else
   fi
 fi
 
+# 显式清空 CMAKE_BUILD_TYPE（= DEV 模式）。根 CMakeLists 在 Release 下会定义
+# COS_LOG_DISABLE=1，使全部 COS_LOG_*（含 JS 侧 cos.console.log 的 [OK]/[FAIL] 与
+# pass/fail 摘要）变成空操作，本脚本下半段的「断言级验证」就无从取证。
+# 若同一 build 目录此前被 -DCMAKE_BUILD_TYPE=Release 配置过，缓存会残留 Release，
+# 因此每次配置都强制写空（必须在平台分支之后：Windows 分支会整体重赋 CONFIGURE_ARGS）。
+CONFIGURE_ARGS+=(-DCMAKE_BUILD_TYPE=)
+
 # ---- headless 运行器：run_headless <flag> <log> ----
 # 返回 exe 退出码；输出重定向到 <log>。（必须在 BUILD_DIR 下调用）
 run_headless() {
@@ -177,6 +184,15 @@ if run_headless --pixel-probe "$PIXEL"; then ok "pixel-probe 退出码 0"; else 
 RCHK="$BUILD_DIR/rendercheck_log.txt"
 if run_headless --render-check "$RCHK"; then ok "render-check 退出码 0"; else bad "render-check 退出码非 0"; fi
 
+# ── issue #3 回归 ─────────────────────────────────────────────
+echo "==> [20] ProfMonitor probe (--profmonitor-probe: 原生 app 启动 + freertos shim 采样/持久化)"
+PMP="$BUILD_DIR/pmprobe_log.txt"
+if run_headless --profmonitor-probe "$PMP"; then ok "ProfMonitor 探针退出码 0"; else bad "ProfMonitor 探针退出码非 0"; fi
+
+echo "==> [21] EqSolver regression (--eqsolver-test: 单/多变量求解与结果格式化)"
+EQS="$BUILD_DIR/eqsolvertest_log.txt"
+if run_headless --eqsolver-test "$EQS"; then ok "EqSolver 探针退出码 0"; else bad "EqSolver 探针退出码非 0"; fi
+
 # ── 断言级验证 ────────────────────────────────────────────────
 echo
 echo "==> Verification summary"
@@ -257,6 +273,14 @@ grep -q "pass=10 fail=0" "$CPS" \
 grep -q "pass=9 fail=0" "$CPSAPI" \
   && ok "小卡片 App 注册接口 9 项断言全过（add/unregister/dedup）" \
   || bad "小卡片 App 注册接口存在失败断言"
+
+echo "-- Issue #3 (ProfMonitor / EqSolver) --"
+grep -q "profmonitor pass=1 fail=0" "$PMP" \
+  && ok "ProfMonitor 断言全过（启动/UI/CPU 读数/SRAM 25%/持久化）" \
+  || bad "ProfMonitor 探针存在失败断言"
+grep -q "eqsolver pass=9 fail=0" "$EQS" \
+  && ok "EqSolver 9 项断言全过（3x+9=39 -> x = 10 / 多变量线性整数解）" \
+  || bad "EqSolver 探针存在失败断言"
 
 echo
 echo "提示：交互式手动测试 -> cd simulator/build && $EXE（需 GUI/桌面环境弹 SDL 窗口）"

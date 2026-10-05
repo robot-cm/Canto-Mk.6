@@ -32,6 +32,7 @@
 #include "apps/gallery/cos_gallery.h"
 #include "apps/files/cos_files.h"
 #include "apps/flash_light/cos_flash_light.h"
+#include "apps/eqsolver/cos_eqsolver_solver.h" /* eqsolver probe: cos_eqsolve() */
 
 #include <SDL2/SDL.h>
 
@@ -83,6 +84,63 @@ static LONG WINAPI _crash_filter(EXCEPTION_POINTERS *ep)
     return EXCEPTION_EXECUTE_HANDLER;
 }
 #endif /* _WIN32 */
+
+#if !defined(_WIN32)
+/* Crash localizer for Linux: on SIGSEGV/SIGBUS/SIGABRT dump the faulting
+ * address and a backtrace so the reporter can map it with addr2line, mirroring
+ * the Windows _crash_filter above (issue #3: Ubuntu builds die with a bare
+ * "段错误" and no actionable stack). */
+#include <execinfo.h>
+#include <ucontext.h>
+
+static void _crash_handler(int sig, siginfo_t *si, void *uc)
+{
+    /* Best-effort diagnostics from a crashing process: not strictly
+     * async-signal-safe (backtrace/fprintf), but this is the standard crash
+     * reporter trade-off and only runs on the way out. */
+    void *ip = NULL;
+    ucontext_t *u = (ucontext_t *)uc;
+#if defined(__x86_64__)
+    ip = (void *)u->uc_mcontext.gregs[REG_RIP];
+#elif defined(__i386__)
+    ip = (void *)u->uc_mcontext.gregs[REG_EIP];
+#elif defined(__aarch64__)
+    ip = (void *)u->uc_mcontext.pc;
+#endif
+
+    fprintf(stderr, "CRASH signal=%d faulting address=%p ip=%p\n",
+            sig, si->si_addr, ip);
+
+    void *stack[64];
+    int n = backtrace(stack, 64);
+    /* Frame 0 is this handler, frame 1 is the signal trampoline — skip both,
+     * the caller chain starts at frame 2. */
+    int skip = (n > 2) ? 2 : 0;
+    backtrace_symbols_fd(stack + skip, n - skip, STDERR_FILENO);
+
+    /* Disposition was reset to SIG_DFL (SA_RESETHAND): re-raise so the default
+     * action still terminates with a core dump. */
+    raise(sig);
+}
+
+static void _sim_crash_install(void)
+{
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_sigaction = _crash_handler;
+    sa.sa_flags = SA_SIGINFO | SA_RESETHAND | SA_NODEFER;
+    sigemptyset(&sa.sa_mask);
+    if (sigaction(SIGSEGV, &sa, NULL) != 0)
+        return;
+    sigaction(SIGBUS, &sa, NULL);
+    sigaction(SIGABRT, &sa, NULL);
+}
+#else
+static void _sim_crash_install(void)
+{
+    /* Windows: _crash_filter is installed in main() below. */
+}
+#endif /* !_WIN32 */
 
 /* Display dimensions matching XIAO round display */
 #define SIM_HOR_RES  240
@@ -404,6 +462,32 @@ static void _sim_seed_install_plugins(void)
             cos_result_t r = cos_app_install(eapk);
             COS_LOG_I("[Sim] seed-install %s (result=%d)", seeds[i], (int)r);
         }
+    }
+}
+
+/* Seed app private data (/.sys/app/app_data/<id>/config.json).
+ *
+ * JS 侧 cos.config 与 native 服务（alarm/countdown 的 1s 轮询）都会读该文件，
+ * 缺失时 cos_storage_read_file() 会打 [ERROR] Failed to open file 刷屏
+ * (issue #3 ④:按 example-sdcard 的思路初始化简单数据结构)。
+ * 必须在「每次进程启动」时补种，而不是只在构建期铺一次:--shell-test 会故意
+ * uninstall 一个 app(连带删除其 app_data/<id>/),后续探针进程若不补种就重新刷屏。
+ * 内容为空对象 {} =「用户尚未配置」,对两个服务(key 缺失即安全返回)都成立。 */
+static void _sim_seed_app_data(void)
+{
+    static const char *const ids[] = {
+        "com.cantomk6.alarm",
+        "com.cantomk6.timer",
+    };
+    for (int i = 0; i < (int)(sizeof(ids) / sizeof(ids[0])); i++)
+    {
+        char dir[COS_FS_PATH_MAX];
+        snprintf(dir, sizeof(dir), "%s%s", COS_APP_DATA_DIR, ids[i]);
+        cos_storage_mkdir_if_not_exist(dir);
+
+        char file[COS_FS_PATH_MAX];
+        snprintf(file, sizeof(file), "%s/config.json", dir);
+        cos_storage_create_file_if_not_exist(file, "{}");
     }
 }
 
@@ -1531,6 +1615,179 @@ static int sim_run_breach_result(void)
     return (fail == 0) ? 0 : 1;
 }
 
+/* Find a label whose text is "<int>%" and report its numeric value.
+ * Used by the ProfMonitor probe: the CPU view is fed from host CPU time while
+ * LVGL runs on virtual ticks, so in headless fast-forward the wall-clock delta
+ * may round to 0 ms and the reading legitimately stays at its previous value.
+ * We therefore assert that the label holds a valid 0..100 percentage instead of
+ * a specific number (deterministic values are asserted for the SRAM view). */
+static bool _find_pct_label(lv_obj_t *p, int *out, char *raw, size_t rawsz)
+{
+    for (uint32_t i = 0; i < lv_obj_get_child_cnt(p); i++)
+    {
+        lv_obj_t *c = lv_obj_get_child(p, i);
+        if (lv_obj_check_type(c, &lv_label_class))
+        {
+            const char *t = lv_label_get_text(c);
+            if (t && t[0] >= '0' && t[0] <= '9')
+            {
+                char *end = NULL;
+                long v = strtol(t, &end, 10);
+                if (end && end[0] == '%' && end[1] == '\0')
+                {
+                    if (out) *out = (int)v;
+                    if (raw && rawsz) snprintf(raw, rawsz, "%s", t);
+                    return true;
+                }
+            }
+        }
+        if (_find_pct_label(c, out, raw, rawsz)) return true;
+    }
+    return false;
+}
+
+/* ----------------------------------------------------------------------------
+ * ProfMonitor probe (--profmonitor-probe): headless launch + sampling check.
+ * Issue #3: ProfMonitor was missing from the simulator launcher. With
+ * CONFIG_PROFMONITOR_APP_ENABLE=1 + esp_shim/freertos/ the native app must:
+ *   1) launch via cos_app_launch_immediately (native entry list path),
+ *   2) build its UI (percentage + resource name labels present),
+ *   3) sample real values: the freertos shim feeds host-process CPU time into
+ *      the IDLE0/SIM synthetic tasks, and the heap_caps shim models SRAM/PSRAM
+ *      pools — SRAM must read exactly SIM_INTERNAL_FREE/TOTAL usage (~25%),
+ *   4) survive resource cycling (right-arrow button click) and exit cleanly.
+ * -------------------------------------------------------------------------- */
+static int sim_run_profmonitor_probe(void)
+{
+    printf("=== ProfMonitor probe (headless) ===\n");
+    lv_tick_set_cb(NULL);
+    int fail = 0;
+#define PM_CHECK(cond, msg) do {                                            \
+        if (cond) { printf("[OK]   %s\n", msg); }                           \
+        else      { printf("[FAIL] %s\n", msg); fail++; }                   \
+    } while (0)
+
+    /* _on_enter restores the last viewed resource from this file; drop any
+     * leftover so the probe always starts on CPU0 (deterministic). Resolved
+     * through cos_fs_realpath() — the same mapping the app's writes use
+     * (COS_SYS_ROOT_DIR is only defined in the cantomk6os_lib scope, so the raw
+     * macro reads as "/" here in main.c and must not be used directly). */
+    char pm_file[512];
+    cos_fs_realpath("/sdcard/prof_monitor/latest.txt", pm_file, sizeof(pm_file));
+    remove(pm_file);
+
+    cos_result_t la = cos_app_launch_immediately("com.cantomk6.profmonitor");
+    printf("[probe] launch ret=%d (COS_OK=%d)\n", (int)la, (int)COS_OK);
+    PM_CHECK(la == COS_OK, "launch com.cantomk6.profmonitor (native entry)");
+
+    /* One frame to let _on_enter build the UI and register the 200ms timer. */
+    for (int f = 0; f < 3; f++) { lv_tick_inc(16); lv_timer_handler(); cos_dispatch_tick(); }
+
+    lv_obj_t *view = cos_activity_get_view(cos_activity_get_current());
+    PM_CHECK(view != NULL, "activity view present");
+    if (!view) { printf("[summary] profmonitor pass=0 fail=%d\n", fail); return 1; }
+
+    lv_obj_t *pct = _find_parent_with_label(view, "0%");
+    lv_obj_t *name = _find_parent_with_label(view, "CPU0");
+    PM_CHECK(pct != NULL, "percentage label present");
+    PM_CHECK(name != NULL, "resource name label present (CPU0 default)");
+
+    /* Advance past the first sample period (200ms; 16 frames x 16ms = 256ms).
+     * First tick only seeds the delta baseline (_have_prev), later ticks
+     * produce real percentages. The shim sources CPU time from the host process
+     * while LVGL advances on virtual ticks, so the exact number is not
+     * deterministic under fast-forward — assert a valid 0..100 reading. */
+    for (int f = 0; f < 32; f++) { lv_tick_inc(16); lv_timer_handler(); cos_dispatch_tick(); }
+    int v_cpu = -1;
+    char raw_cpu[16] = {0};
+    bool have_cpu = _find_pct_label(view, &v_cpu, raw_cpu, sizeof(raw_cpu));
+    printf("[probe] CPU0 percentage after sampling: %s\n", have_cpu ? raw_cpu : "(none)");
+    PM_CHECK(have_cpu && v_cpu >= 0 && v_cpu <= 100,
+             "CPU0 percentage is a valid 0-100 reading");
+
+    /* SRAM view must match the heap_caps shim model exactly:
+     * used = (512KB - 384KB) / 512KB = 25%. The right-arrow button cycles one
+     * step per click (CPU0 -> CPU1 -> SRAM), so two clicks are needed. */
+    lv_obj_t *btn = NULL;
+    for (uint32_t i = 0; i < lv_obj_get_child_cnt(view); i++) {
+        lv_obj_t *c = lv_obj_get_child(view, i);
+        if (lv_obj_check_type(c, &lv_button_class)) { btn = c; break; }
+    }
+    PM_CHECK(btn != NULL, "resource-switch button present");
+    if (btn) {
+        for (int click = 0; click < 2; click++) {
+            lv_obj_send_event(btn, LV_EVENT_CLICKED, NULL);
+            for (int f = 0; f < 20; f++) { lv_tick_inc(16); lv_timer_handler(); cos_dispatch_tick(); }
+        }
+        lv_obj_t *sr = _find_parent_with_label(view, "SRAM");
+        PM_CHECK(sr != NULL, "switched to SRAM view (2 clicks: CPU0 -> CPU1 -> SRAM)");
+        char expect[16];
+        snprintf(expect, sizeof(expect), "%d%%",
+                 (int)(100ULL * (512 - 384) / 512)); /* "25%" */
+        lv_obj_t *v = _find_parent_with_label(view, expect);
+        PM_CHECK(v != NULL, "SRAM percentage matches heap_caps shim model (25%)");
+    }
+
+    /* Stability: keep sampling for ~3 virtual seconds on SRAM/PSRAM path
+     * (heap_caps_get_*_size is a pure host query; must not crash). */
+    for (int f = 0; f < 200; f++) { lv_tick_inc(16); lv_timer_handler(); cos_dispatch_tick(); }
+    printf("[probe] survived 3.2s continuous sampling\n");
+
+    /* Persist check: _on_destroy writes /sdcard/prof_monitor/latest.txt (path
+     * resolved at the top of this probe). Drop any stale file first so the
+     * check below is meaningful. */
+    remove(pm_file);
+    cos_activity_back_to_watchface();
+    for (int f = 0; f < 30; f++) { lv_tick_inc(16); lv_timer_handler(); cos_dispatch_tick(); }
+    FILE *pf = fopen(pm_file, "rb");
+    PM_CHECK(pf != NULL, "prof_monitor/latest.txt persisted on exit");
+    if (pf) {
+        char line[16] = {0};
+        fgets(line, sizeof(line), pf);
+        fclose(pf);
+        printf("[probe] persisted resource index: %s", line);
+        PM_CHECK(atoi(line) == 2, "persisted index is SRAM (2, last viewed)");
+    }
+
+    printf("[summary] profmonitor pass=%d fail=%d\n", (fail == 0) ? 1 : 0, fail);
+    return (fail == 0) ? 0 : 1;
+#undef PM_CHECK
+}
+
+/* ----------------------------------------------------------------------------
+ * EqSolver probe (--eqsolver-test): drives cos_eqsolve() directly.
+ * Issue #3 reported "3x+9=39" yielding a nonsense fraction (x = 11569/1157)
+ * instead of 10. This runs a small battery through the real solver entry so the
+ * formatting path is verified without the round keyboard IME.
+ * -------------------------------------------------------------------------- */
+static int sim_run_eqsolver_test(void)
+{
+    printf("=== EqSolver probe (headless) ===\n");
+    int fail = 0;
+    static const struct { const char *eqs[2]; int n; const char *expect; } cases[] = {
+        { { "3x+9=39" },        1, "x = 10"  },
+        { { "2x+3=7" },         1, "x = 2"   },
+        { { "3x/2=12" },        1, "x = 8"   },
+        { { "x^2=4" },          1, "x = "    },
+        { { "2x+3y=7" },        1, "Infinite solutions" },
+        { { "2x+y=25", "y=5" }, 2, "x = 10"  },
+        { { "x+y=10", "x-y=4" }, 2, "x = 7"  },
+        { { "x+y=10", "x-y=4" }, 2, "y = 3"  },
+        { { "2x+3y=7", "3x-2y=4" }, 2, "x = 2" },
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        char out[512] = {0};
+        cos_eqsolve(cases[i].eqs, cases[i].n, out, sizeof(out));
+        for (char *p = out; *p; p++) { if (*p == '\n') *p = ' '; }
+        bool ok = (strstr(out, cases[i].expect) != NULL);
+        if (!ok) fail++;
+        printf("[%s] %-22s -> %s\n", ok ? "OK  " : "FAIL", cases[i].eqs[0], out);
+    }
+    printf("[summary] eqsolver pass=%d fail=%d\n",
+           (int)(sizeof(cases) / sizeof(cases[0])) - fail, fail);
+    return (fail == 0) ? 0 : 1;
+}
+
 /* ----------------------------------------------------------------------------
  * indev-driven swipe reproduction
  * Exercises the REAL LVGL pointer event path (PRESS -> drag -> RELEASE) so we
@@ -1775,6 +2032,8 @@ int main(int argc, char *argv[])
     signal(SIGTERM, signal_handler);
 #ifdef _WIN32
     SetUnhandledExceptionFilter(_crash_filter);
+#else
+    _sim_crash_install();
 #endif
 
     /* Initialize LVGL */
@@ -1824,6 +2083,10 @@ int main(int argc, char *argv[])
     /* Seed bundled app plugins so the Launcher shows them even on a fresh FS.
      * Idempotent. */
     _sim_seed_install_plugins();
+
+    /* Seed app 私有数据(app_data/<id>/config.json):native 服务(alarm/countdown)
+     * 每次 tick 都会读它,缺失会刷 [ERROR] Failed to open file。幂等。 */
+    _sim_seed_app_data();
 
     /* CLI 自检分支统一在「真机已启动」状态下运行:
      * cos_init() 返回时仍在跑开机动画,activity controller 要到动画结束、
@@ -1905,6 +2168,20 @@ int main(int argc, char *argv[])
     if (argc > 1 && strcmp(argv[1], "--breach-result") == 0)
     {
         int rc = sim_run_breach_result();
+        return rc;
+    }
+
+    /* ProfMonitor probe (issue #3): native app launch + freertos-shim sampling */
+    if (argc > 1 && strcmp(argv[1], "--profmonitor-probe") == 0)
+    {
+        int rc = sim_run_profmonitor_probe();
+        return rc;
+    }
+
+    /* EqSolver probe (issue #3): cos_eqsolve() formatting/accuracy battery */
+    if (argc > 1 && strcmp(argv[1], "--eqsolver-test") == 0)
+    {
+        int rc = sim_run_eqsolver_test();
         return rc;
     }
 

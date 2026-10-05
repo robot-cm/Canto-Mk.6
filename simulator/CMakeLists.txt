@@ -129,7 +129,8 @@ add_subdirectory(${PROJECT_ROOT} cantomk6os_build)
 # 前置后全工程解析到 simulator/lv_conf.h(单线程 LV_OS_NONE)。
 # 同时 simulator/cos_platform_config.h 优先于 port/esp32s3/main/ 版本;
 # esp_shim/ 提供无守卫的 esp_heap_caps.h(src/ 内仅 cos_core.c /
-# cos_service_config.c / jerry_port.c 三处 include)
+# cos_service_config.c / jerry_port.c 三处 include)与 freertos/FreeRTOS.h
+# (src/ 内仅 cos_profmonitor.c 无守卫 include,见下条宏)
 target_include_directories(cantomk6os_lib SYSTEM BEFORE PUBLIC
     "${SIM_DIR}"
     "${SIM_DIR}/esp_shim"
@@ -140,7 +141,14 @@ target_include_directories(cantomk6os_lib SYSTEM BEFORE PUBLIC
 #   cos_port_critical_bare_metal.c → no-op 临界区(否则 x86 发 cli 特权指令崩溃)
 #   cos_service_time.c    → 跳过 esp_sntp.h(真机头)
 #   cos_net_wifi.c        → 走 socket 模拟后端(配 ws2_32)
-target_compile_definitions(cantomk6os_lib PUBLIC COS_SIMULATOR=1)
+# CONFIG_PROFMONITOR_APP_ENABLE: 与真机(port/esp32s3/main/CMakeLists.txt)对齐,
+#   打开原生 ProfMonitor app(issue #3:模拟器缺 ProfMonitor)。其 FreeRTOS 依赖
+#   由 esp_shim/freertos/ 合成任务模型提供(CPU 负载取自宿主进程自身 CPU 时间),
+#   heap_caps 由既有 esp_heap_caps shim 提供。
+target_compile_definitions(cantomk6os_lib PUBLIC
+    COS_SIMULATOR=1
+    CONFIG_PROFMONITOR_APP_ENABLE=1
+)
 
 # 与真机编译器行为对齐:ESP-IDF 的 GCC 13 把「隐式函数声明」仅当警告,
 # 而 MinGW 的 GCC 16(>=14 起)默认将其视为硬错误。src/kernel/core/cos_core.c
@@ -168,6 +176,7 @@ add_executable(cantomk6os_sim
     ${SIM_DIR}/main.c
     ${SIM_DIR}/esp_shim/esp_heap_caps.c
     ${SIM_DIR}/esp_shim/esp_sntp_shim.c
+    ${SIM_DIR}/esp_shim/freertos_shim.c
     ${SIM_ICON_SRC}
     ${SIM_FONT_SRC}
 )
@@ -201,6 +210,12 @@ target_link_libraries(cantomk6os_sim PRIVATE
     lvgl
     ${SDL2_LIBRARIES}
 )
+
+# Linux: 把符号表留在可执行文件里，崩溃时 backtrace_symbols 才能打印符号名；
+# -O0/-g 让 addr2line 能把 CRASH backtrace 的地址映射回源码行（issue #3 排障）。
+if(UNIX AND NOT APPLE)
+    target_link_options(cantomk6os_sim PRIVATE -rdynamic)
+endif()
 
 # Winsock2 for the real network socket backend (src/services/network/cos_net_sock_sim.c)
 if(WIN32)
@@ -309,8 +324,8 @@ sim_pack_app(calculator)
 sim_pack_app(calendar)
 sim_pack_app(globaltime)
 sim_pack_app(stopwatch)
-sim_pack_app(texthub)
 sim_pack_app(timer)
+# texthub 已从 apps/ 移除(fc4dbc8)，不再打包
 
 # ── Seed sample media(Gallery/Files 类 app 首跑内容) ─────────
 add_custom_command(TARGET cantomk6os_sim POST_BUILD
