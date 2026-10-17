@@ -13,9 +13,12 @@
 #include <stdint.h>
 
 /* Hard caps to keep memory/CPU bounded on the MCU. */
-#define EQSOLVER_MAX_VARS 6
+#define EQSOLVER_MAX_VARS 6     /* max unknowns solved for at once */
+#define EQSOLVER_MAX_PARAMS 4   /* max extra letters kept as symbolic parameters */
 #define EQSOLVER_MAX_EQS 8
 #define EQSOLVER_PARSE_ERR_SIZE 96
+/* Total distinct letters (unknowns + parameters) a system may contain. */
+#define EQSOLVER_MAX_SYMBOLS (EQSOLVER_MAX_VARS + EQSOLVER_MAX_PARAMS)
 
 /* AST node kinds. */
 typedef enum

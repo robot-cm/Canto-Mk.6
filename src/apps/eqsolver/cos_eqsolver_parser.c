@@ -6,10 +6,10 @@
 #include "cos_eqsolver_parser.h"
 
 #include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
 #include "cos_mem.h"
 
@@ -658,7 +658,10 @@ void eq_ast_free(eq_node_t *node)
 /* Variable collection with de-duplication (iterative DFS). */
 int eq_collect_vars(eq_node_t *node, char *out_letters, int max)
 {
-    char tmp[EQSOLVER_MAX_VARS + 1];
+    /* The local buffer spans the whole a..z range so that callers passing a
+     * big max learn the real number of distinct letters (used to reject
+     * systems with too many symbols instead of silently truncating). */
+    char tmp[26];
     int n = 0;
     memset(tmp, 0, sizeof(tmp));
 

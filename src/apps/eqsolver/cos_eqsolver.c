@@ -33,6 +33,7 @@
 #define MAX_EQS EQSOLVER_MAX_EQS
 #define MAX_EQ_LEN 64
 #define ROW_TXT_MAX 29
+#define MAX_VARS_LEN 32
 
 typedef enum
 {
@@ -49,6 +50,8 @@ typedef struct
     int edit_index; /* index being edited, or == eq_count when adding */
     eq_screen_t screen;
     char result_buf[1024];
+    /* Which letters to solve for ("x,y"). Empty = every letter is an unknown. */
+    char vars_buf[MAX_VARS_LEN];
 } eqsolver_ctx_t;
 
 /* Equation editor sub-activity context. */
@@ -57,6 +60,7 @@ typedef struct
     cos_activity_t *activity;
     eqsolver_ctx_t *parent;
     int edit_index;
+    bool vars_mode; /* true -> editing the "solve for" list instead of an eq */
     lv_obj_t *textarea;
 } eq_editor_ctx_t;
 
@@ -76,8 +80,10 @@ static void _build_input(eqsolver_ctx_t *ctx);
 static void _build_result(eqsolver_ctx_t *ctx);
 static void _clear_cont(eqsolver_ctx_t *ctx);
 static void _open_editor(eqsolver_ctx_t *ctx, int index);
+static void _open_vars_editor(eqsolver_ctx_t *ctx);
 static void _row_clicked_cb(lv_event_t *e);
 static void _add_clicked_cb(lv_event_t *e);
+static void _vars_clicked_cb(lv_event_t *e);
 static void _solve_clicked_cb(lv_event_t *e);
 static void _back_clicked_cb(lv_event_t *e);
 static void _editor_save_cb(lv_event_t *e);
@@ -115,6 +121,32 @@ static void _store_equation(eqsolver_ctx_t *ctx, int index, const char *text)
     }
 }
 
+/* Store the "solve for" list (unknown letters). An empty value clears the
+ * override and restores the default behaviour (every letter is an unknown). */
+static void _store_vars(eqsolver_ctx_t *ctx, const char *text)
+{
+    if (!text)
+    {
+        return;
+    }
+    /* Strip leading/trailing whitespace so " x, y " is accepted as well. */
+    while (*text == ' ' || *text == '\t')
+    {
+        text++;
+    }
+    size_t len = strlen(text);
+    while (len > 0 && (text[len - 1] == ' ' || text[len - 1] == '\t'))
+    {
+        len--;
+    }
+    if (len >= MAX_VARS_LEN)
+    {
+        len = MAX_VARS_LEN - 1;
+    }
+    memcpy(ctx->vars_buf, text, len);
+    ctx->vars_buf[len] = '\0';
+}
+
 /* ---------------- editor sub-activity ---------------- */
 
 static void _editor_on_enter(cos_activity_t *act)
@@ -146,7 +178,14 @@ static void _editor_on_enter(cos_activity_t *act)
     lv_obj_set_style_pad_top(top, 22, 0); /* 编辑界面元素下移约 16px (6+16) */
 
     char title[24];
-    snprintf(title, sizeof(title), "Equation %d", ed->edit_index + 1);
+    if (ed->vars_mode)
+    {
+        snprintf(title, sizeof(title), "Solve for");
+    }
+    else
+    {
+        snprintf(title, sizeof(title), "Equation %d", ed->edit_index + 1);
+    }
     lv_obj_t *ttl = lv_label_create(top);
     lv_label_set_text(ttl, title);
     cos_label_set_font_size(ttl, COS_FONT_SIZE_MICRO);
@@ -155,8 +194,12 @@ static void _editor_on_enter(cos_activity_t *act)
     lv_obj_t *ta = lv_textarea_create(top);
     lv_obj_set_size(ta, 170, 38);
     lv_textarea_set_one_line(ta, true);
-    lv_textarea_set_placeholder_text(ta, "2x + 3y = 7");
-    if (ed->edit_index < ed->parent->eq_count)
+    lv_textarea_set_placeholder_text(ta, ed->vars_mode ? "x,y  (blank = auto)" : "2x + 3y = 7");
+    if (ed->vars_mode)
+    {
+        lv_textarea_set_text(ta, ed->parent->vars_buf);
+    }
+    else if (ed->edit_index < ed->parent->eq_count)
     {
         lv_textarea_set_text(ta, ed->parent->eqs[ed->edit_index]);
     }
@@ -230,6 +273,36 @@ static void _open_editor(eqsolver_ctx_t *ctx, int index)
     cos_activity_enter(act);
 }
 
+/* Open the "solve for" editor (unknown letters). It reuses the equation editor
+ * activity in vars_mode, so there is only one IME path to maintain. */
+static void _open_vars_editor(eqsolver_ctx_t *ctx)
+{
+    eq_editor_ctx_t *ed = (eq_editor_ctx_t *)cos_malloc(sizeof(eq_editor_ctx_t));
+    if (!ed)
+    {
+        return;
+    }
+    memset(ed, 0, sizeof(*ed));
+    ed->parent = ctx;
+    ed->edit_index = -1;
+    ed->vars_mode = true;
+
+    static const cos_activity_lifecycle_t lifecycle = {
+        .on_enter = _editor_on_enter,
+        .on_destroy = _editor_on_destroy,
+        .on_swipe_back = _editor_on_swipe_back,
+    };
+    cos_activity_t *act = cos_activity_create(&lifecycle);
+    if (!act)
+    {
+        cos_free(ed);
+        return;
+    }
+    cos_activity_set_user_data(act, ed);
+    cos_activity_set_type(act, COS_ACTIVITY_TYPE_INPUT_PAGE);
+    cos_activity_enter(act);
+}
+
 /* ---------------- UI builders ---------------- */
 
 static void _build_input(eqsolver_ctx_t *ctx)
@@ -238,7 +311,7 @@ static void _build_input(eqsolver_ctx_t *ctx)
 
     /* Scrollable equation list. */
     lv_obj_t *list = lv_obj_create(cont);
-    lv_obj_set_size(list, 200, 100);
+    lv_obj_set_size(list, 200, 116);
     lv_obj_set_style_bg_opa(list, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_opa(list, LV_OPA_TRANSP, 0);
     lv_obj_set_style_radius(list, 10, 0);
@@ -272,6 +345,25 @@ static void _build_input(eqsolver_ctx_t *ctx)
         }
     }
 
+    /* Which letters the system is solved for. This is what makes multi-variable
+     * systems expressible: without it every letter would have to be an unknown. */
+    char vars_row[48];
+    if (ctx->vars_buf[0] != '\0')
+    {
+        snprintf(vars_row, sizeof(vars_row), "Solve for: %s", ctx->vars_buf);
+    }
+    else
+    {
+        snprintf(vars_row, sizeof(vars_row), "Solve for: auto (all)");
+    }
+    lv_obj_t *vrow = cos_button_create(cont, vars_row, _vars_clicked_cb, NULL);
+    lv_obj_set_size(vrow, 192, 28);
+    lv_obj_t *vlbl = lv_obj_get_child(vrow, 0);
+    if (vlbl)
+    {
+        cos_label_set_font_size(vlbl, COS_FONT_SIZE_MICRO);
+    }
+
     /* Action buttons. */
     lv_obj_t *brow = lv_obj_create(cont);
     lv_obj_set_size(brow, 184, 40);
@@ -290,6 +382,22 @@ static void _build_input(eqsolver_ctx_t *ctx)
 static void _build_result(eqsolver_ctx_t *ctx)
 {
     lv_obj_t *cont = ctx->cont;
+
+    /* What the system was solved for, so the result reads as an answer to a
+     * well-posed question ("about which unknowns?") instead of a raw dump. */
+    char vars_row[48];
+    if (ctx->vars_buf[0] != '\0')
+    {
+        snprintf(vars_row, sizeof(vars_row), "Solve for: %s", ctx->vars_buf);
+    }
+    else
+    {
+        snprintf(vars_row, sizeof(vars_row), "Solve for: auto");
+    }
+    lv_obj_t *vrow = lv_label_create(cont);
+    lv_label_set_text(vrow, vars_row);
+    cos_label_set_font_size(vrow, COS_FONT_SIZE_MICRO);
+    lv_obj_set_style_text_color(vrow, lv_color_hex(0x9a9a9a), 0);
 
     lv_obj_t *list = lv_obj_create(cont);
     lv_obj_set_size(list, 200, 100);
@@ -340,6 +448,15 @@ static void _add_clicked_cb(lv_event_t *e)
     }
 }
 
+static void _vars_clicked_cb(lv_event_t *e)
+{
+    (void)e;
+    if (g_ctx)
+    {
+        _open_vars_editor(g_ctx);
+    }
+}
+
 static void _solve_clicked_cb(lv_event_t *e)
 {
     (void)e;
@@ -367,12 +484,15 @@ static void _solve_clicked_cb(lv_event_t *e)
     }
     /* Solve log: without it a wrong/unexpected result is impossible to
      * diagnose from the serial console (issue #3). */
-    COS_LOG_I("EqSolver: solving %d equation(s)", n);
+    COS_LOG_I("EqSolver: solving %d equation(s) for \"%s\"", n,
+              g_ctx->vars_buf[0] ? g_ctx->vars_buf : "auto");
     for (int i = 0; i < n; i++)
     {
         COS_LOG_I("EqSolver:   [%d] %s", i + 1, ptrs[i]);
     }
-    cos_eqsolve(ptrs, n, g_ctx->result_buf, sizeof(g_ctx->result_buf));
+    cos_eqsolve_for(ptrs, n,
+                    g_ctx->vars_buf[0] ? g_ctx->vars_buf : NULL,
+                    g_ctx->result_buf, sizeof(g_ctx->result_buf));
     COS_LOG_I("EqSolver: result: %s", g_ctx->result_buf);
     g_ctx->screen = SCR_RESULT;
     _clear_cont(g_ctx);
@@ -398,7 +518,14 @@ static void _editor_save_cb(lv_event_t *e)
         return;
     }
     const char *t = lv_textarea_get_text(ed->textarea);
-    _store_equation(ed->parent, ed->edit_index, t);
+    if (ed->vars_mode)
+    {
+        _store_vars(ed->parent, t);
+    }
+    else
+    {
+        _store_equation(ed->parent, ed->edit_index, t);
+    }
 
     ed->parent->screen = SCR_INPUT;
     _clear_cont(ed->parent);

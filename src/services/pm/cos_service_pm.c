@@ -8,6 +8,7 @@
 /* Includes ---------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "lvgl.h"
 #define COS_LOG_TAG "PowerManager"
 #include "cos_log.h"
@@ -52,6 +53,25 @@ static bool s_tap_armed = false;      /**< 已记下第一次点击,等待第二
 static uint32_t s_tap_first_ms = 0;   /**< 第一次点击时刻 */
 /* Function Implementations -----------------------------------*/
 void cos_pm_reset_timer(void);
+
+/* "屏幕常亮"引用计数:> 0 时禁止自动熄屏(手电筒等场景) */
+static uint8_t s_keep_screen_on_ref = 0;
+
+/**
+ * @brief 根据当前状态同步定时器:仅"已亮屏且未锁定常亮"时才运行
+ */
+static void _pm_timer_sync(void)
+{
+    if (!t)
+        return;
+    if (s_keep_screen_on_ref > 0 || pm_state != COS_PM_DISPLAY_ON)
+        lv_timer_pause(t);
+    else
+    {
+        lv_timer_resume(t);
+        lv_timer_reset(t);
+    }
+}
 
 /* ---- 黑屏 mask:熄屏(SLEEP)与关机/待机深睡(DEEP_SLEEP)共用 ----
  * 真机背光已灭(+面板 0x28),mask 只是模拟器的熄屏视觉与真机防残影兜底;
@@ -135,12 +155,10 @@ static void _pm_set_state(cos_pm_state_t state)
             lv_obj_invalidate(lv_layer_top());
             lv_refr_now(NULL);
             COS_LOG_I("Wake: full redraw forced");
-            if (t)
-                lv_timer_resume(t);
+            _pm_timer_sync();
             break;
         case COS_PM_SLEEP:
-            if (t)
-                lv_timer_pause(t);
+            _pm_timer_sync();
             cos_event_post(COS_EVENT_SYSTEM_SLEEP, NULL, NULL);
 #if COS_DFW_ENABLE
             cos_dfw_sync();
@@ -151,14 +169,12 @@ static void _pm_set_state(cos_pm_state_t state)
             _ds_mask_create("Light sleep (screen off)");
             break;
         case COS_PM_DISPLAY_AOD:
-            if (t)
-                lv_timer_pause(t);
+            _pm_timer_sync();
             cos_event_post(COS_EVENT_SYSTEM_DISPLAY_AOD, NULL, NULL);
             dev->ops->set_power(DEV_POWER_STATE_AOD);
             break;
         case COS_PM_DEEP_SLEEP:
-            if (t)
-                lv_timer_pause(t);
+            _pm_timer_sync();
             cos_event_post(COS_EVENT_SYSTEM_SLEEP, NULL, NULL);
             dev->ops->set_power(DEV_POWER_STATE_SLEEP);
             break;
@@ -182,6 +198,14 @@ cos_pm_state_t cos_pm_get_state(void)
 
 void cos_pm_request_sleep(void)
 {
+    /* 常亮锁定期间(如手电筒打开时)忽略一切自动熄屏请求,
+     * 包括超时定时器与手掌覆盖手势;侧键/关机等显式操作不受影响。 */
+    if (s_keep_screen_on_ref > 0)
+    {
+        COS_LOG_I("Sleep request ignored: keep screen on");
+        cos_pm_reset_timer();
+        return;
+    }
     if (aod_mode)
     {
         _pm_set_state(COS_PM_DISPLAY_AOD);
@@ -285,6 +309,41 @@ void cos_pm_reset_timer(void)
         lv_timer_reset(t);
 }
 
+void cos_pm_set_keep_screen_on(bool enable)
+{
+    if (enable)
+    {
+        if (s_keep_screen_on_ref == UINT8_MAX)
+            return;
+        s_keep_screen_on_ref++;
+        if (s_keep_screen_on_ref == 1)
+        {
+            COS_LOG_I("Keep screen on: locked");
+            /* 已熄屏则立即点亮,否则仅暂停熄屏定时器 */
+            if (pm_state != COS_PM_DISPLAY_ON)
+                _pm_set_state(COS_PM_DISPLAY_ON);
+            else
+                _pm_timer_sync();
+        }
+    }
+    else
+    {
+        if (s_keep_screen_on_ref == 0)
+            return;
+        s_keep_screen_on_ref--;
+        if (s_keep_screen_on_ref == 0)
+        {
+            COS_LOG_I("Keep screen on: released");
+            _pm_timer_sync();
+        }
+    }
+}
+
+bool cos_pm_is_keep_screen_on(void)
+{
+    return s_keep_screen_on_ref > 0;
+}
+
 /* 手指按下:记录按压起点;非亮屏状态下检测双击亮屏 */
 static void _indev_pressed_cb(lv_event_t *e)
 {
@@ -356,11 +415,7 @@ static void _indev_released_cb(lv_event_t *e)
 {
     COS_LOG_I("Timer resumed");
     s_pressing = false;
-    if (t && pm_state == COS_PM_DISPLAY_ON)
-    {
-        lv_timer_resume(t);
-        lv_timer_reset(t);
-    }
+    _pm_timer_sync();
 }
 
 void cos_service_pm_init(void)

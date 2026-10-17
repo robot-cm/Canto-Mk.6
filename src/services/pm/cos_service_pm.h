@@ -55,6 +55,26 @@ void cos_pm_request_sleep(void);
 void cos_pm_reset_timer(void);
 
 /**
+ * @brief 请求/释放"屏幕常亮"(禁止自动熄屏)
+ *
+ * 使能期间:
+ *   - 自动熄屏定时器暂停(超时不进入 AOD/SLEEP);
+ *   - 手掌覆盖手势不再熄屏;
+ *   - 若当前已熄屏(AOD/SLEEP),立即唤醒。
+ *
+ * 释放后恢复常规熄屏策略。适用于手电筒等"必须持续亮屏"的场景。
+ * 采用引用计数:多次 enable 需对应次数的 disable 才会真正释放。
+ *
+ * @param enable true = 请求常亮, false = 释放常亮
+ */
+void cos_pm_set_keep_screen_on(bool enable);
+
+/**
+ * @brief 查询当前是否处于"屏幕常亮"锁定状态
+ */
+bool cos_pm_is_keep_screen_on(void);
+
+/**
  * @brief Get power manager state
  */
 cos_pm_state_t cos_pm_get_state(void);

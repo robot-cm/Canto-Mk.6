@@ -33,6 +33,10 @@ cmake --build simulator/build -j 8
 > memlog off      → 关闭周期报告
 
 
+*/ APP 页面切换动画冗余排查
+*/ profmonitor 熄屏问题
+
+
 
 操作步骤
 1. 设备侧：启动进入系统，确保串口已到 shell 提示符（不是停在 UI 卡住、也不是在 boot 日志里）。

@@ -12,12 +12,16 @@
 #include <stdio.h>
 #include <string.h>
 
+#define MAXU EQSOLVER_MAX_VARS
 #define MAXV EQSOLVER_MAX_VARS
+#define MAXP EQSOLVER_MAX_PARAMS
+#define MAXS EQSOLVER_MAX_SYMBOLS
 #define MAXE EQSOLVER_MAX_EQS
 
 #define RES_TOL_LIN 1e-3f
 #define RES_TOL_SQ 1e-3f
 #define RES_TOL_OVER 1e-2f
+#define RES_TOL_POLISH 1e-9f
 #define SOLVE_TOL 1e-2f
 
 /* ---------------- helpers ---------------- */
@@ -166,6 +170,131 @@ static void _fmt_val(char *buf, size_t bsz, float v)
     snprintf(buf, bsz, "%.5f", (double)v);
 }
 
+/* Format a positive coefficient used in front of a symbolic term, e.g. the
+ * "1/2" of "1/2z". Prefers integers and simple fractions over long decimals. */
+static void _fmt_coef(char *buf, size_t bsz, float v)
+{
+    double x = fabs((double)v);
+    long qi, pi;
+    if (_double_to_frac(x, 10000, 5e-5, &qi, &pi) == 0)
+    {
+        long g = _gcd_long(qi, pi);
+        if (g != 0)
+        {
+            qi /= g;
+            pi /= g;
+        }
+        if (pi == 1)
+        {
+            snprintf(buf, bsz, "%ld", qi);
+            return;
+        }
+        if (pi <= 1000)
+        {
+            snprintf(buf, bsz, "%ld/%ld", qi, pi);
+            return;
+        }
+    }
+    snprintf(buf, bsz, "%.4g", x);
+}
+
+/* ---------------- affine expressions (constant + symbolic terms) ------------
+ * A solution component is not always a number: when the system is solved "with
+ * respect to" only some of its letters, or when it is underdetermined, an
+ * unknown is an affine expression of the remaining symbols (parameters and
+ * free unknowns), e.g. x = 3 - 1/2z.                                        */
+
+typedef struct
+{
+    float c;         /* constant term */
+    float k[MAXS];   /* coefficient of letters[j] */
+} aff_t;
+
+static void _aff_zero(aff_t *a)
+{
+    memset(a, 0, sizeof(*a));
+}
+
+/* a -= s * b */
+static void _aff_msub(aff_t *a, float s, const aff_t *b)
+{
+    a->c -= s * b->c;
+    for (int j = 0; j < MAXS; j++)
+    {
+        a->k[j] -= s * b->k[j];
+    }
+}
+
+/* Render "c + k0*l0 + k1*l1 ..." into buf, skipping zero terms.
+ * A pure number keeps the usual value formatting (integers, fractions);
+ * as soon as symbols are involved every coefficient is rendered in the same
+ * compact style so "3 - 1/2z" does not come out as "3.00000 - 0.50000z". */
+static void _fmt_affine(char *buf, size_t bsz, const aff_t *a,
+                        const char letters[], int ns)
+{
+    size_t off = 0;
+    buf[0] = '\0';
+    bool first = true;
+
+    int nterms = 0;
+    for (int j = 0; j < ns; j++)
+    {
+        if (fabsf(a->k[j]) > 5e-5f)
+        {
+            nterms++;
+        }
+    }
+
+    if (fabsf(a->c) > 5e-5f)
+    {
+        char cb[64];
+        if (nterms == 0)
+        {
+            _fmt_val(cb, sizeof(cb), a->c);
+        }
+        else
+        {
+            char mag[48];
+            _fmt_coef(mag, sizeof(mag), a->c);
+            snprintf(cb, sizeof(cb), "%s%s", (a->c < 0.0f) ? "-" : "", mag);
+        }
+        _append(buf, &off, bsz, cb);
+        first = false;
+    }
+    for (int j = 0; j < ns; j++)
+    {
+        float co = a->k[j];
+        if (fabsf(co) < 5e-5f)
+        {
+            continue;
+        }
+        char cb[48];
+        cb[0] = '\0';
+        bool frac = false;
+        if (fabsf(fabsf(co) - 1.0f) > 1e-5f)
+        {
+            _fmt_coef(cb, sizeof(cb), co);
+            /* "1/2*z" instead of "1/2z" so the fraction is not read as 1/(2z) */
+            frac = (strchr(cb, '/') != NULL);
+        }
+        if (first)
+        {
+            _append_fmt(buf, &off, bsz, "%s%s%s%c",
+                        (co < 0.0f) ? "-" : "", cb, frac ? "*" : "", letters[j]);
+            first = false;
+        }
+        else
+        {
+            _append_fmt(buf, &off, bsz, " %s %s%s%c",
+                        (co < 0.0f) ? "-" : "+", cb, frac ? "*" : "", letters[j]);
+        }
+    }
+    if (first)
+    {
+        _append(buf, &off, bsz, "0");
+    }
+}
+
 /* Solve m x m linear system (A|rhs) in place; A[i][m] becomes solution.
  * Returns 0 on success, -1 if singular. */
 static int _solve_mxm(float A[MAXV][MAXV + 1], int m)
@@ -219,101 +348,123 @@ static int _solve_mxm(float A[MAXV][MAXV + 1], int m)
     return 0;
 }
 
-/* ---------------- linear solver (Gaussian elimination + rank) ---------------- */
-
-static int _solve_linear(eq_node_t *asts[], int n, const char letters[], int m,
-                         char *out, size_t cap)
+/* ---------------- linear solver (Gauss-Jordan + rank + parameters) ----------
+ *
+ * Handles the whole linear family in one place:
+ *   - square systems        -> unique numeric solution
+ *   - overdetermined        -> least-structure consistency check (rank based)
+ *   - underdetermined       -> general solution, free unknowns reported
+ *   - "solve for" subset    -> unknowns expressed through the other letters
+ *
+ * The augmented matrix is [ unknowns | parameters | rhs ]: the first nu
+ * columns are the letters we solve for, the remaining ns-nu columns are
+ * symbolic parameters. Pivoting spans every column, unknowns first, so a
+ * parameter that is pinned by an extra equation (e.g. "a = 5") is solved too
+ * and folded into the unknowns' expressions instead of being printed.
+ */
+static int _solve_linear_general(eq_node_t *asts[], int n, const char letters[],
+                                 int ns, int nu, char *out, size_t cap)
 {
-    /* Augmented matrix [A | -c], A is Jacobian (constant), c = F(0). */
-    float aug[MAXE][MAXV + 1];
-    memset(aug, 0, sizeof(aug));
+    /* Augmented matrix [A | P | -c], A/P are Jacobians (constant), c = F(0). */
+    float M[MAXE][MAXS + 1];
+    memset(M, 0, sizeof(M));
 
     float v0[26];
     memset(v0, 0, sizeof(v0));
     for (int i = 0; i < n; i++)
     {
-        for (int j = 0; j < m; j++)
+        for (int j = 0; j < ns; j++)
         {
             /* Step of ~1 (not a tiny 1e-3): a central difference of a *linear*
              * function is exact for any step, and a small step makes
              * f(x+h)-f(x-h) suffer catastrophic cancellation in float32 (the
              * difference is ~1e-3 while |f| can be ~1e2), which shows up as
              * solutions like 3499/350 instead of 10. */
-            float h = fmaxf(1.0f, fabsf(v0[(int)(letters[j] - 'a')]));
-            float saved = v0[(int)(letters[j] - 'a')];
-            v0[(int)(letters[j] - 'a')] = saved + h;
+            int li = (int)(letters[j] - 'a');
+            float h = fmaxf(1.0f, fabsf(v0[li]));
+            float saved = v0[li];
+            v0[li] = saved + h;
             float fp = eq_eval(asts[i], v0);
-            v0[(int)(letters[j] - 'a')] = saved - h;
+            v0[li] = saved - h;
             float fm = eq_eval(asts[i], v0);
-            v0[(int)(letters[j] - 'a')] = saved;
-            aug[i][j] = (fp - fm) / (2.0f * h);
+            v0[li] = saved;
+            M[i][j] = (fp - fm) / (2.0f * h);
         }
-        aug[i][m] = -eq_eval(asts[i], v0);
+        M[i][ns] = -eq_eval(asts[i], v0);
     }
 
-    /* Gaussian elimination with partial pivoting (forward elimination). */
+    /* Gauss-Jordan elimination with partial pivoting. */
     int rank = 0;
-    int pivot_col[MAXV];
+    int pivot_col[MAXS];
+    bool is_pivot[MAXS];
     memset(pivot_col, -1, sizeof(pivot_col));
-    for (int col = 0; col < m; col++)
+    memset(is_pivot, 0, sizeof(is_pivot));
+    for (int col = 0; col < ns; col++)
     {
         int piv = -1;
         float maxv = RES_TOL_LIN;
         for (int r = rank; r < n; r++)
         {
-            if (fabsf(aug[r][col]) > maxv)
+            if (fabsf(M[r][col]) > maxv)
             {
-                maxv = fabsf(aug[r][col]);
+                maxv = fabsf(M[r][col]);
                 piv = r;
             }
         }
         if (piv < 0)
         {
-            continue; /* dependent column */
+            continue; /* dependent column -> free / parameter */
         }
         if (piv != rank)
         {
-            for (int j = 0; j <= m; j++)
+            for (int j = 0; j <= ns; j++)
             {
-                float t = aug[rank][j];
-                aug[rank][j] = aug[piv][j];
-                aug[piv][j] = t;
+                float t = M[rank][j];
+                M[rank][j] = M[piv][j];
+                M[piv][j] = t;
             }
         }
-        float pv = aug[rank][col];
-        for (int j = col; j <= m; j++)
+        float pv = M[rank][col];
+        for (int j = col; j <= ns; j++)
         {
-            aug[rank][j] /= pv;
+            M[rank][j] /= pv;
         }
-        for (int r = rank + 1; r < n; r++)
+        /* Eliminate from every row (not only the rows below) so that each
+         * pivot column becomes a unit vector: back-substitution then turns
+         * into a direct read of the rhs expression. */
+        for (int r = 0; r < n; r++)
         {
-            float f = aug[r][col];
-            if (f != 0.0f)
+            if (r == rank || M[r][col] == 0.0f)
             {
-                for (int j = col; j <= m; j++)
-                {
-                    aug[r][j] -= f * aug[rank][j];
-                }
+                continue;
+            }
+            float f = M[r][col];
+            for (int j = col; j <= ns; j++)
+            {
+                M[r][j] -= f * M[rank][j];
             }
         }
         pivot_col[rank] = col;
+        is_pivot[col] = true;
         rank++;
     }
 
-    /* Consistency: zero-coefficient rows with nonzero RHS => inconsistent. */
+    /* Consistency: a row with no pivot left and a nonzero rhs is impossible.
+     * (If a row only constrains parameters, the parameter was pivoted above
+     * and folded into the other rows, so it never reaches here.) */
     bool inconsistent = false;
     for (int r = rank; r < n; r++)
     {
         bool allzero = true;
-        for (int j = 0; j < m; j++)
+        for (int j = 0; j < ns; j++)
         {
-            if (fabsf(aug[r][j]) > RES_TOL_LIN)
+            if (fabsf(M[r][j]) > RES_TOL_LIN)
             {
                 allzero = false;
                 break;
             }
         }
-        if (allzero && fabsf(aug[r][m]) > RES_TOL_LIN)
+        if (allzero && fabsf(M[r][ns]) > RES_TOL_LIN)
         {
             inconsistent = true;
             break;
@@ -327,34 +478,63 @@ static int _solve_linear(eq_node_t *asts[], int n, const char letters[], int m,
         _append(out, &off, cap, "No solution");
         return 0;
     }
-    if (rank < m)
-    {
-        _append(out, &off, cap, "Infinite solutions\n(underdetermined system)");
-        return 0;
-    }
 
-    /* Unique solution via back-substitution. */
-    float sol[MAXV];
-    memset(sol, 0, sizeof(sol));
+    /* Build the expression of each pivot column: start from the rhs and move
+     * every remaining term to the left-hand side of the "= ". */
+    aff_t expr[MAXS];
+    for (int j = 0; j < MAXS; j++)
+    {
+        _aff_zero(&expr[j]);
+    }
     for (int i = rank - 1; i >= 0; i--)
     {
         int pc = pivot_col[i];
-        float sum = 0.0f;
-        for (int j = pc + 1; j < m; j++)
+        aff_t e;
+        _aff_zero(&e);
+        e.c = M[i][ns];
+        for (int j = 0; j < ns; j++)
         {
-            sum += aug[i][j] * sol[j];
+            if (j == pc || M[i][j] == 0.0f)
+            {
+                continue;
+            }
+            if (is_pivot[j])
+            {
+                _aff_msub(&e, M[i][j], &expr[j]);
+            }
+            else
+            {
+                e.k[j] -= M[i][j]; /* free unknown or parameter: stays symbolic */
+            }
         }
-        sol[pc] = aug[i][m] - sum;
+        expr[pc] = e;
     }
-    char vbuf[64];
-    for (int j = 0; j < m; j++)
+
+    char vbuf[96];
+    for (int j = 0; j < nu; j++)
     {
-        _fmt_val(vbuf, sizeof(vbuf), sol[j]);
-        _append_fmt(out, &off, cap, "%c = %s", letters[j], vbuf);
-        if (j + 1 < m)
+        if (!is_pivot[j])
         {
-            _append(out, &off, cap, "\n");
+            continue;
         }
+        _fmt_affine(vbuf, sizeof(vbuf), &expr[j], letters, ns);
+        _append_fmt(out, &off, cap, "%c = %s\n", letters[j], vbuf);
+    }
+    for (int j = 0; j < nu; j++)
+    {
+        if (is_pivot[j])
+        {
+            continue;
+        }
+        _append_fmt(out, &off, cap, "%c is free\n", letters[j]);
+    }
+    if (off > 0)
+    {
+        out[off - 1] = '\0'; /* drop the trailing newline */
+    }
+    else
+    {
+        _append(out, &off, cap, "Identity (always true)");
     }
     return 0;
 }
@@ -398,6 +578,111 @@ static float _res_norm(eq_node_t *asts[], int n, const char letters[], int m, co
     return sqrtf(s);
 }
 
+/* Relative rank test for a small square matrix: eliminates with partial
+ * pivoting and reports a (near-)singular matrix when the smallest pivot is
+ * negligible compared with the largest one. A relative test is required - an
+ * absolute 1e-6 threshold misses the ~1e-3 pivots produced by J^T*J of an
+ * exactly dependent system. */
+static bool _near_singular(float A[MAXV][MAXV], int m)
+{
+    float pmax = 0.0f;
+    for (int i = 0; i < m; i++)
+    {
+        for (int j = 0; j < m; j++)
+        {
+            if (fabsf(A[i][j]) > pmax)
+            {
+                pmax = fabsf(A[i][j]);
+            }
+        }
+    }
+    if (pmax < 1e-12f)
+    {
+        return true;
+    }
+    for (int col = 0; col < m; col++)
+    {
+        int piv = col;
+        float mx = fabsf(A[col][col]);
+        for (int r = col + 1; r < m; r++)
+        {
+            if (fabsf(A[r][col]) > mx)
+            {
+                mx = fabsf(A[r][col]);
+                piv = r;
+            }
+        }
+        if (mx < 1e-4f * pmax)
+        {
+            return true;
+        }
+        if (piv != col)
+        {
+            for (int j = 0; j < m; j++)
+            {
+                float t = A[col][j];
+                A[col][j] = A[piv][j];
+                A[piv][j] = t;
+            }
+        }
+        for (int r = col + 1; r < m; r++)
+        {
+            float f = A[r][col] / A[col][col];
+            if (f == 0.0f)
+            {
+                continue;
+            }
+            for (int j = col; j < m; j++)
+            {
+                A[r][j] -= f * A[col][j];
+            }
+        }
+    }
+    return false;
+}
+
+/* True when the normal-equation matrix J^T*J is singular at x. A singular
+ * Jacobian means the equations are locally dependent at that point, i.e. the
+ * solution set is a continuum (e.g. "x/y = 2" and "x = 2y"), not a set of
+ * isolated roots. Reporting those as individual roots is misleading. */
+static bool _jacobian_singular(eq_node_t *asts[], int n, const char letters[], int m,
+                              const float x[])
+{
+    float xc[MAXV];
+    float J[MAXE][MAXV];
+    float JTJ[MAXV][MAXV];
+    memcpy(xc, x, sizeof(float) * (size_t)m);
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < m; j++)
+        {
+            float h = 1e-3f * fmaxf(1.0f, fabsf(xc[j]));
+            float saved = xc[j];
+            xc[j] = saved + h;
+            float fp = _res_norm_single(asts, n, letters, m, xc, i);
+            xc[j] = saved - h;
+            float fm = _res_norm_single(asts, n, letters, m, xc, i);
+            xc[j] = saved;
+            J[i][j] = (fp - fm) / (2.0f * h);
+        }
+    }
+    memset(JTJ, 0, sizeof(JTJ));
+    for (int a = 0; a < m; a++)
+    {
+        for (int b = 0; b < m; b++)
+        {
+            float s = 0.0f;
+            for (int k = 0; k < n; k++)
+            {
+                s += J[k][a] * J[k][b];
+            }
+            JTJ[a][b] = s;
+        }
+    }
+    return _near_singular(JTJ, m);
+}
+
 static int _solve_nonlinear(eq_node_t *asts[], int n, const char letters[], int m,
                             char *out, size_t cap)
 {
@@ -414,6 +699,7 @@ static int _solve_nonlinear(eq_node_t *asts[], int n, const char letters[], int 
 
     float found[MAXV][MAXV]; /* up to MAXV solutions */
     int nfound = 0;
+    bool degenerate = false; /* a continuum of solutions was reached */
     const int STARTS = 14;
     const int ITERS = 90;
 
@@ -433,7 +719,11 @@ static int _solve_nonlinear(eq_node_t *asts[], int n, const char letters[], int 
             {
                 break;
             }
-            if (rn < (n == m ? RES_TOL_SQ : RES_TOL_OVER))
+            /* Converged? Keep iterating well past the acceptance threshold:
+             * Gauss-Newton is quadratic near a root, so polishing down to
+             * ~1e-9 costs a couple of extra steps and is what makes the value
+             * print as "3" instead of "29603/9868". */
+            if (rn < RES_TOL_POLISH)
             {
                 break;
             }
@@ -512,14 +802,25 @@ static int _solve_nonlinear(eq_node_t *asts[], int n, const char letters[], int 
             }
             if (rn_new < rn)
             {
+                float step = 0.0f;
                 for (int a = 0; a < m; a++)
                 {
+                    if (fabsf(delta[a]) > step)
+                    {
+                        step = fabsf(delta[a]);
+                    }
                     x[a] = xnew[a];
                 }
                 lambda *= 0.5f;
                 if (lambda < 1e-6f)
                 {
                     lambda = 1e-6f;
+                }
+                /* Stagnating at minimal damping: no further progress possible,
+                 * stop instead of burning the remaining iterations. */
+                if (step < 1e-7f)
+                {
+                    break;
                 }
             }
             else
@@ -535,6 +836,13 @@ static int _solve_nonlinear(eq_node_t *asts[], int n, const char letters[], int 
         float rn = _res_norm(asts, n, letters, m, x);
         if (isfinite(rn) && rn < (n == m ? RES_TOL_SQ : RES_TOL_OVER))
         {
+            /* Dependent equations describe a curve/surface, not isolated roots:
+             * keep them apart from genuine solutions. */
+            if (_jacobian_singular(asts, n, letters, m, x))
+            {
+                degenerate = true;
+                continue;
+            }
             /* dedupe */
             bool dup = false;
             for (int f = 0; f < nfound; f++)
@@ -569,7 +877,14 @@ static int _solve_nonlinear(eq_node_t *asts[], int n, const char letters[], int 
     out[0] = '\0';
     if (nfound == 0)
     {
-        _append(out, &off, cap, "No solution");
+        if (degenerate)
+        {
+            _append(out, &off, cap, "Infinite solutions\n(dependent equations)");
+        }
+        else
+        {
+            _append(out, &off, cap, "No solution");
+        }
         return 0;
     }
     if (nfound == 1)
@@ -618,19 +933,21 @@ static float _res_norm_single(eq_node_t *asts[], int n, const char letters[], in
 
 /* ---------------- linearity check + top entry ---------------- */
 
-static bool _is_linear(eq_node_t *asts[], int n, const char letters[], int m)
+/* True when every equation is affine in ALL of its letters (unknowns and
+ * symbolic parameters alike): the Jacobian must be the same at two different
+ * points. Compared entry-by-entry instead of materialising both Jacobians,
+ * which keeps the stack usage small even with MAXS symbols. */
+static bool _is_linear(eq_node_t *asts[], int n, const char letters[], int ns)
 {
     float base1[26];
     float base2[26];
     memset(base1, 0, sizeof(base1));
     memset(base2, 0, sizeof(base2));
-    for (int j = 0; j < m; j++)
+    for (int j = 0; j < ns; j++)
     {
         base1[(int)(letters[j] - 'a')] = 1.0f;
         base2[(int)(letters[j] - 'a')] = -2.0f;
     }
-    float J1[MAXE][MAXV];
-    float J2[MAXE][MAXV];
     for (int i = 0; i < n; i++)
     {
         eq_node_t *e = asts[i];
@@ -638,32 +955,29 @@ static bool _is_linear(eq_node_t *asts[], int n, const char letters[], int m)
         {
             e = e->a; /* unwrap relation to the expression LHS - RHS */
         }
-        for (int j = 0; j < m; j++)
+        for (int j = 0; j < ns; j++)
         {
-            float h1 = 1e-3f * fmaxf(1.0f, fabsf(base1[(int)(letters[j] - 'a')]));
-            float saved = base1[(int)(letters[j] - 'a')];
-            base1[(int)(letters[j] - 'a')] = saved + h1;
-            float fp = eq_eval(e, base1);
-            base1[(int)(letters[j] - 'a')] = saved - h1;
-            float fm = eq_eval(asts[i], base1);
-            base1[(int)(letters[j] - 'a')] = saved;
-            J1[i][j] = (fp - fm) / (2.0f * h1);
+            int li = (int)(letters[j] - 'a');
 
-            float h2 = 1e-3f * fmaxf(1.0f, fabsf(base2[(int)(letters[j] - 'a')]));
-            float sv2 = base2[(int)(letters[j] - 'a')];
-            base2[(int)(letters[j] - 'a')] = sv2 + h2;
-            float fp2 = eq_eval(asts[i], base2);
-            base2[(int)(letters[j] - 'a')] = sv2 - h2;
+            float h1 = 1e-3f * fmaxf(1.0f, fabsf(base1[li]));
+            float saved = base1[li];
+            base1[li] = saved + h1;
+            float fp = eq_eval(e, base1);
+            base1[li] = saved - h1;
+            float fm = eq_eval(e, base1);
+            base1[li] = saved;
+            float j1 = (fp - fm) / (2.0f * h1);
+
+            float h2 = 1e-3f * fmaxf(1.0f, fabsf(base2[li]));
+            float sv2 = base2[li];
+            base2[li] = sv2 + h2;
+            float fp2 = eq_eval(e, base2);
+            base2[li] = sv2 - h2;
             float fm2 = eq_eval(e, base2);
-            base2[(int)(letters[j] - 'a')] = sv2;
-            J2[i][j] = (fp2 - fm2) / (2.0f * h2);
-        }
-    }
-    for (int i = 0; i < n; i++)
-    {
-        for (int j = 0; j < m; j++)
-        {
-            if (fabsf(J1[i][j] - J2[i][j]) > 1e-2f * (1.0f + fabsf(J1[i][j])))
+            base2[li] = sv2;
+            float j2 = (fp2 - fm2) / (2.0f * h2);
+
+            if (fabsf(j1 - j2) > 1e-2f * (1.0f + fabsf(j1)))
             {
                 return false;
             }
@@ -1441,7 +1755,46 @@ static int _solve_univariate_ineq(eq_node_t *root, char var, char relop,
     return 0;
 }
 
-int cos_eqsolve(const char *eqs[], int n_eqs, char *out, size_t out_size)
+/* Parse a "solve for" list such as "x,y", "x y" or "xy" into letters[].
+ * Order is preserved (it drives the result order), duplicates are dropped and
+ * non-letter characters are treated as separators. Returns the letter count. */
+static int _parse_vars_spec(const char *spec, char *letters, int max)
+{
+    int n = 0;
+    if (!spec)
+    {
+        return 0;
+    }
+    for (const char *p = spec; *p != '\0' && n < max; p++)
+    {
+        char c = *p;
+        if (c >= 'A' && c <= 'Z')
+        {
+            c = (char)(c - 'A' + 'a');
+        }
+        if (c < 'a' || c > 'z')
+        {
+            continue; /* ',', ' ', ';' ... */
+        }
+        bool dup = false;
+        for (int i = 0; i < n; i++)
+        {
+            if (letters[i] == c)
+            {
+                dup = true;
+                break;
+            }
+        }
+        if (!dup)
+        {
+            letters[n++] = c;
+        }
+    }
+    return n;
+}
+
+int cos_eqsolve_for(const char *eqs[], int n_eqs, const char *vars,
+                    char *out, size_t out_size)
 {
     out[0] = '\0';
     if (n_eqs <= 0)
@@ -1472,53 +1825,145 @@ int cos_eqsolve(const char *eqs[], int n_eqs, char *out, size_t out_size)
         }
     }
 
-    /* Variable union (sorted alphabetically). */
-    char letters[MAXV + 1];
-    int m = 0;
-    memset(letters, 0, sizeof(letters));
-    char tmp[MAXV];
+    /* Every letter appearing anywhere in the system (sorted alphabetically). */
+    char all[MAXS];
+    int nall = 0;
+    memset(all, 0, sizeof(all));
+    bool overflow = false;
     for (int i = 0; i < n_eqs; i++)
     {
-        int cnt = eq_collect_vars(asts[i], tmp, MAXV);
+        char tmp[26];
+        int cnt = eq_collect_vars(asts[i], tmp, (int)sizeof(tmp));
         for (int a = 0; a < cnt; a++)
         {
             bool has = false;
-            for (int b = 0; b < m; b++)
+            for (int b = 0; b < nall; b++)
             {
-                if (letters[b] == tmp[a])
+                if (all[b] == tmp[a])
                 {
                     has = true;
                     break;
                 }
             }
-            if (!has && m < MAXV)
+            if (has)
             {
-                letters[m++] = tmp[a];
+                continue;
+            }
+            if (nall < MAXS)
+            {
+                all[nall++] = tmp[a];
+            }
+            else
+            {
+                overflow = true;
+            }
+        }
+    }
+    /* bubble sort */
+    for (int a = 0; a < nall; a++)
+    {
+        for (int b = a + 1; b < nall; b++)
+        {
+            if (all[b] < all[a])
+            {
+                char t = all[a];
+                all[a] = all[b];
+                all[b] = t;
             }
         }
     }
 
     int ret = 0;
-    if (m == 0)
+    if (nall == 0)
     {
         snprintf(out, out_size, "No variable found in equations");
+        goto done;
+    }
+    if (overflow)
+    {
+        snprintf(out, out_size, "Too many symbols\n(max %d letters)", MAXS);
+        goto done;
+    }
+
+    /* letters[] = unknowns first (in the requested order), then the letters
+     * that stay symbolic parameters. */
+    char letters[MAXS];
+    int nu = 0;
+    memset(letters, 0, sizeof(letters));
+
+    if (vars && vars[0] != '\0')
+    {
+        char raw[26];
+        nu = _parse_vars_spec(vars, raw, (int)sizeof(raw));
+        if (nu == 0)
+        {
+            snprintf(out, out_size, "Invalid \"solve for\" list\n(use letters, e.g. x,y)");
+            goto done;
+        }
+        if (nu > MAXU)
+        {
+            snprintf(out, out_size, "Too many unknowns\n(max %d)", MAXU);
+            goto done;
+        }
+        memcpy(letters, raw, (size_t)nu);
+        for (int j = 0; j < nu; j++)
+        {
+            bool present = false;
+            for (int b = 0; b < nall; b++)
+            {
+                if (all[b] == letters[j])
+                {
+                    present = true;
+                    break;
+                }
+            }
+            if (!present)
+            {
+                snprintf(out, out_size, "Letter '%c' is not in\nthe equations", letters[j]);
+                goto done;
+            }
+        }
+        if (nall - nu > MAXP)
+        {
+            snprintf(out, out_size, "Too many other letters\n(max %d unknowns + %d params)",
+                     MAXU, MAXP);
+            goto done;
+        }
+        /* parameters keep alphabetical order */
+        int np = nu;
+        for (int b = 0; b < nall; b++)
+        {
+            bool is_unk = false;
+            for (int j = 0; j < nu; j++)
+            {
+                if (letters[j] == all[b])
+                {
+                    is_unk = true;
+                    break;
+                }
+            }
+            if (!is_unk)
+            {
+                letters[np++] = all[b];
+            }
+        }
+        nall = np; /* ns */
     }
     else
     {
-        /* bubble sort letters */
-        for (int a = 0; a < m; a++)
+        /* Auto: every letter is an unknown. */
+        if (nall > MAXU)
         {
-            for (int b = a + 1; b < m; b++)
-            {
-                if (letters[b] < letters[a])
-                {
-                    char t = letters[a];
-                    letters[a] = letters[b];
-                    letters[b] = t;
-                }
-            }
+            snprintf(out, out_size,
+                     "Too many variables (max %d).\nUse \"solve for\" to pick\nthe unknowns.",
+                     MAXU);
+            goto done;
         }
+        memcpy(letters, all, (size_t)nall);
+        nu = nall;
+    }
 
+    {
         bool any_ineq = false;
         for (int i = 0; i < n_eqs; i++)
         {
@@ -1529,7 +1974,7 @@ int cos_eqsolve(const char *eqs[], int n_eqs, char *out, size_t out_size)
             }
         }
 
-        if (n_eqs == 1 && m == 1)
+        if (n_eqs == 1 && nall == 1)
         {
             eq_node_t *root = asts[0];
             char relop = (root->kind == EQ_NODE_REL) ? root->relop : '=';
@@ -1548,19 +1993,33 @@ int cos_eqsolve(const char *eqs[], int n_eqs, char *out, size_t out_size)
                      "仅支持单变量不等式；多元/方程组的不等式暂不支持");
             ret = 0;
         }
-        else if (_is_linear(asts, n_eqs, letters, m))
+        else if (_is_linear(asts, n_eqs, letters, nall))
         {
-            ret = _solve_linear(asts, n_eqs, letters, m, out, out_size);
+            ret = _solve_linear_general(asts, n_eqs, letters, nall, nu, out, out_size);
+        }
+        else if (nall > nu)
+        {
+            /* Symbolic parameters can only be carried through a linear system;
+             * a non-linear one would need full symbolic algebra. */
+            snprintf(out, out_size,
+                     "Cannot solve symbolically:\nnon-linear equations with\nother letters.\nGive them values first.");
+            ret = 0;
         }
         else
         {
-            ret = _solve_nonlinear(asts, n_eqs, letters, m, out, out_size);
+            ret = _solve_nonlinear(asts, n_eqs, letters, nall, out, out_size);
         }
     }
 
+done:
     for (int i = 0; i < n_eqs; i++)
     {
         eq_ast_free(asts[i]);
     }
     return ret;
+}
+
+int cos_eqsolve(const char *eqs[], int n_eqs, char *out, size_t out_size)
+{
+    return cos_eqsolve_for(eqs, n_eqs, NULL, out, out_size);
 }

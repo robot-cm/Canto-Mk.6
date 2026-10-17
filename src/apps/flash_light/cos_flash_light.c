@@ -23,6 +23,7 @@
 #include "cos_port.h"
 #include "cos_service_config.h"
 #include "cos_service_display.h"
+#include "cos_service_pm.h"
 #include "cos_app_list.h"
 #include "cos_lang.h"
 #include "cos_basic_widgets.h"
@@ -300,6 +301,9 @@ static void _flash_light_indicator_fade_out_ready_cb(lv_anim_t *a)
 
 static void _flash_light_on_destroy(cos_activity_t *a)
 {
+    /* 退出手电筒:恢复常规自动熄屏(与 cos_flash_light_enter 的锁定配对) */
+    cos_pm_set_keep_screen_on(false);
+
     lv_obj_t *view = cos_activity_get_view(a);
     _flash_light_card_pager_ctx_t *ctx = view ? (_flash_light_card_pager_ctx_t *)lv_obj_get_user_data(view) : NULL;
     if (ctx)
@@ -346,6 +350,9 @@ static inline void _flash_light_delete(_pressing_user_data_t *ud)
 
     if (_flash_light_ud == ud)
         _flash_light_ud = NULL;
+
+    /* 手电筒关闭(下滑收起 / Exit / hide):释放屏幕常亮锁定 */
+    cos_pm_set_keep_screen_on(false);
 
     cos_free(ud);
     COS_LOG_I("Flash light deleted");
@@ -1040,6 +1047,8 @@ void cos_flash_light_show(void)
 
     _flash_light_ud = ud;
     cos_display_set_brightness(COS_DISPLAY_BRIGHTNESS_MAX, _BRIGHTNESS_DURATION, true);
+    /* 手电筒打开期间禁止自动熄屏(关闭时释放,见 _flash_light_delete) */
+    cos_pm_set_keep_screen_on(true);
     cos_chrome_manager_notify_overlay_opened(&_flash_light_overlay);
 }
 
@@ -1081,9 +1090,15 @@ const cos_chrome_overlay_t *cos_flash_light_get_overlay_descriptor(void)
 void cos_flash_light_enter(void)
 {
     cos_display_set_brightness(COS_DISPLAY_BRIGHTNESS_MAX, _BRIGHTNESS_DURATION, true);
+    /* 手电筒打开期间禁止自动熄屏,直到退出 app(在 _flash_light_on_destroy 释放) */
+    cos_pm_set_keep_screen_on(true);
     cos_activity_t *a = cos_activity_create(&_flash_light_lifecycle);
     if (!a)
+    {
+        cos_pm_set_keep_screen_on(false);
+        cos_display_restore(_BRIGHTNESS_DURATION);
         return;
+    }
 
     _flash_light_card_pager_ctx_t *ctx = cos_malloc_zeroed(sizeof(_flash_light_card_pager_ctx_t));
     if (!ctx)

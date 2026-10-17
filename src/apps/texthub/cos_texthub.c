@@ -48,6 +48,7 @@
 #include "cos_storage_paths.h"
 #include "cos_font.h"
 #include "cos_icon.h"
+#include "input/touch/cos_touch.h"
 #include "ui/system/cos_round_clip.h"
 #include "lvgl.h"
 
@@ -124,6 +125,7 @@ static lv_obj_t *s_capsule, *s_trash_btn, *s_fm_btn, *s_star_btn;  /* capsule ba
 extern const lv_image_dsc_t cos_icon_fm;
 extern const lv_image_dsc_t cos_icon_delete;
 extern const lv_image_dsc_t cos_icon_star;
+extern const lv_image_dsc_t cos_icon_position;
 
 /* current file */
 static char     *s_cur_path;             /* full path or NULL            */
@@ -144,7 +146,7 @@ static uint32_t   s_seg_start, s_seg_end, s_seg_idx;
 /* file manager overlay */
 static bool       s_fm_open;
 static lv_obj_t  *s_fm_mask, *s_fm_panel, *s_fm_list, *s_fm_path;
-static lv_obj_t  *s_fm_star_btn, *s_fm_star_img;  /* bottom floating favorite */
+static lv_obj_t  *s_fm_pos_btn, *s_fm_pos_img;    /* bottom floating locate */
 static th_node_t *s_fm_root;
 static th_item_t *s_fm_items;
 static int        s_fm_item_count;
@@ -961,8 +963,8 @@ static void _fm_close(void)
     s_fm_panel   = NULL;
     s_fm_list    = NULL;
     s_fm_path    = NULL;
-    s_fm_star_btn = NULL;
-    s_fm_star_img = NULL;
+    s_fm_pos_btn  = NULL;
+    s_fm_pos_img  = NULL;
 }
 
 /* 点行右侧箭头:文件夹展开/收起,文件直接打开(不冒泡到行,点行本身不响应) */
@@ -1056,18 +1058,16 @@ static void _fm_restore_expanded(void)
     }
 }
 
-/* Best-effort restore of the FM scroll position when it opens: walk the
- * anchor file path from the root, expand every directory on the way, then
- * scroll the flattened list so the anchor row is visible.  If the anchor or
- * any directory along the way no longer exists, give up. */
-static void _fm_restore_position(void)
+/* 依次展开 target 路径的父目录链,并把视口滚到该文件所在行。
+ * 返回 true 表示文件行已在树中找到并完成滚动。路径不存在时返回 false。 */
+static bool _fm_reveal(const char *target)
 {
-    if (!s_fm_root || s_fm_anchor[0] == '\0') return;
-    if (strncmp(s_fm_anchor, TH_DIR, strlen(TH_DIR)) != 0) return;
-    if (!_is_text_ext(_base(s_fm_anchor))) return;
+    if (!s_fm_root || !target || !target[0]) return false;
+    if (strncmp(target, TH_DIR, strlen(TH_DIR)) != 0) return false;
+    if (!_is_text_ext(_base(target))) return false;
 
     th_node_t *cur = s_fm_root;
-    const char *p = s_fm_anchor + strlen(TH_DIR);
+    const char *p = target + strlen(TH_DIR);
     char seg[COS_FS_NAME_MAX];
     bool changed = false;
 
@@ -1096,17 +1096,30 @@ static void _fm_restore_position(void)
 
     if (changed) _fm_rebuild();
 
-    /* scroll so the anchor file row is visible */
+    /* scroll so the file row is visible (vertically centred when possible) */
     for (int i = 0; i < s_fm_item_count; i++) {
         if (s_fm_items[i].node &&
-            strcmp(s_fm_items[i].node->path, s_fm_anchor) == 0) {
-            lv_obj_scroll_to_y(s_fm_list, i * TH_FM_ROW_H, LV_ANIM_OFF);
-            break;
+            strcmp(s_fm_items[i].node->path, target) == 0) {
+            int32_t y = i * TH_FM_ROW_H - (132 - TH_FM_ROW_H) / 2;
+            if (y < 0) y = 0;
+            lv_obj_scroll_to_y(s_fm_list, y, LV_ANIM_OFF);
+            return true;
         }
     }
+    return false;
 }
 
-static void _fm_star_cb(lv_event_t *e);   /* forward decl: defined later, used by _fm_open */
+/* FM 打开时自动恢复滚动位置(锚点 = 上次从 FM 打开的文件) */
+static void _fm_restore_position(void)
+{
+    _fm_reveal(s_fm_anchor);
+}
+
+static void _fm_pos_cb(lv_event_t *e)
+{
+    (void)e;
+    _fm_reveal(s_cur_path);             /* 定位当前阅读的文件 */
+}
 
 static void _fm_open(void)
 {
@@ -1181,23 +1194,25 @@ static void _fm_open(void)
     lv_obj_set_style_radius(s_fm_list, 4, LV_PART_SCROLLBAR);
     lv_obj_set_style_pad_bottom(s_fm_list, 36, 0);   /* room for the FAB */
 
-    /* floating star button (bottom of the file tree): favorite current file */
-    s_fm_star_btn = lv_button_create(s_fm_panel);
-    lv_obj_remove_style_all(s_fm_star_btn);
-    lv_obj_set_size(s_fm_star_btn, 40, 30);
-    lv_obj_set_pos(s_fm_star_btn, 86, 162);
-    lv_obj_set_style_bg_color(s_fm_star_btn, lv_color_hex(_UI_CAPSULE), 0);
-    lv_obj_set_style_bg_opa(s_fm_star_btn, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(s_fm_star_btn, 15, 0);
-    lv_obj_set_style_border_width(s_fm_star_btn, 0, 0);
-    lv_obj_add_event_cb(s_fm_star_btn, _fm_star_cb, LV_EVENT_CLICKED, NULL);
-    s_fm_star_img = lv_image_create(s_fm_star_btn);
-    lv_image_set_src(s_fm_star_img, &cos_icon_star);
-    lv_obj_center(s_fm_star_img);
-    lv_obj_remove_flag(s_fm_star_img, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(s_fm_star_img, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_img_recolor_opa(s_fm_star_img, LV_OPA_COVER, 0);
-    lv_obj_set_style_img_recolor(s_fm_star_img, lv_color_hex(_UI_STAR_ON), 0);
+    /* floating locate button (bottom of the file tree): scroll the tree to the
+     * currently viewed file.  Replaces the old floating star here -- starring
+     * lives on the bottom capsule's star button / the Stars panel. */
+    s_fm_pos_btn = lv_button_create(s_fm_panel);
+    lv_obj_remove_style_all(s_fm_pos_btn);
+    lv_obj_set_size(s_fm_pos_btn, 40, 30);
+    lv_obj_set_pos(s_fm_pos_btn, 86, 162);
+    lv_obj_set_style_bg_color(s_fm_pos_btn, lv_color_hex(_UI_CAPSULE), 0);
+    lv_obj_set_style_bg_opa(s_fm_pos_btn, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(s_fm_pos_btn, 15, 0);
+    lv_obj_set_style_border_width(s_fm_pos_btn, 0, 0);
+    lv_obj_add_event_cb(s_fm_pos_btn, _fm_pos_cb, LV_EVENT_CLICKED, NULL);
+    s_fm_pos_img = lv_image_create(s_fm_pos_btn);
+    lv_image_set_src(s_fm_pos_img, &cos_icon_position);
+    lv_obj_center(s_fm_pos_img);
+    lv_obj_remove_flag(s_fm_pos_img, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(s_fm_pos_img, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_img_recolor_opa(s_fm_pos_img, LV_OPA_COVER, 0);
+    lv_obj_set_style_img_recolor(s_fm_pos_img, lv_color_hex(_UI_TEXT), 0);
 
     /* root node */
     s_fm_root = (th_node_t *)cos_malloc_zeroed(sizeof(th_node_t));
@@ -1408,10 +1423,12 @@ static void _stars_star_cb(lv_event_t *e)
     int i = (int)(intptr_t)lv_event_get_user_data(e);
     lv_event_stop_bubbling(e);
     if (i < 0 || i >= s_stars_count) return;
-    if (!s_stars_active[i]) return;        /* already canceled */
-    s_stars_active[i] = false;            /* keep in UI, drop from file */
+    /* Toggle: canceling drops the path from the file, tapping the dimmed
+     * star again re-adds it. Rewriting from the in-memory list (instead of
+     * appending) keeps the on-screen order, so no row jumps around. */
+    s_stars_active[i] = !s_stars_active[i];
     _stars_write_file();
-    _stars_set_star(i, false);            /* dim the star */
+    _stars_set_star(i, s_stars_active[i]);
 }
 
 /* Rebuild the flat, non-nested list of favorited files. */
@@ -1637,12 +1654,14 @@ static lv_obj_t *_make_arrow(lv_obj_t *parent, lv_align_t align, int x, int y,
 {
     lv_obj_t *btn = lv_button_create(parent);
     lv_obj_remove_style_all(btn);
-    lv_obj_set_size(btn, 30, 56);
+    lv_obj_set_size(btn, 34, 64);
     lv_obj_set_style_bg_color(btn, lv_color_hex(_UI_BTN_BG), 0);
     lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_opa(btn, 200, LV_STATE_PRESSED);  /* press feedback */
     lv_obj_set_style_radius(btn, 6, 0);
     lv_obj_set_style_border_width(btn, 0, 0);
     lv_obj_set_style_pad_all(btn, 0, 0);
+    lv_obj_clear_flag(btn, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_align(btn, align, x, y);
     lv_obj_add_event_cb(btn, cb, LV_EVENT_CLICKED, NULL);
 
@@ -1656,15 +1675,15 @@ static lv_obj_t *_make_arrow(lv_obj_t *parent, lv_align_t align, int x, int y,
     return btn;
 }
 
-/* Show / hide the capsule and the side arrows while the text scrolls. */
+/* Show / hide the capsule only.  The side arrows stay visible: hiding a
+ * widget while it is being pressed makes it miss RELEASED, so LVGL never
+ * fires CLICKED and the tap is silently dropped (this is why paging needed
+ * several attempts). */
 static void _ui_controls(bool vis)
 {
-    lv_obj_t *objs[] = { s_prev_btn, s_next_btn, s_capsule };
-    for (unsigned i = 0; i < sizeof(objs) / sizeof(objs[0]); i++) {
-        if (!objs[i]) continue;
-        if (vis) lv_obj_remove_flag(objs[i], LV_OBJ_FLAG_HIDDEN);
-        else     lv_obj_add_flag(objs[i], LV_OBJ_FLAG_HIDDEN);
-    }
+    if (!s_capsule) return;
+    if (vis) lv_obj_remove_flag(s_capsule, LV_OBJ_FLAG_HIDDEN);
+    else     lv_obj_add_flag(s_capsule, LV_OBJ_FLAG_HIDDEN);
 }
 
 static void _card_scroll_cb(lv_event_t *e)
@@ -1698,13 +1717,6 @@ static void _card_scroll_cb(lv_event_t *e)
 
 static void _fm_btn_cb(lv_event_t *e)  { (void)e; _fm_open(); }
 static void _star_btn_cb(lv_event_t *e) { (void)e; _stars_open(); }
-static void _fm_star_cb(lv_event_t *e)
-{
-    (void)e;
-    if (!s_cur_path) return;            /* nothing is being viewed */
-    _th_stars_append(s_cur_path);
-    COS_LOG_I("Texthub: starred %s", s_cur_path);
-}
 static void _prev_btn_cb(lv_event_t *e) { (void)e; _prev_file(); }
 static void _next_btn_cb(lv_event_t *e) { (void)e; _next_file(); }
 
@@ -1726,23 +1738,21 @@ static void _build_ui(cos_activity_t *act)
     lv_obj_remove_flag(s_name, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_remove_flag(s_name, LV_OBJ_FLAG_SCROLLABLE);
 
-    /* side arrows */
-    s_prev_btn = _make_arrow(s_root, LV_ALIGN_LEFT_MID, 2, 0,
-                             _prev_btn_cb, RI_ARROW_LEFT_S_LINE);
-    s_next_btn = _make_arrow(s_root, LV_ALIGN_RIGHT_MID, -2, 0,
-                             _next_btn_cb, RI_ARROW_RIGHT_S_LINE);
-
-    /* text card */
+    /* text card -- width leaves a clear gutter on both sides so the side
+     * arrows are never overlapped by the (created later) card.  Overlap made
+     * the card eat the press: LVGL picks the topmost sibling under the
+     * finger, and only the outer ~12 px of each arrow used to be hittable. */
     s_card = lv_obj_create(s_root);
     lv_obj_remove_style_all(s_card);
-    lv_obj_set_size(s_card, 212, 132);
-    lv_obj_set_pos(s_card, 14, 60);
+    lv_obj_set_size(s_card, 168, 132);
+    lv_obj_set_pos(s_card, 36, 60);
     lv_obj_set_style_bg_color(s_card, lv_color_hex(_UI_CARD), 0);
     lv_obj_set_style_bg_opa(s_card, _UI_CARD_OPA, 0);
     lv_obj_set_style_radius(s_card, 12, 0);
     lv_obj_set_style_border_width(s_card, 0, 0);
     lv_obj_set_style_pad_all(s_card, 0, 0);
     lv_obj_add_flag(s_card, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(s_card, LV_OBJ_FLAG_SCROLL_ELASTIC);
     lv_obj_set_scrollbar_mode(s_card, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_scroll_dir(s_card, LV_DIR_VER);
     lv_obj_add_event_cb(s_card, _card_scroll_cb, LV_EVENT_SCROLL_BEGIN, NULL);
@@ -1753,12 +1763,21 @@ static void _build_ui(cos_activity_t *act)
     lv_obj_set_style_text_color(s_body, lv_color_hex(_UI_TEXT), 0);
     lv_obj_set_style_text_opa(s_body, 235, 0);
     lv_obj_set_style_text_align(s_body, LV_TEXT_ALIGN_LEFT, 0);
-    lv_obj_set_width(s_body, 188);
+    /* width matches the card interior (168 - 2*12): lines never render wider
+     * than the card, so per-frame glyph drawing skips nothing to clipping. */
+    lv_obj_set_width(s_body, 144);
     lv_obj_set_pos(s_body, 12, 8);
     lv_label_set_long_mode(s_body, LV_LABEL_LONG_MODE_WRAP);
     lv_label_set_text(s_body, "");
     lv_obj_remove_flag(s_body, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_remove_flag(s_body, LV_OBJ_FLAG_SCROLLABLE);
+
+    /* side arrows: created AFTER the card so they sit on top in z-order;
+     * without this the card (a scrollable sibling) swallowed presses first. */
+    s_prev_btn = _make_arrow(s_root, LV_ALIGN_LEFT_MID, 2, 0,
+                             _prev_btn_cb, RI_ARROW_LEFT_S_LINE);
+    s_next_btn = _make_arrow(s_root, LV_ALIGN_RIGHT_MID, -2, 0,
+                             _next_btn_cb, RI_ARROW_RIGHT_S_LINE);
 
     /* bottom action capsule: delete + FM + Stars (Album style) */
     s_capsule = lv_obj_create(s_root);
@@ -1810,6 +1829,12 @@ static void _on_enter(cos_activity_t *act)
 {
     s_act = act;
     _build_ui(act);
+
+    /* 惯性参数微调(真机 SPI 单缓冲 ~35ms/帧,甩动帧跟不上时观感掉帧):
+     * throw 调大 -> 减速更快、甩动距离更短 -> 惯性期间需要渲染的帧数更少。
+     * LVGL 无 getter,退出时恢复默认值 10(LV_INDEV_DEF_SCROLL_THROW)。 */
+    lv_indev_t *tdev = cos_touch_get_indev();
+    if (tdev) lv_indev_set_scroll_throw(tdev, 25);
 
     /* try history first */
     if (cos_storage_is_file(TH_HIST_FILE)) {
@@ -1889,6 +1914,9 @@ static void _on_enter(cos_activity_t *act)
 static void _on_destroy(cos_activity_t *act)
 {
     (void)act;
+    /* restore the default fling tuning changed in _on_enter */
+    lv_indev_t *tdev = cos_touch_get_indev();
+    if (tdev) lv_indev_set_scroll_throw(tdev, 10);
     /* persist the reading position (view is still valid during on_destroy) */
     if (s_cur_path) {
         _update_cur_pos();
