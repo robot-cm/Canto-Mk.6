@@ -83,6 +83,7 @@ idf_component_register(
         "${COS_ROOT}/resources/images/icon/cos_icon_delete.c"
         "${COS_ROOT}/resources/images/icon/cos_icon_fm.c"
         "${COS_ROOT}/resources/images/icon/cos_icon_star.c"
+        "${COS_ROOT}/resources/images/icon/cos_icon_position.c"
         "${COS_ROOT}/resources/images/icon/cos_icon_search.c"
     INCLUDE_DIRS
         "."

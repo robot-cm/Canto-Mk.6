@@ -279,6 +279,14 @@ cos_result_t cos_storage_file_tell(cos_file_t fp, uint32_t *pos);
 cos_result_t cos_storage_file_remove(const char *path);
 
 /**
+ * @brief Move/rename a file or directory (same volume)
+ * @param old_path Source path
+ * @param new_path Destination path (target directory must exist for files)
+ * @return COS_OK on success, error code on failure
+ */
+cos_result_t cos_storage_file_move(const char *old_path, const char *new_path);
+
+/**
  * @brief Open directory with path validation
  * @param path Directory path
  * @return Directory handle or NULL on failure
@@ -299,6 +307,33 @@ cos_result_t cos_storage_dir_read(cos_dir_t dir, char *name_buf, size_t buf_size
  * @param dir Directory handle
  */
 void cos_storage_dir_close(cos_dir_t dir);
+
+/**
+ * @brief Read directory entry + type in one scan (avoids per-entry stat)
+ * @param dir Directory handle
+ * @param name_buf Buffer to store entry name
+ * @param buf_size Size of buffer
+ * @param type_out Receives COS_FS_TYPE_FILE / COS_FS_TYPE_DIR, or
+ *        COS_FS_TYPE_NOT_EXIST when unknown (caller should stat)
+ * @return COS_OK on success, error code on failure
+ */
+cos_result_t cos_storage_dir_read_ex(cos_dir_t dir, char *name_buf,
+                                     size_t buf_size, cos_fs_type_t *type_out);
+
+/**
+ * @brief Get current directory stream cursor
+ * @param dir Directory handle
+ * @return Non-negative cursor on success, -1 on error/unsupported
+ */
+long cos_storage_dir_tell(cos_dir_t dir);
+
+/**
+ * @brief Move directory stream back to a cursor from cos_storage_dir_tell
+ * @param dir Directory handle
+ * @param offset Cursor returned earlier by cos_storage_dir_tell
+ * @return COS_OK on success, error code on failure
+ */
+cos_result_t cos_storage_dir_seek(cos_dir_t dir, long offset);
 
 /**
  * @brief Initialize storage service

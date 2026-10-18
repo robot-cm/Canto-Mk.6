@@ -10,7 +10,7 @@ idf.py -p /dev/ttyACM0 monitor 2>&1 | grep --line-buffered "DRAW-DIAG"
 cmake -S simulator -B simulator/build
 cmake --build simulator/build -j 8
 
-[apps] installed: 14
+[apps] installed: 16
   0: com.cantomk6.alarm
   1: com.cantomk6.breach
   2: com.cantomk6.calculator
@@ -25,6 +25,8 @@ cmake --build simulator/build -j 8
   11: com.cantomk6.dictionary
   12: com.cantomk6.usb_msc
   13: com.cantomk6.spotify
+  14: com.cantomk6.profmonitor
+  15: com.cantomk6.eqsolver
 
 
 

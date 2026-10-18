@@ -52,6 +52,11 @@
 #include "ui/system/cos_round_clip.h"
 #include "lvgl.h"
 
+#if COS_RTOS_TYPE == COS_RTOS_FREERTOS
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#endif
+
 #define COS_LOG_TAG "Texthub"
 
 /* ------------------------------------------------------------------ */
@@ -63,6 +68,11 @@
 #define TH_HIST_FILE    "/sdcard/history/texthub/latest.txt"
 #define TH_STARS_FILE   "/sdcard/history/th_stars.txt"
 
+/* 一次性目录整理:首次打开时把大文件夹横向拆分。锁文件存在则跳过。 */
+#define TH_TIDY_LOCK        "/sdcard/texthub/TIDY_LOCK"
+#define TH_TIDY_THRESHOLD   100    /* 文件夹内文件数超过该值就拆分 */
+#define TH_TIDY_CHUNK       100    /* 每个拆分后子文件夹最多文件数 */
+
 #define TH_READ_ONCE_MAX   (128 * 1024)   /* files this size load at once  */
 #define TH_SEG_BYTES       (16 * 1024)    /* chunk size for large files    */
 #define TH_SEG_LINE_MAX    (4096)         /* guard against one giant line  */
@@ -71,7 +81,8 @@
 
 #define TH_FM_DEPTH_MAX    6              /* FM tree max recursion depth   */
 #define TH_FM_MAX_CHILD    300            /* entries per expanded dir      */
-#define TH_FM_MAX_VISIBLE  300            /* visible rows cap              */
+#define TH_FM_MAX_VISIBLE  2048           /* visible rows cap (model only) */
+#define TH_FM_OVERSCAN     3              /* rows kept above/below viewport */
 #define TH_FM_ROW_H        24             /* compact row spacing (TINY 10px) */
 #define TH_ICON_SZ         24             /* capsule / FAB icon display size */
 #define TH_ICON_ROW        20             /* per-row star icon in Stars list */
@@ -150,6 +161,9 @@ static lv_obj_t  *s_fm_pos_btn, *s_fm_pos_img;    /* bottom floating locate */
 static th_node_t *s_fm_root;
 static th_item_t *s_fm_items;
 static int        s_fm_item_count;
+static int        s_fm_cap;                       /* allocated items capacity */
+static lv_obj_t  *s_fm_cont;                      /* virtual rows container */
+static int        s_fm_win_first = -1, s_fm_win_last = -1;  /* rendered range */
 static char       s_fm_anchor[COS_FS_PATH_MAX];   /* last file opened from FM
                                                    * (history line 3): the FM
                                                    * reopens scrolled to it */
@@ -763,8 +777,8 @@ static bool _fm_node_load(th_node_t *n)
     /* pass 1: count entries */
     cos_dir_t d = cos_storage_dir_open(n->path);
     if (!d) {
-        n->loaded = true;
-        COS_LOG_W("Texthub: opendir FAIL %s", n->path);
+        /* 不置 loaded=true:打开失败可重试,否则目录会永久显示为空 */
+        COS_LOG_W("Texthub: opendir FAIL %s (retryable)", n->path);
         return false;
     }
     int cnt = 0;
@@ -816,9 +830,43 @@ static bool _fm_node_load(th_node_t *n)
     return i > 0;
 }
 
+/* 先数一遍可见行数,再按需扩容模型数组:展开 300 项的大目录后
+ * 固定 300 的容量会把后面的行截断,导致"定位"永远找不到目标行。 */
+static int _fm_count_items(th_node_t *n)
+{
+    if (!n) return 0;
+    int c = 1;
+    if (n->is_dir && n->expanded && n->children) {
+        for (int i = 0; i < n->child_count; i++) {
+            c += _fm_count_items(&n->children[i]);
+        }
+    }
+    return c;
+}
+
+static bool _fm_items_reserve(int need)
+{
+    if (need <= s_fm_cap) return true;
+    int cap = s_fm_cap > 0 ? s_fm_cap : 320;
+    while (cap < need) cap *= 2;
+    if (cap > TH_FM_MAX_VISIBLE) cap = TH_FM_MAX_VISIBLE;
+    if (need > cap) return false;
+    size_t bytes = (size_t)cap * sizeof(th_item_t);
+    th_item_t *p = s_fm_items
+                 ? (th_item_t *)cos_realloc(s_fm_items, bytes)
+                 : (th_item_t *)cos_malloc(bytes);
+    if (!p) {
+        COS_LOG_E("Texthub: items grow FAIL need=%d", need);
+        return false;
+    }
+    s_fm_items = p;
+    s_fm_cap   = cap;
+    COS_LOG_I("Texthub: items cap=%d", cap);
+    return true;
+}
+
 static void _fm_build_items(th_node_t *n, int depth, int *cnt)
 {
-    if (*cnt >= TH_FM_MAX_VISIBLE) return;
     if (!n) return;
     s_fm_items[*cnt].node = n;
     s_fm_items[*cnt].depth = depth;
@@ -826,7 +874,7 @@ static void _fm_build_items(th_node_t *n, int depth, int *cnt)
 
     /* only directories recurse (files are leaves: click opens them) */
     if (n->is_dir && n->expanded && n->children) {
-        for (int i = 0; i < n->child_count && *cnt < TH_FM_MAX_VISIBLE; i++) {
+        for (int i = 0; i < n->child_count; i++) {
             _fm_build_items(&n->children[i], depth + 1, cnt);
         }
     }
@@ -834,6 +882,9 @@ static void _fm_build_items(th_node_t *n, int depth, int *cnt)
 
 static void _fm_row_cb(lv_event_t *e);  /* fwd decl */
 static void _fm_arrow_cb(lv_event_t *e);
+static void _fm_make_row(int i);
+static void _fm_update_window(bool force);
+static void _fm_list_scroll_cb(lv_event_t *e);
 
 static void _fm_rebuild(void)
 {
@@ -846,34 +897,46 @@ static void _fm_rebuild(void)
      * 展开/收起后跳回列表顶部 */
     int32_t scroll_y = lv_obj_get_scroll_y(s_fm_list);
 
-    /* clear old rows */
-    lv_obj_clean(s_fm_list);
-
     if (!s_fm_root) {
         COS_LOG_E("Texthub: rebuild root NULL");
         return;
     }
     if (!s_fm_root->loaded) _fm_node_load(s_fm_root);
 
-    if (!s_fm_items) {
-        s_fm_items = (th_item_t *)cos_malloc(TH_FM_MAX_VISIBLE * sizeof(th_item_t));
-        if (!s_fm_items) {
-            COS_LOG_E("Texthub: items alloc FAIL size=%u",
-                      (unsigned)(TH_FM_MAX_VISIBLE * sizeof(th_item_t)));
-            return;
-        }
-        COS_LOG_I("Texthub: items alloc OK");
-    }
+    int need = _fm_count_items(s_fm_root);
+    if (!_fm_items_reserve(need)) return;
+
     int cnt = 0;
     _fm_build_items(s_fm_root, 0, &cnt);
     s_fm_item_count = cnt;
     COS_LOG_I("Texthub: rebuild items=%d", cnt);
 
-    for (int i = 0; i < cnt; i++) {
+    /* 虚拟列表容器:高度 = 全部行高,行只在视口附近按需创建。
+     * 一次创建 300 行会让 UI 任务阻塞数秒并触发 task_wdt。 */
+    if (!s_fm_cont) {
+        s_fm_cont = lv_obj_create(s_fm_list);
+        lv_obj_remove_style_all(s_fm_cont);
+        lv_obj_clear_flag(s_fm_cont, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_clear_flag(s_fm_cont, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_pos(s_fm_cont, 0, 0);
+        lv_obj_add_event_cb(s_fm_list, _fm_list_scroll_cb, LV_EVENT_SCROLL, NULL);
+    }
+    lv_obj_set_size(s_fm_cont, 196, cnt > 0 ? cnt * TH_FM_ROW_H : 1);
+    lv_obj_clean(s_fm_cont);
+    s_fm_win_first = s_fm_win_last = -1;
+
+    if (scroll_y > 0) lv_obj_scroll_to_y(s_fm_list, scroll_y, LV_ANIM_OFF);
+    _fm_update_window(true);
+}
+
+/* 创建第 i 行(索引基于扁平模型 s_fm_items) */
+static void _fm_make_row(int i)
+{
+    {
         th_node_t *node = s_fm_items[i].node;
         int depth = s_fm_items[i].depth;
 
-        lv_obj_t *row = lv_button_create(s_fm_list);
+        lv_obj_t *row = lv_button_create(s_fm_cont);
         lv_obj_remove_style_all(row);
         /* NOTE: use constant width, NOT lv_obj_get_width(s_fm_list) -- right
          * after creation the list has not been laid out yet and get_width
@@ -939,11 +1002,33 @@ static void _fm_rebuild(void)
 
         lv_obj_add_event_cb(row, _fm_row_cb, LV_EVENT_CLICKED, node);
     }
-    COS_LOG_I("Texthub: rows rendered=%d", cnt);
+}
 
-    /* 恢复滚动位置,保持展开/收起前视口不变(超出新内容时 LVGL 自动 clamp) */
-    if (scroll_y > 0)
-        lv_obj_scroll_to_y(s_fm_list, scroll_y, LV_ANIM_OFF);
+/* 只渲染视口附近的行(虚拟列表)。滚动时窗口移动才重建,平滚不重建。 */
+static void _fm_update_window(bool force)
+{
+    if (!s_fm_list || !s_fm_cont || s_fm_item_count <= 0) return;
+
+    int32_t sy = lv_obj_get_scroll_y(s_fm_list);
+    int32_t h  = lv_obj_get_height(s_fm_list);
+    if (h <= 0) h = 132;
+
+    int first = (int)(sy / TH_FM_ROW_H) - TH_FM_OVERSCAN;
+    if (first < 0) first = 0;
+    int last  = (int)((sy + h) / TH_FM_ROW_H) + TH_FM_OVERSCAN;
+    if (last > s_fm_item_count - 1) last = s_fm_item_count - 1;
+    if (!force && first == s_fm_win_first && last == s_fm_win_last) return;
+
+    s_fm_win_first = first;
+    s_fm_win_last  = last;
+    lv_obj_clean(s_fm_cont);
+    for (int i = first; i <= last; i++) _fm_make_row(i);
+}
+
+static void _fm_list_scroll_cb(lv_event_t *e)
+{
+    (void)e;
+    _fm_update_window(false);
 }
 
 static void _fm_close(void)
@@ -953,6 +1038,9 @@ static void _fm_close(void)
 
     if (s_fm_items) { cos_free(s_fm_items); s_fm_items = NULL; }
     s_fm_item_count = 0;
+    s_fm_cap = 0;
+    s_fm_cont = NULL;                    /* deleted with the list */
+    s_fm_win_first = s_fm_win_last = -1;
     if (s_fm_root) {
         _fm_children_free(s_fm_root);
         cos_free(s_fm_root);   /* root itself is a single malloc'd node */
@@ -1094,6 +1182,13 @@ static bool _fm_reveal(const char *target)
         cur = match;
     }
 
+    /* 循环结束时 cur 停在目标文件的父目录:它可能已 expanded 但 children 尚未
+     * 加载,必须补一次加载,否则目标文件进不了扁平列表、定位会失败 */
+    if (cur->is_dir && !cur->loaded) {
+        _fm_node_load(cur);
+        changed = true;
+    }
+
     if (changed) _fm_rebuild();
 
     /* scroll so the file row is visible (vertically centred when possible) */
@@ -1103,6 +1198,7 @@ static bool _fm_reveal(const char *target)
             int32_t y = i * TH_FM_ROW_H - (132 - TH_FM_ROW_H) / 2;
             if (y < 0) y = 0;
             lv_obj_scroll_to_y(s_fm_list, y, LV_ANIM_OFF);
+            _fm_update_window(true);     /* render the rows now in view */
             return true;
         }
     }
@@ -1825,9 +1921,217 @@ static bool _on_swipe_back(cos_activity_t *self, lv_dir_t dir)
     return false;
 }
 
+/* ------------------------------------------------------------------ */
+/* One-shot directory tidy                                            */
+/* ------------------------------------------------------------------ */
+/* 首次打开时把大文件夹横向拆分(每个子文件夹 ≤ TH_TIDY_CHUNK 个文件),
+ * 完成后写入 TH_TIDY_LOCK 空文件;锁存在则跳过,除非用户手动删锁再打开。 */
+
+typedef struct {
+    char name[COS_FS_NAME_MAX];
+} _tidy_name_t;
+
+static int _tidy_name_cmp(const void *a, const void *b)
+{
+    return strcasecmp(((const _tidy_name_t *)a)->name,
+                      ((const _tidy_name_t *)b)->name);
+}
+
+static void _tidy_join(char *out, size_t outsz, const char *dir, const char *name)
+{
+    size_t dl = strlen(dir);
+    snprintf(out, outsz, "%s%s%s",
+             dir, (dl > 0 && dir[dl - 1] == '/') ? "" : "/", name);
+}
+
+static void _tidy_yield(void)
+{
+#if COS_RTOS_TYPE == COS_RTOS_FREERTOS
+    vTaskDelay(pdMS_TO_TICKS(1));   /* 让 IDLE 喂看门狗,避免大目录拆分触发 TWDT */
+#else
+    (void)0;
+#endif
+}
+
+static _tidy_name_t *_tidy_grow(_tidy_name_t *arr, int *cap, int need)
+{
+    if (need <= *cap) return arr;
+    int ncap = *cap ? *cap * 2 : 16;
+    while (ncap < need) ncap *= 2;
+    _tidy_name_t *n = arr
+        ? (_tidy_name_t *)cos_realloc(arr, (size_t)ncap * sizeof(*arr))
+        : (_tidy_name_t *)cos_malloc((size_t)ncap * sizeof(*arr));
+    if (n) *cap = ncap;
+    return n;
+}
+
+/* 收集目录下的普通文件与子目录(跳过 . 与 . 开头的隐藏项)。
+ * 返回 false 表示目录打不开。 */
+static bool _tidy_list(const char *dir,
+                       _tidy_name_t **files, int *file_cnt,
+                       _tidy_name_t **subs,  int *sub_cnt)
+{
+    *files = NULL; *file_cnt = 0;
+    *subs  = NULL; *sub_cnt  = 0;
+
+    cos_dir_t d = cos_storage_dir_open(dir);
+    if (!d) return false;
+
+    _tidy_name_t *f = NULL; int fc = 0, fcap = 0;
+    _tidy_name_t *s = NULL; int sc = 0, scap = 0;
+    char name[COS_FS_NAME_MAX];
+    cos_fs_type_t t;
+    while (cos_storage_dir_read_ex(d, name, sizeof(name), &t) == COS_OK) {
+        if (name[0] == '\0' || name[0] == '.') continue;  /* . .. .thumb ... */
+        bool is_dir;
+        if (t == COS_FS_TYPE_DIR)      is_dir = true;
+        else if (t == COS_FS_TYPE_FILE) is_dir = false;
+        else {
+            /* 后端拿不到类型(FAT 上通常不会),退回 stat 兜底 */
+            char full[COS_FS_PATH_MAX];
+            _tidy_join(full, sizeof(full), dir, name);
+            is_dir = cos_storage_is_dir(full);
+        }
+        if (is_dir) {
+            _tidy_name_t *ns = _tidy_grow(s, &scap, sc + 1);
+            if (!ns) break;
+            s = ns;
+            strncpy(s[sc].name, name, sizeof(s[sc].name) - 1);
+            s[sc].name[sizeof(s[sc].name) - 1] = '\0';
+            sc++;
+        } else {
+            _tidy_name_t *nf = _tidy_grow(f, &fcap, fc + 1);
+            if (!nf) break;
+            f = nf;
+            strncpy(f[fc].name, name, sizeof(f[fc].name) - 1);
+            f[fc].name[sizeof(f[fc].name) - 1] = '\0';
+            fc++;
+        }
+    }
+    cos_storage_dir_close(d);
+    *files = f; *file_cnt = fc;
+    *subs  = s; *sub_cnt  = sc;
+    return true;
+}
+
+/* 递归:文件数超过阈值则横向拆成 base_1、base_2…;子目录原样保留并继续递归。 */
+static bool _tidy_dir(const char *dir, const char *base)
+{
+    _tidy_name_t *files = NULL; int fc = 0;
+    _tidy_name_t *subs  = NULL; int sc = 0;
+    if (!_tidy_list(dir, &files, &fc, &subs, &sc)) return false;
+
+    bool changed = false;
+
+    if (fc > TH_TIDY_THRESHOLD) {
+        COS_LOG_I("Texthub: split %s (%d files)", dir, fc);
+        qsort(files, (size_t)fc, sizeof(*files), _tidy_name_cmp);
+        int idx = 0, part = 1;
+        while (idx < fc) {
+            char sub[COS_FS_NAME_MAX + 16];
+            snprintf(sub, sizeof(sub), "%s_%d", base, part);
+
+            char subdir[COS_FS_PATH_MAX];
+            _tidy_join(subdir, sizeof(subdir), dir, sub);
+            while (cos_storage_is_dir(subdir)) {   /* 重跑时跳过已存在分组 */
+                part++;
+                snprintf(sub, sizeof(sub), "%s_%d", base, part);
+                _tidy_join(subdir, sizeof(subdir), dir, sub);
+            }
+            if (cos_storage_mkdir_recursive(subdir) != COS_OK) break;
+
+            int end = idx + TH_TIDY_CHUNK;
+            if (end > fc) end = fc;
+            for (int i = idx; i < end; i++) {
+                char src[COS_FS_PATH_MAX], dst[COS_FS_PATH_MAX];
+                _tidy_join(src, sizeof(src), dir, files[i].name);
+                _tidy_join(dst, sizeof(dst), subdir, files[i].name);
+                cos_storage_file_move(src, dst);
+                if (((i - idx) & 7) == 0) _tidy_yield();
+            }
+            COS_LOG_I("Texthub: %s -> %s (%d files)", dir, sub, end - idx);
+            idx = end;
+            part++;
+            changed = true;
+        }
+    }
+
+    for (int i = 0; i < sc; i++) {
+        char full[COS_FS_PATH_MAX];
+        _tidy_join(full, sizeof(full), dir, subs[i].name);
+        changed |= _tidy_dir(full, subs[i].name);
+    }
+
+    if (files) cos_free(files);
+    if (subs)  cos_free(subs);
+    return changed;
+}
+
+/* 后台整理状态(跨任务用 volatile 共享) */
+static volatile bool s_tidy_done = false;
+static volatile bool s_tidy_running = false;
+static bool s_app_alive = false;          /* UI 线程上置位,on_destroy 清零 */
+
+static void _on_enter_after_tidy(void);   /* fwd */
+
+/* 实际整理动作:同步、独占 SD 访问,在后台任务里跑,不在 UI 线程跑。 */
+static void _tidy_work(void)
+{
+    COS_LOG_I("Texthub: tidying %s", TH_DIR);
+    bool changed = _tidy_dir(TH_DIR, "texthub");
+    COS_LOG_I("Texthub: tidy done changed=%d", (int)changed);
+    /* 写空锁:以后不再清理,除非用户手动删锁后重新打开 */
+    cos_storage_create_file_if_not_exist(TH_TIDY_LOCK, NULL);
+    s_tidy_done = true;
+    s_tidy_running = false;
+}
+
+static void _tidy_done_cb(void *arg)
+{
+    (void)arg;
+    s_tidy_running = false;
+    if (!s_app_alive) return;             /* 整理期间 App 已被退出 */
+    _on_enter_after_tidy();
+}
+
+#if COS_RTOS_TYPE == COS_RTOS_FREERTOS
+static void _tidy_task(void *arg)
+{
+    (void)arg;
+    _tidy_work();
+    lv_async_call(_tidy_done_cb, NULL);   /* 回主线程刷新界面 */
+    vTaskDelete(NULL);
+}
+#endif
+
+/* 需要整理且未加锁时返回 true。 */
+static bool _tidy_needed(void)
+{
+    return !cos_storage_is_file(TH_TIDY_LOCK);
+}
+
+static void _tidy_start_async(void)
+{
+    s_tidy_done = false;
+#if COS_RTOS_TYPE == COS_RTOS_FREERTOS
+    s_tidy_running = true;
+    if (xTaskCreatePinnedToCore(_tidy_task, "th_tidy", 16384, NULL,
+                                tskIDLE_PRIORITY + 2, NULL,
+                                tskNO_AFFINITY) == pdPASS) {
+        return;                            /* 后台跑,完成后走 _tidy_done_cb */
+    }
+    /* 任务创建失败:退化为同步执行(罕见) */
+    s_tidy_running = false;
+#endif
+    /* 裸机/模拟器或退化路径:本地文件系统快,直接同步跑 */
+    _tidy_work();
+    _on_enter_after_tidy();
+}
+
 static void _on_enter(cos_activity_t *act)
 {
     s_act = act;
+    s_app_alive = true;
     _build_ui(act);
 
     /* 惯性参数微调(真机 SPI 单缓冲 ~35ms/帧,甩动帧跟不上时观感掉帧):
@@ -1836,6 +2140,17 @@ static void _on_enter(cos_activity_t *act)
     lv_indev_t *tdev = cos_touch_get_indev();
     if (tdev) lv_indev_set_scroll_throw(tdev, 25);
 
+    /* 首次打开:先显示"整理中"并后台整理,完成后回到 _on_enter_after_tidy */
+    if (_tidy_needed()) {
+        _show_centered_msg("整理文件中...");
+        _tidy_start_async();
+        return;
+    }
+    _on_enter_after_tidy();
+}
+
+static void _on_enter_after_tidy(void)
+{
     /* try history first */
     if (cos_storage_is_file(TH_HIST_FILE)) {
         char *last = cos_storage_read_file(TH_HIST_FILE);
@@ -1914,6 +2229,8 @@ static void _on_enter(cos_activity_t *act)
 static void _on_destroy(cos_activity_t *act)
 {
     (void)act;
+    s_app_alive = false;
+    lv_async_call_cancel(_tidy_done_cb, NULL);   /* 退出期间取消待回调 */
     /* restore the default fling tuning changed in _on_enter */
     lv_indev_t *tdev = cos_touch_get_indev();
     if (tdev) lv_indev_set_scroll_throw(tdev, 10);

@@ -416,6 +416,51 @@ cos_result_t cos_fs_readdir(cos_dir_t dir, char *name, size_t max_len)
 #endif
 }
 
+cos_result_t cos_fs_readdir_ex(cos_dir_t dir, char *name, size_t max_len,
+                               cos_fs_type_t *type_out)
+{
+    if (!dir || !name || max_len == 0)
+        return COS_ERR_IO;
+    if (type_out)
+        *type_out = COS_FS_TYPE_NOT_EXIST;
+#ifdef _WIN32
+    _cos_win_dir_t *wd = (_cos_win_dir_t *)dir;
+    if (wd->done)
+        return COS_ERR_IO;
+    if (wd->first)
+        wd->first = 0;
+    else if (_wfindnext(wd->handle, &wd->data) != 0)
+    {
+        wd->done = 1;
+        return COS_ERR_IO;
+    }
+    char *u8 = _cos_wide_to_utf8(wd->data.name);
+    if (!u8)
+        return COS_ERR_IO;
+    strncpy(name, u8, max_len - 1);
+    name[max_len - 1] = '\0';
+    free(u8);
+    if (type_out)
+        *type_out = (wd->data.attrib & _A_SUBDIR) ? COS_FS_TYPE_DIR : COS_FS_TYPE_FILE;
+    return COS_OK;
+#else
+    struct dirent *entry = readdir(dir);
+    if (!entry)
+        return COS_ERR_IO;
+    strncpy(name, entry->d_name, max_len - 1);
+    name[max_len - 1] = '\0';
+    if (type_out)
+    {
+        if (entry->d_type == DT_DIR)
+            *type_out = COS_FS_TYPE_DIR;
+        else if (entry->d_type == DT_REG)
+            *type_out = COS_FS_TYPE_FILE;
+        /* else leave NOT_EXIST so the caller stats it */
+    }
+    return COS_OK;
+#endif
+}
+
 void cos_fs_closedir(cos_dir_t dir)
 {
     if (!dir)
@@ -427,6 +472,31 @@ void cos_fs_closedir(cos_dir_t dir)
     free(wd);
 #else
     closedir(dir);
+#endif
+}
+
+long cos_fs_telldir(cos_dir_t dir)
+{
+    if (!dir)
+        return -1;
+#ifdef _WIN32
+    /* FindFirst/FindNext 没有稳定游标,返回不支持 */
+    return -1;
+#else
+    return telldir(dir);
+#endif
+}
+
+cos_result_t cos_fs_seekdir(cos_dir_t dir, long offset)
+{
+    if (!dir || offset < 0)
+        return COS_ERR_IO;
+#ifdef _WIN32
+    (void)offset;
+    return COS_ERR_DEV_OPS_NOT_SUPPORTED;
+#else
+    seekdir(dir, offset);
+    return COS_OK;
 #endif
 }
 

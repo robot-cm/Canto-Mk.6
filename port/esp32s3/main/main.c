@@ -664,7 +664,7 @@ static esp_err_t board_sd_mount(void)
 
     esp_vfs_fat_mount_config_t mount_config = {
         .format_if_mount_failed = false,                 /* 绝不格式化用户卡 */
-        .max_files              = 8,
+        .max_files              = 12,
         .allocation_unit_size   = 16 * 1024,
     };
 
@@ -769,7 +769,7 @@ static esp_err_t board_fs_mount(void)
     esp_vfs_spiffs_conf_t conf = {
         .base_path            = "/sdcard",
         .partition_label      = "spiffs",
-        .max_files            = 10,
+        .max_files            = 12,
         .format_if_mount_failed = true,
     };
     esp_err_t ret = esp_vfs_spiffs_register(&conf);

@@ -154,10 +154,47 @@ cos_result_t cos_fs_readdir(cos_dir_t dir, char *name, size_t max_len)
     return COS_OK;
 }
 
+cos_result_t cos_fs_readdir_ex(cos_dir_t dir, char *name, size_t max_len,
+                               cos_fs_type_t *type_out)
+{
+    if (!dir || !name || max_len == 0)
+        return COS_ERR_IO;
+    if (type_out)
+        *type_out = COS_FS_TYPE_NOT_EXIST;
+    struct dirent *entry = readdir(dir);
+    if (!entry)
+        return COS_ERR_IO;
+    strncpy(name, entry->d_name, max_len - 1);
+    name[max_len - 1] = '\0';
+    if (type_out)
+    {
+        if (entry->d_type == DT_DIR)
+            *type_out = COS_FS_TYPE_DIR;
+        else if (entry->d_type == DT_REG)
+            *type_out = COS_FS_TYPE_FILE;
+    }
+    return COS_OK;
+}
+
 void cos_fs_closedir(cos_dir_t dir)
 {
     if (dir)
         closedir(dir);
+}
+
+long cos_fs_telldir(cos_dir_t dir)
+{
+    if (!dir)
+        return -1;
+    return telldir(dir);
+}
+
+cos_result_t cos_fs_seekdir(cos_dir_t dir, long offset)
+{
+    if (!dir || offset < 0)
+        return COS_ERR_IO;
+    seekdir(dir, offset);
+    return COS_OK;
 }
 
 cos_result_t cos_fs_mv(const char *old_path, const char *new_path)

@@ -671,6 +671,11 @@ cos_result_t cos_storage_file_remove(const char *path)
     return cos_fs_remove(path);
 }
 
+cos_result_t cos_storage_file_move(const char *old_path, const char *new_path)
+{
+    return cos_fs_mv(old_path, new_path);
+}
+
 cos_dir_t cos_storage_dir_open(const char *path)
 {
     return cos_fs_opendir(path);
@@ -687,9 +692,31 @@ cos_result_t cos_storage_dir_read(cos_dir_t dir, char *name_buf, size_t buf_size
     return cos_fs_readdir(dir, name_buf, buf_size);
 }
 
+cos_result_t cos_storage_dir_read_ex(cos_dir_t dir, char *name_buf,
+                                     size_t buf_size, cos_fs_type_t *type_out)
+{
+    if (!dir || !name_buf || buf_size == 0)
+    {
+        COS_LOG_E("Invalid parameters");
+        return COS_ERR_INVALID_ARG;
+    }
+
+    return cos_fs_readdir_ex(dir, name_buf, buf_size, type_out);
+}
+
 void cos_storage_dir_close(cos_dir_t dir)
 {
     cos_fs_closedir(dir);
+}
+
+long cos_storage_dir_tell(cos_dir_t dir)
+{
+    return cos_fs_telldir(dir);
+}
+
+cos_result_t cos_storage_dir_seek(cos_dir_t dir, long offset)
+{
+    return cos_fs_seekdir(dir, offset);
 }
 
 void cos_service_storage_init(void)

@@ -196,10 +196,37 @@ cos_dir_t cos_fs_opendir(const char *path);
  */
 cos_result_t cos_fs_readdir(cos_dir_t dir, char *name, size_t max_len);
 /**
+ * @brief Read next filename + its type in one directory scan (avoids a
+ *        separate stat per entry, which is O(N) on FAT).
+ * @param dir Opened directory stream
+ * @param name Buffer to store the read filename
+ * @param max_len Maximum length of name buffer (including '\0')
+ * @param type_out Receives COS_FS_TYPE_FILE / COS_FS_TYPE_DIR, or
+ *        COS_FS_TYPE_NOT_EXIST when the backend cannot tell (caller falls
+ *        back to a stat).
+ * @return COS_OK on success, COS_ERR_IO on failure/end
+ */
+cos_result_t cos_fs_readdir_ex(cos_dir_t dir, char *name, size_t max_len,
+                               cos_fs_type_t *type_out);
+/**
  * @brief Close directory
  * @param dir Target directory pointer
  */
 void cos_fs_closedir(cos_dir_t dir);
+/**
+ * @brief Get current directory stream position (a cursor usable by
+ *        cos_fs_seekdir to resume reading later).
+ * @param dir Opened directory stream
+ * @return Non-negative position on success, -1 on error or unsupported backend
+ */
+long cos_fs_telldir(cos_dir_t dir);
+/**
+ * @brief Move directory stream back to a position obtained by cos_fs_telldir.
+ * @param dir Opened directory stream
+ * @param offset Position returned earlier by cos_fs_telldir
+ * @return COS_OK on success, COS_ERR_* otherwise
+ */
+cos_result_t cos_fs_seekdir(cos_dir_t dir, long offset);
 /**
  * @brief Move file or rename
  * @param old_path
