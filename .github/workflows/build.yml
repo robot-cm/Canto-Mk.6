@@ -1,0 +1,143 @@
+name: Build Artifacts
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # 模拟器 · Linux（SDL2，产物：可执行文件 + fs/ 资源目录）
+  # ──────────────────────────────────────────────────────────────────────────
+  simulator-linux:
+    name: Simulator (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake pkg-config python3 \
+            libsdl2-dev fonts-noto-cjk
+
+      - name: Configure
+        run: cmake -S simulator -B build/sim -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build/sim -j"$(nproc)"
+
+      - name: Stage distributable
+        run: |
+          mkdir -p dist
+          cp build/sim/cantomk6os_sim dist/
+          cp -r build/sim/fs dist/fs
+          # 说明:资源根目录 COS_SYS_ROOT_DIR 在编译期被烘焙为 build/sim/fs 的
+          # 绝对路径;此产物用于存档/CI 校验,如需本地运行请按 BUILD.md 重新构建。
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-linux
+          path: dist/
+          if-no-files-found: error
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 模拟器 · Windows（MSYS2/MinGW + SDL2，产物：exe + SDL2.dll + fs/）
+  # ──────────────────────────────────────────────────────────────────────────
+  simulator-windows:
+    name: Simulator (Windows)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-SDL2
+            python
+
+      - name: Configure
+        run: |
+          cmake -S simulator -B build/sim -G "Ninja" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$MINGW_PREFIX"
+
+      - name: Build
+        run: cmake --build build/sim
+
+      - name: Stage distributable
+        run: |
+          mkdir -p dist
+          cp build/sim/cantomk6os_sim.exe dist/
+          cp "$MINGW_PREFIX/bin/SDL2.dll" dist/
+          # MinGW 运行时 DLL(SDL2 依赖),存在才拷贝,缺失不报错
+          for d in libgcc_s_seh-1.dll libgcc_s_dw2-1.dll libgcc_s_sjlj-1.dll \
+                   libwinpthread-1.dll libstdc++-6.dll; do
+            [ -f "$MINGW_PREFIX/bin/$d" ] && cp "$MINGW_PREFIX/bin/$d" dist/ || true
+          done
+          cp -r build/sim/fs dist/fs
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-windows
+          path: dist/
+          if-no-files-found: error
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 固件 · ESP32-S3（ESP-IDF v5.3.1）
+  # 刷机必要文件:bootloader.bin / partition-table.bin / 应用固件 /
+  #             merged-binary.bin(单文件一键刷) / flasher_args.json(偏移)
+  # ──────────────────────────────────────────────────────────────────────────
+  firmware-esp32s3:
+    name: Firmware (ESP32-S3)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build firmware
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.3.1
+          target: esp32s3
+          path: port/esp32s3
+          command: idf.py build && idf.py merge-bin
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-esp32s3
+          path: |
+            port/esp32s3/build/bootloader/bootloader.bin
+            port/esp32s3/build/partition_table/partition-table.bin
+            port/esp32s3/build/cantomk6_esp32s3.bin
+            port/esp32s3/build/merged-binary.bin
+            port/esp32s3/build/flasher_args.json
+            port/esp32s3/build/flash_args
+            port/esp32s3/build/cantomk6_esp32s3.map
+          if-no-files-found: error
